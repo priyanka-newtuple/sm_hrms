@@ -1,0 +1,13 @@
+---
+title: "Email & LLM provider rework"
+description: "Email refactored into pluggable provider services; legacy credential stores retired."
+date: "2026-08-14"
+version: "0.44.0"
+tags: ["Improvement", "Fix"]
+---
+
+The email subsystem has been refactored into a clean provider-based architecture, and legacy LLM credential stores have been retired.
+
+- **Provider-based email services** — email delivery is now handled by pluggable provider services (SMTP, SES, Microsoft Graph, ACS) with a shared base interface, replacing the monolithic mail manager
+- **Legacy credential stores retired** — the old `llm_config` module and legacy email credential tables have been removed; credentials now live in org integrations
+- **SMTP/SES from org integrations** — SMTP and SES credentials are now read from the unified org integrations panel instead of a separate config page

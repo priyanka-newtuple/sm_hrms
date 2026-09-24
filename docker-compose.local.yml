@@ -1,0 +1,139 @@
+name: state-machine-modular
+
+services:
+  modular-redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command:
+      ["redis-server", "--port", "6380", "--appendonly", "no", "--save", "",
+       "--requirepass", "${REDIS_PASSWORD:?REDIS_PASSWORD must be set}"]
+    ports:
+      - "6380:6380"
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "6380", "-a", "${REDIS_PASSWORD:?REDIS_PASSWORD must be set}", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  modular-db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DATABASE:?POSTGRES_DATABASE must be set}
+      POSTGRES_USER: ${POSTGRES_USERNAME:?POSTGRES_USERNAME must be set}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+    ports:
+      - "5455:5432"
+    volumes:
+      - modular_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USERNAME:?POSTGRES_USERNAME must be set} -d ${POSTGRES_DATABASE:?POSTGRES_DATABASE must be set}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  modular-backend:
+    build:
+      context: ./backend
+    image: state-machine-modular-backend:latest
+    working_dir: /app/backend
+    env_file:
+      - ./backend/etc/.env
+    environment:
+      # POSTGRES_USERNAME/POSTGRES_PASSWORD are glued directly into this URL by Compose's
+      # plain text substitution (no percent-encoding) — values must avoid @ : / ? # % or the
+      # resulting connection string will be malformed. See env.example for the same note.
+      DATABASE_URL: postgresql://${POSTGRES_USERNAME:?POSTGRES_USERNAME must be set}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@modular-db:5432/${POSTGRES_DATABASE:?POSTGRES_DATABASE must be set}
+      SQLALCHEMY_DATABASE_MIGRATION_URL: postgresql://${POSTGRES_USERNAME:?POSTGRES_USERNAME must be set}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@modular-db:5432/${POSTGRES_DATABASE:?POSTGRES_DATABASE must be set}
+      POSTGRES_HOST: modular-db
+      POSTGRES_PORT: 5432
+      REDIS_HOST: modular-redis
+      REDIS_PORT: 6380
+      FILEHANDLER_LOCAL_STORAGE_ROOT: /var/lib/modular_filehandler
+      ACTION_RUNS_WORKER_ENABLED: "false"
+      # Container must listen on 8000 to match the 8001:8000 port mapping above and
+      # the frontend proxy target (modular-backend:8000). Override any PORT from the
+      # env_file (e.g. a personal PORT=8001 used for non-Docker runs).
+      PORT: "8000"
+      BULK_IMPORT_WORKER_ENABLED: "false"
+    volumes:
+      - ./backend:/app/backend
+      - modular_filehandler_data:/var/lib/modular_filehandler
+    ports:
+      - "8001:8000"
+    depends_on:
+      modular-redis:
+        condition: service_healthy
+      modular-db:
+        condition: service_healthy
+
+  modular-worker:
+    # Reuses the image built for modular-backend (same deps/code) — no separate build.
+    image: state-machine-modular-backend:latest
+    working_dir: /app/backend
+    env_file:
+      - ./backend/etc/.env
+    environment:
+      # Override host-bound local env values with Docker service names.
+      # POSTGRES_USERNAME/POSTGRES_PASSWORD are glued directly into this URL by Compose's
+      # plain text substitution (no percent-encoding) — values must avoid @ : / ? # % or the
+      # resulting connection string will be malformed. See env.example for the same note.
+      DATABASE_URL: postgresql://${POSTGRES_USERNAME:?POSTGRES_USERNAME must be set}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@modular-db:5432/${POSTGRES_DATABASE:?POSTGRES_DATABASE must be set}
+      SQLALCHEMY_DATABASE_MIGRATION_URL: postgresql://${POSTGRES_USERNAME:?POSTGRES_USERNAME must be set}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@modular-db:5432/${POSTGRES_DATABASE:?POSTGRES_DATABASE must be set}
+      POSTGRES_HOST: modular-db
+      POSTGRES_PORT: 5432
+      REDIS_HOST: modular-redis
+      REDIS_PORT: 6380
+      FILEHANDLER_LOCAL_STORAGE_ROOT: /var/lib/modular_filehandler
+      ACTION_RUNS_WORKER_ENABLED: "true"
+      BULK_IMPORT_WORKER_ENABLED: "true"
+      WORKER_MODE: "true"
+      WORKER_SKIP_MIGRATIONS: "true"
+    volumes:
+      - ./backend:/app/backend
+      - modular_filehandler_data:/var/lib/modular_filehandler
+    command: ["python", "worker_main.py"]
+    restart: unless-stopped
+    depends_on:
+      modular-redis:
+        condition: service_healthy
+      modular-db:
+        condition: service_healthy
+      modular-backend:
+        condition: service_started
+
+  modular-frontend:
+    image: node:20-alpine
+    working_dir: /app/frontend
+    volumes:
+      - "./frontend:/app/frontend"
+      # Changelog .mdx files live at the repo root (outside ./frontend); mount
+      # them so the Vite dev server inside the container can read them.
+      - "./changelogs:/app/changelogs"
+    environment:
+      VITE_DEV_PROXY_TARGET: "http://modular-backend:8000"
+      VITE_BYPASS_AUTH: "false"
+      # Set to 'true' to hide the Kanban board, leaving only the List view. Defaults to false.
+      VITE_HIDE_KANBAN: "false"
+      # Set to 'true' to hide the Dashboard nav item. Defaults to false.
+      VITE_HIDE_DASHBOARD: "false"
+      # Set to 'true' to hide Agent Mode (toggle + sidebar). Defaults to false.
+      VITE_HIDE_AGENT: "false"
+      VITE_HIDE_TASKS: "true"
+      # Set to 'true' to hide the Records nav item. Defaults to false.
+      VITE_HIDE_RECORDS: "false"
+
+    command: >
+      sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5111"
+    ports:
+      - "5111:5111"
+    depends_on:
+      - modular-backend
+
+volumes:
+  modular_postgres_data:
+  modular_filehandler_data:

@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "ATS Transcription",
+  "version": "0.1.0",
+  "description": "Capture Meet/Teams tab audio + mic and stream to ATS.",
+  "permissions": ["tabCapture", "activeTab", "storage", "tabs", "sidePanel"],
+  "host_permissions": ["*://*/*", "ws://*/*", "wss://*/*"],
+  "action": {
+    "default_title": "ATS Transcription"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"]
+    }
+  ],
+  "side_panel": {
+    "default_path": "panel.html"
+  },
+  "icons": {}
+}

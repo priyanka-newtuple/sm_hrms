@@ -1,0 +1,41 @@
+Backend Alembic Usage (Modular Only)
+
+This Alembic setup is backend-only and must not depend on deprecated `app/` modules.
+
+Paths
+- Alembic config: `/app/backend/alembic.ini`
+- Alembic scripts: `/app/backend/alembic`
+- Revisions: `/app/backend/alembic/versions`
+
+Required environment
+- `DATABASE_URL` must be set (used by `backend/alembic/env.py` via `get_database_url()`).
+- `POSTGRES_APP_SCHEMA` optional; defaults to `public`.
+
+Run migrations
+```bash
+cd /app/backend
+alembic -c /app/backend/alembic.ini upgrade head
+```
+
+Create a revision manually
+```bash
+cd /app/backend
+alembic -c /app/backend/alembic.ini revision -m "your_change"
+```
+
+Create autogenerate revision
+```bash
+cd /app/backend
+alembic -c /app/backend/alembic.ini revision --autogenerate -m "your_change"
+```
+
+Downgrade one step
+```bash
+cd /app/backend
+alembic -c /app/backend/alembic.ini downgrade -1
+```
+
+Notes
+- Keep Alembic revision IDs <= 32 chars because Alembic version table uses `VARCHAR(32)` by default.
+- Startup bootstrap should run Alembic before seed/bootstrap admin.
+- If Alembic config is missing, seed should be skipped safely to avoid schema-drift crashes.

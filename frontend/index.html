@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>State Machine</title>
+    <script>
+      // Paint the light/dark class before the stylesheet renders, otherwise the
+      // page shows a frame of light mode before main.tsx runs. Must stay inline
+      // and in <head>; keep the storage keys in sync with MODE_STORAGE_KEY and
+      // DARK_ALLOWED_KEY in src/core/theme/mode.ts.
+      (function () {
+        try {
+          // The org's darkModeEnabled flag, cached by AuthContext. Absent when
+          // logged out or when the org has not opted in — both mean light.
+          if (localStorage.getItem('app_dark_enabled') !== 'true') return;
+          var pref = localStorage.getItem('vite-ui-theme') || 'system';
+          var dark =
+            pref === 'dark' ||
+            (pref === 'system' &&
+              window.matchMedia('(prefers-color-scheme: dark)').matches);
+          if (dark) document.documentElement.classList.add('dark');
+        } catch (e) {
+          /* Private mode — fall back to the light default. */
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,55 @@
+---
+title: "Multiple actions per workflow state"
+description: "Chain several actions on one state, re-run the whole chain or just one, and see each action's real name."
+date: "2026-07-21"
+tags: ["Feature"]
+version: "0.17.0"
+---
+
+Workflow states can now run **more than one action in sequence** instead of just one, e.g. call a webhook, then send an email, then run an agent, all from the same state.
+
+<iframe
+  className="w-full aspect-video rounded-lg"
+  src="https://www.loom.com/embed/f53919bbc6b64330af059f44e37ad20f"
+  allowFullScreen
+/>
+
+- **Ordered action chains**: add, reorder, and remove multiple actions per state in the workflow editor.
+- **Re-run the whole chain, or just one action**: the re-run control lets you replay everything from the start, or isolate and re-run a single action without touching the rest.
+- **Real names, not generic labels**: the re-run menu and activity log now show the actual connector, email template, agent, or schedule an action uses (e.g. "OpenWeather") instead of a generic type like "Webhook Http" repeated for every action.
+- **Chain position in the activity log**: each action event shows its place in the chain, e.g. `(2/3)`, plus whether a failure stopped or skipped the rest of the chain.
+
+<Accordion type="multiple" className="w-full not-prose">
+  <AccordionItem value="what-shipped" className="border-b-0">
+    <AccordionTrigger>What shipped</AccordionTrigger>
+    <AccordionContent className="flex flex-col gap-4 text-balance">
+      <ul className="list-disc space-y-2 pl-4">
+        <li>A state can now hold an ordered list of actions instead of a single one, editable in the workflow canvas and wizard.</li>
+        <li>A re-run control that runs the whole chain, or one action in isolation without cascading to the rest.</li>
+        <li>Action names in the re-run menu and activity log resolved from the bound connector, email template, agent, or schedule.</li>
+        <li>Activity events that show chain position and whether the chain completed, stopped, or skipped remaining actions.</li>
+      </ul>
+    </AccordionContent>
+  </AccordionItem>
+  <AccordionItem value="how-it-works" className="border-b-0">
+    <AccordionTrigger>How it works</AccordionTrigger>
+    <AccordionContent className="flex flex-col gap-4 text-balance">
+      <ul className="list-disc space-y-2 pl-4">
+        <li>On state entry, the first action runs; each action's outcome decides whether the next one in the chain is queued.</li>
+        <li>Re-running the full chain starts from the first action; re-running a single action is isolated, so its result never advances or fails the others.</li>
+        <li>Each action stores its display name when configured, so the menu and timeline show a real name without a live lookup.</li>
+        <li>Existing single-action states keep working unchanged; the legacy shape is read transparently alongside the new list shape.</li>
+      </ul>
+    </AccordionContent>
+  </AccordionItem>
+  <AccordionItem value="why-it-matters" className="border-b-0">
+    <AccordionTrigger>Why it matters</AccordionTrigger>
+    <AccordionContent className="flex flex-col gap-4 text-balance">
+      <ul className="list-disc space-y-2 pl-4">
+        <li>Real workflows often need several things to happen on entering a state (notify, call an external system, then run an agent) without inventing extra intermediate states.</li>
+        <li>Isolated re-runs make it safe to retry one failed step instead of replaying the entire chain.</li>
+        <li>Named actions and chain position make the activity log readable when a state runs more than one action of the same type.</li>
+      </ul>
+    </AccordionContent>
+  </AccordionItem>
+</Accordion>

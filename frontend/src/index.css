@@ -1,0 +1,436 @@
+@import "tailwindcss/theme.css";
+@import "tailwindcss/preflight.css";
+@import "tailwindcss/utilities.css";
+@import "tw-animate-css";
+@import "@fontsource-variable/inter";
+@plugin "@tailwindcss/typography";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+    /* Indirected through the runtime --app-font var (see :root) so the per-org
+       theme applier can change the font at runtime. Without the indirection,
+       @theme inline bakes the literal stack into `font-sans` / `@apply font-sans`
+       and runtime overrides have no effect. */
+    --font-sans: var(--app-font);
+    --font-heading: var(--app-font);
+    --color-sidebar-ring: var(--sidebar-ring);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar: var(--sidebar);
+    --color-chart-8: var(--chart-8);
+    --color-chart-7: var(--chart-7);
+    --color-chart-6: var(--chart-6);
+    --color-chart-5: var(--chart-5);
+    --color-chart-4: var(--chart-4);
+    --color-chart-3: var(--chart-3);
+    --color-chart-2: var(--chart-2);
+    --color-chart-1: var(--chart-1);
+    --color-ring: var(--ring);
+    --color-input: var(--input);
+    --color-border: var(--border);
+    --color-destructive: var(--destructive);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-accent: var(--accent);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-muted: var(--muted);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-secondary: var(--secondary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-primary: var(--primary);
+    --color-primary-subtle: var(--primary-subtle);
+    --color-primary-subtle-foreground: var(--primary-subtle-foreground);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-popover: var(--popover);
+    --color-card-foreground: var(--card-foreground);
+    --color-card: var(--card);
+    --color-foreground: var(--foreground);
+    --color-background: var(--background);
+
+    /* Semantic status palette — the mode-aware replacement for raw
+       red/amber/emerald/blue utilities. `-subtle` is the tinted background used
+       by alert banners and badges; `-foreground` is the text placed on the
+       solid color. Values live in :root / .dark below. */
+    --color-success: var(--success);
+    --color-success-foreground: var(--success-foreground);
+    --color-success-subtle: var(--success-subtle);
+    --color-warning: var(--warning);
+    --color-warning-foreground: var(--warning-foreground);
+    --color-warning-subtle: var(--warning-subtle);
+    --color-info: var(--info);
+    --color-info-foreground: var(--info-foreground);
+    --color-info-subtle: var(--info-subtle);
+    --color-destructive-foreground: var(--destructive-foreground);
+    --color-destructive-subtle: var(--destructive-subtle);
+
+    --radius-sm: calc(var(--radius) * 0.6);
+    --radius-md: calc(var(--radius) * 0.8);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) * 1.4);
+    --radius-2xl: calc(var(--radius) * 1.8);
+    --radius-3xl: calc(var(--radius) * 2.2);
+    --radius-4xl: calc(var(--radius) * 2.6);
+
+    /* Brand palette (styleguide §4) — indirected through runtime --brand* vars
+       (see :root) so the per-org theme applier can override them at runtime.
+       Without the indirection, @theme inline bakes the literal hex into the
+       utilities and runtime overrides have no effect. */
+    --color-cobalt: var(--brand);
+    --color-cobalt-light: var(--brand-light);
+    --color-cobalt-dark: var(--brand-dark);
+    --color-cyan: #00B8D9;
+    --color-cyan-light: #00D4FF;
+    --color-violet: #8B5CF6;
+    --color-violet-light: #A78BFA;
+    --color-violet-dark: #7C3AED;
+    --color-emerald: #10B981;
+    --color-amber: #F59E0B;
+    --color-rose: #F43F5E;
+
+    /* Shadow scale — registered as Tailwind `shadow-*` utilities
+       (usage: className="shadow-card", "shadow-float", etc). Values are keyed
+       to rgba(15,23,42,…) (slate-900) so they read as a neutral elevation
+       scale regardless of the active brand color. */
+    --shadow-crisp: 0 1px 3px 0 rgba(15,23,42,0.10), 0 1px 2px -1px rgba(15,23,42,0.06);
+    --shadow-card: 0 4px 16px -4px rgba(15,23,42,0.08), 0 1px 4px -1px rgba(15,23,42,0.08);
+    --shadow-lifted: 0px 0px 0px 1px rgb(0 0 0 / 0.06),
+      0px 1px 1px -0.5px rgb(0 0 0 / 0.06),
+      0px 3px 3px -1.5px rgb(0 0 0 / 0.06),
+      0px 6px 6px -3px rgb(0 0 0 / 0.06),
+      0px 12px 12px -6px rgb(0 0 0 / 0.06),
+      0px 24px 24px -12px rgb(0 0 0 / 0.06);
+    --shadow-float: 0 8px 24px -6px rgba(15,23,42,0.18), 0 2px 8px -2px rgba(15,23,42,0.10);
+    --shadow-deep: 0 44px 64px -36px rgba(15,23,42,0.30), 0 8px 24px -8px rgba(15,23,42,0.12);
+    --shadow-glow: 0 0 0 1px rgba(79,70,229,0.08), 0 8px 32px -8px rgba(79,70,229,0.28);
+    --shadow-glow-sm: 0 0 0 1px rgba(79,70,229,0.12), 0 4px 16px -4px rgba(79,70,229,0.20);
+    --shadow-sidebar: 0 22px 60px rgba(15,23,42,0.90);
+    --shadow-inset: inset 0 2px 6px -2px rgba(15,23,42,0.10);
+
+    /* Named animations (styleguide §8) */
+    --animate-gradient-x: gradient-x 3s ease-in-out infinite;
+    --animate-shimmer: shimmer 2s linear infinite;
+    --animate-pulse-soft: pulse-soft 2s ease-in-out infinite;
+    --animate-float: float 3s ease-in-out infinite;
+    --animate-glow: glow 2s ease-in-out infinite;
+    --animate-border-flow: border-flow 4s linear infinite;
+    --animate-fade-in: fade-in 0.3s ease-out;
+    --animate-slide-up: slide-up 0.3s ease-out;
+    --animate-scale-in: scale-in 0.2s ease-out;
+
+    @keyframes gradient-x {
+        0%, 100% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+    }
+    @keyframes shimmer {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(100%); }
+    }
+    @keyframes pulse-soft {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
+    }
+    @keyframes float {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-6px); }
+    }
+    @keyframes glow {
+        0%, 100% { box-shadow: 0 0 16px 0 rgba(0, 71, 171, 0.35); }
+        50% { box-shadow: 0 0 28px 4px rgba(0, 71, 171, 0.55); }
+    }
+    @keyframes border-flow {
+        0% { background-position: 0% 50%; }
+        100% { background-position: 200% 50%; }
+    }
+    @keyframes fade-in {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+    @keyframes slide-up {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes scale-in {
+        from { opacity: 0; transform: scale(0.96); }
+        to { opacity: 1; transform: scale(1); }
+    }
+}
+
+@layer utilities {
+    .cn-font-heading {
+        font-family: var(--app-font);
+    }
+
+    /* Gradient text (styleguide §12) */
+    .text-gradient {
+        background: linear-gradient(135deg, #0047AB 0%, #00B8D9 50%, #8B5CF6 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+    }
+
+    /* Animated gradient border */
+    .gradient-border {
+        position: relative;
+        background-clip: padding-box;
+        border: 1px solid transparent;
+    }
+    .gradient-border::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        margin: -1px;
+        border-radius: inherit;
+        background: linear-gradient(90deg, #0047AB, #00B8D9, #8B5CF6, #0047AB);
+        background-size: 200% 100%;
+        animation: border-flow 4s linear infinite;
+    }
+
+    /* Button glow halo */
+    .btn-glow {
+        position: relative;
+    }
+    .btn-glow::after {
+        content: "";
+        position: absolute;
+        inset: -4px;
+        border-radius: inherit;
+        background: linear-gradient(135deg, #0047AB 0%, #00B8D9 50%, #8B5CF6 100%);
+        filter: blur(14px);
+        opacity: 0;
+        z-index: -1;
+        transition: opacity 0.3s ease-out;
+    }
+    .btn-glow:hover::after {
+        opacity: 0.55;
+    }
+
+    /* Status dot with pulse glow */
+    .status-dot {
+        display: inline-block;
+        width: 0.5rem;
+        height: 0.5rem;
+        border-radius: 9999px;
+        background: #10B981;
+        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6);
+        animation: pulse-soft 2s ease-in-out infinite;
+    }
+
+    /* AI pulse indicator */
+    .ai-pulse {
+        animation: pulse-soft 2s ease-in-out infinite;
+    }
+
+    /* Box-shadow glow utilities */
+    .glow-sm { box-shadow: 0 0 12px 0 rgba(0, 71, 171, 0.3); }
+    .glow-md { box-shadow: 0 0 20px 0 rgba(0, 71, 171, 0.4); }
+    .glow-lg { box-shadow: 0 0 32px 4px rgba(0, 71, 171, 0.5); }
+}
+
+:root {
+    /* Tells the browser which palette to render scrollbars, form controls and
+       other native UI in. Without it they stay light-styled in dark mode. */
+    color-scheme: light;
+    --background: oklch(1 0 0);
+    --foreground: oklch(0.145 0 0);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.145 0 0);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.145 0 0);
+    /* Application font default (Inter). Overridden at runtime per organization
+       by the theme applier; referenced by the --font-sans/--font-heading tokens. */
+    --app-font: 'Inter Variable', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    /* Brand palette defaults (cobalt). Overridden at runtime per organization
+       by the theme applier; referenced by the --color-cobalt* theme tokens. */
+    --brand: #0047AB;
+    --brand-light: #0055CC;
+    --brand-dark: #003380;
+    /* Cobalt Blue #0047AB — styleguide primary */
+    --primary: #0047AB;
+    --primary-foreground: #FFFFFF;
+    /* A tint of whatever brand the org set, for chips and other "this is
+       selected" fills. Mixed from --primary rather than hard-coded, so an org
+       that themes itself purple gets purple chips for free (applyTheme only
+       ever writes --primary). Same technique as --sidebar-active below. */
+    --primary-subtle: color-mix(in srgb, var(--primary) 10%, #FFFFFF);
+    --primary-subtle-foreground: var(--primary);
+    --secondary: oklch(0.967 0.001 286.375);
+    --secondary-foreground: oklch(0.21 0.006 285.885);
+    --muted: oklch(0.97 0 0);
+    --muted-foreground: oklch(0.52 0 0);
+    --accent: oklch(0.97 0 0);
+    --accent-foreground: oklch(0.205 0 0);
+    --destructive: #BE123C;
+    --border: oklch(0.922 0 0);
+    --input: oklch(0.922 0 0);
+    --ring: #0047AB;
+    --chart-1: #0047AB;
+    --chart-2: #3730A3;
+    --chart-3: #7C3AED;
+    --chart-4: #F59E0B;
+    --chart-5: #EA580C;
+    --chart-6: #059669;
+    --chart-7: #DC2626;
+    --chart-8: #0EA5E9;
+    --radius: 0.625rem;
+    /* Top bar defaults (white, ~7% of viewport). Overridden at runtime per
+       organization by the theme applier; --header-foreground is derived from
+       the chosen background so header text/icons stay readable. */
+    --header-height: 7vh;
+    --header-background: #FFFFFF;
+    --header-foreground: #111111;
+    /* Modal / dialog / slide-over title bars (configured separately from the
+       top bar; foreground derived from the chosen background). */
+    --modal-header-background: #FFFFFF;
+    --modal-header-foreground: #111111;
+    --sidebar: oklch(0.985 0 0);
+    --sidebar-foreground: oklch(0.145 0 0);
+    --sidebar-primary: #0047AB;
+    --sidebar-primary-foreground: #FFFFFF;
+    --sidebar-accent: oklch(0.97 0 0);
+    --sidebar-accent-foreground: oklch(0.205 0 0);
+    --sidebar-border: oklch(0.922 0 0);
+    --sidebar-ring: #0047AB;
+    /* Active nav fill: a tint of the org's brand primary (not neutral gray) so the
+       selected row reads as brand-colored. Mixed from the sidebar bg so it also
+       lands right under the header tint App-Layout layers on top. */
+    --sidebar-active: color-mix(in srgb, var(--sidebar-primary) 14%, var(--sidebar));
+    --element-shadow: none;
+    /* Neutral bases the App-Layout sidebar tint mixes the header color into.
+       Defined as tokens (rather than literal oklch() in the TSX) so the tint
+       lands on a dark neutral in dark mode instead of a white one. */
+    --sidebar-base: oklch(0.985 0 0);
+    --sidebar-accent-base: oklch(0.97 0 0);
+    --sidebar-border-base: oklch(0.922 0 0);
+    /* Semantic status palette (see @theme inline above). */
+    --success: #047857;
+    --success-foreground: #FFFFFF;
+    --success-subtle: #ECFDF5;
+    --warning: #B45309;
+    --warning-foreground: #FFFFFF;
+    --warning-subtle: #FFFBEB;
+    --info: #0369A1;
+    --info-foreground: #FFFFFF;
+    --info-subtle: #F0F9FF;
+    --destructive-foreground: #FFFFFF;
+    --destructive-subtle: #FEF2F2;
+}
+
+.dark {
+    color-scheme: dark;
+    /* Elevation ladder. In dark mode depth comes from surface lightness, not
+       shadows (which vanish against a dark page), so each step up must be a
+       visibly lighter neutral:
+         background #121212 < sidebar #1B1B1B < card #1E1E1E
+                            < muted #262626 < popover #2A2A2A < accent #2F2F2F
+       Keep that order when touching any of these. */
+    --background: oklch(0.182 0 0);
+    --foreground: oklch(0.95 0 0);
+    --card: oklch(0.235 0 0);
+    --card-foreground: oklch(0.95 0 0);
+    --popover: oklch(0.285 0 0);
+    --popover-foreground: oklch(0.96 0 0);
+    --primary: #006aff;
+    --primary-foreground: #FFFFFF;
+    --primary-subtle: color-mix(in srgb, var(--primary) 22%, var(--card));
+    --primary-subtle-foreground: color-mix(in srgb, var(--primary) 45%, var(--foreground));
+    --secondary: oklch(0.285 0.006 286.033);
+    --secondary-foreground: oklch(0.985 0 0);
+    --muted: oklch(0.269 0 0);
+    --muted-foreground: oklch(0.708 0 0);
+    --accent: oklch(0.305 0 0);
+    --accent-foreground: oklch(0.985 0 0);
+    /* Rose-400 rather than rose-500: the darker tone loses contrast against the
+       dark surface, and its foreground flips to dark text. */
+    --destructive: #FB7185;
+    --border: oklch(1 0 0 / 10%);
+    --input: oklch(1 0 0 / 15%);
+    --ring: #006aff;
+    /* Chart series, brightened for dark. The light palette is keyed to a white
+       page: its two blues sat at 2.2:1 and 1.9:1 against #121212, well under the
+       3:1 a data mark needs. Lifted as a whole set so the series stay a
+       consistent tier and remain distinguishable from one another. */
+    --chart-1: #3B82F6;
+    --chart-2: #818CF8;
+    --chart-3: #A78BFA;
+    --chart-4: #FBBF24;
+    --chart-5: #FB923C;
+    --chart-6: #34D399;
+    --chart-7: #F87171;
+    --chart-8: #38BDF8;
+    --sidebar: oklch(0.21 0 0);
+    --sidebar-foreground: oklch(0.985 0 0);
+    --sidebar-primary: #006aff;
+    --sidebar-primary-foreground: #FFFFFF;
+    --sidebar-accent: oklch(0.285 0 0);
+    --sidebar-accent-foreground: oklch(0.985 0 0);
+    --sidebar-border: oklch(1 0 0 / 10%);
+    --sidebar-ring: #006aff;
+    /* Dark needs a heavier mix so the brand tint reads against the dark surface. */
+    --sidebar-active: color-mix(in srgb, var(--sidebar-primary) 30%, var(--sidebar));
+    /* Lightened cobalt. #006aff is exactly what brandForMode() in applyTheme.ts
+       derives from the default #0047AB, so the pre-auth CSS default and the
+       runtime per-org derivation agree instead of drifting apart. Without these
+       three, `text-cobalt` / `bg-cobalt` stay the dark light-mode blue and go
+       unreadable on the dark background — the login "Forgot password?" link is
+       the visible symptom. */
+    --brand: #006aff;
+    --brand-light: #1f7cff;
+    --brand-dark: #0057d1;
+    --sidebar-base: oklch(0.21 0 0);
+    --sidebar-accent-base: oklch(0.285 0 0);
+    --sidebar-border-base: oklch(1 0 0 / 10%);
+    /* Status palette, dark: the solid colors lighten so they read against the
+       dark background, so their foregrounds flip from white to near-black. The
+       `-subtle` backgrounds become low-chroma dark tints of the same hue rather
+       than the near-white tints used in light mode. */
+    --success: #34D399;
+    --success-foreground: #062E22;
+    --success-subtle: oklch(0.269 0.045 165);
+    --warning: #FBBF24;
+    --warning-foreground: #3A2606;
+    --warning-subtle: oklch(0.269 0.045 75);
+    --info: #38BDF8;
+    --info-foreground: #05263A;
+    --info-subtle: oklch(0.269 0.045 240);
+    --destructive-foreground: #3F0A15;
+    --destructive-subtle: oklch(0.269 0.045 15);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+    }
+  body {
+    @apply bg-background text-foreground;
+    }
+  html {
+    @apply font-sans;
+    /* Base rem size — every rem-based text/spacing/component value scales off
+       this one number. Overridable per-org at runtime via the theme applier
+       (--app-font-size); falls back to 15px before a theme loads. */
+    font-size: var(--app-font-size, 15px);
+    }
+}
+
+
+.email-template-editor-content .ProseMirror p.is-editor-empty:first-child::before {
+    content: attr(data-placeholder);
+    color: #94a3b8;
+    pointer-events: none;
+    float: left;
+    height: 0;
+}
+
+@keyframes comment-highlight-pulse {
+  0%   { background-color: rgba(0, 71, 171, 0.18); }
+  100% { background-color: transparent; }
+}
+
+.comment-highlight {
+  animation: comment-highlight-pulse 1.8s ease-out;
+}

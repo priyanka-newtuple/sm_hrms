@@ -1,0 +1,1 @@
+"""Compact generic workflow module."""

@@ -1,0 +1,29 @@
+---
+title: "Entity iterators, currency, and UI improvements"
+description: "Navigate between entities with prev/next controls, pick currencies at runtime, and embed external content in dashboards."
+date: "2026-07-30"
+version: "0.35.0"
+tags: ["Feature", "UI", "Improvement"]
+---
+
+A batch of features and fixes to make navigating and working with records smoother.
+
+**New features:**
+
+- **Entity iterators in detail views** — prev/next controls in Records, Pipeline detail sheets, and the full-page entity view let you cycle through entities without going back to the list
+- **Runtime currency selector** — pick and display currencies with proper formatting across the app
+- **Embed Link widget for dashboards** — add external content via embed URLs directly into your dashboard layouts
+- **Unified table/grid field builder** — a WYSIWYG grid editor for table fields with a cleaner SOLID architecture under the hood
+
+**Improvements & fixes:**
+
+- **Agent Mode dropdown restored** — the built-in system agent now appears in Settings and the agent selector dropdown is back
+- **Send Email works standalone** — Send Email actions with form links no longer require a separate Receive Form action
+- **Human-readable activity log** — dashboard activity widget now shows actor names and entity identifiers instead of raw UUIDs
+- **Create entity from documents** — expanded support for PDF, DOCX, XLSX, TXT, and image file types
+- **Playwright E2E infrastructure** — automated end-to-end test coverage with Playwright
+- **Skin-aware topbar navigation** — nav layout respects skin chrome and dropdown placement
+- **Assignee overflow menu fix** — no longer crashes when opening the overflow dropdown
+- **Document preview stability** — active related-file previews are no longer evicted by background polls
+- **Records without form schemas** — detail views now handle entities that have no schema configured
+- **Docker & Redis hardening** — improved configuration for customer skins and connection resilience

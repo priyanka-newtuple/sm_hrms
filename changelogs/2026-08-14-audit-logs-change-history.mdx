@@ -1,0 +1,14 @@
+---
+title: "Audit logs & record change history"
+description: "Org-wide field change tracking with a dedicated logs page and detailed row-level diffs."
+date: "2026-08-14"
+version: "0.42.0"
+tags: ["Feature"]
+---
+
+A new audit logs system tracks record changes across the organization with detailed field-level diffs.
+
+- **Field change logs endpoint** — a new backend endpoint exposes org-wide field change history for any entity
+- **Logs page in Settings** — a dedicated logs page in Settings shows record change history with filtering by person, table, and change type
+- **Row-level diffs** — added and removed table rows now show exactly what changed, with before/after values for each field
+- **Entity identifiers in audit events** — audit events now include entity identifiers (not just UUIDs), and noisy token-refresh events have been dropped

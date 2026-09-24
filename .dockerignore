@@ -1,0 +1,10 @@
+# The frontend image builds from the repo root (docker-compose.prod.yml) only to
+# pull in frontend/ + changelogs/. Keep everything else out of the build context.
+**/node_modules
+**/dist
+**/__pycache__
+.git
+.venv
+backend
+design_docs
+changelogs/README.md

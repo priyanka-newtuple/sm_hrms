@@ -1,0 +1,128 @@
+name: state-machine-modular
+
+services:
+  modular-redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command:
+      ["redis-server", "--port", "6380", "--appendonly", "no", "--save", "",
+       "--requirepass", "${REDIS_PASSWORD:?REDIS_PASSWORD must be set}"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "-p", "6380", "-a", "${REDIS_PASSWORD:?REDIS_PASSWORD must be set}", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  modular-db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DATABASE:?POSTGRES_DATABASE must be set}
+      POSTGRES_USER: ${POSTGRES_USERNAME:?POSTGRES_USERNAME must be set}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+    volumes:
+      - modular_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USERNAME:?POSTGRES_USERNAME must be set} -d ${POSTGRES_DATABASE:?POSTGRES_DATABASE must be set}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  modular-backend:
+    build:
+      context: ./backend
+    image: state-machine-modular-backend:latest
+    working_dir: /app/backend
+    env_file:
+      - ./backend/etc/.env
+    environment:
+      # POSTGRES_USERNAME/POSTGRES_PASSWORD are glued directly into this URL by Compose's
+      # plain text substitution (no percent-encoding) — values must avoid @ : / ? # % or the
+      # resulting connection string will be malformed. See env.example for the same note.
+      DATABASE_URL: postgresql://${POSTGRES_USERNAME:?POSTGRES_USERNAME must be set}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@modular-db:5432/${POSTGRES_DATABASE:?POSTGRES_DATABASE must be set}
+      SQLALCHEMY_DATABASE_MIGRATION_URL: postgresql://${POSTGRES_USERNAME:?POSTGRES_USERNAME must be set}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@modular-db:5432/${POSTGRES_DATABASE:?POSTGRES_DATABASE must be set}
+      POSTGRES_HOST: modular-db
+      POSTGRES_PORT: 5432
+      REDIS_HOST: modular-redis
+      REDIS_PORT: 6380
+      FILEHANDLER_LOCAL_STORAGE_ROOT: /var/lib/modular_filehandler
+      ACTION_RUNS_WORKER_ENABLED: "false"
+      BULK_IMPORT_WORKER_ENABLED: "false"
+    volumes:
+      - modular_filehandler_data:/var/lib/modular_filehandler
+    restart: unless-stopped
+    ports:
+      - "8001:8000"
+    depends_on:
+      modular-redis:
+        condition: service_healthy
+      modular-db:
+        condition: service_healthy
+
+  modular-worker:
+    # Reuses the image built for modular-backend (same deps/code) — no separate build.
+    image: state-machine-modular-backend:latest
+    working_dir: /app/backend
+    env_file:
+      - ./backend/etc/.env
+    environment:
+      # DB/Redis connection (incl. credentials) come from env_file above.
+      # Only worker-specific, non-secret overrides are set here.
+      FILEHANDLER_LOCAL_STORAGE_ROOT: /var/lib/modular_filehandler
+      ACTION_RUNS_WORKER_ENABLED: "true"
+      BULK_IMPORT_WORKER_ENABLED: "true"
+      WORKER_MODE: "true"
+      WORKER_SKIP_MIGRATIONS: "true"
+    volumes:
+      - modular_filehandler_data:/var/lib/modular_filehandler
+    command: ["python", "worker_main.py"]
+    restart: unless-stopped
+    depends_on:
+      modular-redis:
+        condition: service_healthy
+      modular-db:
+        condition: service_healthy
+      modular-backend:
+        condition: service_started
+
+  modular-frontend:
+    build:
+      # Repo root so the build can include the repo-root /changelogs directory
+      # (the What's New MDX entries live outside ./frontend).
+      context: .
+      dockerfile: frontend/Dockerfile
+      # Injects the deployment's skins directory (outside this repo) into the
+      # build as the `customer-skins` named context; the Dockerfile falls back
+      # to an empty stage when this is absent (bare docker build).
+      additional_contexts:
+        customer-skins: ../customer-skins
+      args:
+        VITE_BYPASS_AUTH: ${VITE_BYPASS_AUTH:-false}
+        VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8001/v1/api}
+        VITE_HIDE_KANBAN: ${VITE_HIDE_KANBAN:-false}
+        VITE_HIDE_DASHBOARD: ${VITE_HIDE_DASHBOARD:-true}
+        VITE_HIDE_AGENT: ${VITE_HIDE_AGENT:-false}
+        VITE_HIDE_TASKS: ${VITE_HIDE_TASKS:-false}
+        VITE_HIDE_RECORDS: ${VITE_HIDE_RECORDS:-false}
+        VITE_SKIN_ID: ${VITE_SKIN_ID:-regpro}
+        CUSTOMER_SKINS_PATH: ${CUSTOMER_SKINS_PATH:-/app/customer-skins/regpro/index.ts}
+        VITE_SKIN_API_URL: ${VITE_SKIN_API_URL:-}
+    restart: unless-stopped
+    ports:
+      - "5111:5111"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:5111/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      - modular-backend
+
+volumes:
+  modular_postgres_data:
+  modular_filehandler_data:

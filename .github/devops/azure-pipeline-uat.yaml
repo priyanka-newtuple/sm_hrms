@@ -1,0 +1,651 @@
+trigger:
+  branches:
+    include:
+      - uat
+
+pr:
+  branches:
+    include:
+      - uat
+
+stages:
+  - stage: Test
+    displayName: "Unit Tests"
+    condition: or(
+                and(eq(variables['Build.Reason'], 'PullRequest'), eq(variables['System.PullRequest.TargetBranch'], 'refs/heads/uat')),
+                eq(variables['Build.Reason'], 'Manual')
+              )
+    jobs:
+      - job: RunTests
+        displayName: "Run Python Unit Tests with a Database"
+        pool:
+          name: "uat-jumpbox-selfhosted"
+        services:
+          sqlserver:
+            image: mcr.microsoft.com/mssql/server:2019-latest
+            env:
+              ACCEPT_EULA: "Y"
+              SA_PASSWORD: "#password123sdJwnwlk"
+              MSSQL_PID: "Developer"
+            ports:
+              - 1433:1433
+            volumes:
+              - sqlserver_data:/var/opt/mssql
+        steps:
+          - checkout: self
+
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: '3.11'
+              addToPath: true
+            displayName: 'Install Python 3.11'
+
+          - task: DownloadSecureFile@1
+            displayName: "Download test_uat.env"
+            inputs:
+              secureFile: "test_uat.env"
+            name: downloadTestEnvFile
+
+          - task: DownloadSecureFile@1
+            displayName: "Download .env_uat"
+            inputs:
+              secureFile: ".env_uat"
+            name: downloadEnvFile
+
+          - task: DownloadSecureFile@1
+            displayName: "Download config_uat.ini"
+            inputs:
+              secureFile: "config_uat.ini"
+            name: downloadConfigIniFile
+
+          - task: DownloadSecureFile@1
+            displayName: "Download bot_service_values_uat.yaml"
+            inputs:
+              secureFile: "bot_service_values_uat.yaml"
+            name: downloadBotServiceValuesYamlFile
+
+          - task: DownloadSecureFile@1
+            displayName: "Download pushgateway_values_uat.yaml"
+            inputs:
+              secureFile: "pushgateway_values_uat.yaml"
+            name: downloadPushGatewayValuesYamlFile
+
+          - task: DownloadSecureFile@1
+            displayName: "Download langfuse_values_uat.yaml"
+            inputs:
+              secureFile: "langfuse_values_uat.yaml"
+            name: downloadLangfuseValuesYamlFile
+
+          - task: DownloadSecureFile@1
+            displayName: "Download config_test_uat.ini"
+            inputs:
+              secureFile: "config_test_uat.ini"
+            name: downloadConfigTestIniFile
+
+          - script: |
+              echo "Copying downloaded secure files to their final directories..."
+              mkdir -p bot_service/src/backend/etc
+              mkdir -p bot_service/src/document_processing/etc
+              cp "$(downloadEnvFile.secureFilePath)" bot_service/src/backend/etc/.env
+              cp "$(downloadConfigIniFile.secureFilePath)" bot_service/src/backend/etc/config.ini
+              cp "$(downloadConfigTestIniFile.secureFilePath)" bot_service/src/backend/etc/config_test.ini
+              cp "$(downloadTestEnvFile.secureFilePath)" bot_service/src/backend/etc/test.env
+              cp "$(downloadEnvFile.secureFilePath)" bot_service/src/document_processing/etc/.env
+              cp "$(downloadConfigIniFile.secureFilePath)" bot_service/src/document_processing/etc/config.ini
+              cp "$(downloadConfigTestIniFile.secureFilePath)" bot_service/src/document_processing/etc/config_test.ini
+              cp "$(downloadTestEnvFile.secureFilePath)" bot_service/src/document_processing/etc/test.env
+            displayName: "Copy secure files and setup config directories"
+
+          - script: |
+              sudo apt-get update
+              sudo ACCEPT_EULA=Y apt-get install -y libodbc1 unixodbc-dev ca-certificates software-properties-common build-essential poppler-utils unzip nano curl unixodbc unixodbc-dev gnupg
+              sudo rm -rf /var/lib/apt/lists/*
+              curl https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
+              curl https://packages.microsoft.com/config/ubuntu/20.04/prod.list | sudo tee /etc/apt/sources.list.d/mssql-release.list
+              sudo apt-get update
+              sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18
+            displayName: "Install ODBC libraries for pyodbc"
+
+          - script: |
+              pip install -r bot_service/src/backend/requirements.txt
+              pip install -r bot_service/src/document_processing/requirements.txt
+            displayName: "Install Dependencies"
+
+          - script: |
+              echo "Waiting for MSSQL to be ready..."
+              sleep 15
+            displayName: "Wait for DB Service"
+
+          - script: |
+              python3 -c "import pyodbc
+              print('Attempting to connect to SQL Server...')
+              try:
+                  conn = pyodbc.connect('DRIVER={ODBC Driver 18 for SQL Server};SERVER=localhost;DATABASE=master;UID=sa;PWD=#password123sdJwnwlk;TrustServerCertificate=yes')
+                  cursor = conn.cursor()
+                  cursor.execute('SELECT @@VERSION')
+                  row = cursor.fetchone()
+                  print('Successfully connected to SQL Server')
+                  print('SQL Server version:', row[0])
+                  conn.close()
+              except Exception as e:
+                  print('Error connecting to SQL Server:', str(e))
+                  exit(1)"
+            displayName: "Test SQL Server Connection"
+
+          - task: DockerInstaller@0
+            inputs:
+              dockerVersion: '17.09.0-ce'
+
+          - script: |
+              sudo docker ps 
+            displayName: "Viewing Docker container"
+
+          - script: |
+              az account set --subscription 5d0601ae-d89d-4910-a4c1-86847d6b6cf8
+
+              # Get short-lived admin certificate (no device login)
+              make -C infra -f uat.mk aks-login
+
+              export KUBECONFIG=$HOME/.kube/config
+              kubelogin convert-kubeconfig -l azurecli  
+
+              echo "Running tests"
+              cd bot_service/src/document_processing
+              python3 -m pytest tests/unit_tests -p no:warnings -v -s
+            displayName: "Run Tests"
+
+  
+  - stage: Test_connections_and_access
+    displayName: "Test Connections and Access"
+    dependsOn: 
+      - Test
+    condition: and(eq(variables['Build.SourceBranch'], 'refs/heads/uat'),
+                or(
+                  eq(variables['Build.Reason'], 'Manual'),
+                  ne(variables['Build.Reason'], 'PullRequest')
+                )
+              )
+    jobs:
+      - job: TestConnectionsAndAccess
+        displayName: "Test Connections and Access"
+        pool:
+          name: "uat-jumpbox-selfhosted"
+        steps:
+          - checkout: self
+          - task: HelmInstaller@1
+            inputs:
+              helmVersionToInstall: 'latest'
+            displayName: 'Install Helm'
+
+          - task: KubectlInstaller@0
+            inputs:
+              kubectlVersion: 'latest'
+            displayName: 'Install kubectl'
+
+          - script: |
+              az aks install-cli
+              echo "##vso[task.prependpath]$HOME/bin"
+            displayName: 'Install kubelogin'
+
+          - task: AzureCLI@2
+            displayName: "Test Connections and Access"
+            inputs:
+              azureSubscription: 'PCR-DEV-QA'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                echo "Executing make test-connections-and-access..."
+                az account set --subscription 5d0601ae-d89d-4910-a4c1-86847d6b6cf8
+
+                # Get short-lived admin certificate (no device login)
+                make -C infra -f uat.mk aks-login
+
+                export KUBECONFIG=$HOME/.kube/config
+                kubelogin convert-kubeconfig -l azurecli   
+                make -C infra -f uat.mk test-all
+  
+  - stage: UpdateDocProcessorEnv
+    displayName: "Update Document Processor Env"
+    dependsOn: 
+      - Test
+    condition: and(eq(variables['Build.SourceBranch'], 'refs/heads/uat'),
+                or(
+                  eq(variables['Build.Reason'], 'Manual'),
+                  ne(variables['Build.Reason'], 'PullRequest')
+                )
+              )
+    jobs:
+      - job: UpdateDocProcessorEnv
+        timeoutInMinutes: 60
+        displayName: "Update Document Processor Env"
+        pool:
+          name: "uat-jumpbox-selfhosted"
+        steps:
+          - checkout: self
+            fetchDepth: 0
+
+          - task: DownloadSecureFile@1
+            displayName: "Download .env_uat"
+            inputs:
+              secureFile: ".env_uat"
+            name: downloadEnvFile
+
+          - task: DownloadSecureFile@1
+            displayName: "Download config_uat.ini"
+            inputs:
+              secureFile: "config_uat.ini"
+            name: downloadConfigIniFile
+
+          - script: |
+              mkdir -p bot_service/src/backend/etc
+              cp "$(downloadEnvFile.secureFilePath)" bot_service/src/backend/etc/.env
+            displayName: "Copy Document Processor env files"
+
+
+          - task: AzureCLI@2
+            displayName: "Update Document Processor Env"
+            inputs:
+              azureSubscription: 'PCR-DEV-QA'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                echo "Executing make update-doc-processor-env..."
+                make -C infra -f uat.mk update-doc-processor-env
+  
+  - stage: UpdateEnv
+    displayName: "Update secret vault env"
+    dependsOn: Test
+    condition: and(eq(variables['Build.SourceBranch'], 'refs/heads/uat'),
+                or(
+                  eq(variables['Build.Reason'], 'Manual'),
+                  ne(variables['Build.Reason'], 'PullRequest')
+                )
+              )
+    jobs:
+      - job: UpdateEnv
+        timeoutInMinutes: 60
+        displayName: "Update secret vault env"
+        pool:
+          vmImage: "ubuntu-latest"
+        steps:
+          - checkout: self
+            fetchDepth: 0
+
+          - task: DownloadSecureFile@1
+            displayName: "Download .env_uat"
+            inputs:
+              secureFile: ".env_uat"
+            name: downloadEnvFile
+
+          - task: DownloadSecureFile@1
+            displayName: "Download config_uat.ini"
+            inputs:
+              secureFile: "config_uat.ini"
+            name: downloadConfigIniFile
+
+          - script: |
+              mkdir -p bot_service/src/backend/etc
+              cp "$(downloadEnvFile.secureFilePath)" bot_service/src/backend/etc/.env
+            displayName: "Copy env files"
+
+
+          - task: AzureCLI@2
+            displayName: "Update secret vault env"
+            inputs:
+              azureSubscription: 'PCR-DEV-QA'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                echo "Executing make Update-secret-vault-env..."
+                make -C infra -f uat.mk update-vault-secrets
+
+
+  - stage: Deploy_Bot_Service
+    displayName: "Deploy: Bot Service"
+    dependsOn: 
+      - Test
+      - UpdateEnv
+    condition: and(eq(variables['Build.SourceBranch'], 'refs/heads/uat'),
+                or(
+                  eq(variables['Build.Reason'], 'Manual'),
+                  ne(variables['Build.Reason'], 'PullRequest')
+                )
+              )
+    jobs:
+      - job: DeployBotService
+        timeoutInMinutes: 60
+        displayName: "Deploy Bot Service"
+        pool:
+          name: "uat-jumpbox-selfhosted"
+        steps:
+          - checkout: self
+            fetchDepth: 0
+
+          - task: HelmInstaller@1
+            inputs:
+              helmVersionToInstall: 'latest'
+            displayName: 'Install Helm'
+
+          - task: KubectlInstaller@0
+            inputs:
+              kubectlVersion: 'latest'
+            displayName: 'Install kubectl'
+
+          - script: |
+              az aks install-cli
+              echo "##vso[task.prependpath]$HOME/bin"
+            displayName: 'Install kubelogin'
+
+          - task: DownloadSecureFile@1
+            displayName: "Download .env_uat"
+            inputs:
+              secureFile: ".env_uat"
+            name: downloadEnvFile
+
+          - task: DownloadSecureFile@1
+            displayName: "Download config_uat.ini"
+            inputs:
+              secureFile: "config_uat.ini"
+            name: downloadConfigIniFile
+
+          - task: DownloadSecureFile@1
+            displayName: "Download bot_service_values_uat.yaml"
+            inputs:
+              secureFile: "bot_service_values_uat.yaml"
+            name: downloadBotServiceValuesYamlFile
+
+          - script: |
+              mkdir -p infra/helm/bot_service
+              mkdir -p bot_service/src/backend/etc
+
+              cp "$(downloadBotServiceValuesYamlFile.secureFilePath)" infra/helm/bot_service/values.yaml
+              cp "$(downloadEnvFile.secureFilePath)" bot_service/src/backend/etc/.env
+              cp "$(downloadConfigIniFile.secureFilePath)" bot_service/src/backend/etc/config.ini
+ 
+              
+            displayName: "Copy Bot Service config files"
+
+          - task: AzureCLI@2
+            displayName: "Deploy Bot Service"
+            inputs:
+              azureSubscription: 'PCR-DEV-QA'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                echo "Executing make mega-deploy-bot-service..."
+                az account set --subscription 5d0601ae-d89d-4910-a4c1-86847d6b6cf8
+
+                # Get short-lived admin certificate (no device login)
+                make -C infra -f uat.mk aks-login
+                export KUBECONFIG=$HOME/.kube/config
+                kubelogin convert-kubeconfig -l azurecli  
+                make -C infra -f uat.mk mega-deploy-bot-service
+
+  - stage: Deploy_Doc_Processor
+    displayName: "Deploy: Document Processor"
+    dependsOn: 
+      - Test
+      - UpdateEnv
+    condition: and(eq(variables['Build.SourceBranch'], 'refs/heads/uat'),
+                or(
+                  eq(variables['Build.Reason'], 'Manual'),
+                  ne(variables['Build.Reason'], 'PullRequest')
+                )
+              )
+    jobs:
+      - job: DeployDocProcessor
+        timeoutInMinutes: 60
+        displayName: "Deploy Document Processor"
+        pool:
+          name: "uat-jumpbox-selfhosted"
+        steps:
+          - checkout: self
+            fetchDepth: 0
+          - task: HelmInstaller@1
+            inputs:
+              helmVersionToInstall: 'latest'
+            displayName: 'Install Helm'
+
+          - task: KubectlInstaller@0
+            inputs:
+              kubectlVersion: 'latest'
+            displayName: 'Install kubectl'
+
+          - script: |
+              az aks install-cli
+              echo "##vso[task.prependpath]$HOME/bin"
+            displayName: 'Install kubelogin'
+
+          - task: DownloadSecureFile@1
+            displayName: "Download .env_uat"
+            inputs:
+              secureFile: ".env_uat"
+            name: downloadEnvFile
+
+          - task: DownloadSecureFile@1
+            displayName: "Download config_uat.ini"
+            inputs:
+              secureFile: "config_uat.ini"
+            name: downloadConfigIniFile
+
+          - script: |
+              mkdir -p bot_service/src/document_processing/etc
+              cp "$(downloadEnvFile.secureFilePath)" bot_service/src/document_processing/etc/.env
+              cp "$(downloadConfigIniFile.secureFilePath)" bot_service/src/document_processing/etc/config.ini
+              ls -la bot_service/src/document_processing/etc
+            displayName: "Copy Document Processor config files"
+              
+
+          - task: AzureCLI@2
+            displayName: "Deploy Document Processor"
+            inputs:
+              azureSubscription: 'PCR-DEV-QA'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                echo "Executing make mega-deploy-doc-processor..."
+                az account set --subscription 5d0601ae-d89d-4910-a4c1-86847d6b6cf8
+
+                # Get short-lived admin certificate (no device login)
+                make -C infra -f uat.mk aks-login
+
+                export KUBECONFIG=$HOME/.kube/config
+                kubelogin convert-kubeconfig -l azurecli   
+                make -C infra -f uat.mk mega-deploy-doc-processor
+
+  - stage: Deploy_Langfuse
+    displayName: "Deploy: Langfuse"
+    dependsOn: 
+      - Test
+      - UpdateEnv
+    condition: and(eq(variables['Build.SourceBranch'], 'refs/heads/uat'),
+                eq(variables['Build.Reason'], 'Manual')
+              )
+    jobs:
+      - job: DeployLangfuse
+        timeoutInMinutes: 60
+        displayName: "Deploy Langfuse"
+        pool:
+          name: "uat-jumpbox-selfhosted"
+        steps:
+          - checkout: self
+            fetchDepth: 0
+          - task: HelmInstaller@1
+            inputs:
+              helmVersionToInstall: 'latest'
+            displayName: 'Install Helm'
+
+          - task: KubectlInstaller@0
+            inputs:
+              kubectlVersion: 'latest'
+            displayName: 'Install kubectl'
+
+          - script: |
+              az aks install-cli
+              echo "##vso[task.prependpath]$HOME/bin"
+            displayName: 'Install kubelogin'
+
+          - task: DownloadSecureFile@1
+            displayName: "Download langfuse_values_uat.yaml"
+            inputs:
+              secureFile: "langfuse_values_uat.yaml"
+            name: downloadLangfuseValuesYamlFile
+
+          - script: |
+              mkdir -p infra/helm/langfuse-k8s
+              cp "$(downloadLangfuseValuesYamlFile.secureFilePath)" infra/helm/langfuse-k8s/values.yaml
+            displayName: "Copy Langfuse config files"
+
+          - task: AzureCLI@2
+            displayName: "Deploy Langfuse"
+            inputs:
+              azureSubscription: 'PCR-DEV-QA'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                echo "Executing make mega-deploy-langfuse..."
+                az account set --subscription 5d0601ae-d89d-4910-a4c1-86847d6b6cf8
+
+                # Get short-lived admin certificate (no device login)
+                make -C infra -f uat.mk aks-login
+
+                export KUBECONFIG=$HOME/.kube/config
+                kubelogin convert-kubeconfig -l azurecli   
+                make -C infra -f uat.mk mega-deploy-langfuse
+
+  - stage: Deploy_PushGateway
+    displayName: "Deploy: Pushgateway"
+    dependsOn: 
+      - Test
+      - UpdateEnv
+    condition: and(eq(variables['Build.SourceBranch'], 'refs/heads/uat'),
+                eq(variables['Build.Reason'], 'Manual')
+              )
+    jobs:
+      - job: DeployPushGateway
+        timeoutInMinutes: 60
+        displayName: "Deploy Pushgateway"
+
+        pool:
+          name: "uat-jumpbox-selfhosted"
+        steps:
+          - checkout: self
+            fetchDepth: 0
+
+          - task: HelmInstaller@1
+            inputs:
+              helmVersionToInstall: 'latest'
+            displayName: 'Install Helm'
+
+          - task: KubectlInstaller@0
+            inputs:
+              kubectlVersion: 'latest'
+            displayName: 'Install kubectl'
+
+          - script: |
+              az aks install-cli
+              echo "##vso[task.prependpath]$HOME/bin"
+            displayName: 'Install kubelogin'
+
+          - task: DownloadSecureFile@1
+            displayName: "Download pushgateway_values_uat.yaml"
+            inputs:
+              secureFile: "pushgateway_values_uat.yaml"
+            name: downloadPushGatewayValuesYamlFile
+
+          - script: |
+              mkdir -p infra/helm/pushgateway
+              cp "$(downloadPushGatewayValuesYamlFile.secureFilePath)" infra/helm/pushgateway/values.yaml
+            displayName: "Copy Pushgateway config files"
+
+          - task: AzureCLI@2
+            displayName: "Deploy Pushgateway"
+            inputs:
+              azureSubscription: 'PCR-DEV-QA'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                echo "Executing make mega-deploy-pushgateway..."
+                az account set --subscription 5d0601ae-d89d-4910-a4c1-86847d6b6cf8
+
+                # Get short-lived admin certificate (no device login)
+                make -C infra -f uat.mk aks-login
+
+                export KUBECONFIG=$HOME/.kube/config
+                kubelogin convert-kubeconfig -l azurecli   
+                make -C infra -f uat.mk mega-deploy-pushgateway
+
+
+  - stage: Azure_Functions
+    displayName: "Deploy: Azure Functions"
+    dependsOn: 
+      - Test
+      - UpdateEnv
+    condition: and(eq(variables['Build.SourceBranch'], 'refs/heads/uat'),
+                or(
+                  eq(variables['Build.Reason'], 'Manual'),
+                  ne(variables['Build.Reason'], 'PullRequest')
+                )
+              )
+    jobs:
+      - job: DeployAzureFunctions
+        timeoutInMinutes: 60
+        displayName: "Deploy Azure Functions"
+        pool:
+          name: "uat-jumpbox-selfhosted"
+        steps:
+          - checkout: self
+            fetchDepth: 0
+
+          - task: UseDotNet@2
+            inputs:
+              packageType: 'sdk'
+              version: '6.x'
+            displayName: 'Install .NET SDK'
+
+          - task: FuncToolsInstaller@0
+            inputs:
+              version: 'latest'
+            displayName: 'Install Azure Functions Core Tools'
+
+          - task: AzureCLI@2
+            displayName: "Deploy Azure Functions"
+            inputs:
+              azureSubscription: 'PCR-DEV-QA'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                echo "Executing make deploy-azure-functions..."
+                az account set --subscription 5d0601ae-d89d-4910-a4c1-86847d6b6cf8
+                make -C infra -f uat.mk az-publish-function
+
+  - stage: Cleanup
+    displayName: "Cleanup"
+    dependsOn: 
+      - Test
+      - UpdateEnv
+    condition: and(eq(variables['Build.SourceBranch'], 'refs/heads/uat'),
+                or(
+                  eq(variables['Build.Reason'], 'Manual'),
+                  ne(variables['Build.Reason'], 'PullRequest')
+                )
+              )
+    jobs:
+      - job: Cleanup
+        timeoutInMinutes: 60
+        displayName: "Cleanup"
+        pool:
+          vmImage: "ubuntu-latest"
+        steps:
+          - checkout: self
+            fetchDepth: 0
+
+          - task: AzureCLI@2
+            displayName: "Cleanup"
+            inputs:
+              azureSubscription: 'PCR-DEV-QA'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                echo "Executing make cleanup..."
+                docker system prune -a -f

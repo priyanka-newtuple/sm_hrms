@@ -1,0 +1,1 @@
+# model contracts for playbooks

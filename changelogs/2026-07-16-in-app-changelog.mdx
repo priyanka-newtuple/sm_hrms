@@ -1,0 +1,28 @@
+---
+title: "In-app Changelog"
+description: "A What's New page powered by MDX."
+date: "2026-07-16"
+tags: ["Feature", "Docs"]
+version: "0.17.0"
+---
+
+Introducing **What's New** — an in-app changelog rendered straight from MDX files.
+
+![In-app changelog page](https://i.ibb.co/NRnbrjF/image.png)
+
+- **MDX-authored** — drop a `.mdx` file in `/changelogs` and it appears automatically, newest first
+- **Per-org visibility** — hidden by default; enable under Settings → Display → What's New
+- **Rich content** — Markdown plus interactive components like accordions
+
+<Accordion type="multiple" className="w-full not-prose">
+  <AccordionItem value="details" className="border-b-0">
+    <AccordionTrigger>How it works</AccordionTrigger>
+    <AccordionContent className="flex flex-col gap-4 text-balance">
+      <ul className="list-disc space-y-2 pl-4">
+        <li>Frontmatter (<strong>title</strong>, <strong>date</strong>, <strong>version</strong>, <strong>tags</strong>) drives the timeline metadata.</li>
+        <li>Entries sort by <strong>date</strong>, newest first.</li>
+        <li>Any component used in an entry must be registered in the page's component map.</li>
+      </ul>
+    </AccordionContent>
+  </AccordionItem>
+</Accordion>

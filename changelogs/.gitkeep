@@ -1,0 +1,2 @@
+# Keeps the /changelogs directory tracked even when it has no .mdx entries.
+# Authoring rules for changelog entries live in README.md (same folder).

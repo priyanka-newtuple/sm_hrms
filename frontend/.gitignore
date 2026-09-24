@@ -1,0 +1,17 @@
+node_modules
+dist
+dist-ssr
+.vite
+.tmp
+
+# Playwright
+tests/e2e/.auth/
+test-results/
+playwright-report/
+blob-report/
+.env.test
+
+# Extended E2E specs (kept locally, add back after approval)
+tests/e2e/0[1-9]-*.spec.ts
+tests/e2e/1[0-6]-*.spec.ts
+tests/e2e/helpers/seed.ts

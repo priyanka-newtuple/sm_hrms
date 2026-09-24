@@ -1,0 +1,58 @@
+---
+title: "Agent Mode"
+description: "A full-screen assistant workspace with chat, history, and live canvas rendering."
+date: "2026-07-21"
+tags: ["Feature", "AI", "MCP UI"]
+---
+
+Introducing **Agent Mode** — a dedicated assistant workspace where conversation and UI work together in one place.
+
+<div className="not-prose" style={{ position: "relative", paddingBottom: "56.25%", height: 0 }}>
+  <iframe
+    src="https://www.loom.com/embed/4add30048ced41dd86155c65bd9b39e0"
+    frameBorder="0"
+    allowFullScreen
+    style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}
+  />
+</div>
+
+- **Full-screen workflow** — open Agent Mode from the main app navigation and work in a larger, focused assistant surface instead of a narrow sidebar
+- **Live canvas rendering** — ask for boards, lists, calendars, tables, dashboards, and other supported views, then open them directly beside the conversation
+- **Built-in system agent** — use a locked assistant configuration with the platform tools needed to inspect data, answer questions, and take actions across the app
+- **Session history** — reopen previous chats and restore the canvas from the thread so the workspace comes back with useful context intact
+- **Better interaction model** — get a conversation history rail, central chat panel, resizable canvas area, and follow-up prompts that keep the workflow moving
+- **Access control** — only show the `/agent` route to users who are allowed to use Agent Mode
+
+<Accordion type="multiple" className="w-full not-prose">
+  <AccordionItem value="what-shipped" className="border-b-0">
+    <AccordionTrigger>What shipped</AccordionTrigger>
+    <AccordionContent className="flex flex-col gap-4 text-balance">
+      <ul className="list-disc space-y-2 pl-4">
+        <li>A new dedicated Agent Mode page with app-level navigation entry points.</li>
+        <li>A two-part workspace made up of chat on one side and a renderable canvas on the other.</li>
+        <li>Conversation history so users can revisit prior threads instead of starting from scratch every time.</li>
+        <li>Canvas support for both registered in-app React components and MCP UI resources returned by the agent/tooling layer.</li>
+      </ul>
+    </AccordionContent>
+  </AccordionItem>
+  <AccordionItem value="how-it-works" className="border-b-0">
+    <AccordionTrigger>How it works</AccordionTrigger>
+    <AccordionContent className="flex flex-col gap-4 text-balance">
+      <ul className="list-disc space-y-2 pl-4">
+        <li>The assistant can respond with normal chat messages and also ask the frontend to render a supported view on the canvas.</li>
+        <li>Rendered canvas state is rebuilt from persisted thread messages, so reopening a session restores more than just plain text chat.</li>
+        <li>The current implementation is permission-gated and uses a built-in agent definition rather than a user-editable assistant setup.</li>
+      </ul>
+    </AccordionContent>
+  </AccordionItem>
+  <AccordionItem value="why-it-matters" className="border-b-0">
+    <AccordionTrigger>Why it matters</AccordionTrigger>
+    <AccordionContent className="flex flex-col gap-4 text-balance">
+      <ul className="list-disc space-y-2 pl-4">
+        <li>Users can stay in one workspace while asking questions, reviewing data, and interacting with rendered app views.</li>
+        <li>The assistant experience feels more operational and less like a detached chat box because real product surfaces can appear in context.</li>
+        <li>Restorable sessions make longer-running agent work much more practical for real workflows.</li>
+      </ul>
+    </AccordionContent>
+  </AccordionItem>
+</Accordion>

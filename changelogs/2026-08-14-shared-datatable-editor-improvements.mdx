@@ -1,0 +1,17 @@
+---
+title: "Shared DataTable, rich text editor & misc improvements"
+description: "A reusable DataTable across the platform, a markdown editor with live preview, and more."
+date: "2026-08-14"
+version: "0.46.0"
+tags: ["Feature", "Improvement", "UI"]
+---
+
+A shared DataTable component powers tables across the app, and the rich text editor gets a markdown rewrite with agent output rendering.
+
+- **Shared DataTable component** — a new reusable DataTable with column reordering, sortable headers, pagination, and a toolbar is now used across Settings, Pipeline, and Records pages
+- **Markdown rich text editor** — the rich text editor has been rewritten with a write/preview toggle and supports rendering agent output (markdown-to-HTML) inline
+- **Auto-save with status indicator** — forms now auto-save with a debounced callback and show a visual status indicator
+- **Dual-panel picklist assignment** — the JSI picklist multi wizard step 3 now uses a dual-panel layout for item assignment
+- **Server-side pagination for enrollment summaries** — workflow enrollment summaries are now paginated server-side for better performance at scale
+- **Dashboard activity widget fix** — the dashboard activity widget now correctly receives the entities service via its audit manager
+- **User search for multi-org membership** — user search now works across multi-org memberships in Settings

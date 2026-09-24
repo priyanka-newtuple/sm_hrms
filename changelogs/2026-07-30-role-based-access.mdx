@@ -1,0 +1,13 @@
+---
+title: "Role-based workflow access and field-level RBAC"
+description: "Restrict which workflows roles can access and enforce field-level permissions on dashboard data."
+date: "2026-07-30"
+version: "0.34.0"
+tags: ["Feature", "Security"]
+---
+
+Two new access-control layers give admins finer control over what roles can see and do.
+
+- **Workflow-level access by role** — assign roles to specific workflows so users only see and interact with the workflows they're permitted to access
+- **Field-level RBAC on dashboards** — dashboard queries and metric endpoints now respect field-level permissions, ensuring sensitive fields are never exposed in widgets or charts to users who lack permission
+- **Permission sync on workflow config** — permissions and entity lists are automatically resynced after configuring a workflow, preventing stale access rules

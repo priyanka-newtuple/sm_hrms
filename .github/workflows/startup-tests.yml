@@ -1,0 +1,67 @@
+name: Startup Tests
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  startup-tests:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: statemachine
+          POSTGRES_USER: statemachine
+          POSTGRES_PASSWORD: statemachine
+        ports:
+          - 5455:5432
+        options: >-
+          --health-cmd "pg_isready -U statemachine -d statemachine"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://statemachine:statemachine@localhost:5455/statemachine
+      SQLALCHEMY_DATABASE_MIGRATION_URL: postgresql://statemachine:statemachine@localhost:5455/statemachine
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: 5455
+      POSTGRES_USERNAME: statemachine
+      POSTGRES_PASSWORD: statemachine
+      POSTGRES_DATABASE: statemachine
+      POSTGRES_APP_SCHEMA: modular_backend
+      HOST: 0.0.0.0
+      PORT: 8001
+      REQUEST_TIMEOUT_SECONDS: 60
+      REDIS_HOST: localhost
+      REDIS_PORT: 6380
+      CONFIG_INI_PATH: ./etc/config.ini
+      ALEMBIC_CONFIG_PATH: ./alembic.ini
+      JWT_SECRET_KEY: ci-test-secret-do-not-use-in-prod
+      BOOTSTRAP_ADMIN_EMAIL: admin@test.com
+      BOOTSTRAP_ADMIN_PASSWORD: testpass
+      BOOTSTRAP_SUPER_ADMIN_EMAIL: superadmin@test.com
+      BOOTSTRAP_SUPER_ADMIN_PASSWORD: testpass
+      DEFAULT_ORG_ID: 00000000-0000-0000-0000-000000000001
+      PLATFORM_ORG_ID: 00000000-0000-0000-0000-000000000000
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        working-directory: backend
+        run: pip install -r requirements.txt pytest
+
+      - name: Run startup tests
+        working-directory: backend
+        run: python -m pytest tests/test_startup.py -v
