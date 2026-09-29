@@ -1,3 +1,5 @@
+import CockpitPage, { CockpitInbox } from './pages/CockpitPage';
+import PublishedContent from './pages/PublishedContent';
 import { lazy, Suspense, useEffect, useMemo, type ReactNode } from 'react';
 
 import { Settings } from 'lucide-react';
@@ -23,7 +25,7 @@ import LeaveRequestsPage from './pages/LeaveRequestsPage';
 import WorkflowsPage from './pages/WorkflowsPage';
 
 import PerformancePage from './pages/PerformancePage';
-import { ProjectInbox } from './pages/ProjectsPage';
+import ProjectsPage, { ProjectInbox } from './pages/ProjectsPage';
 import { ConfigurationGuard } from './pages/PlatformSettings';
 const PlatformSettings = lazy(() => import('./pages/PlatformSettings'));
 const FunnelEditor = lazy(() => import('../../pages/funnel'));
@@ -86,6 +88,8 @@ function Layout() {
 
     ...(caps.data?.capabilities.includes('project:view') ? [{ path: '/hrms/projects', label: 'Projects' }] : []),
 
+    ...(caps.data?.capabilities.includes('cockpit:view') ? [{path:'/hrms/cockpit',label:'HR Cockpit'}] : []),
+    {path:'/hrms/content',label:'Published information'},
     { path: '/hrms/workflows', label: 'Workflows' },
 
   ];
@@ -139,6 +143,7 @@ function OnboardingManagement() {
 type WorkCase = { entity_id: string; employee_name: string; steps: { sequence: number; title: string; owner_name: string; can_complete: boolean; due_date: string | null }[] };
 
 function MyWork() {
+  const caps=useHrmsCapabilities();
 
   const query = useQuery({ queryKey: ['hrms', 'my-work'], queryFn: () => request<WorkCase[]>('/hrms/onboarding') });
 
@@ -150,7 +155,8 @@ function MyWork() {
 
     <Link to="/hrms/performance" className="ml-3 inline-block rounded-full border bg-white px-5 py-3">Open performance reviews and approvals</Link>
 
-    <Link to="/hrms/projects" className="inline-block rounded-full border bg-white px-5 py-3">Open projects, allocations and approvals</Link>
+    {caps.data?.capabilities.includes('project:view') && <Link to="/hrms/projects" className="inline-block rounded-full border bg-white px-5 py-3">Open projects</Link>}
+    <CockpitInbox />
     <ProjectInbox />
 
     {query.isLoading && <p>Loading actions…</p>}{query.isError && <p role="alert">Unable to load your actions.</p>}
@@ -169,7 +175,8 @@ export default function App() {
 
   return <BrowserRouter><AuthProvider><SessionQueries><OrgSelectorProvider><Suspense fallback={<p className="p-8" role="status">Loading…</p>}><Routes>
 
-    <Route path="/login" element={<LoginPage />} />
+    <Route path="/login" element={<><div className="bg-blue-50 p-3 text-center"><Link className="text-blue-700 underline" to="/public">Policies, learning calendar, holidays and careers</Link></div><LoginPage /><PublishedContent publicPage /></>} />
+    <Route path="/public" element={<PublishedContent publicPage />} />
 
     <Route path="/forgot-password" element={<ForgotPasswordPage />} />
 
@@ -199,7 +206,9 @@ export default function App() {
 
       <Route path="/hrms/my-work" element={<MyWork />} />
 
-      <Route path="/hrms/projects" element={<WorkflowsPage projectsOnly />} />
+      <Route path="/hrms/cockpit" element={<CockpitPage />} />
+      <Route path="/hrms/content" element={<PublishedContent />} />
+      <Route path="/hrms/projects" element={<ProjectsPage />} />
 
       <Route path="/hrms/workflows" element={<WorkflowsPage />} />
 

@@ -103,8 +103,8 @@ class ProjectsService:
         check(row is not None, "Project record was not found", 404)
         return row
 
-    def people(self):
-        return PerformanceService(self.hrms).user_options()
+    def people(self, actor=None):
+        return PerformanceService(self.hrms).user_options(getattr(actor, 'project_policy', None))
 
     def manage(self, actor, project):
         caps = capabilities(actor)
@@ -161,7 +161,7 @@ class ProjectsService:
                     else []
                 )
             )
-            if row["state"] in LIVE:
+            if row["state"] in LIVE and "allocation:request" in capabilities(actor):
                 actions += ["request_allocation"]
             actions += {
                 "planned": ["start", "complete"],
@@ -182,14 +182,14 @@ class ProjectsService:
                     )
                     + ["complete"]
                 )
-                if self.manage(actor, project) and row["state"] in LIVE
+                if self.manage(actor, project) and "allocation:request" in capabilities(actor) and row["state"] in LIVE
                 else []
             )
         d, state = row["data"], row["state"]
         if not d.get("approver_id"):
             return []  # Legacy requests require explicit approver migration before new decisions.
         actions = []
-        if self.manage(actor, project) and d["requested_by_id"] == actor.user_id:
+        if self.manage(actor, project) and d["requested_by_id"] == actor.user_id and (row["kind"] == CHANGE or "allocation:request" in capabilities(actor)):
             actions += (
                 ["edit_request", "submit"]
                 if state == "draft"
@@ -218,7 +218,7 @@ class ProjectsService:
     def options(self, actor):
         require(actor, "project:view")
         people = (
-            self.people()
+            self.people(actor)
             if (
                 "project:create" in capabilities(actor)
                 or "project:manage_all" in capabilities(actor)
@@ -268,7 +268,7 @@ class ProjectsService:
                 "Project managers must assign themselves as PM",
                 403,
             )
-        people = self.people()
+        people = self.people(actor)
 
         def person(key, cap):
             row = next(
@@ -336,7 +336,7 @@ class ProjectsService:
             employee_name=name(employee),
             project_role_name=role["data"]["name"],
         )
-        people = self.people()
+        people = self.people(actor)
         approver_id = (
             project["data"]["dm_id"]
             if actor.user_id != project["data"]["dm_id"]
@@ -460,6 +460,8 @@ class ProjectsService:
     def workflows(self, actor):
         if "project:view" not in capabilities(actor):
             return []
+        if "project:view" not in capabilities(actor):
+            return []
         board = self.dashboard(actor)
         return [
             {
@@ -530,7 +532,7 @@ class ProjectsService:
             allocation_id="",
             change_kind="initial",
         ):
-            person = next((u for u in self.people() if u["id"] == actor.user_id), None)
+            person = next((u for u in self.people(actor) if u["id"] == actor.user_id), None)
             check(
                 person is not None, "An active organization membership is required", 403
             )
@@ -748,7 +750,7 @@ class ProjectsService:
             patch(row, {})
         elif action in {"submit", "approve"}:
             approver = next(
-                (u for u in self.people() if u["id"] == d["approver_id"]), None
+                (u for u in self.people(actor) if u["id"] == d["approver_id"]), None
             )
             needed = (
                 "project:approve"

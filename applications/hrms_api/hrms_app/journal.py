@@ -26,6 +26,49 @@ class Journal:
                 actor_id text NOT NULL, action text NOT NULL, target_id text NOT NULL,
                 occurred_at timestamptz NOT NULL DEFAULT now())''')
             db.execute('ALTER TABLE action_audit ADD COLUMN IF NOT EXISTS operation_key text')
+            db.execute('''CREATE TABLE IF NOT EXISTS project_access_policy (
+                organization_id text PRIMARY KEY, roles jsonb NOT NULL DEFAULT '{}',
+                revision integer NOT NULL DEFAULT 0, updated_by text,
+                updated_at timestamptz NOT NULL DEFAULT now())''')
+
+            db.execute('''CREATE TABLE IF NOT EXISTS cockpit_access_policy (
+                organization_id text PRIMARY KEY, roles jsonb NOT NULL DEFAULT '{}',
+                revision integer NOT NULL DEFAULT 0, updated_by text,
+                updated_at timestamptz NOT NULL DEFAULT now())''')
+
+    def project_policy(self, organization_id):
+        with psycopg.connect(self.dsn) as db:
+            row = db.execute('SELECT roles,revision FROM project_access_policy WHERE organization_id=%s', (organization_id,)).fetchone()
+            return {'roles': row[0], 'revision': row[1]} if row else {'roles': {}, 'revision': 0}
+
+    def save_project_policy(self, actor, roles, revision):
+        with self.lock(actor.organization_id) as db:
+            with db.transaction():
+                db.execute('INSERT INTO project_access_policy (organization_id) VALUES (%s) ON CONFLICT DO NOTHING', (actor.organization_id,))
+                row = db.execute('SELECT revision FROM project_access_policy WHERE organization_id=%s FOR UPDATE', (actor.organization_id,)).fetchone()
+                if row[0] != revision:
+                    raise AppError(409, 'Project permissions changed; reload before saving')
+                db.execute('''UPDATE project_access_policy SET roles=%s,revision=revision+1,updated_by=%s,updated_at=now()
+                              WHERE organization_id=%s''', (Jsonb(roles), actor.user_id, actor.organization_id))
+                self.audit(db, actor, 'project_access_policy_updated', actor.organization_id)
+        return {'roles': roles, 'revision': revision + 1}
+
+    def cockpit_policy(self, organization_id):
+        with psycopg.connect(self.dsn) as db:
+            row = db.execute('SELECT roles,revision FROM cockpit_access_policy WHERE organization_id=%s', (organization_id,)).fetchone()
+            return {'roles': row[0], 'revision': row[1]} if row else {'roles': {}, 'revision': 0}
+
+    def save_cockpit_policy(self, actor, roles, revision):
+        with self.lock(actor.organization_id) as db:
+            with db.transaction():
+                db.execute('INSERT INTO cockpit_access_policy (organization_id) VALUES (%s) ON CONFLICT DO NOTHING', (actor.organization_id,))
+                row = db.execute('SELECT revision FROM cockpit_access_policy WHERE organization_id=%s FOR UPDATE', (actor.organization_id,)).fetchone()
+                if row[0] != revision:
+                    raise AppError(409, 'Cockpit permissions changed; reload before saving')
+                db.execute('''UPDATE cockpit_access_policy SET roles=%s,revision=revision+1,updated_by=%s,updated_at=now()
+                              WHERE organization_id=%s''', (Jsonb(roles), actor.user_id, actor.organization_id))
+                self.audit(db, actor, 'cockpit_access_policy_updated', actor.organization_id)
+        return {'roles': roles, 'revision': revision + 1}
 
     @contextmanager
     def lock(self, organization_id):

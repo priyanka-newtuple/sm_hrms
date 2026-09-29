@@ -17,6 +17,8 @@ class Actor:
     token: str
     roles: frozenset[str]
     permissions: frozenset[str]
+    project_policy: dict | None = None
+    cockpit_policy: dict | None = None
 
 
 class PlatformClient:

@@ -1,7 +1,9 @@
+import { useHrmsCapabilities } from '../capabilities';
 import { WorkflowStages, useWorkflowConfiguration, transitionLabel } from '../workflows/WorkflowConfiguration';
 import { ConfiguredForm, ConfiguredField } from '../forms/ConfiguredForm';
 import { useState, type FormEvent } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { getApiErrorMessage, request } from '@/core/services/api/client';
@@ -17,7 +19,7 @@ const label = (s: string) => s.replaceAll('_', ' ').replace(/^./, c => c.toUpper
 const val = (d: Data, k: string) => String(d[k] ?? '');
 const input = 'w-full rounded-lg border border-border bg-background p-2 text-sm';
 export const PROJECT_KINDS = ['HRMS.Project', 'HRMS.ProjectChange', 'HRMS.Allocation', 'HRMS.AllocationChange'];
-const useProjects = () => useQuery({ queryKey: ['hrms', 'projects'], queryFn: () => request<Board>('/hrms/projects') });
+const useProjects = () => { const caps=useHrmsCapabilities(); return useQuery({ queryKey: ['hrms', 'projects'], queryFn: () => request<Board>('/hrms/projects'), enabled: caps.data?.capabilities.includes('project:view') ?? false }); };
 const projectKeys = ['name','description','customer_id','pm_id','dm_id','start_date','end_date','engagement_type','practice','health','currency','budget_amount','billing_rate','planned_hours'];
 const allocationKeys = ['employee_id','project_role_id','start_date','end_date','percentage','billable','billing_rate'];
 
@@ -76,8 +78,9 @@ function ProjectAction({ item, action, done }: { item?: Item; action: string; do
 
 export function ProjectControls() {
   const board=useProjects();
+  const caps=useHrmsCapabilities();
   const [action,setAction]=useState<string|null>(null);
-  const pending=useQuery({queryKey:['hrms','project-pending'],queryFn:()=>request<Pending[]>('/hrms/projects/pending-actions')});
+  const pending=useQuery({enabled:caps.data?.capabilities.includes('project:view')??false,queryKey:['hrms','project-pending'],queryFn:()=>request<Pending[]>('/hrms/projects/pending-actions')});
   const client=useQueryClient();
   const resume=useMutation({mutationFn:(p:Pending)=>{const {target,...body}=p;return request(target==='new'?'/hrms/projects/actions':`/hrms/projects/${target}/actions`,{method:'POST',body:JSON.stringify(body)});},onSuccess:()=>client.invalidateQueries({queryKey:['hrms']})});
   return <div className="space-y-3">
@@ -91,7 +94,9 @@ export function ProjectControls() {
 
 export function ProjectInbox() {
   const board=useProjects();
+  const caps=useHrmsCapabilities();
   const actions=board.data?.requests.filter(r=>r.state==='pending' && r.actions.includes('approve'))??[];
+  if (!caps.data?.capabilities.includes('project:view')) return null;
   return <section className="space-y-2"><h2 className="font-semibold">Project and allocation approvals</h2>
     {board.isLoading && <p>Loading approvals…</p>}{board.isError && <p role="alert">{getApiErrorMessage(board.error)}</p>}
     {!board.isLoading && !board.isError && !actions.length && <p className="text-sm text-muted-foreground">No project or allocation approvals are waiting for you.</p>}
@@ -124,4 +129,74 @@ export function ProjectDetail({entityId}:{entityId:string}) {
     {action && <ProjectAction key={`${item.id}:${action}`} item={item} action={action} done={()=>setAction(null)} />}
     {item.kind==='HRMS.Project' && <><h3 className="font-semibold">Team and allocations</h3>{board?.allocations.filter(a=>a.data.project_id===item.id).map(a=><p key={a.id} className="text-sm"><Link className="text-blue-700 underline" to={`/hrms/workflows?case=${a.id}`}>{val(a.data,'employee_name')} · {val(a.data,'project_role_name')} · {val(a.data,'percentage')}% · {label(a.state)}</Link></p>)}<h3 className="font-semibold">Approval history</h3>{board?.requests.filter(r=>r.data.project_id===item.id).map(r=><p key={r.id} className="text-sm"><Link className="text-blue-700 underline" to={`/hrms/workflows?case=${r.id}`}>{r.kind==='HRMS.ProjectChange'?'Project':'Allocation'} · {label(val(r.data,'kind'))} · {label(r.state)} · Approver: {val(r.data,'approver_name')}</Link></p>)}</>}
   </section>;
+}
+
+
+/** Project directory: one business record per row. Workflow work lives in Workflows. */
+export default function ProjectsPage() {
+  const query = useProjects();
+  const configured = useWorkflowConfiguration();
+  const [params, setParams] = useSearchParams();
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState('');
+  const [editing, setEditing] = useState(false);
+  const [allocating,setAllocating]=useState(false);
+  const caps=useHrmsCapabilities();
+  const projects = query.data?.projects ?? [];
+  const selected = projects.find(p => p.id === params.get('project'));
+  const stateLabel = (p:Item) => configured.data?.find(r=>r.entity_id===p.id)?.state_label ?? label(p.state);
+  const visible = projects.filter(p => (!status || p.state === status) &&
+    [p.project_name, ...['identifier','customer_name','pm_name','dm_name'].map(k=>val(p.data,k))].join(' ').toLowerCase().includes(search.toLowerCase()));
+  const editTarget = (project:Item) => {
+    const draft = query.data?.requests.find(r=>r.kind==='HRMS.ProjectChange' && r.data.project_id===project.id && r.actions.includes('edit_request'));
+    if (draft) return {item:draft, action:'edit_request'};
+    if (project.actions.includes('propose_amendment')) return {item:project, action:'propose_amendment'};
+    return undefined;
+  };
+  const edit = selected ? editTarget(selected) : undefined;
+  const open = (project:Item, editMode=false) => {setParams({project:project.id});setEditing(editMode);setAllocating(false);};
+  if(caps.isLoading) return <p className="p-6">Loading access…</p>;
+  if(!caps.data?.capabilities.includes('project:view')) return <p role="alert" className="p-6">You do not have access to Projects.</p>;
+  return <main className="mx-auto max-w-7xl space-y-6 p-6">
+    <header><h1 className="text-2xl font-semibold">Projects</h1><p className="mt-1 text-muted-foreground">View project details, managers and assigned teams.</p></header>
+    {caps.data?.capabilities.includes('platform:configure') && <Link className="inline-block text-sm text-blue-700 underline" to="/settings?tab=roles">Configure project and allocation access</Link>}
+    <ProjectControls />
+    <div className="flex flex-wrap gap-3">
+      <input aria-label="Search projects" placeholder="Search projects, customers or managers…" className={`${input} max-w-md`} value={search} onChange={e=>setSearch(e.target.value)} />
+      <select aria-label="Project status" className={`${input} max-w-56`} value={status} onChange={e=>setStatus(e.target.value)}><option value="">All statuses</option>{[...new Set(projects.map(p=>p.state))].map(state=><option key={state} value={state}>{stateLabel(projects.find(p=>p.state===state)!)}</option>)}</select>
+    </div>
+    {query.isLoading && <p role="status">Loading projects…</p>}
+    {query.isError && <p role="alert">{getApiErrorMessage(query.error)}</p>}
+    {query.data && <div className="overflow-x-auto rounded-xl border bg-background">
+      <p className="border-b p-4 text-sm font-medium">{visible.length} {visible.length===1?'project':'projects'}</p>
+      <table className="w-full text-left text-sm"><thead className="bg-muted/40"><tr>{['Project','Customer','Project Manager','Delivery Manager','Dates','Status','Actions'].map(h=><th key={h} className="p-3 font-medium">{h}</th>)}</tr></thead>
+        <tbody>{visible.map(p=><tr key={p.id} className="border-t align-top">
+          <td className="p-3"><button className="text-left font-semibold text-blue-700 hover:underline" onClick={()=>open(p)}>{p.project_name}</button><p className="mt-1 text-xs text-muted-foreground">{val(p.data,'identifier')}</p></td>
+          <td className="p-3">{val(p.data,'customer_name')||'—'}</td><td className="p-3">{val(p.data,'pm_name')||'—'}</td><td className="p-3">{val(p.data,'dm_name')||'—'}</td>
+          <td className="whitespace-nowrap p-3">{val(p.data,'start_date')||'—'}<br />{val(p.data,'end_date')||'—'}</td><td className="p-3"><span className="rounded-full bg-muted px-3 py-1 text-xs">{stateLabel(p)}</span></td>
+          <td className="p-3"><div className="flex gap-2"><Button variant="outline" onClick={()=>open(p)}>View details</Button>{editTarget(p)&&<Button variant="outline" onClick={()=>open(p,true)}>Edit</Button>}</div></td>
+        </tr>)}{!visible.length&&<tr><td colSpan={7} className="p-8 text-center text-muted-foreground">{projects.length?'No projects match your filters.':'No projects are available in your scope.'}</td></tr>}</tbody>
+      </table>
+    </div>}
+    <Sheet open={Boolean(selected)} onOpenChange={opened=>{if(!opened){setParams({});setEditing(false);setAllocating(false);}}}>
+      <SheetContent className="overflow-y-auto data-[side=right]:w-full data-[side=right]:sm:max-w-4xl">
+        <SheetHeader><SheetTitle>{selected?.project_name}</SheetTitle></SheetHeader>
+        {selected&&<div className="space-y-6 p-6">
+          <div className="flex flex-wrap items-center gap-3"><span className="rounded-full bg-muted px-3 py-1 text-sm">{stateLabel(selected)}</span>
+            <Link className="text-sm text-blue-700 underline" to={`/hrms/workflows?case=${selected.id}`}>View workflow</Link>
+            {!editing&&edit&&<Button variant="primary" onClick={()=>{setEditing(true);setAllocating(false);}}>Edit project</Button>}
+          </div>
+          {selected.actions.includes('request_allocation') && <Button variant="primary" onClick={()=>{setAllocating(true);setEditing(false);}}>Add allocation</Button>}
+          {allocating && selected.actions.includes('request_allocation') && <><p className="text-sm text-muted-foreground">Choose an employee, project role, dates and capacity. The request goes to the project's Delivery Manager; self-approval is not permitted. Submit and track approval in Workflows.</p><ProjectAction key={`${selected.id}:allocation`} item={selected} action="request_allocation" done={()=>setAllocating(false)} /></>}
+          {editing&&edit?<><p className="text-sm text-muted-foreground">Changes are saved as an approval request. Review and approve them in Workflows before they update the project.</p><ProjectAction key={`${edit.item.id}:${edit.action}`} item={edit.item} action={edit.action} done={()=>setEditing(false)} /></>:
+            <ConfiguredForm entityType="HRMS.Project"><dl className="grid gap-4 sm:grid-cols-2">{Object.entries(selected.data).filter(([k,v])=>v!=null&&v!==''&&!k.endsWith('_id')&&!['created_by','revision','hrms_operation_key'].includes(k)).map(([key,v])=><div key={key}><ConfiguredField field={key} label={label(key)}><p className="whitespace-pre-wrap break-words font-medium">{String(v)}</p></ConfiguredField></div>)}</dl></ConfiguredForm>}
+          <section className="space-y-3"><h3 className="font-semibold">Assigned team</h3>
+            {query.data?.allocations.filter(a=>a.data.project_id===selected.id).map(a=><div key={a.id} className="rounded-lg border p-3 text-sm"><p className="font-medium">{val(a.data,'employee_name')} · {val(a.data,'project_role_name')}</p><p>{val(a.data,'percentage')}% · {val(a.data,'start_date')} to {val(a.data,'end_date')}</p></div>)}
+            {!query.data?.allocations.some(a=>a.data.project_id===selected.id)&&<p className="text-sm text-muted-foreground">No allocations yet.</p>}
+          </section>
+          <p className="text-sm text-muted-foreground">Project stages, allocation requests and approvals are available in <Link className="text-blue-700 underline" to={`/hrms/workflows?case=${selected.id}`}>Workflows</Link>.</p>
+        </div>}
+      </SheetContent>
+    </Sheet>
+  </main>;
 }

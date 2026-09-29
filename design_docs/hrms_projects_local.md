@@ -76,3 +76,12 @@ Existing timesheet validation, automatic project-reviewer selection for performa
 The local test reads demo credentials without printing them and saves repeatable test request bodies in `.hrms-demo-local/projects-smoke.json`. It checks native project/allocation approvals and replay, workflow withdrawal/resubmission, commercial-field filtering, employee scope, self-approval denial, overlap rejection and operational start transitions.
 
 Unit tests cover permission combinations, tenant boundaries, interval capacity, stale versions, approval-time capacity rechecks, operational stages/date bounds, release, onboarding integration and failure after an approval transition with retry recovery. Core integrity is checked with `python scripts/verify-platform-boundary.py`.
+
+
+## Configurable allocation access
+
+Projects is a directory with one row per project. Open **View details → Add allocation** to draft a staffing request. Submit and review the resulting request in **Workflows**. Allocations become committed only after independent approval. The action is available for approved planned/active projects where the user can manage staffing.
+
+Super Admin can change these permissions in **Settings → Roles → Project and allocation access**. Defaults allow assigned Project Managers, Delivery Managers and Super Admin to request allocations. Existing read-only scopes for other roles are preserved. A user needs `project:view`, a project management scope, and `allocation:request`; multiple roles combine. Management of assigned projects still requires the actor to be the project's PM. Approval requires the designated independent approver and the applicable management/approval permission.
+
+GET/PUT `/hrms/settings/project-access` manage tenant-scoped overrides in the HRMS application's own database. Saves are audited and revision checked. Native roles are the role catalog, fetched with the configuring user's token. Overrides affect only project capabilities; they cannot grant platform configuration or HR permissions. The API rechecks policy on each authenticated request. Browser menus refresh on navigation/refocus; refreshing the page also picks up a changed policy. Native state-machine code, workflow execution and core database tables are unchanged.

@@ -79,7 +79,7 @@ def system():
             onboarding=lambda actor: [],
         )
     )
-    service.people = lambda: deepcopy(people)
+    service.people = lambda actor=None: deepcopy(people)
     return service, platform, journal, ids
 
 
@@ -427,3 +427,37 @@ def test_tenant_and_draft_visibility(system):
             ),
         )
 
+
+
+def test_configured_allocation_access_is_enforced(system):
+    from dataclasses import replace
+    from hrms_app.policy import capabilities
+    service, platform, _, ids = system
+    project = open_project(system)
+    pm = actor(ids['pm'], 'hrms_project_manager')
+    restricted = replace(pm, project_policy={'hrms_project_manager': ['project:view', 'project:manage_assigned']})
+    assert 'request_allocation' in service.allowed(pm, platform.rows[project], service.snapshot())
+    assert 'request_allocation' not in service.allowed(restricted, platform.rows[project], service.snapshot())
+    with pytest.raises(AppError) as error:
+        service.execute(restricted, project, Action(action='request_allocation', data=allocation_data(ids), expected_revision=platform.rows[project]['data'].get('revision',0), idempotency_key=str(uuid4())))
+    assert error.value.status == 403
+    assert 'allocation:request' in capabilities(pm)  # Other tenants retain defaults.
+    disabled = replace(pm, project_policy={'hrms_project_manager': []})
+    assert service.workflows(disabled) == []
+    with pytest.raises(AppError):
+        service.dashboard(disabled)
+
+
+def test_project_policy_cannot_grant_core_or_hr_permissions():
+    from dataclasses import replace
+    from hrms_app.policy import capabilities
+    from hrms_app.project_access import validate_project_access
+    for grants in [['platform:configure'], ['employee:create'], ['allocation:request'], ['project:view', 'allocation:request']]:
+        with pytest.raises(AppError):
+            validate_project_access({'hrms_project_manager': grants}, {'hrms_project_manager'})
+    with pytest.raises(AppError):
+        validate_project_access({'hrms_application_service': []}, {'hrms_project_manager'})
+    validate_project_access({'custom': ['project:view', 'project:manage_assigned', 'allocation:request']}, {'custom'})
+    sa = replace(actor('admin', 'superadmin'), project_policy={'superadmin': []})
+    assert 'platform:configure' in capabilities(sa)
+    assert 'project:view' not in capabilities(sa)

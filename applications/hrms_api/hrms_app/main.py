@@ -1,5 +1,6 @@
 """HRMS API and browser gateway. The platform is an internal upstream service."""
 from contextlib import asynccontextmanager
+from dataclasses import replace
 import os
 from uuid import UUID
 
@@ -18,8 +19,10 @@ from .service import HrmsService
 from .workflow_view import workflow_rows
 from .performance import PerformanceService
 from .performance_contracts import Action as PerformanceAction
+from .cockpit import CockpitService, Command as CockpitCommand
 from .projects import ProjectsService
 from .project_contracts import Action as ProjectAction
+from .project_access import ProjectAccessRequest
 
 
 class Decision(BaseModel):
@@ -35,6 +38,7 @@ def create_app(platform=None, journal=None):
     service = HrmsService(platform, journal, os.environ.get('HRMS_WORK_EMAIL_DOMAIN', 'newtuple.com'))
     performance = PerformanceService(service)
     projects = ProjectsService(service)
+    cockpit = CockpitService(platform, journal)
 
     @asynccontextmanager
     async def lifespan(app):
@@ -52,11 +56,57 @@ def create_app(platform=None, journal=None):
         authorization = request.headers.get('authorization', '')
         if not authorization.lower().startswith('bearer '):
             raise AppError(401, 'Sign in to continue')
-        return platform.actor(authorization.split(' ', 1)[1])
+        current = platform.actor(authorization.split(' ', 1)[1])
+        if hasattr(journal, 'project_policy'):
+            current = replace(current, project_policy=journal.project_policy(current.organization_id)['roles'])
+        if hasattr(journal, 'cockpit_policy'):
+            current = replace(current, cockpit_policy=journal.cockpit_policy(current.organization_id)['roles'])
+        return current
 
     @app.get('/health')
     def health():
         return {'status': 'ok', 'service': 'hrms-application'}
+
+    @app.get('/v1/api/hrms/public/content')
+    def public_content():
+        return JSONResponse(cockpit.feed(), headers={'Cache-Control':'no-store'})
+
+    @app.get('/v1/api/hrms/content')
+    def employee_content(current=Depends(actor)):
+        return cockpit.feed(employee=True)
+
+    @app.get('/v1/api/hrms/cockpit')
+    def cockpit_board(current=Depends(actor)):
+        return cockpit.board(current)
+
+    @app.post('/v1/api/hrms/cockpit/actions')
+    def cockpit_create(payload: CockpitCommand, current=Depends(actor)):
+        return cockpit.execute(current, 'new', payload)
+
+    @app.post('/v1/api/hrms/cockpit/{entity_id}/actions')
+    def cockpit_action(entity_id: UUID, payload: CockpitCommand, current=Depends(actor)):
+        return cockpit.execute(current, str(entity_id), payload)
+
+    @app.get('/v1/api/hrms/settings/cockpit-access')
+    def cockpit_access(current=Depends(actor)):
+        from .policy import COCKPIT_CAPABILITIES, role_capabilities, require
+        require(current, 'platform:configure')
+        policy=journal.cockpit_policy(current.organization_id)
+        roles=platform.request('GET','/roles',token=current.token)
+        return {'revision':policy['revision'],'capabilities':sorted(COCKPIT_CAPABILITIES),
+                'roles':{r['name']:sorted(role_capabilities(r['name'],None,policy['roles']) & COCKPIT_CAPABILITIES) for r in roles if r['name']!='hrms_application_service'}}
+
+    @app.put('/v1/api/hrms/settings/cockpit-access')
+    def save_cockpit_access(payload: ProjectAccessRequest, current=Depends(actor)):
+        from .policy import COCKPIT_CAPABILITIES, require
+        from .cockpit import check
+        require(current,'platform:configure')
+        names={r['name'] for r in platform.request('GET','/roles',token=current.token) if r['name']!='hrms_application_service'}
+        check(not set(payload.roles)-names,'Unknown or internal role')
+        for grants in payload.roles.values():
+            check(not set(grants)-COCKPIT_CAPABILITIES,'Only cockpit permissions can be changed here')
+            check(not grants or 'cockpit:view' in grants,'Enable cockpit access before granting actions')
+        return journal.save_cockpit_policy(current,payload.roles,payload.revision)
 
     @app.get('/v1/api/hrms/capabilities')
     def get_capabilities(current=Depends(actor)):
@@ -67,11 +117,31 @@ def create_app(platform=None, journal=None):
         from .form_config import form_configuration
         return form_configuration(platform, current, entity_type)
 
+    @app.get('/v1/api/hrms/settings/project-access')
+    def project_access(current=Depends(actor)):
+        from .policy import PROJECT_CAPABILITIES, role_capabilities, require
+        require(current, 'platform:configure')
+        policy = journal.project_policy(current.organization_id)
+        roles = platform.request('GET', '/roles', token=current.token)
+        return {'revision': policy['revision'], 'capabilities': sorted(PROJECT_CAPABILITIES),
+                'roles': {r['name']: sorted(role_capabilities(r['name'], policy['roles']) & PROJECT_CAPABILITIES)
+                          for r in roles if r['name'] != 'hrms_application_service'}}
+
+    @app.put('/v1/api/hrms/settings/project-access')
+    def save_project_access(payload: ProjectAccessRequest, current=Depends(actor)):
+        from .project_access import validate_project_access
+        from .policy import require
+        require(current, 'platform:configure')
+        names = {r['name'] for r in platform.request('GET', '/roles', token=current.token) if r['name'] != 'hrms_application_service'}
+        validate_project_access(payload.roles, names)
+        return journal.save_project_policy(current, payload.roles, payload.revision)
+
     @app.get('/v1/api/hrms/settings/role-capabilities')
     def product_role_configuration(current=Depends(actor)):
         from .policy import ROLE_CAPABILITIES, require
         require(current, 'platform:configure')
-        return ROLE_CAPABILITIES
+        from .policy import role_capabilities
+        return {role: sorted(role_capabilities(role, current.project_policy, current.cockpit_policy)) for role in ROLE_CAPABILITIES}
 
     @app.get('/v1/api/hrms/employees/form-options')
     def form_options(current=Depends(actor)):
@@ -92,7 +162,7 @@ def create_app(platform=None, journal=None):
     @app.get('/v1/api/hrms/workflows')
     def workflows(current=Depends(actor)):
         from .workflow_config import configured_workflow_rows
-        return configured_workflow_rows(platform, workflow_rows(service, current) + performance.workflows(current) + projects.workflows(current))
+        return configured_workflow_rows(platform, workflow_rows(service, current) + performance.workflows(current) + projects.workflows(current) + cockpit.workflows(current))
 
     @app.get('/v1/api/hrms/projects')
     def project_dashboard(current=Depends(actor)):

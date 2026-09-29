@@ -235,5 +235,9 @@ PROJECT_PACKS = project_packs(HrmsEntityPack, PACKS)
 PACKS = tuple(p for p in PACKS if p.entity_type != "HRMS.ProjectChange") + PROJECT_PACKS
 
 
+from .cockpit_catalog import cockpit_packs, TYPES as COCKPIT_TYPES
+COCKPIT_PACKS = cockpit_packs(HrmsEntityPack, PACKS)
+PACKS = tuple(p for p in PACKS if p.entity_type not in COCKPIT_TYPES) + COCKPIT_PACKS
+
 def pack_by_type(entity_type: str) -> HrmsEntityPack:
     return next(pack for pack in PACKS if pack.entity_type == entity_type)

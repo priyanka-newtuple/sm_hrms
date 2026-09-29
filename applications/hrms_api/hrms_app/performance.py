@@ -8,7 +8,7 @@ from .catalog import pack_by_type
 from .errors import AppError
 from .performance_contracts import (Assessment, Calibration, Comment, CycleInput,
                                     FeedbackInput, FeedbackRequest, GoalInput, Reassignment)
-from .policy import ROLE_CAPABILITIES, capabilities, require
+from .policy import role_capabilities, capabilities, require
 from .service import name
 
 CYCLE = 'HRMS.PerformanceCycle'
@@ -50,13 +50,13 @@ class PerformanceService:
                               (actor.organization_id, actor.user_id)).fetchall()
             return [dict(idempotency_key=key, **progress['performance_request']) for key, progress in rows]
 
-    def user_options(self):
+    def user_options(self, project_policy=None):
         users = []
         for user in self.platform.users():
             if user.get('status') != 'active' or user.get('email') == self.platform.email:
                 continue
             roles = self.platform.call('GET', f"/roles/users/{user['id']}/roles")
-            caps = set().union(*(set(ROLE_CAPABILITIES.get(r['role_name'], [])) for r in roles
+            caps = set().union(*(role_capabilities(r['role_name'], project_policy) for r in roles
                                 if r['organization_id'] == self.platform.org))
             if any(r['organization_id'] == self.platform.org for r in roles):
                 users.append({'id': user['id'], 'name': user['full_name'], 'email': user['email'], 'capabilities': sorted(caps)})

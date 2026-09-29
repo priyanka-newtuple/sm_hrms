@@ -1,3 +1,4 @@
+import CockpitPage, { CONTENT_TYPES } from './CockpitPage';
 import { WorkflowStages } from '../workflows/WorkflowConfiguration';
 import { useSearchParams } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
@@ -19,7 +20,7 @@ import { usePipelineList } from '@/pages/Pipeline/components/PipelineListView/us
 import type { ColumnDescriptor, ColumnField } from '@/pages/Pipeline/components/PipelineListView/types';
 import PipelineTerminalToggle from '@/pages/Pipeline/components/PipelineTerminalToggle';
 import OnboardingPage from './OnboardingPage';
-import { ProjectControls, ProjectDetail, PROJECT_KINDS } from './ProjectsPage';
+import { ProjectDetail, PROJECT_KINDS } from './ProjectsPage';
 import { LeaveRow, type LeaveItem } from './LeaveRequestsPage';
 import { PerformanceDetail } from './PerformancePage';
 
@@ -56,7 +57,7 @@ const FIELDS: ColumnField[] = [
 ];
 const DEFAULT_FIELDS = ['employee_name', 'identifier', 'workflow', 'owner', 'next_action', 'state'];
 
-export default function WorkflowsPage({ projectsOnly = false }: { projectsOnly?: boolean }) {
+export default function WorkflowsPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [entityType, setEntityType] = useState('');
@@ -67,7 +68,7 @@ export default function WorkflowsPage({ projectsOnly = false }: { projectsOnly?:
   const [columnOrder, setColumnOrder] = usePersistentState<string[]>(
     `hrms-workflow-columns:${user?.organizationId}:${user?.id}`, []);
   useEffect(() => { setSelectedId(searchParams.get('case')); }, [searchParams]);
-  const query = useQuery({ queryKey: ['hrms', 'workflows', projectsOnly], queryFn: async () => { const rows = await request<WorkflowRow[]>('/hrms/workflows'); return projectsOnly ? rows.filter(r => PROJECT_KINDS.includes(r.entity_type)) : rows; } });
+  const query = useQuery({ queryKey: ['hrms', 'workflows'], queryFn: async () => { const rows = await request<WorkflowRow[]>('/hrms/workflows'); return rows; } });
   const entities = useMemo<PipelineListEntity[]>(() => (query.data ?? [])
     .filter(row => (!entityType || row.entity_type === entityType) && (!hideTerminal || !row.is_terminal))
     .map(row => ({ entity_id: row.entity_id, entity_type: row.entity_type,
@@ -94,12 +95,11 @@ export default function WorkflowsPage({ projectsOnly = false }: { projectsOnly?:
 
   return <main className="flex h-[calc(100svh-5rem)] min-w-0 flex-col gap-6 p-6">
     <header className="flex flex-wrap items-start justify-between gap-4">
-      <div><h1 className="flex items-center gap-2 text-xl font-semibold text-foreground"><ListChecks className="h-5 w-5 text-cobalt" />{projectsOnly ? 'Projects and allocations' : 'Workflows'}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{projectsOnly ? 'Projects, allocation requests and approvals within your scope.' : 'Workflows you have permission to view.'}</p></div>
+      <div><h1 className="flex items-center gap-2 text-xl font-semibold text-foreground"><ListChecks className="h-5 w-5 text-cobalt" />Workflows</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Workflows you have permission to view.</p></div>
       <div className="flex gap-2"><PipelineTerminalToggle hidden={hideTerminal} label="Terminal Entities" onToggle={value => { setHideTerminal(value); list.setPage(0); }} />
         <Button variant="outline" size="icon" aria-label="Refresh workflows" disabled={query.isFetching} onClick={() => void queryClient.invalidateQueries({ queryKey: ['hrms'] })}><RefreshCw className="h-4 w-4" /></Button></div>
     </header>
-    {projectsOnly && <ProjectControls />}
     {query.isLoading && <p role="status">Loading workflows…</p>}
     {query.isError && <p role="alert" className="text-destructive">{getApiErrorMessage(query.error)}</p>}
     {query.data && <Card className="min-h-0 flex-1 overflow-auto p-0">
@@ -124,7 +124,8 @@ export default function WorkflowsPage({ projectsOnly = false }: { projectsOnly?:
         {selected?.entity_type === 'HRMS.OnboardingCase' && <OnboardingPage key={selected.entity_id} caseId={selected.entity_id} embedded />}
         {selected && ['HRMS.PerformanceCycle', 'HRMS.PerformanceReview', 'HRMS.ProjectFeedback'].includes(selected.entity_type) && <PerformanceDetail key={selected.entity_id} entityId={selected.entity_id} />}
         {selected && PROJECT_KINDS.includes(selected.entity_type) && <ProjectDetail key={selected.entity_id} entityId={selected.entity_id} />}
-        {selected?.leave && selected.leave_view && <ul className="px-6"><LeaveRow item={selected.leave} view={selected.leave_view}
+        {selected && CONTENT_TYPES.includes(selected.entity_type) && <CockpitPage key={selected.entity_id} entityId={selected.entity_id} />}
+          {selected?.leave && selected.leave_view && <ul className="px-6"><LeaveRow item={selected.leave} view={selected.leave_view}
           onChange={() => void queryClient.invalidateQueries({ queryKey: ['hrms'] })} /></ul>}
       </SheetContent>
     </Sheet>

@@ -3,7 +3,10 @@ from .catalog import pack_by_type
 from .errors import AppError
 from .policy import capabilities
 
+from .cockpit_catalog import TYPES as COCKPIT_TYPES
+
 FORM_ACCESS = {
+    **{kind: {'cockpit:view'} for kind in COCKPIT_TYPES},
     'HRMS.Employee': {'employee:create', 'employee:read'},
     'HRMS.LeaveRequest': {'leave:create'},
     **{kind: {'project:view'} for kind in ('HRMS.Project', 'HRMS.ProjectChange', 'HRMS.Customer', 'HRMS.Allocation', 'HRMS.AllocationChange', 'HRMS.ProjectRole')},

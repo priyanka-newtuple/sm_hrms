@@ -14,7 +14,9 @@
     "leave:create",
     "onboarding:view",
     "project:view",
-    "project:read_all"
+    "project:read_all",
+    "cockpit:view",
+    "cockpit:author"
   ],
   "hrms_hr_full": [
     "employee:read",
@@ -25,7 +27,11 @@
     "performance:manage",
     "onboarding:view",
     "project:view",
-    "project:read_all"
+    "project:read_all",
+    "cockpit:view",
+    "cockpit:author",
+    "cockpit:approve",
+    "cockpit:publish"
   ],
   "hrms_office_admin": [
     "leave:create",
@@ -46,7 +52,8 @@
     "project:manage_all",
     "project:create",
     "project:commercial_all",
-    "customer:create"
+    "customer:create",
+    "allocation:request"
   ],
   "admin": [
     "employee:read",
@@ -76,7 +83,12 @@
     "project:commercial_all",
     "customer:create",
     "project:approve",
-    "platform:configure"
+    "platform:configure",
+    "allocation:request",
+    "cockpit:view",
+    "cockpit:author",
+    "cockpit:approve",
+    "cockpit:publish"
   ],
   "hrms_performance_approver": [
     "performance:approve_cycle",
@@ -93,10 +105,13 @@
     "project:create",
     "project:manage_assigned",
     "project:commercial_assigned",
-    "customer:create"
+    "customer:create",
+    "allocation:request"
   ],
   "hrms_recruiter": [
     "leave:create",
-    "project:view"
+    "project:view",
+    "cockpit:view",
+    "cockpit:jobs"
   ]
 }

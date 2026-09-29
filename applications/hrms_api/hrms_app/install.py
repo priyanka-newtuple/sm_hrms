@@ -6,6 +6,7 @@ from .errors import AppError
 from .platform import PlatformClient
 from .policy import ROLE_CAPABILITIES
 from .project_catalog import TYPES as PROJECT_TYPES
+from .cockpit_catalog import TYPES as COCKPIT_TYPES
 
 
 def install():
@@ -81,7 +82,7 @@ def install():
         # Existing tenant role customizations are left intact. The gateway is the only browser API surface.
 
     service_name = 'hrms_application_service'
-    runtime_packs = [p for p in PACKS if p.entity_type in {*PROJECT_TYPES,
+    runtime_packs = [p for p in PACKS if p.entity_type in {*PROJECT_TYPES, *COCKPIT_TYPES,
         'HRMS.Employee', 'HRMS.OnboardingCase', 'HRMS.OnboardingStep', 'HRMS.LeaveRequest',
         'HRMS.PerformanceCycle', 'HRMS.PerformanceReview', 'HRMS.PerformanceGoal', 'HRMS.ProjectFeedback'}]
     role_spec = dict(name=service_name, display_name='HRMS Application Service',
