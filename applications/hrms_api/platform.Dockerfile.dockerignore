@@ -1,0 +1,16 @@
+**
+!backend/
+!backend/**
+backend/.venv
+backend/hrms
+backend/hrms_native
+backend/tests
+backend/**/__pycache__
+backend/**/*.pyc
+backend/**/.pytest_cache
+backend/**/.ruff_cache
+backend/.mypy_cache
+backend/htmlcov
+backend/.coverage
+backend/uploads
+backend/etc/.env

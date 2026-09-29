@@ -4,6 +4,14 @@
 	docker-db-shell docker-backend-shell docker-frontend-shell setup-env setup-env-prod migrate-db
 
 # Default target
+.PHONY: hrms-up hrms-down hrms-test
+hrms-up:
+	pwsh -File scripts/hrms-local.ps1 up
+hrms-down:
+	pwsh -File scripts/hrms-local.ps1 down
+hrms-test:
+	pwsh -File scripts/hrms-local.ps1 test
+
 help:
 	@echo "Available targets:"
 	@echo ""

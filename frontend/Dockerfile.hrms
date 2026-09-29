@@ -1,0 +1,15 @@
+FROM node:22-alpine AS build
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+ENV VITE_SKIN_ID=newtuple-hrms
+ENV VITE_HRMS_API_BASE_URL=/api/v1
+RUN sed -i 's|/src/main.tsx|/src/skins/hrms/main.tsx|' index.html
+RUN sed -i 's|<title>State Machine</title>|<title>Newtuple HRMS</title>|' index.html
+RUN npm run build
+
+FROM nginx:alpine
+COPY deploy/hrms.nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /app/dist /usr/share/nginx/html
+EXPOSE 80

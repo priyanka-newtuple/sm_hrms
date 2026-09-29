@@ -2,6 +2,55 @@
 
 A generic state machine workflow runtime designed to power multiple "cockpits" (ATS first, PMO next). The architecture separates a platform core (state machine engine, event audit, guards, interventions, signals) from domain packs (application-specific entities, workflows, and integrations).
 
+## HRMS local preview
+
+With Docker Desktop running, start the isolated HRMS stack from this repository:
+
+```powershell
+powershell -NoProfile -File scripts/hrms-local.ps1 up
+```
+
+Open [http://localhost:5181](http://localhost:5181) and choose a seeded role on the login page. The HRMS API is on `http://localhost:8011`; its database is on loopback port `5456`. This Compose project uses its own images and volumes and does not connect to the legacy HRMS database. The generated `.hrms.local.env` contains local secrets and is ignored by Git.
+
+```powershell
+powershell -NoProfile -File scripts/hrms-local.ps1 test
+powershell -NoProfile -File scripts/hrms-local.ps1 logs
+powershell -NoProfile -File scripts/hrms-local.ps1 down
+```
+
+The test command uses only the disposable `sm_hrms_test` database. See [the migration plan](design_docs/hrms_migration_plan.md) for the compatibility boundary and production gates.
+
+To inspect the native state-machine backend being prepared for HRMS, run:
+
+```powershell
+powershell -NoProfile -File scripts/hrms-local.ps1 native-up
+```
+
+This starts the HRMS application at [http://localhost:5182](http://localhost:5182). Its separate API layer (`applications/hrms_api`) is on loopback port 8012 and calls the unchanged platform through its public APIs. The core API is internal to Docker. The application database holds retry checkpoints and actor audit entries; HR records and workflow state remain in the platform database.
+
+Sign in as `hrms-admin@newtuple.com` using `HRMS_PLATFORM_ADMIN_PASSWORD` from the ignored `.hrms.local.env`. Open Employees to add a hire, Onboarding to see all steps and complete permitted actions, or Quick actions to see ready work. Employee creation also creates a pending identity, a native onboarding case, and eight native step entities. Identity activation and invitation delivery are separate; this refactor does not send invitations.
+
+Copy the local administrator password without printing it (run from this repository):
+
+```powershell
+(Get-Content .hrms.local.env | Where-Object { $_ -like 'HRMS_PLATFORM_ADMIN_PASSWORD=*' }).Split('=', 2)[1] | Set-Clipboard
+```
+
+Existing local employee/manager credentials and role assignments are preserved. The bootstrap administrator is not an employee and cannot submit personal leave without a linked employee profile. The role policy is application-owned configuration, with backend authorization on every action.
+
+```powershell
+# Existing pre-refactor onboarding tasks: read-only export, API-only target writes
+powershell -NoProfile -File scripts/hrms-local.ps1 native-migrate-steps
+# Integration check on the existing imported local demo stack; retains named fixtures
+powershell -NoProfile -File scripts/hrms-local.ps1 native-test
+# Verify tracked platform sources still match the original baseline
+python scripts/verify-platform-boundary.py
+```
+
+The old `native-import`, `native-identities`, `native-demo`, and `native-reconcile` commands were retired because they imported platform internals or wrote platform tables. Existing imported records remain in place. A general legacy import/activation tool using only public APIs remains future migration work.
+
+See [the application-layer architecture](design_docs/hrms_application_layer.md) for the API boundary, deployment model, verification, and limitations. Other legacy modules remain in the separate compatibility preview on port 5181; full feature parity is still in progress.
+
 ## Tech Stack
 
 - **Backend**: FastAPI + SQLAlchemy + Pydantic + PostgreSQL

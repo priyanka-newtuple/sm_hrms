@@ -1,0 +1,102 @@
+{
+  "hrms_employee": [
+    "leave:create",
+    "project:view"
+  ],
+  "hrms_manager": [
+    "leave:create",
+    "leave:decide",
+    "project:view"
+  ],
+  "hrms_hr_basic": [
+    "employee:read",
+    "employee:create",
+    "leave:create",
+    "onboarding:view",
+    "project:view",
+    "project:read_all"
+  ],
+  "hrms_hr_full": [
+    "employee:read",
+    "employee:create",
+    "employee:assign_hr_role",
+    "onboarding:manage",
+    "leave:create",
+    "performance:manage",
+    "onboarding:view",
+    "project:view",
+    "project:read_all"
+  ],
+  "hrms_office_admin": [
+    "leave:create",
+    "project:view",
+    "project:read_all"
+  ],
+  "hrms_finance": [
+    "leave:create",
+    "project:view",
+    "project:read_all",
+    "project:commercial_all"
+  ],
+  "hrms_delivery_manager": [
+    "leave:create",
+    "leave:decide",
+    "project:view",
+    "project:read_all",
+    "project:manage_all",
+    "project:create",
+    "project:commercial_all",
+    "customer:create"
+  ],
+  "admin": [
+    "employee:read",
+    "employee:create",
+    "employee:assign_hr_role",
+    "onboarding:manage",
+    "performance:manage",
+    "performance:approve_cycle",
+    "leave:create",
+    "onboarding:view",
+    "project:view"
+  ],
+  "superadmin": [
+    "employee:read",
+    "employee:create",
+    "employee:assign_hr_role",
+    "employee:assign_hr_full",
+    "onboarding:manage",
+    "performance:manage",
+    "performance:approve_cycle",
+    "leave:create",
+    "onboarding:view",
+    "project:view",
+    "project:read_all",
+    "project:manage_all",
+    "project:create",
+    "project:commercial_all",
+    "customer:create",
+    "project:approve",
+    "platform:configure"
+  ],
+  "hrms_performance_approver": [
+    "performance:approve_cycle",
+    "leave:create",
+    "project:view"
+  ],
+  "viewer": [
+    "employee:read",
+    "project:view"
+  ],
+  "hrms_project_manager": [
+    "leave:create",
+    "project:view",
+    "project:create",
+    "project:manage_assigned",
+    "project:commercial_assigned",
+    "customer:create"
+  ],
+  "hrms_recruiter": [
+    "leave:create",
+    "project:view"
+  ]
+}

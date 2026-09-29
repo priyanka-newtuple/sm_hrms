@@ -1,0 +1,37 @@
+{
+  "departments": [
+    "Administration",
+    "Data",
+    "Delivery",
+    "Design",
+    "Engineering",
+    "Finance",
+    "Human Resources",
+    "Leadership",
+    "People",
+    "Product"
+  ],
+  "designations": [
+    "Backend Engineer",
+    "Business Analyst",
+    "Chief Executive Officer",
+    "Delivery Manager",
+    "DevOps Engineer",
+    "Engineer",
+    "Finance Analyst",
+    "Finance Manager",
+    "Frontend Engineer",
+    "Head of HR",
+    "HR Executive",
+    "Office Administrator",
+    "People Partner",
+    "Product Designer",
+    "Project Manager",
+    "QA Engineer",
+    "Senior Data Engineer",
+    "Senior Software Engineer",
+    "Software Engineer",
+    "UI/UX Designer",
+    "Talent Acquisition Specialist"
+  ]
+}

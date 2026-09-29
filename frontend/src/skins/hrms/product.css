@@ -1,0 +1,13 @@
+/* Product-only compatibility tokens; platform defaults remain unchanged. */
+.hrms-product { min-height: 100dvh; background: #f7f8fa; color: #171b21; font-family: Inter, sans-serif; }
+.hrms-product .rounded-card { border-radius: 1.5rem; }
+.hrms-product .bg-cobalt-gradient { background-image: linear-gradient(90deg, #0047ab, #00b8d9); }
+.hrms-product .duration-hover { transition-duration: 300ms; }
+.hrms-product .duration-transition { transition-duration: 500ms; }
+.hrms-product .ease-brand { transition-timing-function: ease-in-out; }
+.hrms-product .bg-cobalt { background-color: #0047ab; }
+.hrms-product .text-cobalt { color: #0047ab; }
+.hrms-product .border-cobalt { border-color: #0047ab; }
+.hrms-product .text-danger { color: #dc2626; }
+.hrms-product .text-success { color: #15803d; }
+.hrms-product .text-warning { color: #b45309; }

@@ -9,6 +9,16 @@ Most product behaviour is **configuration, not code**: entity types, forms, work
 
 ## Git Branching Strategy
 
+### Agreed HRMS architecture (user decision)
+
+- Keep the original native state-machine platform source generic and untouched. Verify with `python scripts/verify-platform-boundary.py`.
+- Native entities, fields/forms, workflow definitions, states/transitions and platform permissions remain the system of record. Install domain definitions as tenant configuration through public platform APIs.
+- Put HRMS-specific aggregation, orchestration, relationship/field authorization and additional APIs in `applications/hrms_api/`; never access platform database tables directly from this layer.
+- Keep HRMS UI customization in `frontend/src/skins/hrms_native/`. Reuse native platform components and workflow views wherever possible without modifying their core source.
+- Keep business Super Admin permissions distinct from platform configuration administration. Exposing native Settings/entity/workflow administration requires an explicit, authorized administration surface; do not silently allow browser calls to bypass HRMS workflow or approval rules.
+- The user has authorized HRMS Super Admin to access all tenant configuration in native-style Settings. The HRMS `platform:configure` capability maps to `superadmin`. Reuse native Settings components and pass the human token through the explicit configuration gateway; never substitute the application service token. Platform-wide organization administration remains separate from tenant Super Admin.
+- Apply this boundary to every subsequent module. Current architecture and module walkthroughs are recorded in `design_docs/hrms_migration_plan.md` and `design_docs/hrms_projects_local.md`.
+
 `main` is the production branch and the repo default.
 
 - **NEVER commit directly to** `main`

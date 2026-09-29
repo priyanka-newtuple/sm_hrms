@@ -149,3 +149,8 @@ backend/app/
 # Local credentials and machine-specific agent settings
 backend/etc/.envc
 .claude/settings.local.json
+.hrms.local.env
+backend/hrms/storage/
+
+.hrms-refactor-backup/
+.hrms-demo-local/
