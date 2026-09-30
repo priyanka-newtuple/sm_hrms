@@ -1,3 +1,5 @@
+import { BrandFooter, BrandLogo, PublicLayout } from './components/Brand';
+import './brand.css';
 import CockpitPage, { CockpitInbox } from './pages/CockpitPage';
 import PublishedContent from './pages/PublishedContent';
 import { lazy, Suspense, useEffect, useMemo, type ReactNode } from 'react';
@@ -32,7 +34,7 @@ const FunnelEditor = lazy(() => import('../../pages/funnel'));
 
 
 
-const LoginPage = lazy(() => import('../../pages/auth/LoginPage'));
+const LoginPage = lazy(() => import('./pages/BrandedLoginPage'));
 
 const ForgotPasswordPage = lazy(() => import('../../pages/auth/Forgot-Password'));
 
@@ -94,11 +96,11 @@ function Layout() {
 
   ];
 
-  return <div className="min-h-screen bg-slate-50 md:flex">
+  return <div className="hrms-brand min-h-screen bg-slate-50 md:flex">
 
-    <aside className="flex flex-col border-r bg-white p-5 md:sticky md:top-0 md:h-screen md:w-64 md:shrink-0">
+    <aside className="flex flex-col border-r bg-white p-5 md:sticky md:top-0 md:h-screen md:w-72 md:shrink-0">
 
-      <Link to="/hrms/my-work" className="mb-8 flex items-center gap-3 text-lg font-semibold"><span className="rounded-full bg-blue-700 px-3 py-2 text-white">N</span>Newtuple HRMS</Link>
+      <Link to="/hrms/my-work" className="mb-8 flex items-center gap-3 text-lg font-semibold"><BrandLogo /></Link>
 
       <nav aria-label="Main navigation" className="flex min-h-0 flex-wrap gap-2 overflow-y-auto md:flex-col md:flex-nowrap">{items.map(item =>
 
@@ -112,11 +114,12 @@ function Layout() {
 
     </aside>
 
-    <div className="min-w-0 flex-1">
+    <div className="flex min-h-screen min-w-0 flex-1 flex-col">
 
       <header className="flex items-center justify-end gap-4 border-b bg-white px-6 py-4"><div className="text-right"><p className="font-medium">{user?.fullName}</p><p className="text-sm text-slate-500">{caps.data?.roles.map(role => role.replace(/^hrms_/, '').replaceAll('_', ' ').replace(/\b\w/g, c => c.toUpperCase())).join(' · ') ?? 'Loading role…'}</p></div><button onClick={() => void logout()} className="rounded-lg border px-3 py-2">Sign out</button></header>
 
-      <Outlet />
+      <div className="min-w-0 flex-1"><Outlet /></div>
+      <BrandFooter compact />
 
     </div>
 
@@ -175,7 +178,8 @@ export default function App() {
 
   return <BrowserRouter><AuthProvider><SessionQueries><OrgSelectorProvider><Suspense fallback={<p className="p-8" role="status">Loading…</p>}><Routes>
 
-    <Route path="/login" element={<><div className="bg-blue-50 p-3 text-center"><Link className="text-blue-700 underline" to="/public">Policies, learning calendar, holidays and careers</Link></div><LoginPage /><PublishedContent publicPage /></>} />
+    <Route element={<PublicLayout />}>
+    <Route path="/login" element={<LoginPage />} />
     <Route path="/public" element={<PublishedContent publicPage />} />
 
     <Route path="/forgot-password" element={<ForgotPasswordPage />} />
@@ -190,6 +194,7 @@ export default function App() {
 
     <Route path="/auth/microsoft/callback" element={<MicrosoftCallbackPage />} />
 
+    </Route>
     <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
 
       <Route path="/settings" element={<PlatformSettings />} />

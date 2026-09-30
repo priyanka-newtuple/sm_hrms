@@ -1,0 +1,62 @@
+.hrms-brand { --primary:#0047ab; --primary-foreground:#fff; color:#111827; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; }
+.hrms-brand a:focus-visible,.hrms-brand button:focus-visible { outline:2px solid #0047ab; outline-offset:5px; }
+.hrms-logo { display:block; width:224px; height:64px; position:relative; overflow:hidden; background:white; flex-shrink:0; }
+/* Preserve the master aspect ratio; crop only the surrounding white canvas. */
+.hrms-logo img { position:absolute; width:300px; max-width:none; height:auto; left:-33px; top:-43px; }
+.hrms-public-shell { min-height:100vh; display:flex; flex-direction:column; background:white; }
+.hrms-public-body { flex:1; }
+.hrms-public-header { display:flex; align-items:center; gap:24px; padding:12px max(24px,calc((100vw - 1280px)/2)); background:#ffffffed; border-bottom:1px solid #e5e7eb; }
+.hrms-product-label { color:#6b7280; font-size:13px; border-left:1px solid #d1d5db; padding-left:24px; }
+.hrms-public-header > a:last-child { margin-left:auto; }
+.hrms-outline-button { display:inline-flex; align-items:center; justify-content:center; gap:10px; border:1px solid #0047ab; border-radius:999px; color:#0047ab; background:white; padding:11px 20px; font-size:14px; font-weight:500; text-decoration:none; white-space:nowrap; }
+.hrms-outline-button:hover { background:#eff6ff; }
+.hrms-login-layout { max-width:1280px; margin:auto; padding:76px 32px 40px; display:grid; grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr); gap:90px; align-items:start; }
+.hrms-eyebrow { color:#0047ab; font-size:11px; font-weight:600; letter-spacing:.18em; margin-bottom:20px; }
+.hrms-welcome h1,.hrms-information h1 { font-size:clamp(36px,4vw,56px); line-height:1.15; letter-spacing:-.04em; font-weight:200; margin:0 0 24px; }
+.hrms-welcome h1 span,.hrms-information h1 span { color:#0047ab; }
+.hrms-intro { color:#4b5563; font-weight:300; font-size:17px; line-height:1.8; max-width:490px; margin-bottom:24px; }
+.hrms-explore-heading { margin:48px 0 18px; display:flex; flex-wrap:wrap; align-items:center; gap:10px; justify-content:space-between; }
+.hrms-explore-heading h2 { font-size:14px; font-weight:600; }
+.hrms-explore-heading span { font-size:11px; color:#6b7280; }
+.hrms-resource-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+.hrms-resource-card { position:relative; display:block; border:1px solid #e5e7eb; border-radius:24px; padding:23px; background:#f9fafb; text-decoration:none; transition:border-color .3s,background .3s; }
+.hrms-resource-card:hover { border-color:#0047ab; background:#eff6ff; }
+.hrms-resource-card > svg { color:#0047ab; }
+.hrms-card-arrow { position:absolute; top:26px; right:22px; }
+.hrms-resource-card h3 { font-size:14px; font-weight:600; margin:20px 0 7px; }
+.hrms-resource-card p { color:#4b5563; font-size:12px; line-height:1.7; }
+.hrms-signin { padding:32px; border:1px solid #e5e7eb; border-radius:28px; background:white; box-shadow:0 12px 40px #11182705; }
+.hrms-signin h2 { font-size:28px; font-weight:300; letter-spacing:-.02em; margin-bottom:8px; }
+.hrms-signin > p:not(.hrms-eyebrow) { color:#4b5563; font-size:14px; }
+.hrms-auth-form > div { min-height:auto; padding:24px 0 0; background:none; }
+.hrms-auth-form > div > div { max-width:none; }
+.hrms-auth-form > div > div > .text-center { display:none; }
+.hrms-auth-form > div > div > .rounded-2xl { margin:0; border:0; border-radius:0; padding:0; box-shadow:none; }
+.hrms-auth-form input { background:#f9fafb; box-shadow:none; border-radius:12px; }
+.hrms-brand-footer { margin-top:48px; }
+/* Fit the complete wave band from the square artwork into a shallow footer.
+   Explicit vertical sizing keeps its crests visible at every viewport width. */
+.hrms-footer-curves { height:clamp(80px,10vw,144px); background:url('/hrms-brand/geometric-curves.png') center 46% / 100% 330% no-repeat; }
+.hrms-information { max-width:1280px; margin:auto; padding:64px 32px 24px; }
+.hrms-category-nav { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin:40px 0; }
+.hrms-category-nav button { display:flex; align-items:center; gap:12px; padding:20px; border:1px solid #e5e7eb; border-radius:18px; background:white; font-size:14px; text-align:left; }
+.hrms-category-nav button[aria-pressed=true] { color:white; background:#0047ab; border-color:#0047ab; }
+.hrms-category-nav button:hover { border-color:#0047ab; }
+.hrms-section-heading { display:flex; justify-content:space-between; align-items:center; margin:24px 0; }
+.hrms-section-heading h2 { font-size:22px; font-weight:600; }
+.hrms-section-heading span { font-size:12px; color:#6b7280; }
+.hrms-empty { padding:64px 24px; border:1px dashed #cbd5e1; border-radius:24px; background:#f9fafb; text-align:center; }
+.hrms-empty svg { margin:0 auto 18px; color:#0047ab; }
+.hrms-empty h3 { font-size:18px; font-weight:500; margin-bottom:10px; }
+.hrms-empty p { color:#4b5563; font-size:14px; line-height:1.8; }
+.hrms-empty button { margin-top:20px; }
+.hrms-published-grid { display:grid; gap:24px; grid-template-columns:repeat(2,minmax(0,1fr)); }
+.hrms-published-grid article { padding:32px; border-color:#e5e7eb; border-radius:24px; line-height:1.8; overflow-wrap:anywhere; }
+.hrms-published-grid article > p { color:#4b5563; }
+@media(max-width:1000px) { .hrms-login-layout { gap:36px; padding-top:48px; } .hrms-product-label { display:none; } .hrms-category-nav { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:760px) { .hrms-public-header { padding:8px 16px; flex-wrap:wrap; gap:8px; } .hrms-public-header > a:last-child { padding:8px 12px; font-size:12px; } .hrms-login-layout { display:flex; flex-direction:column; padding:32px 20px 0; gap:32px; } .hrms-signin { width:100%; padding:24px; } .hrms-resource-card { padding:20px; } .hrms-explore-heading { margin-top:28px; } .hrms-information { padding:32px 20px; } .hrms-published-grid { grid-template-columns:1fr; } .hrms-category-nav button { padding:16px 12px; font-size:12px; } }
+@media(prefers-reduced-motion:reduce) { .hrms-resource-card { transition:none; } }
+
+/* Workspace pages retain the brand accent without taking space from daily work. */
+.hrms-brand-footer--compact { margin-top:calc(16px / 3); flex-shrink:0; }
+.hrms-brand-footer--compact .hrms-footer-curves { height:calc(32px / 3); }
