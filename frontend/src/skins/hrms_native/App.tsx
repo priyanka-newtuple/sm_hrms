@@ -1,6 +1,6 @@
 import { BrandFooter, BrandLogo, PublicLayout } from './components/Brand';
 import './brand.css';
-import CockpitPage, { CockpitInbox } from './pages/CockpitPage';
+import CockpitPage from './pages/CockpitPage';
 import PublishedContent from './pages/PublishedContent';
 import { lazy, Suspense, useEffect, useMemo, type ReactNode } from 'react';
 
@@ -8,13 +8,13 @@ import { Settings } from 'lucide-react';
 
 import { BrowserRouter, Link, Navigate, NavLink, Outlet, Route, Routes } from 'react-router-dom';
 
-import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { AuthProvider, ProtectedRoute, useAuth } from '../../core/auth';
 
 import { OrgSelectorProvider } from '../../core/contexts/OrgSelectorContext';
 
-import { request } from '../../core/services/api/client';
+import MyWorkPage from './pages/MyWorkPage';
 
 import { useHrmsCapabilities } from './capabilities';
 
@@ -27,7 +27,7 @@ import LeaveRequestsPage from './pages/LeaveRequestsPage';
 import WorkflowsPage from './pages/WorkflowsPage';
 
 import PerformancePage from './pages/PerformancePage';
-import ProjectsPage, { ProjectInbox } from './pages/ProjectsPage';
+import ProjectsPage from './pages/ProjectsPage';
 import { ConfigurationGuard } from './pages/PlatformSettings';
 const PlatformSettings = lazy(() => import('./pages/PlatformSettings'));
 const FunnelEditor = lazy(() => import('../../pages/funnel'));
@@ -143,37 +143,6 @@ function OnboardingManagement() {
 
 
 
-type WorkCase = { entity_id: string; employee_name: string; steps: { sequence: number; title: string; owner_name: string; can_complete: boolean; due_date: string | null }[] };
-
-function MyWork() {
-  const caps=useHrmsCapabilities();
-
-  const query = useQuery({ queryKey: ['hrms', 'my-work'], queryFn: () => request<WorkCase[]>('/hrms/onboarding') });
-
-  const actions = query.data?.flatMap(c => c.steps.filter(s => s.can_complete).map(s => ({...s, caseId: c.entity_id, employee: c.employee_name}))) ?? [];
-
-  return <main className="mx-auto max-w-5xl space-y-5 p-6"><h1 className="text-2xl font-semibold">My Work</h1><p className="text-slate-600">Your assigned tasks and approvals.</p>
-
-    <Link to="/hrms/leave" className="inline-block rounded-full border bg-white px-5 py-3">Open leave requests and approvals</Link>
-
-    <Link to="/hrms/performance" className="ml-3 inline-block rounded-full border bg-white px-5 py-3">Open performance reviews and approvals</Link>
-
-    {caps.data?.capabilities.includes('project:view') && <Link to="/hrms/projects" className="inline-block rounded-full border bg-white px-5 py-3">Open projects</Link>}
-    <CockpitInbox />
-    <ProjectInbox />
-
-    {query.isLoading && <p>Loading actions…</p>}{query.isError && <p role="alert">Unable to load your actions.</p>}
-
-    {!query.isLoading && !query.isError && actions.length === 0 && <p>No onboarding actions are ready for you.</p>}
-
-    <ul className="space-y-3">{actions.map(a => <li key={`${a.caseId}-${a.sequence}`} className="rounded-xl border bg-white p-5"><p className="font-semibold">{a.employee} · {a.title}</p><p className="mt-1 text-sm text-slate-500">Owner: {a.owner_name}</p><Link className="mt-3 inline-block text-blue-700 underline" to={`/hrms/workflows?case=${a.caseId}`}>Open workflow and complete step</Link></li>)}</ul>
-
-  </main>;
-
-}
-
-
-
 export default function App() {
 
   return <BrowserRouter><AuthProvider><SessionQueries><OrgSelectorProvider><Suspense fallback={<p className="p-8" role="status">Loading…</p>}><Routes>
@@ -209,7 +178,7 @@ export default function App() {
 
       <Route path="/hrms/performance" element={<PerformancePage />} />
 
-      <Route path="/hrms/my-work" element={<MyWork />} />
+      <Route path="/hrms/my-work" element={<MyWorkPage />} />
 
       <Route path="/hrms/cockpit" element={<CockpitPage />} />
       <Route path="/hrms/content" element={<PublishedContent />} />

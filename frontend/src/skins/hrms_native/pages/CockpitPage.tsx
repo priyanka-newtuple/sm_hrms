@@ -1,3 +1,5 @@
+import { FileCheck2 } from 'lucide-react';
+import { WorkPanel } from '../components/WorkPanel';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -33,15 +35,11 @@ export function CockpitInbox() {
  const items = query.data?.items.filter(item =>
   item.actions.includes('approve') || item.actions.includes('publish')) ?? [];
  if (!caps.data?.capabilities.includes('cockpit:view')) return null;
- return <section className="space-y-3" aria-labelledby="cockpit-inbox-title">
-  <h2 id="cockpit-inbox-title" className="font-semibold">HR content approvals and publishing</h2>
-  {query.isLoading && <p role="status">Loading content actions…</p>}
-  {query.isError && <p role="alert">{getApiErrorMessage(query.error)}</p>}
-  {query.data && items.length === 0 && <p className="text-sm text-muted-foreground">No content approvals or publications are waiting for you.</p>}
-  <ul className="space-y-3">{items.map(item => <li key={item.entity_id} className="rounded-xl border bg-background p-4">
+ return <WorkPanel title="HR content" description="Review approvals and prepare publications." icon={FileCheck2} count={items.length} loading={query.isLoading} error={query.isError ? getApiErrorMessage(query.error) : undefined} retry={() => void query.refetch()} empty="No content approvals or publications are waiting for you.">
+  <ul className="space-y-3">{items.map(item => <li key={item.entity_id} className="hrms-work-item">
    <h3 className="font-semibold">{item.data.title}</h3>
    <p className="mt-1 text-sm text-muted-foreground">{CONTENT_LABELS[CONTENT_TYPES.indexOf(item.kind)]} · {item.state_label} · Submitted by {item.data.author_name || 'HR'}</p>
-   <Button className="mt-3" variant="outline" onClick={() => setSelected(item.entity_id)}>
+   <Button className="hrms-outline-button mt-3" variant="outline" onClick={() => setSelected(item.entity_id)}>
     {item.actions.includes('approve') ? 'Review approval' : 'Review for publication'}
    </Button>
   </li>)}</ul>
@@ -51,7 +49,7 @@ export function CockpitInbox() {
     {selected && <CockpitPage key={selected} entityId={selected} />}
    </SheetContent>
   </Sheet>
- </section>;
+ </WorkPanel>;
 }
 
 export function ContentCard({item}:{item:Record<string,unknown>}) {

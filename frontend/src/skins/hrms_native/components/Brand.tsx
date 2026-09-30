@@ -1,5 +1,6 @@
 import { ArrowUpRight, BookOpen, BriefcaseBusiness, CalendarDays, FileText } from 'lucide-react';
 import { Link, Outlet } from 'react-router-dom';
+import { BrandWave } from './BrandWave';
 
 export const informationCategories = [
   { id: 'policies', title: 'Policies', description: 'Our policies, clearly explained.', icon: FileText, types: ['HRMS.Policy'] },
@@ -14,7 +15,7 @@ export function BrandLogo() {
 
 export function BrandFooter({ compact = false }: { compact?: boolean }) {
   return <footer className={`hrms-brand-footer${compact ? ' hrms-brand-footer--compact' : ''}`}>
-    <div className="hrms-footer-curves" aria-hidden="true" />
+    {compact ? <BrandWave /> : <div className="hrms-footer-curves" aria-hidden="true" />}
   </footer>;
 }
 

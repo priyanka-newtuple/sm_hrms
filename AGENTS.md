@@ -19,6 +19,14 @@ Most product behaviour is **configuration, not code**: entity types, forms, work
 - The user has authorized HRMS Super Admin to access all tenant configuration in native-style Settings. The HRMS `platform:configure` capability maps to `superadmin`. Reuse native Settings components and pass the human token through the explicit configuration gateway; never substitute the application service token. Platform-wide organization administration remains separate from tenant Super Admin.
 - Apply this boundary to every subsequent module. Current architecture and module walkthroughs are recorded in `design_docs/hrms_migration_plan.md` and `design_docs/hrms_projects_local.md`.
 
+### HRMS visual consistency (user decision)
+
+- Use the supplied Newtuple Design Language Guideline and the branded login page as the visual baseline for all subsequent HRMS pages.
+- Reuse skin-local `brand.css` workspace/card/button patterns and `components/WorkPanel.tsx` for inboxes. Use cobalt #0047AB, light system-font page headings, clear semibold section headings, Lucide outline icons, generous spacing and rounded cards.
+- Include coherent loading, retry/error and empty states. Derive counts from authorized API results; never present failures as zero pending work.
+- Keep forms, states, transitions and permissions driven by platform configuration. Styling must not introduce or bypass authorization rules.
+- Keep these styles in the HRMS skin. Do not change native core components or styles to achieve visual consistency. See `frontend/src/skins/hrms_native/components/BRANDING.md`.
+
 `main` is the production branch and the repo default.
 
 - **NEVER commit directly to** `main`

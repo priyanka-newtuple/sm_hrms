@@ -1,3 +1,5 @@
+import { BriefcaseBusiness, ArrowRight } from 'lucide-react';
+import { WorkPanel } from '../components/WorkPanel';
 import { useHrmsCapabilities } from '../capabilities';
 import { WorkflowStages, useWorkflowConfiguration, transitionLabel } from '../workflows/WorkflowConfiguration';
 import { ConfiguredForm, ConfiguredField } from '../forms/ConfiguredForm';
@@ -97,11 +99,9 @@ export function ProjectInbox() {
   const caps=useHrmsCapabilities();
   const actions=board.data?.requests.filter(r=>r.state==='pending' && r.actions.includes('approve'))??[];
   if (!caps.data?.capabilities.includes('project:view')) return null;
-  return <section className="space-y-2"><h2 className="font-semibold">Project and allocation approvals</h2>
-    {board.isLoading && <p>Loading approvals…</p>}{board.isError && <p role="alert">{getApiErrorMessage(board.error)}</p>}
-    {!board.isLoading && !board.isError && !actions.length && <p className="text-sm text-muted-foreground">No project or allocation approvals are waiting for you.</p>}
-    {actions.map(r=><Link key={r.id} className="block rounded-xl border bg-background p-4 text-sm" to={`/hrms/workflows?case=${r.id}`}>{r.project_name} · {r.kind==='HRMS.ProjectChange'?'Project approval':'Allocation approval'} · Requested by {val(r.data,'requested_by_name')}</Link>)}
-  </section>;
+  return <WorkPanel title="Projects & allocations" description="Review changes and resource requests." icon={BriefcaseBusiness} count={actions.length} loading={board.isLoading} error={board.isError ? getApiErrorMessage(board.error) : undefined} retry={() => void board.refetch()} empty="No project or allocation approvals are waiting for you.">
+    <ul>{actions.map(r=><li className="hrms-work-item" key={r.id}><p className="hrms-work-item-context">{r.kind==='HRMS.ProjectChange'?'Project approval':'Allocation approval'}</p><h3>{r.project_name}</h3><p>Requested by {val(r.data,'requested_by_name')}</p><Link className="hrms-outline-button" to={`/hrms/workflows?case=${r.id}`}>Review request <ArrowRight size={15} aria-hidden="true" /></Link></li>)}</ul>
+  </WorkPanel>;
 }
 
 function ReadableData({ data }: {data:Data}) {
