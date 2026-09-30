@@ -1,4 +1,5 @@
-import { BrandFooter, BrandLogo, PublicLayout } from './components/Brand';
+import { BrandFooter, PublicLayout } from './components/Brand';
+import TenantHeader from './components/TenantHeader';
 import './brand.css';
 import CockpitPage from './pages/CockpitPage';
 import PublishedContent from './pages/PublishedContent';
@@ -6,7 +7,7 @@ import { lazy, Suspense, useEffect, useMemo, type ReactNode } from 'react';
 
 import { Settings, Zap, Users, UserRoundPlus, CalendarDays, TrendingUp, BriefcaseBusiness, SlidersHorizontal, Workflow } from 'lucide-react';
 
-import { BrowserRouter, Link, Navigate, NavLink, Outlet, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, NavLink, Outlet, Route, Routes } from 'react-router-dom';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -16,7 +17,7 @@ import { OrgSelectorProvider } from '../../core/contexts/OrgSelectorContext';
 
 import MyWorkPage from './pages/MyWorkPage';
 
-import { useHrmsCapabilities, useHrmsOrganization } from './capabilities';
+import { useHrmsCapabilities } from './capabilities';
 
 import EmployeeDirectoryPage from './pages/EmployeeDirectoryPage';
 
@@ -71,7 +72,6 @@ function SessionQueries({ children }: { children: ReactNode }) {
 
 
 function Layout() {
-  const organization = useHrmsOrganization();
 
   const { user, logout } = useAuth();
 
@@ -97,8 +97,7 @@ function Layout() {
 
     <aside className="flex flex-col border-r bg-white p-5 md:sticky md:top-0 md:h-screen md:w-72 md:shrink-0">
 
-      <Link to="/hrms/my-work" className="mb-3 flex items-center gap-3 text-lg font-semibold"><BrandLogo /></Link>
-      <p className="mb-6 px-3 text-sm text-slate-500">{organization.data?.name ?? (organization.isPending ? 'Loading organization…' : 'Organization unavailable')}</p>
+      <TenantHeader />
 
       <nav aria-label="Main navigation" className="hrms-grouped-navigation">
         {groups.map(group => <section key={group.label} className="hrms-nav-group" aria-label={group.label}>
