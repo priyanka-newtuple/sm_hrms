@@ -4,7 +4,7 @@ import CockpitPage from './pages/CockpitPage';
 import PublishedContent from './pages/PublishedContent';
 import { lazy, Suspense, useEffect, useMemo, type ReactNode } from 'react';
 
-import { Settings } from 'lucide-react';
+import { Settings, Zap, Users, UserRoundPlus, CalendarDays, TrendingUp, BriefcaseBusiness, SlidersHorizontal, Workflow } from 'lucide-react';
 
 import { BrowserRouter, Link, Navigate, NavLink, Outlet, Route, Routes } from 'react-router-dom';
 
@@ -76,25 +76,21 @@ function Layout() {
 
   const caps = useHrmsCapabilities();
 
-  const items = [
-
-    { path: '/hrms/my-work', label: 'Quick actions' },
-
-    ...(caps.data?.capabilities.includes('employee:read') ? [{ path: '/hrms/employees', label: 'Employees' }] : []),
-
-    ...(caps.data?.capabilities.includes('onboarding:view') ? [{ path: '/hrms/onboarding', label: 'Onboarding' }] : []),
-
-    { path: '/hrms/leave', label: 'Leave Requests' },
-
-    { path: '/hrms/performance', label: 'Performance' },
-
-    ...(caps.data?.capabilities.includes('project:view') ? [{ path: '/hrms/projects', label: 'Projects' }] : []),
-
-    ...(caps.data?.capabilities.includes('cockpit:view') ? [{path:'/hrms/cockpit',label:'HR Cockpit'}] : []),
-    {path:'/hrms/content',label:'Published information'},
-    { path: '/hrms/workflows', label: 'Workflows' },
-
-  ];
+  const allowed = (capability: string) => caps.data?.capabilities.includes(capability) ?? false;
+  const groups = [
+    { label: 'My work', items: [
+      { path: '/hrms/my-work', label: 'My work', icon: Zap },
+      { path: '/hrms/leave', label: 'Leave requests', icon: CalendarDays },
+      { path: '/hrms/performance', label: 'Performance', icon: TrendingUp },
+    ] },
+    { label: 'People', items: [
+      ...(allowed('employee:read') ? [{ path: '/hrms/employees', label: 'Employees', icon: Users }] : []),
+      ...(allowed('onboarding:view') ? [{ path: '/hrms/onboarding', label: 'Onboarding', icon: UserRoundPlus }] : []),
+    ] },
+    { label: 'Delivery', items: allowed('project:view') ? [{ path: '/hrms/projects', label: 'Projects', icon: BriefcaseBusiness }] : [] },
+    { label: 'HR publishing', items: allowed('cockpit:view') ? [{ path: '/hrms/cockpit', label: 'HR Cockpit', icon: SlidersHorizontal }] : [] },
+    { label: 'Tracking', items: [{ path: '/hrms/workflows', label: 'Workflows', icon: Workflow }] },
+  ].filter(group => group.items.length);
 
   return <div className="hrms-brand min-h-screen bg-slate-50 md:flex">
 
@@ -102,13 +98,18 @@ function Layout() {
 
       <Link to="/hrms/my-work" className="mb-8 flex items-center gap-3 text-lg font-semibold"><BrandLogo /></Link>
 
-      <nav aria-label="Main navigation" className="flex min-h-0 flex-wrap gap-2 overflow-y-auto md:flex-col md:flex-nowrap">{items.map(item =>
-
-        <NavLink key={item.path} to={item.path} className={({isActive}) => `rounded-full px-5 py-3 ${isActive ? 'bg-blue-700 text-white' : 'text-slate-600 hover:bg-slate-100'}`}>{item.label}</NavLink>)}</nav>
+      <nav aria-label="Main navigation" className="hrms-grouped-navigation">
+        {groups.map(group => <section key={group.label} className="hrms-nav-group" aria-label={group.label}>
+          <h2>{group.label}</h2>
+          {group.items.map(item => <NavLink key={item.path} to={item.path} className={({isActive}) => `hrms-nav-link rounded-full px-5 py-3 ${isActive ? 'bg-blue-700 text-white' : 'text-slate-600 hover:bg-slate-100'}`}><item.icon size={19} strokeWidth={1.25} aria-hidden="true"/><span>{item.label}</span></NavLink>)}
+        </section>)}
+        {caps.isLoading && <p className="hrms-nav-feedback" role="status">Loading work areas…</p>}
+        {caps.isError && <div className="hrms-nav-feedback" role="alert"><p>Some work areas could not be loaded.</p><button onClick={()=>void caps.refetch()}>Retry permissions</button></div>}
+      </nav>
 
       {caps.data?.capabilities.includes('platform:configure') && <nav aria-label="Configuration navigation" className="mt-4 pt-3 md:mt-auto">
         <NavLink to="/settings" className={({isActive}) => `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium ${isActive ? 'bg-blue-100 text-blue-900' : 'text-slate-600 hover:bg-slate-100'}`}>
-          <Settings size={18} aria-hidden="true" />Settings
+          <Settings size={19} strokeWidth={1.25} aria-hidden="true" />Settings
         </NavLink>
       </nav>}
 

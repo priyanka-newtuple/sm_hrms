@@ -3,7 +3,7 @@ import { WorkflowStages } from '../workflows/WorkflowConfiguration';
 import { useSearchParams } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ListChecks, RefreshCw } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import Card from '@/core/components/Card';
@@ -83,8 +83,8 @@ export default function WorkflowsPage() {
     return applyColumnOrder(fields.map(field => field.field), columnOrder).map(id => {
       const field = fields.find(field => field.field === id)!;
       return { id, label: field.label, render: entity => id === 'state'
-        ? <span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted/50 px-2 py-0.5 text-[11px] font-medium leading-5 text-muted-foreground"><span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/70" />{String(entity.data.state_label || resolveStateLabel(entity.current_state))}</span>
-        : <span className={id === 'employee_name' ? 'font-medium' : ''}>{String(entity.data[id] || '—')}</span> };
+        ? <span className="hrms-status" data-state={entity.current_state}>{String(entity.data.state_label || resolveStateLabel(entity.current_state))}</span>
+        : <span className={id === 'employee_name' ? 'hrms-workflow-name' : ''}>{String(entity.data[id] || '—')}</span> };
     });
   }, [list.effectiveFieldIds, columnOrder]);
   const selected = query.data?.find(row => row.entity_id === selectedId);
@@ -93,17 +93,17 @@ export default function WorkflowsPage() {
   const types = useMemo(() => [...new Set((query.data ?? []).map(row => row.entity_type))].sort(), [query.data]);
   const pageCount = Math.max(1, Math.ceil(list.totalCount / list.pageSize));
 
-  return <main className="flex h-[calc(100svh-5rem)] min-w-0 flex-col gap-6 p-6">
-    <header className="flex flex-wrap items-start justify-between gap-4">
-      <div><h1 className="flex items-center gap-2 text-xl font-semibold text-foreground"><ListChecks className="h-5 w-5 text-cobalt" />Workflows</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Workflows you have permission to view.</p></div>
-      <div className="flex gap-2"><PipelineTerminalToggle hidden={hideTerminal} label="Terminal Entities" onToggle={value => { setHideTerminal(value); list.setPage(0); }} />
-        <Button variant="outline" size="icon" aria-label="Refresh workflows" disabled={query.isFetching} onClick={() => void queryClient.invalidateQueries({ queryKey: ['hrms'] })}><RefreshCw className="h-4 w-4" /></Button></div>
+  return <main className="hrms-brand hrms-workspace-page hrms-workflows-page">
+    <header className="hrms-workspace-heading">
+      <div><p className="hrms-eyebrow">KEEP WORK MOVING</p><h1>Workflows</h1>
+        <p className="hrms-intro">Follow progress, review next steps, and act on work in your scope.</p></div>
+      <div className="hrms-heading-actions hrms-workflow-controls"><PipelineTerminalToggle hidden={hideTerminal} label="Terminal Entities" onToggle={value => { setHideTerminal(value); list.setPage(0); }} />
+        <button type="button" className="hrms-outline-button" aria-label="Refresh workflows" disabled={query.isFetching} onClick={() => void queryClient.invalidateQueries({ queryKey: ['hrms'] })}><RefreshCw size={16} strokeWidth={1.25} className={query.isFetching?'animate-spin':''}/>Refresh</button></div>
     </header>
     {query.isLoading && <p role="status">Loading workflows…</p>}
-    {query.isError && <p role="alert" className="text-destructive">{getApiErrorMessage(query.error)}</p>}
-    {query.data && <Card className="min-h-0 flex-1 overflow-auto p-0">
-      <PipelineListToolbar filteredCount={list.totalCount} totalCount={query.data.length} entityType="workflow"
+    {query.isError && <div role="alert" className="hrms-notice hrms-notice--error"><p>{getApiErrorMessage(query.error)}</p><button className="hrms-outline-button" onClick={()=>void query.refetch()}>Try again</button></div>}
+    {query.data && <Card className="hrms-surface hrms-workflow-directory">
+      <PipelineListToolbar title="Workflow directory" filteredCount={list.totalCount} totalCount={query.data.length} entityType="workflow"
         search={list.search} onSearchChange={list.setSearch} stateFilter={list.stateFilter} onStateFilterChange={list.setStateFilter}
         states={states} entityTypes={types} entityTypeFilter={entityType} onEntityTypeFilterChange={value => { setEntityType(value); list.setPage(0); }}
         identifierFilter={list.identifierFilter} onIdentifierFilterChange={list.setIdentifierFilter} identifierOptions={list.identifierOptions}>
@@ -111,16 +111,16 @@ export default function WorkflowsPage() {
       </PipelineListToolbar>
       <PipelineListTable rows={list.rows} columns={columns} sort={list.sort} onToggleSort={list.toggleSort}
         onReorder={setColumnOrder} onEntityClick={setSelectedId}
-        pagination={<div className="flex items-center justify-end gap-3 border-t px-4 py-3 text-xs text-muted-foreground">
-          <Button variant="outline" size="sm" disabled={list.page === 0} onClick={() => list.setPage(page => page - 1)}>Previous</Button>
+        pagination={<div className="hrms-workflow-pagination">
+          <Button className="hrms-outline-button" variant="outline" size="sm" disabled={list.page === 0} onClick={() => list.setPage(page => page - 1)}>Previous</Button>
           <span>Page {list.page + 1} of {pageCount}</span>
-          <Button variant="outline" size="sm" disabled={list.page + 1 >= pageCount} onClick={() => list.setPage(page => page + 1)}>Next</Button>
+          <Button className="hrms-outline-button" variant="outline" size="sm" disabled={list.page + 1 >= pageCount} onClick={() => list.setPage(page => page + 1)}>Next</Button>
         </div>} />
     </Card>}
     <Sheet open={Boolean(selected)} onOpenChange={open => { if (!open) setSelectedId(null); }}>
-      <SheetContent className="overflow-y-auto data-[side=right]:w-full data-[side=right]:sm:max-w-4xl">
+      <SheetContent className={`hrms-brand overflow-y-auto data-[side=right]:w-full data-[side=right]:sm:max-w-4xl ${selected?.entity_type === 'HRMS.OnboardingCase' ? 'hrms-onboarding-drawer' : 'hrms-review-drawer'}`}>
         <SheetHeader><SheetTitle>{selected?.title} · {selected?.workflow_label}</SheetTitle></SheetHeader>
-        {selected && !PROJECT_KINDS.includes(selected.entity_type) && !selected.entity_type.startsWith('HRMS.Performance') && <div className="p-6"><WorkflowStages entityId={selected.entity_id} /></div>}
+        {selected && !CONTENT_TYPES.includes(selected.entity_type) && !PROJECT_KINDS.includes(selected.entity_type) && !selected.entity_type.startsWith('HRMS.Performance') && <div className="p-6"><WorkflowStages entityId={selected.entity_id} /></div>}
         {selected?.entity_type === 'HRMS.OnboardingCase' && <OnboardingPage key={selected.entity_id} caseId={selected.entity_id} embedded />}
         {selected && ['HRMS.PerformanceCycle', 'HRMS.PerformanceReview', 'HRMS.ProjectFeedback'].includes(selected.entity_type) && <PerformanceDetail key={selected.entity_id} entityId={selected.entity_id} />}
         {selected && PROJECT_KINDS.includes(selected.entity_type) && <ProjectDetail key={selected.entity_id} entityId={selected.entity_id} />}

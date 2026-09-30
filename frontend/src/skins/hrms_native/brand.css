@@ -99,3 +99,188 @@
 .hrms-brand > aside a { text-decoration:none; }
 .hrms-brand > aside nav a[aria-current="page"] { background:#0047ab; color:white; }
 .hrms-brand > aside + div > header { border-color:#e5e7eb; }
+
+/* People directory, employee forms and onboarding share the workspace language. */
+.hrms-primary-button { display:inline-flex; align-items:center; justify-content:center; gap:10px; border:1px solid #0047ab; border-radius:999px; padding:11px 22px; background:#0047ab; color:white; font-size:14px; font-weight:500; }
+.hrms-primary-button:hover { background:#003b8f; }
+.hrms-primary-button:disabled,.hrms-outline-button:disabled { opacity:.5; cursor:not-allowed; }
+.hrms-surface { background:white; border:1px solid #e5e7eb; border-radius:24px; overflow:hidden; }
+.hrms-people-page .hrms-notice { margin-bottom:24px; }
+.hrms-notice { padding:20px; border:1px solid #d7e5f6; background:#eff6ff; border-radius:16px; font-size:14px; line-height:1.8; }
+.hrms-notice--error { color:#991b1b; border-color:#fecaca; background:#fef2f2; }
+.hrms-text-link { display:inline-flex; align-items:center; gap:8px; color:#0047ab; font-weight:500; }
+.hrms-filter-bar { display:flex; flex-wrap:wrap; gap:16px; margin-bottom:24px; }
+.hrms-field-input { display:block; width:100%; min-width:0; margin-top:6px; padding:12px 14px; border:1px solid #dfe3e9; border-radius:14px; background:white; color:#111827; font-size:14px; font-weight:400; }
+.hrms-field-input:focus-visible { outline:2px solid #0047ab; outline-offset:2px; }
+.hrms-field-input:disabled { background:#f3f4f6; color:#6b7280; }
+.hrms-search { position:relative; display:block; flex:1; min-width:180px; max-width:460px; }
+.hrms-search > svg { position:absolute; left:15px; top:50%; transform:translateY(-50%); color:#6b7280; }
+.hrms-search .hrms-field-input { margin:0; padding-left:44px; }
+.hrms-filter-bar > select { width:180px; margin:0; }
+.hrms-directory-heading { display:flex; align-items:center; gap:14px; padding:24px; }
+.hrms-directory-heading h2 { font-size:17px; font-weight:600; }
+.hrms-directory-heading p { font-size:13px; color:#6b7280; margin-top:4px; }
+.hrms-table-scroll { overflow-x:auto; }
+.hrms-people-table { width:100%; text-align:left; font-size:13px; }
+.hrms-people-table th { padding:16px 20px; font-weight:500; white-space:nowrap; border-top:1px solid #eef0f3; }
+.hrms-people-table td { padding:18px 20px; color:#4b5563; }
+.hrms-people-table td strong { display:block; font-size:14px; color:#111827; font-weight:500; }
+.hrms-people-table tbody tr:hover { background:#f8faff; }
+.hrms-employee-email { display:block; margin-top:5px; font-size:12px; color:#6b7280; }
+.hrms-status { display:inline-block; padding:5px 11px; border-radius:999px; background:#eff5fd; color:#0047ab; font-size:12px; font-weight:500; text-transform:capitalize; white-space:nowrap; }
+.hrms-status[data-state=completed],.hrms-status[data-state=active] { background:#ecfdf5; color:#166534; }
+.hrms-status[data-state=waiting],.hrms-status[data-state=offboarded] { background:#f3f4f6; color:#4b5563; }
+.hrms-empty-message { padding:40px!important; text-align:center; }
+.hrms-employee-form { background:#fff; padding:32px; }
+.hrms-employee-form h2 { font-size:30px; font-weight:200; letter-spacing:-.025em; }
+.hrms-employee-form .hrms-eyebrow { margin-bottom:10px; }
+.hrms-form-intro { font-size:14px; color:#6b7280; font-weight:300; line-height:1.8; }
+.hrms-people-form { display:grid; gap:20px; padding:24px 0 0; }
+.hrms-people-form label { font-size:13px; color:#4b5563; font-weight:500; min-width:0; }
+.hrms-form-actions { display:flex; justify-content:flex-end; flex-wrap:wrap; gap:12px; position:sticky; bottom:-32px; background:white; border-top:1px solid #eef0f3; padding:20px 0; margin-top:8px; }
+.hrms-onboarding-layout { display:grid; grid-template-columns:260px minmax(0,1fr); gap:24px; align-items:start; }
+.hrms-case-navigation { min-width:0; display:grid; gap:16px; }
+.hrms-case-list { max-height:650px; overflow-y:auto; }
+.hrms-case-button { display:block; width:100%; padding:20px; text-align:left; border-bottom:1px solid #eef0f3; border-left:3px solid transparent; }
+.hrms-case-button:last-child { border-bottom:0; }
+.hrms-case-button:hover { background:#f9fafb; }
+.hrms-case-button[aria-pressed=true] { background:#eff6ff; border-left-color:#0047ab; }
+.hrms-case-button > span:first-child { font-size:14px; font-weight:500; margin-bottom:5px; }
+.hrms-case-button > span { font-size:12px; }
+.hrms-case-progress { display:block; margin-top:10px; color:#0047ab; }
+.hrms-case-detail { display:grid; gap:24px; min-width:0; }
+.hrms-case-card { padding:28px; }
+.hrms-case-name { font-size:26px; font-weight:300; margin-bottom:8px; letter-spacing:-.025em; }
+.hrms-progress-track { height:6px; border-radius:999px; background:#eef0f3; overflow:hidden; margin-top:24px; }
+.hrms-progress-track > div { height:100%; background:#0047ab; border-radius:999px; }
+.hrms-next-actions { margin:20px 0; padding:16px; border-radius:14px; background:#f5f8fc; color:#4b5563; font-size:13px; line-height:1.8; }
+.hrms-next-actions strong { color:#0047ab; font-weight:500; }
+.hrms-section-heading { font-size:19px; font-weight:600; }
+.hrms-step-list { display:grid; gap:16px; margin-top:24px; }
+.hrms-step { display:flex; gap:16px; padding:20px; border:1px solid #e5e7eb; border-radius:18px; }
+.hrms-step[data-readiness=ready] { border-color:#c9dcf5; background:#fbfdff; }
+.hrms-step-icon { color:#0047ab; padding-top:3px; }
+.hrms-step[data-readiness=waiting] .hrms-step-icon { color:#9ca3af; }
+.hrms-step[data-readiness=completed] .hrms-step-icon { color:#16804a; }
+.hrms-step h4 { font-size:14px; font-weight:500; line-height:1.7; }
+.hrms-step-meta { display:flex; align-items:center; flex-wrap:wrap; gap:6px; font-size:12px; color:#6b7280; margin-top:8px; }
+.hrms-step-action { margin-top:16px; padding:8px 16px; font-size:12px; }
+.hrms-onboarding-embedded { padding:24px; background:#f9fafb; }
+@media(max-width:1000px) { .hrms-onboarding-layout { grid-template-columns:1fr; } .hrms-case-list { max-height:230px; } }
+@media(max-width:600px) { .hrms-case-card { padding:20px; } .hrms-step { padding:16px; gap:10px; } .hrms-employee-form { padding:24px; } .hrms-onboarding-embedded { padding:16px; } .hrms-form-actions { bottom:-24px; } }
+
+.hrms-onboarding-drawer { background:#f9fafb; }
+.hrms-onboarding-drawer > header { background:white; padding:24px; border-bottom:1px solid #e5e7eb; }
+.hrms-onboarding-drawer > header h2 { font-size:23px; font-weight:300; }
+.hrms-onboarding-drawer ol[aria-label="Workflow states"] li { padding:8px 14px; border-color:#e5e7eb; background:white; font-size:12px; }
+.hrms-onboarding-drawer ol[aria-label="Workflow states"] li[aria-current=step] { border-color:#0047ab; background:#eff6ff; color:#0047ab; }
+.hrms-onboarding-drawer section.space-y-3 > div { border:1px solid #e5e7eb; border-radius:18px; padding:20px; background:white; line-height:1.8; }
+
+/* Leave and performance use the same forms, cards and workflow presentation. */
+.hrms-nav-link { display:flex; align-items:center; gap:12px; font-size:14px; }
+.hrms-nav-link svg { flex-shrink:0; color:#0047ab; }
+.hrms-nav-link[aria-current=page] svg { color:inherit; }
+.hrms-heading-actions { display:flex; flex-wrap:wrap; align-items:center; gap:12px; }
+.hrms-panel-title { display:flex; align-items:center; gap:14px; }
+.hrms-panel-title h2 { font-size:18px; font-weight:600; }
+.hrms-panel-title p,.hrms-muted { font-size:13px; color:#6b7280; line-height:1.7; margin-top:5px; }
+.hrms-leave-layout { display:grid; grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr); gap:28px; align-items:start; }
+.hrms-leave-compose { padding:28px; }
+.hrms-leave-compose .hrms-people-form { padding:0; }
+.hrms-leave-compose .hrms-primary-button { justify-self:start; }
+.hrms-view-switch { display:flex; flex-wrap:wrap; gap:6px; padding:5px; border:1px solid #e5e7eb; border-radius:999px; background:white; width:fit-content; margin-bottom:24px; }
+.hrms-view-button { border-radius:999px; padding:10px 18px; font-size:14px; font-weight:500; color:#4b5563; }
+.hrms-view-button[aria-pressed=true] { color:white; background:#0047ab; }
+.hrms-leave-card { padding:24px; }
+.hrms-leave-card .hrms-section-heading { font-size:15px; }
+.hrms-leave-card p { overflow-wrap:anywhere; }
+.hrms-leave-card .hrms-notice { margin-top:16px; }
+.hrms-performance-section { margin-bottom:28px; }
+.hrms-performance-section > .hrms-panel-title { padding:24px; }
+.hrms-performance-page > .hrms-notice { margin-bottom:24px; }
+.hrms-performance-form { padding:24px; }
+.hrms-performance-fields { display:grid; gap:20px; }
+.hrms-performance-fields textarea { min-height:110px; resize:vertical; }
+.hrms-review-drawer { background:#f9fafb; }
+.hrms-performance-detail { display:grid; gap:24px; padding:24px; background:#f9fafb; }
+.hrms-detail-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:24px; padding:24px; }
+.hrms-detail-grid dt { color:#6b7280; font-size:12px; margin-bottom:8px; }
+.hrms-detail-grid dd { font-size:14px; line-height:1.8; }
+.hrms-review-card { padding:24px; }
+.hrms-performance-detail > section,.hrms-review-drawer section.space-y-3 { border:1px solid #e5e7eb; border-radius:24px; padding:24px; background:white; }
+.hrms-review-drawer ol[aria-label="Workflow states"] li { padding:8px 14px; border-color:#e5e7eb; background:white; font-size:12px; }
+.hrms-review-drawer ol[aria-label="Workflow states"] li[aria-current=step] { border-color:#0047ab; background:#eff6ff; color:#0047ab; }
+.hrms-review-drawer section.space-y-3 > div { border:0; background:#f5f8fc; border-radius:14px; padding:16px; line-height:1.8; }
+.hrms-status[data-state=approved],.hrms-status[data-state=acknowledged] { background:#ecfdf5; color:#166534; }
+.hrms-status[data-state=rejected] { background:#fef2f2; color:#991b1b; }
+.hrms-status[data-state=pending] { background:#fffbeb; color:#92400e; }
+@media(max-width:1100px) { .hrms-leave-layout { grid-template-columns:1fr; } }
+@media(max-width:600px) { .hrms-leave-compose,.hrms-performance-detail,.hrms-performance-form,.hrms-review-card { padding:20px; } .hrms-detail-grid { grid-template-columns:1fr; padding:20px; } .hrms-heading-actions { width:100%; } .hrms-view-button { padding:10px 14px; } }
+
+/* Project directory and approval forms share the people/review workspace patterns. */
+.hrms-project-controls > .hrms-notice { margin-bottom:24px; }
+
+.hrms-project-form { padding:24px; }
+.hrms-project-detail { display:grid; gap:24px; padding:24px; background:#f9fafb; }
+.hrms-project-detail > section.space-y-3 { padding:24px; background:white; border:1px solid #e5e7eb; border-radius:24px; }
+.hrms-project-team { padding:24px; display:grid; gap:18px; }
+.hrms-project-team .hrms-notice { background:#f9fafb; border-color:#e5e7eb; }
+.hrms-project-page .hrms-people-table td:last-child .hrms-outline-button { padding:8px 14px; font-size:12px; }
+.hrms-project-detail .hrms-detail-grid label > span { font-size:12px; color:#6b7280; }
+.hrms-project-detail .hrms-detail-grid label p { margin-top:8px; font-size:14px; font-weight:400; line-height:1.8; }
+.hrms-project-detail .hrms-people-table td { overflow-wrap:anywhere; }
+.hrms-project-detail > .hrms-primary-button { justify-self:start; }
+@media(max-width:600px) { .hrms-project-detail,.hrms-project-form,.hrms-project-team { padding:20px; } }
+
+.hrms-project-page .hrms-people-table tbody tr { border-color:#eef0f3; }
+
+/* HR publishing uses the same branded directory, editor and review surfaces. */
+.hrms-content-categories { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:28px; }
+.hrms-content-categories button { display:inline-flex; align-items:center; gap:10px; border:1px solid #e5e7eb; border-radius:999px; padding:12px 18px; background:white; color:#4b5563; font-size:14px; }
+.hrms-content-categories button svg { color:#0047ab; }
+.hrms-content-categories button[aria-pressed=true] { background:#0047ab; border-color:#0047ab; color:white; }
+.hrms-content-categories button[aria-pressed=true] svg { color:inherit; }
+.hrms-content-directory .hrms-directory-heading { flex-wrap:wrap; }
+.hrms-content-directory .hrms-directory-heading > button { margin-left:auto; }
+.hrms-content-directory thead { background:#f9fafb; }
+.hrms-content-directory tbody tr { border-top:1px solid #eef0f3; }
+.hrms-content-directory td .hrms-outline-button { padding:8px 14px; font-size:12px; }
+.hrms-content-editor,.hrms-content-summary { padding:28px; }
+.hrms-content-detail { display:grid; gap:24px; }
+.hrms-content-back { justify-self:start; }
+.hrms-content-preview { padding:28px; line-height:1.85; overflow-wrap:anywhere; }
+.hrms-content-preview > * + * { margin-top:12px; }
+.hrms-content-preview strong { font-weight:500; }
+.hrms-cockpit-embedded { padding:24px; background:#f9fafb; }
+.hrms-content-detail > section { padding:24px; background:white; border:1px solid #e5e7eb; border-radius:24px; }
+.hrms-content-detail ol[aria-label="Workflow states"] li { padding:8px 14px; border-color:#e5e7eb; font-size:12px; }
+.hrms-content-detail ol[aria-label="Workflow states"] li[aria-current=step] { border-color:#0047ab; background:#eff6ff; color:#0047ab; }
+.hrms-content-detail section.space-y-3 > div { border:0; border-radius:14px; background:#f5f8fc; padding:16px; line-height:1.8; }
+.hrms-status[data-state=published] { background:#ecfdf5; color:#166534; }
+@media(max-width:600px) { .hrms-content-editor,.hrms-content-summary,.hrms-content-preview { padding:20px; } .hrms-cockpit-embedded { padding:16px; } .hrms-content-directory .hrms-directory-heading > button { margin-left:0; } }
+
+/* Skin the native workflow toolbar/table without changing platform components. */
+.hrms-workflow-directory { padding:0; overflow:hidden; box-shadow:none; display:flex; flex-direction:column; }
+.hrms-workflow-directory > div:first-child { padding:24px; background:white; border-color:#e5e7eb; }
+.hrms-workflow-directory > div:first-child > div { flex-wrap:wrap; gap:20px; }
+.hrms-workflow-directory input,.hrms-workflow-directory select { height:44px; border-radius:12px; border-color:#e5e7eb; font-size:13px; }
+.hrms-workflow-directory table { min-width:850px; }
+.hrms-workflow-directory th { background:#f9fafb; font-size:12px; font-weight:500; padding:18px 20px; border-color:#eef0f3; }
+.hrms-workflow-directory td { padding:22px 20px; font-size:14px; line-height:1.7; border-color:#eef0f3; }
+.hrms-workflow-directory tbody tr { border-color:#eef0f3; }
+.hrms-workflow-directory tbody tr:hover { background:#f5f8fc; }
+.hrms-workflow-name { color:#0047ab; font-weight:500; }
+.hrms-workflow-pagination { display:flex; flex-wrap:wrap; justify-content:flex-end; align-items:center; gap:16px; padding:18px 24px; border-top:1px solid #e5e7eb; color:#6b7280; font-size:12px; }
+.hrms-workflow-controls > button { height:auto; min-height:44px; border-radius:999px; padding:11px 20px; }
+.hrms-workflow-pagination button { height:auto; padding:8px 16px; font-size:12px; }
+.hrms-workflows-page button:disabled { opacity:.45; cursor:not-allowed; }
+@media(max-width:600px) { .hrms-workflow-directory > div:first-child { padding:18px; } .hrms-workflow-controls { flex-wrap:wrap; } }
+
+/* Stable groups; visibility follows the signed-in user's effective capabilities. */
+.hrms-grouped-navigation { min-height:0; overflow-y:auto; display:flex; flex-direction:column; gap:20px; padding:4px 0 16px; }
+.hrms-nav-group { display:grid; gap:4px; flex-shrink:0; }
+.hrms-nav-group h2 { padding:0 20px; margin-bottom:4px; color:#6b7280; font-size:10px; font-weight:600; letter-spacing:.13em; text-transform:uppercase; }
+.hrms-nav-group .hrms-nav-link { padding-top:10px; padding-bottom:10px; }
+.hrms-nav-feedback { padding:8px 20px; color:#6b7280; font-size:12px; line-height:1.7; }
+.hrms-nav-feedback button { color:#0047ab; text-decoration:underline; }
+@media(max-width:767px) { .hrms-grouped-navigation { flex-direction:row; flex-wrap:wrap; gap:20px; } .hrms-nav-group { min-width:150px; } }

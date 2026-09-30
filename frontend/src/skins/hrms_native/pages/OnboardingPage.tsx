@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
-import { CheckCircle2, Circle, Clock3 } from 'lucide-react';
+import { CheckCircle2, Circle, Clock3, Search, UserRound, CalendarDays } from 'lucide-react';
 import { getApiErrorMessage, request } from '../../../core/services/api/client';
 
 interface Step {
@@ -68,50 +68,47 @@ export default function OnboardingPage({ caseId, embedded = false }: { caseId?: 
     onError: (error) => setActionError(getApiErrorMessage(error)),
   });
 
-  return <main className="mx-auto max-w-7xl space-y-6 p-6 text-slate-900">
-    {!embedded && <div>
-      <h1 className="text-3xl font-semibold">Employee Onboarding</h1>
-      <p className="mt-1 text-slate-600">See each new hire’s progress, next actions, and assigned owners.</p>
-    </div>}
-    {cases.isLoading && <p>Loading onboarding cases…</p>}
-    {cases.isError && <p role="alert" className="text-red-700">{getApiErrorMessage(cases.error)}</p>}
-    {actionError && <p role="alert" className="rounded-lg bg-red-50 p-3 text-red-700">{actionError}</p>}
+  return <main className={`hrms-brand hrms-people-page ${embedded ? 'hrms-onboarding-embedded' : 'hrms-workspace-page'}`}>
+    {!embedded && <header className="hrms-workspace-heading"><div><p className="hrms-eyebrow">A GREAT START</p><h1>Onboarding</h1><p className="hrms-intro">Every step, every owner. Help your new colleagues settle in.</p></div></header>}
+    {cases.isLoading && <p role="status" className="hrms-surface hrms-work-feedback">Loading onboarding cases…</p>}
+    {cases.isError && <div role="alert" className="hrms-notice hrms-notice--error"><p>{getApiErrorMessage(cases.error)}</p><button className="hrms-outline-button" onClick={() => void cases.refetch()}>Try again</button></div>}
+    {actionError && <p role="alert" className="hrms-notice hrms-notice--error">{actionError}</p>}
     {caseId && cases.data && !selected && <p role="alert">This onboarding case is no longer available to you.</p>}
-    {cases.data && <div className={embedded ? 'space-y-6' : 'grid gap-6 lg:grid-cols-[18rem_minmax(0,1fr)]'}>
-      {!embedded && <aside className="space-y-3">
-        <input aria-label="Search onboarding employees" placeholder="Search employee or code…" value={search} onChange={(event) => setSearch(event.target.value)} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2" />
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+    {cases.data && <div className={embedded ? '' : 'hrms-onboarding-layout'}>
+      {!embedded && <aside className="hrms-case-navigation" aria-label="Onboarding employees">
+        <label className="hrms-search"><Search size={18} aria-hidden="true" /><input aria-label="Search onboarding employees" placeholder="Search employee or code…" value={search} onChange={(event) => setSearch(event.target.value)} className="hrms-field-input" /></label>
+        <div className="hrms-surface hrms-case-list">
           {visible.length === 0 && <p className="p-4 text-slate-600">No onboarding cases found.</p>}
-          {visible.map((item) => <button key={item.entity_id} type="button" onClick={() => setSelectedId(item.entity_id)} className={`block w-full border-b border-slate-100 p-4 text-left last:border-0 ${selected?.entity_id === item.entity_id ? 'bg-blue-50' : 'hover:bg-slate-50'}`}>
+          {visible.map((item) => <button key={item.entity_id} type="button" onClick={() => setSelectedId(item.entity_id)} aria-pressed={selected?.entity_id === item.entity_id} className="hrms-case-button">
             <span className="block font-semibold">{item.employee_name}</span>
             <span className="block text-sm text-slate-600">{item.employee_code} · {item.department}</span>
-            <span className="mt-1 block text-sm text-blue-700">{item.completed_steps}/{item.total_steps} steps complete</span>
+            <span className="hrms-case-progress">{item.completed_steps}/{item.total_steps} steps complete</span>
           </button>)}
         </div>
       </aside>}
-      {selected && <section className="space-y-5">
-        <div className="rounded-xl border border-slate-200 bg-white p-6">
+      {selected && <section className="hrms-case-detail">
+        <div className="hrms-surface hrms-case-card">
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <div><h2 className="text-2xl font-semibold">{selected.employee_name}</h2><p className="text-slate-600">{selected.designation} · {selected.department} · {selected.employee_code}</p></div>
-            <span className="rounded-full bg-blue-50 px-3 py-1 text-sm font-medium capitalize text-blue-700">{selected.state.replaceAll('_', ' ')}</span>
+            <div><h2 className="hrms-case-name">{selected.employee_name}</h2><p className="text-slate-600">{selected.designation} · {selected.department} · {selected.employee_code}</p></div>
+            <span className="hrms-status">{selected.state.replaceAll('_', ' ')}</span>
           </div>
-          <div className="mt-5 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full bg-blue-700" style={{ width: `${selected.total_steps ? selected.completed_steps / selected.total_steps * 100 : 0}%` }} /></div>
+          <div className="hrms-progress-track" role="progressbar" aria-label="Onboarding progress" aria-valuemin={0} aria-valuemax={selected.total_steps || 1} aria-valuenow={selected.completed_steps}><div style={{ width: `${selected.total_steps ? selected.completed_steps / selected.total_steps * 100 : 0}%` }} /></div>
           <p className="mt-2 text-sm text-slate-600">{selected.completed_steps} of {selected.total_steps} steps complete</p>
           {selected.state === 'completed' && selected.completed_steps < selected.total_steps && <p role="alert" className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">This case was closed with unfinished steps. HR needs to reconcile its earlier completion before further work can continue.</p>}
-          <p className="mt-4 text-sm"><strong>Next actions:</strong> {selected.state === 'completed' ? 'Onboarding is complete.' : nextSteps.length ? nextSteps.map((step) => step.title).join(' · ') : selected.can_complete_case ? 'Complete onboarding.' : 'Waiting for assigned work to progress'}</p>
-          {selected.can_complete_case && <button type="button" disabled={completeCase.isPending} onClick={() => completeCase.mutate(selected.entity_id)} className="mt-4 rounded-full bg-blue-700 px-5 py-2 font-semibold text-white disabled:opacity-50">{completeCase.isPending ? 'Completing…' : 'Complete onboarding'}</button>}
+          <p className="hrms-next-actions"><strong>Next actions:</strong> {selected.state === 'completed' ? 'Onboarding is complete.' : nextSteps.length ? nextSteps.map((step) => step.title).join(' · ') : selected.can_complete_case ? 'Complete onboarding.' : 'Waiting for assigned work to progress'}</p>
+          {selected.can_complete_case && <button type="button" disabled={completeCase.isPending} onClick={() => completeCase.mutate(selected.entity_id)} className="hrms-primary-button">{completeCase.isPending ? 'Completing…' : 'Complete onboarding'}</button>}
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-6">
-          <h3 className="text-xl font-semibold">Onboarding steps</h3>
+        <div className="hrms-surface hrms-case-card">
+          <h3 className="hrms-section-heading">Onboarding steps</h3>
           <p className="mt-1 text-sm text-slate-600">Assigned owners or an HR manager can complete ready steps here after their prerequisites are done. This onboarding plan has no separate approval step.</p>
-          <ol className="mt-5 space-y-3">{selected.steps.map((step) => <li key={step.sequence} className="flex gap-4 rounded-xl border border-slate-200 p-4">
-            <div className="pt-1 text-blue-700">{step.readiness === 'completed' ? <CheckCircle2 size={22} /> : step.readiness === 'waiting' ? <Clock3 size={22} /> : <Circle size={22} />}</div>
+          <ol className="hrms-step-list">{selected.steps.map((step) => <li key={step.sequence} className="hrms-step" data-readiness={step.readiness}>
+            <div className="hrms-step-icon">{step.readiness === 'completed' ? <CheckCircle2 size={22} /> : step.readiness === 'waiting' ? <Clock3 size={22} /> : <Circle size={22} />}</div>
             <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center justify-between gap-2"><h4 className="font-semibold">{step.sequence}. {step.title}</h4><span className={`rounded-full px-3 py-1 text-xs font-medium ${step.readiness === 'ready' ? 'bg-blue-100 text-blue-800' : step.readiness === 'completed' ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-700'}`}>{stepLabel(step)}</span></div>
-              <p className="mt-1 text-sm text-slate-600">Assigned to: {step.owner_name} · Target team: {step.owner_role}</p>
-              {step.due_date && <p className="text-sm text-slate-600">Due: {new Date(step.due_date).toLocaleDateString()}</p>}
+              <div className="flex flex-wrap items-center justify-between gap-2"><h4 className="font-semibold">{step.sequence}. {step.title}</h4><span className="hrms-status" data-state={step.readiness}>{stepLabel(step)}</span></div>
+              <p className="hrms-step-meta"><UserRound size={14} aria-hidden="true" /> Assigned to: {step.owner_name} · Target team: {step.owner_role}</p>
+              {step.due_date && <p className="hrms-step-meta"><CalendarDays size={14} aria-hidden="true" /> Due: {new Date(step.due_date).toLocaleDateString()}</p>}
               {step.depends_on.length > 0 && <p className="text-sm text-slate-600">After step {step.depends_on.join(', ')}</p>}
-              {step.can_complete && <button type="button" disabled={completeStep.isPending} onClick={() => completeStep.mutate({ caseId: selected.entity_id, sequence: step.sequence })} className="mt-3 rounded-full border border-blue-700 px-4 py-1.5 text-sm font-semibold text-blue-700 disabled:opacity-50">{completeStep.isPending ? 'Saving…' : 'Mark complete'}</button>}
+              {step.can_complete && <button type="button" disabled={completeStep.isPending} onClick={() => completeStep.mutate({ caseId: selected.entity_id, sequence: step.sequence })} className="hrms-outline-button hrms-step-action">{completeStep.isPending ? 'Saving…' : 'Mark complete'}</button>}
             </div>
           </li>)}</ol>
         </div>

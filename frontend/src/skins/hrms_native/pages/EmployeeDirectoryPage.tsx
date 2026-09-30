@@ -1,7 +1,8 @@
 import { ConfiguredForm, ConfiguredField } from '../forms/ConfiguredForm';
 import { useMemo, useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus, X } from 'lucide-react';
+import { Plus, Users, Search, ArrowRight } from 'lucide-react';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Link } from 'react-router-dom';
 import { useHrmsCapabilities } from '../capabilities';
 import { getApiErrorMessage, request } from '../../../core/services/api/client';
@@ -80,40 +81,40 @@ export default function EmployeeDirectoryPage() {
   });
   const set = (field: keyof typeof form) => (value: string) => setForm((current) => ({ ...current, [field]: value }));
   function submit(event: FormEvent<HTMLFormElement>) { event.preventDefault(); create.mutate(); }
-  const input = 'mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2';
+  const input = 'hrms-field-input';
 
-  return <main className="mx-auto max-w-6xl space-y-6 p-6">
-    <div className="flex items-center justify-between gap-4">
-      <h1 className="text-2xl font-semibold text-slate-900">Employee Directory</h1>
-      {canCreate && <button type="button" onClick={() => { setCreated(null); setShowForm(true); }} className="inline-flex items-center gap-2 rounded-full bg-blue-700 px-5 py-2 text-sm font-semibold text-white"><Plus size={16} /> Add Employee</button>}
-    </div>
-    {created && <div role="status" className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-slate-800">
+  return <main className="hrms-workspace-page hrms-people-page">
+    <header className="hrms-workspace-heading"><div><p className="hrms-eyebrow">OUR PEOPLE</p><h1>Employees</h1><p className="hrms-intro">Get to know the people behind our work.</p></div>
+      {canCreate && <button type="button" onClick={() => { setCreated(null); setShowForm(true); }} className="hrms-primary-button"><Plus size={16} /> Add Employee</button>}
+    </header>
+    {created && <div role="status" className="hrms-notice">
       <strong>{created.employee.full_name} ({created.employee.employee_code}) was added.</strong>{' '}
       Onboarding is {created.onboarding_state.replaceAll('_', ' ')} with {created.onboarding_task_count} assigned tasks.
-      {' '}<Link to="/hrms/onboarding" className="font-semibold text-blue-700 underline">View onboarding steps</Link>
+      {' '}<Link to={`/hrms/onboarding?case=${created.onboarding_entity_id}`} className="hrms-text-link">View onboarding steps <ArrowRight size={15} /></Link>
     </div>}
-    <div className="flex gap-3">
-      <input aria-label="Search employees" placeholder="Search by name, email or code…" value={search} onChange={(event) => setSearch(event.target.value)} className={`${input} max-w-sm`} />
-      <select aria-label="Employment status" value={status} onChange={(event) => setStatus(event.target.value)} className={`${input} max-w-48`}>
+    <div className="hrms-filter-bar"><label className="hrms-search"><Search size={18} aria-hidden="true" /><input aria-label="Search employees" placeholder="Search by name, email or code…" value={search} onChange={(event) => setSearch(event.target.value)} className={input} /></label>
+      <select aria-label="Employment status" value={status} onChange={(event) => setStatus(event.target.value)} className={input}>
         <option value="">All statuses</option><option value="active">Active</option><option value="on_leave">On leave</option><option value="offboarded">Offboarded</option>
       </select>
     </div>
-    {employees.isLoading && <p>Loading employees…</p>}
-    {employees.isError && <p role="alert" className="text-red-700">{getApiErrorMessage(employees.error)}</p>}
-    {employees.data && <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-      <p className="border-b border-slate-200 p-4 font-semibold">{visible.length} employees</p>
-      <table className="w-full text-left text-sm"><thead className="bg-slate-50 text-slate-600"><tr>
+    {employees.isLoading && <p role="status" className="hrms-surface hrms-work-feedback">Loading employees…</p>}
+    {employees.isError && <div role="alert" className="hrms-notice hrms-notice--error"><p>{getApiErrorMessage(employees.error)}</p><button className="hrms-outline-button" onClick={() => void employees.refetch()}>Try again</button></div>}
+    {employees.data && <div className="hrms-surface hrms-directory">
+      <div className="hrms-directory-heading"><span className="hrms-work-icon"><Users size={22} strokeWidth={1.25} /></span><div><h2>Employee directory</h2><p>{visible.length} of {employees.data.length} employees</p></div></div><div className="hrms-table-scroll">
+      <table className="hrms-people-table"><thead className="bg-slate-50 text-slate-600"><tr>
         {['Name', 'Code', 'Department', 'Designation', 'Reports To', 'Role', 'Status'].map((heading) => <th key={heading} className="p-3">{heading}</th>)}
       </tr></thead><tbody>{visible.map((employee) => <tr key={employee.entity_id} className="border-t border-slate-100">
-        <td className="p-3 font-medium">{employee.full_name}</td><td className="p-3">{employee.employee_code}</td><td className="p-3">{employee.department}</td>
+        <td className="p-3"><strong>{employee.full_name}</strong><span className="hrms-employee-email">{employee.work_email}</span></td><td className="p-3">{employee.employee_code}</td><td className="p-3">{employee.department}</td>
         <td className="p-3">{employee.designation}</td><td className="p-3">{employee.reports_to_name || '—'}</td>
-        <td className="p-3">{labelForRole(employee.role)}</td><td className="p-3 capitalize">{employee.employment_status.replaceAll('_', ' ')}</td>
-      </tr>)}</tbody></table>
+        <td className="p-3">{labelForRole(employee.role)}</td><td className="p-3"><span className="hrms-status" data-state={employee.employment_status}>{employee.employment_status.replaceAll('_', ' ')}</span></td>
+      </tr>)}{visible.length === 0 && <tr><td colSpan={7} className="hrms-empty-message">No employees match your filters.</td></tr>}</tbody></table></div>
     </div>}
-    {showForm && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
-      <div role="dialog" aria-modal="true" aria-label="Add Employee" className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-xl">
-        <div className="mb-4 flex items-center justify-between"><h2 className="text-xl font-semibold">Add Employee</h2><button type="button" aria-label="Close" onClick={() => setShowForm(false)}><X size={20} /></button></div>
-        <ConfiguredForm entityType="HRMS.Employee"><form onSubmit={submit} className="max-h-[70vh] space-y-3 overflow-y-auto pr-2">
+    <Sheet open={showForm} onOpenChange={setShowForm}>
+      <SheetContent className="hrms-brand hrms-employee-form overflow-y-auto data-[side=right]:w-full data-[side=right]:sm:max-w-2xl">
+        <SheetHeader><p className="hrms-eyebrow">GROW THE TEAM</p><SheetTitle>Add Employee</SheetTitle><p className="hrms-form-intro">Create an employee profile and start their onboarding journey.</p></SheetHeader>
+        {options.isLoading && <p role="status" className="hrms-work-feedback">Loading employee options…</p>}
+        {options.isError && <div role="alert" className="hrms-notice hrms-notice--error">{getApiErrorMessage(options.error)}<button className="hrms-outline-button" onClick={() => void options.refetch()}>Try again</button></div>}
+        <ConfiguredForm entityType="HRMS.Employee"><form onSubmit={submit} className="hrms-people-form">
           <div className="grid gap-3 sm:grid-cols-2">
             <ConfiguredField field="first_name" label="First name" className="text-sm font-medium"><input required maxLength={100} value={form.first_name} onChange={(e) => set('first_name')(e.target.value)} className={input} /></ConfiguredField>
             <ConfiguredField field="last_name" label="Last name" className="text-sm font-medium"><input required maxLength={100} value={form.last_name} onChange={(e) => set('last_name')(e.target.value)} className={input} /></ConfiguredField>
@@ -135,9 +136,9 @@ export default function EmployeeDirectoryPage() {
             <ConfiguredField field="work_location" label="Work location" className="text-sm font-medium"><input maxLength={100} value={form.work_location} onChange={(e) => set('work_location')(e.target.value)} className={input} /></ConfiguredField>
           </div>
           {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
-          <div className="flex justify-end gap-3 pt-3"><button type="button" onClick={() => setShowForm(false)} className="rounded-lg px-4 py-2">Cancel</button><button type="submit" disabled={create.isPending || !options.data} className="rounded-full bg-blue-700 px-5 py-2 font-semibold text-white disabled:opacity-50">{create.isPending ? 'Creating…' : 'Create employee'}</button></div>
+          <div className="hrms-form-actions"><button type="button" onClick={() => setShowForm(false)} className="hrms-outline-button">Cancel</button><button type="submit" disabled={create.isPending || !options.data} className="hrms-primary-button">{create.isPending ? 'Creating…' : 'Create employee'}</button></div>
         </form></ConfiguredForm>
-      </div>
-    </div>}
+      </SheetContent>
+    </Sheet>
   </main>;
 }
