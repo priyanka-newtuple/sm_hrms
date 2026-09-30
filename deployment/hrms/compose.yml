@@ -1,0 +1,201 @@
+name: newtuple-hrms-production
+services:
+  platform-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: sm_hrms
+      POSTGRES_PASSWORD: ${HRMS_DB_PASSWORD:?Run the HRMS setup script}
+      POSTGRES_DB: sm_hrms_platform
+    volumes:
+    - hrms_platform_db:/var/lib/postgresql/data
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U sm_hrms -d sm_hrms_platform
+      interval: 3s
+      timeout: 3s
+      retries: 30
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+    restart: unless-stopped
+    mem_limit: 384m
+  platform-redis:
+    image: redis:7-alpine
+    command:
+    - redis-server
+    - --port
+    - '6380'
+    - --save
+    - ''
+    - --appendonly
+    - 'no'
+    - --requirepass
+    - ${HRMS_DB_PASSWORD:?Run the HRMS setup script}
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - redis-cli -p 6380 -a '${HRMS_DB_PASSWORD}' ping | grep PONG
+      interval: 3s
+      timeout: 3s
+      retries: 30
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+    restart: unless-stopped
+    mem_limit: 96m
+  platform-api:
+    image: sm-hrms-platform:${IMAGE_TAG:?Release SHA required}
+    environment:
+      ENV_FILE: /nonexistent-platform-env
+      POSTGRES_HOST: platform-db
+      POSTGRES_PORT: '5432'
+      POSTGRES_USERNAME: sm_hrms
+      POSTGRES_PASSWORD: ${HRMS_DB_PASSWORD:?Run the HRMS setup script}
+      POSTGRES_DATABASE: sm_hrms_platform
+      POSTGRES_APP_SCHEMA: modular_backend
+      DATABASE_URL: postgresql://sm_hrms:${HRMS_DB_PASSWORD}@platform-db:5432/sm_hrms_platform
+      SQLALCHEMY_DATABASE_MIGRATION_URL: postgresql://sm_hrms:${HRMS_DB_PASSWORD}@platform-db:5432/sm_hrms_platform
+      ALEMBIC_CONFIG_PATH: /app/backend/alembic.ini
+      REDIS_HOST: platform-redis
+      REDIS_PORT: '6380'
+      REDIS_PASSWORD: ${HRMS_DB_PASSWORD:?Run the HRMS setup script}
+      JWT_SECRET_KEY: ${HRMS_JWT_SECRET:?Run the HRMS setup script}
+      PORT: '8000'
+      BOOTSTRAP_ORG_ID: ${HRMS_ORGANIZATION_ID:?required}
+      BOOTSTRAP_ORG_NAME: ${HRMS_ORGANIZATION_NAME:?required}
+      BOOTSTRAP_ORG_SLUG: ${HRMS_ORGANIZATION_SLUG:?required}
+      DEFAULT_ORG_ID: ${HRMS_ORGANIZATION_ID:?required}
+      BOOTSTRAP_ADMIN_EMAIL: ${HRMS_ADMIN_EMAIL:?required}
+      BOOTSTRAP_ADMIN_PASSWORD: ${HRMS_PLATFORM_ADMIN_PASSWORD:?Run the HRMS setup
+        script}
+      BOOTSTRAP_SUPER_ADMIN_EMAIL: ${HRMS_OWNER_EMAIL:?required}
+      BOOTSTRAP_SUPER_ADMIN_PASSWORD: ${HRMS_PLATFORM_ADMIN_PASSWORD:?Run the HRMS
+        setup script}
+      FRONTEND_URL: ${HRMS_PUBLIC_URL:?required}
+      ACTION_RUNS_WORKER_ENABLED: 'false'
+      BULK_IMPORT_WORKER_ENABLED: 'false'
+      ENCRYPTION_KEY: ${HRMS_ENCRYPTION_KEY:?required}
+      MODULAR_BYPASS_AUTH: 'false'
+    depends_on:
+      platform-db:
+        condition: service_healthy
+      platform-redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+      - CMD
+      - python
+      - -c
+      - import urllib.request; urllib.request.urlopen('http://localhost:8000/health')
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+    restart: unless-stopped
+    volumes:
+    - platform_uploads:/app/backend/uploads
+    mem_limit: 900m
+  platform-install:
+    image: sm-hrms-application:${IMAGE_TAG:?Release SHA required}
+    environment:
+      PLATFORM_API_URL: http://platform-api:8000/v1/api
+      HRMS_ORGANIZATION_ID: ${HRMS_ORGANIZATION_ID:?required}
+      HRMS_INSTALL_EMAIL: ${HRMS_ADMIN_EMAIL:?required}
+      HRMS_INSTALL_PASSWORD: ${HRMS_PLATFORM_ADMIN_PASSWORD}
+      HRMS_PLATFORM_OWNER_EMAIL: ${HRMS_OWNER_EMAIL:?required}
+      HRMS_PLATFORM_OWNER_PASSWORD: ${HRMS_PLATFORM_ADMIN_PASSWORD}
+      HRMS_SERVICE_EMAIL: ${HRMS_SERVICE_EMAIL:?required}
+      HRMS_SERVICE_PASSWORD: ${HRMS_SERVICE_PASSWORD:?Run the HRMS setup script}
+      HRMS_WORK_EMAIL_DOMAIN: ${HRMS_WORK_EMAIL_DOMAIN:?required}
+    command:
+    - python
+    - -m
+    - hrms_app.install
+    depends_on:
+      platform-api:
+        condition: service_healthy
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+    mem_limit: 256m
+  platform-web:
+    image: sm-hrms-platform-web:${IMAGE_TAG:?Release SHA required}
+    depends_on:
+      hrms-app:
+        condition: service_healthy
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+    restart: unless-stopped
+    ports:
+    - ${HRMS_BIND_ADDRESS:-127.0.0.1}:${HRMS_HTTP_PORT:?required}:80
+    mem_limit: 64m
+  hrms-app-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: hrms_application
+      POSTGRES_PASSWORD: ${HRMS_APP_DB_PASSWORD:?Run the HRMS setup script}
+      POSTGRES_DB: hrms_application
+    volumes:
+    - hrms_application_db:/var/lib/postgresql/data
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U hrms_application -d hrms_application
+      interval: 3s
+      timeout: 3s
+      retries: 30
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+    restart: unless-stopped
+    mem_limit: 192m
+  hrms-app:
+    image: sm-hrms-application:${IMAGE_TAG:?Release SHA required}
+    environment:
+      PLATFORM_API_URL: http://platform-api:8000/v1/api
+      HRMS_ORGANIZATION_ID: ${HRMS_ORGANIZATION_ID:?required}
+      HRMS_SERVICE_EMAIL: ${HRMS_SERVICE_EMAIL:?required}
+      HRMS_SERVICE_PASSWORD: ${HRMS_SERVICE_PASSWORD:?Run the HRMS setup script}
+      HRMS_APP_DATABASE_URL: postgresql://hrms_application:${HRMS_APP_DB_PASSWORD}@hrms-app-db:5432/hrms_application
+      HRMS_WORK_EMAIL_DOMAIN: ${HRMS_WORK_EMAIL_DOMAIN:?required}
+    depends_on:
+      platform-install:
+        condition: service_completed_successfully
+      hrms-app-db:
+        condition: service_healthy
+    healthcheck:
+      test:
+      - CMD
+      - python
+      - -c
+      - import urllib.request; urllib.request.urlopen('http://localhost:8000/health')
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+    restart: unless-stopped
+    mem_limit: 256m
+volumes:
+  hrms_platform_db: {}
+  hrms_application_db: {}
+  platform_uploads: {}

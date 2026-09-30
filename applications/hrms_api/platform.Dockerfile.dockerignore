@@ -14,3 +14,8 @@ backend/htmlcov
 backend/.coverage
 backend/uploads
 backend/etc/.env
+
+backend/**/.env*
+backend/**/*.pem
+backend/**/*.key
+backend/hrms/storage

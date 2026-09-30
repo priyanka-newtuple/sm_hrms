@@ -1,0 +1,70 @@
+name: HRMS production
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: hrms-production
+  cancel-in-progress: false
+jobs:
+  build:
+    if: github.ref == 'refs/heads/main' && vars.HRMS_PRODUCTION_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify platform boundary
+        run: python scripts/verify-platform-boundary.py
+      - name: Build release images
+        env:
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          docker build -f applications/hrms_api/platform.Dockerfile -t sm-hrms-platform:$SHA .
+          docker build -t sm-hrms-application:$SHA applications/hrms_api
+          docker run --rm sm-hrms-application:$SHA python -m pytest tests -q
+          docker build -f frontend/Dockerfile.platform -t sm-hrms-platform-web:$SHA frontend
+          mkdir release
+          docker save sm-hrms-platform:$SHA sm-hrms-application:$SHA sm-hrms-platform-web:$SHA | gzip > release/images.tar.gz
+          cp deployment/hrms/compose.yml deployment/hrms/deploy.sh release/
+          cd release && sha256sum images.tar.gz compose.yml deploy.sh > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hrms-${{ github.sha }}
+          path: release/
+          retention-days: 7
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: hrms-production
+    timeout-minutes: 25
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: hrms-${{ github.sha }}
+          path: release
+      - name: Deploy isolated release
+        env:
+          SSH_KEY: ${{ secrets.HRMS_DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.HRMS_DEPLOY_KNOWN_HOSTS }}
+          HOST: ${{ vars.HRMS_DEPLOY_HOST }}
+          USER: ${{ vars.HRMS_DEPLOY_USER }}
+          PORT: ${{ vars.HRMS_DEPLOY_PORT }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$SHA" =~ ^[a-f0-9]{40}$ ]]
+          [[ "$HOST" =~ ^[a-zA-Z0-9.-]+$ && "$USER" =~ ^[a-z_][a-z0-9_-]*$ && "$PORT" =~ ^[0-9]+$ ]]
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/hrms
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/hrms ~/.ssh/known_hosts
+          trap 'rm -f ~/.ssh/hrms' EXIT
+          opts=(-i ~/.ssh/hrms -o BatchMode=yes -o StrictHostKeyChecking=yes)
+          ssh "${opts[@]}" -p "$PORT" "$USER@$HOST" "mkdir -p /opt/newtuple-hrms/releases/$SHA"
+          scp "${opts[@]}" -P "$PORT" release/* "$USER@$HOST:/opt/newtuple-hrms/releases/$SHA/"
+          ssh "${opts[@]}" -p "$PORT" "$USER@$HOST" "bash /opt/newtuple-hrms/releases/$SHA/deploy.sh $SHA"
