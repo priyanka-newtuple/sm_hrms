@@ -96,3 +96,24 @@ Before activation, verify port 8082 is unused, allow it in the applicable host
 and Hetzner firewalls, record baseline responses for both existing apps, then
 verify those responses again after deployment. Initial inspected baselines:
 workout port 80 redirects (301), legacy loopback 8081 responds 200.
+
+### Automatic organization setup
+
+On a fresh self-hosted deployment, native platform bootstrap creates the active
+organization from `HRMS_ORGANIZATION_ID`, `HRMS_ORGANIZATION_NAME` and
+`HRMS_ORGANIZATION_SLUG`, and creates its active administrator membership.
+Keep the organization ID stable across deployments. The HRMS install job then
+verifies that membership and assigns the native tenant `superadmin` role using
+public platform APIs before installing the HRMS definitions.
+
+Sign into HRMS with `HRMS_ADMIN_EMAIL` and its configured
+`HRMS_PLATFORM_ADMIN_PASSWORD`. `HRMS_OWNER_EMAIL` is the separate platform
+administration account, not the HRMS login. Do not make these emails identical.
+No employee record or demo data is required for tenant administration. Super
+Admin can open Settings → Organization to inspect the tenant, and Settings →
+Users/Roles to configure access for HR staff.
+
+Rerunning installation reuses the tenant and existing native configuration. It
+does not reset passwords or remove additional roles from an existing Super
+Admin. A missing/inactive membership, wrong organization, or missing native
+Super Admin role fails installation rather than bypassing tenant checks.

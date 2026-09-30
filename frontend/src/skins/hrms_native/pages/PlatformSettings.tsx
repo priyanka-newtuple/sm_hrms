@@ -1,4 +1,6 @@
 import CockpitAccessSettings from './CockpitAccessSettings';
+import OrganizationSettings from './OrganizationSettings';
+import { Building2 } from 'lucide-react';
 import ProjectAccessSettings from './ProjectAccessSettings';
 import { lazy, Suspense, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -52,14 +54,15 @@ const TAB_COMPONENTS: Partial<Record<SettingsTab, React.ComponentType>> = {
   global_filter: lazy(() => import('../../../pages/settings/components/global-filter/GlobalFilterTab')),
   app_labels: lazy(() => import('../../../pages/settings/components/app-labels/AppLabelsTab')),
   traces: lazy(() => import('../../../pages/settings/components/agents/AgentTracesTab')),
-  organizations: lazy(() => import('../../../pages/settings/components/organizations/OrganizationsTab')),
+  organizations: OrganizationSettings,
 };
 export default function PlatformSettings() {
   const [params, setParams] = useSearchParams();
   const { hasPermission } = usePermissions();
   // Tenant Super Admin must not acquire platform-wide organization administration.
   const groups = filterTabGroupsByPermission(getTabGroups(['fields', 'methods']), hasPermission, false);
-  const requested = params.get('tab') ?? 'funnels';
+  groups.unshift({label: 'Workspace', tabs: [{id: 'organizations', label: 'Organization', icon: Building2}]});
+  const requested = params.get('tab') ?? 'organizations';
   const active = groups.flatMap(g => g.tabs).find(t => t.id === requested)?.id as SettingsTab | undefined;
   const Component = active ? TAB_COMPONENTS[active] : undefined;
   return <ConfigurationGuard><section className="flex min-h-[calc(100svh-5rem)] min-w-0 bg-background">

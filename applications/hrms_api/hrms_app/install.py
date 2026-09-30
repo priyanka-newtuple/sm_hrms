@@ -7,15 +7,15 @@ from .platform import PlatformClient
 from .policy import ROLE_CAPABILITIES
 from .project_catalog import TYPES as PROJECT_TYPES
 from .cockpit_catalog import TYPES as COCKPIT_TYPES
+from .provisioning import ensure_tenant_administrator
 
 
 def install():
     org = os.environ['HRMS_ORGANIZATION_ID']
     api = PlatformClient(os.environ['PLATFORM_API_URL'], org,
                          os.environ['HRMS_INSTALL_EMAIL'], os.environ['HRMS_INSTALL_PASSWORD'])
-    api.service_token()
+    organization = ensure_tenant_administrator(api)
     domain = os.environ.get('HRMS_WORK_EMAIL_DOMAIN', 'newtuple.com')
-    organization = api.call('GET', '/organizations/current')
     if organization.get('domain') != domain:
         # Organization domains are platform administration, only the installer gets this credential.
         root = api.request('POST', '/auth/login', json={

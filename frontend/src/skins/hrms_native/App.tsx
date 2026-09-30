@@ -16,7 +16,7 @@ import { OrgSelectorProvider } from '../../core/contexts/OrgSelectorContext';
 
 import MyWorkPage from './pages/MyWorkPage';
 
-import { useHrmsCapabilities } from './capabilities';
+import { useHrmsCapabilities, useHrmsOrganization } from './capabilities';
 
 import EmployeeDirectoryPage from './pages/EmployeeDirectoryPage';
 
@@ -71,6 +71,7 @@ function SessionQueries({ children }: { children: ReactNode }) {
 
 
 function Layout() {
+  const organization = useHrmsOrganization();
 
   const { user, logout } = useAuth();
 
@@ -96,7 +97,8 @@ function Layout() {
 
     <aside className="flex flex-col border-r bg-white p-5 md:sticky md:top-0 md:h-screen md:w-72 md:shrink-0">
 
-      <Link to="/hrms/my-work" className="mb-8 flex items-center gap-3 text-lg font-semibold"><BrandLogo /></Link>
+      <Link to="/hrms/my-work" className="mb-3 flex items-center gap-3 text-lg font-semibold"><BrandLogo /></Link>
+      <p className="mb-6 px-3 text-sm text-slate-500">{organization.data?.name ?? (organization.isPending ? 'Loading organization…' : 'Organization unavailable')}</p>
 
       <nav aria-label="Main navigation" className="hrms-grouped-navigation">
         {groups.map(group => <section key={group.label} className="hrms-nav-group" aria-label={group.label}>
@@ -117,7 +119,7 @@ function Layout() {
 
     <div className="flex min-h-screen min-w-0 flex-1 flex-col">
 
-      <header className="flex items-center justify-end gap-4 border-b bg-white px-6 py-4"><div className="text-right"><p className="font-medium">{user?.fullName}</p><p className="text-sm text-slate-500">{caps.data?.roles.map(role => role.replace(/^hrms_/, '').replaceAll('_', ' ').replace(/\b\w/g, c => c.toUpperCase())).join(' · ') ?? 'Loading role…'}</p></div><button onClick={() => void logout()} className="rounded-lg border px-3 py-2">Sign out</button></header>
+      <header className="flex items-center justify-end gap-4 border-b bg-white px-6 py-4"><div className="text-right"><p className="font-medium">{user?.fullName}</p><p className="text-sm text-slate-500">{caps.data?.roles.map(role => role.replace(/^hrms_/, '').replaceAll('_', ' ').replace(/\b\w/g, c => c.toUpperCase())).join(' · ') ?? (caps.isPending ? 'Loading role…' : 'Role unavailable — retry permissions')}</p></div><button onClick={() => void logout()} className="rounded-lg border px-3 py-2">Sign out</button></header>
 
       <div className="min-w-0 flex-1"><Outlet /></div>
       <BrandFooter compact />

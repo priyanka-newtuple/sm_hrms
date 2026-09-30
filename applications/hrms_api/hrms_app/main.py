@@ -112,6 +112,13 @@ def create_app(platform=None, journal=None):
     def get_capabilities(current=Depends(actor)):
         return {'capabilities': sorted(capabilities(current)), 'roles': sorted(current.roles)}
 
+    @app.get('/v1/api/hrms/organization')
+    def current_organization(current=Depends(actor)):
+        organization = platform.request('GET', '/organizations/current', token=current.token)
+        if organization['id'] != current.organization_id:
+            raise AppError(403, 'Organization does not match the HRMS session')
+        return {key: organization.get(key) for key in ('id', 'name', 'slug', 'domain', 'status')}
+
     @app.get('/v1/api/hrms/forms/{entity_type}')
     def form_configuration_view(entity_type: str, current=Depends(actor)):
         from .form_config import form_configuration
