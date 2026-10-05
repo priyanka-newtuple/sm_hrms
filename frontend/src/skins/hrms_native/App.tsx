@@ -5,7 +5,7 @@ import CockpitPage from './pages/CockpitPage';
 import PublishedContent from './pages/PublishedContent';
 import { lazy, Suspense, useEffect, useMemo, type ReactNode } from 'react';
 
-import { Settings, Zap, Users, UserRoundPlus, CalendarDays, TrendingUp, BriefcaseBusiness, SlidersHorizontal, Workflow } from 'lucide-react';
+import { Settings, Zap, Users, UserRoundPlus, CalendarDays, TrendingUp, BriefcaseBusiness, SlidersHorizontal, Workflow, Grid2X2 } from 'lucide-react';
 
 import { BrowserRouter, Navigate, NavLink, Outlet, Route, Routes } from 'react-router-dom';
 
@@ -29,6 +29,7 @@ import WorkflowsPage from './pages/WorkflowsPage';
 
 import PerformancePage from './pages/PerformancePage';
 import ProjectsPage from './pages/ProjectsPage';
+import AllocationsPage from './pages/AllocationsPage';
 import { ConfigurationGuard } from './pages/PlatformSettings';
 const PlatformSettings = lazy(() => import('./pages/PlatformSettings'));
 const FunnelEditor = lazy(() => import('../../pages/funnel'));
@@ -88,7 +89,7 @@ function Layout() {
       ...(allowed('employee:read') ? [{ path: '/hrms/employees', label: 'Employees', icon: Users }] : []),
       ...(allowed('onboarding:view') ? [{ path: '/hrms/onboarding', label: 'Onboarding', icon: UserRoundPlus }] : []),
     ] },
-    { label: 'Delivery', items: allowed('project:view') ? [{ path: '/hrms/projects', label: 'Projects', icon: BriefcaseBusiness }] : [] },
+    { label: 'Delivery', items: allowed('project:view') ? [{ path: '/hrms/projects', label: 'Projects', icon: BriefcaseBusiness }, { path: '/hrms/allocations', label: 'Allocations', icon: Grid2X2 }] : [] },
     { label: 'HR publishing', items: allowed('cockpit:view') ? [{ path: '/hrms/cockpit', label: 'HR Cockpit', icon: SlidersHorizontal }] : [] },
     { label: 'Tracking', items: [{ path: '/hrms/workflows', label: 'Workflows', icon: Workflow }] },
   ].filter(group => group.items.length);
@@ -185,6 +186,7 @@ export default function App() {
       <Route path="/hrms/cockpit" element={<CockpitPage />} />
       <Route path="/hrms/content" element={<PublishedContent />} />
       <Route path="/hrms/projects" element={<ProjectsPage />} />
+      <Route path="/hrms/allocations" element={<AllocationsPage />} />
 
       <Route path="/hrms/workflows" element={<WorkflowsPage />} />
 

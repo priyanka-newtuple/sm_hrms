@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { getApiErrorMessage, request } from '@/core/services/api/client';
 
 type Data = Record<string, unknown>;
-type Item = { id: string; kind: string; state: string; data: Data; actions: string[]; project_name: string };
+export type Item = { id: string; kind: string; state: string; data: Data; actions: string[]; project_name: string };
 type Board = { projects: Item[]; allocations: Item[]; requests: Item[]; can_create: boolean; can_create_customer: boolean };
 type Choice = { id: string; name: string };
 type Options = { customers: Choice[]; pms: Choice[]; dms: Choice[]; approvers: Choice[]; employees: Choice[]; project_roles: Choice[] };
@@ -21,11 +21,11 @@ const label = (s: string) => s.replaceAll('_', ' ').replace(/^./, c => c.toUpper
 const val = (d: Data, k: string) => String(d[k] ?? '');
 const input = 'hrms-field-input';
 export const PROJECT_KINDS = ['HRMS.Project', 'HRMS.ProjectChange', 'HRMS.Allocation', 'HRMS.AllocationChange'];
-const useProjects = () => { const caps=useHrmsCapabilities(); return useQuery({ queryKey: ['hrms', 'projects'], queryFn: () => request<Board>('/hrms/projects'), enabled: caps.data?.capabilities.includes('project:view') ?? false }); };
+export const useProjects = () => { const caps=useHrmsCapabilities(); return useQuery({ queryKey: ['hrms', 'projects'], queryFn: () => request<Board>('/hrms/projects'), enabled: caps.data?.capabilities.includes('project:view') ?? false }); };
 const projectKeys = ['name','description','customer_id','pm_id','dm_id','start_date','end_date','engagement_type','practice','health','currency','budget_amount','billing_rate','planned_hours'];
 const allocationKeys = ['employee_id','project_role_id','start_date','end_date','percentage','billable','billing_rate'];
 
-function ProjectAction({ item, action, done }: { item?: Item; action: string; done: () => void }) {
+export function ProjectAction({ item, action, done }: { item?: Item; action: string; done: () => void }) {
   const proposed = (item?.data.proposed ?? item?.data ?? {}) as Data;
   const projectForm = ['create_project','propose_amendment'].includes(action) || (action === 'edit_request' && item?.kind === 'HRMS.ProjectChange');
   const allocationForm = ['request_allocation','amend_allocation'].includes(action) || (action === 'edit_request' && item?.kind === 'HRMS.AllocationChange');
@@ -80,17 +80,24 @@ function ProjectAction({ item, action, done }: { item?: Item; action: string; do
 
 export function ProjectControls() {
   const board=useProjects();
-  const caps=useHrmsCapabilities();
   const [action,setAction]=useState<string|null>(null);
-  const pending=useQuery({enabled:caps.data?.capabilities.includes('project:view')??false,queryKey:['hrms','project-pending'],queryFn:()=>request<Pending[]>('/hrms/projects/pending-actions')});
-  const client=useQueryClient();
-  const resume=useMutation({mutationFn:(p:Pending)=>{const {target,...body}=p;return request(target==='new'?'/hrms/projects/actions':`/hrms/projects/${target}/actions`,{method:'POST',body:JSON.stringify(body)});},onSuccess:()=>client.invalidateQueries({queryKey:['hrms']})});
   return <div className="hrms-project-controls">
     <header className="hrms-workspace-heading"><div><p className="hrms-eyebrow">BUILD TOGETHER</p><h1>Projects</h1><p className="hrms-intro">A clear view of your projects, people, and delivery.</p></div><div className="hrms-heading-actions">{board.data?.can_create && <button type="button" className="hrms-primary-button" onClick={()=>setAction('create_project')}><Plus size={16} aria-hidden="true" />Add project</button>}{board.data?.can_create_customer && <button type="button" className="hrms-outline-button" onClick={()=>setAction('create_customer')}><Plus size={16} aria-hidden="true" />Add customer</button>}</div></header>
     {board.isError && <p role="alert">{getApiErrorMessage(board.error)}</p>}
     <Sheet open={Boolean(action)} onOpenChange={open=>{if(!open)setAction(null);}}><SheetContent className="hrms-brand hrms-review-drawer overflow-y-auto data-[side=right]:w-full data-[side=right]:sm:max-w-4xl"><SheetHeader><SheetTitle>{action === 'create_customer' ? 'Add customer' : 'Create project'}</SheetTitle></SheetHeader>{action && <div className="p-6"><ProjectAction key={action} action={action} done={()=>setAction(null)} /></div>}</SheetContent></Sheet>
+    <ProjectRecovery />
+  </div>;
+}
+
+export function ProjectRecovery() {
+  const caps=useHrmsCapabilities();
+  const pending=useQuery({enabled:caps.data?.capabilities.includes('project:view')??false,queryKey:['hrms','project-pending'],queryFn:()=>request<Pending[]>('/hrms/projects/pending-actions')});
+  const client=useQueryClient();
+  const resume=useMutation({mutationFn:(p:Pending)=>{const {target,...body}=p;return request(target==='new'?'/hrms/projects/actions':`/hrms/projects/${target}/actions`,{method:'POST',body:JSON.stringify(body)});},onSuccess:()=>client.invalidateQueries({queryKey:['hrms']})});
+  return <div>
     {pending.data?.map(p=><div key={p.idempotency_key} className="hrms-notice">Incomplete {label(p.action)} <Button className="hrms-outline-button" variant="outline" disabled={resume.isPending} onClick={()=>resume.mutate(p)}>Resume operation</Button></div>)}
     {resume.isError && <p role="alert">{getApiErrorMessage(resume.error)}</p>}
+    {pending.isError && <p role="alert">Unable to load unfinished operations. <button className="hrms-text-link" onClick={()=>void pending.refetch()}>Retry</button></p>}
   </div>;
 }
 
@@ -188,7 +195,7 @@ export default function ProjectsPage() {
           {allocating && selected.actions.includes('request_allocation') && <><p className="text-sm text-muted-foreground">Choose an employee, project role, dates and capacity. The request goes to the project's Delivery Manager; self-approval is not permitted. Submit and track approval in Workflows.</p><ProjectAction key={`${selected.id}:allocation`} item={selected} action="request_allocation" done={()=>setAllocating(false)} /></>}
           {editing&&edit?<><p className="text-sm text-muted-foreground">Changes are saved as an approval request. Review and approve them in Workflows before they update the project.</p><ProjectAction key={`${edit.item.id}:${edit.action}`} item={edit.item} action={edit.action} done={()=>setEditing(false)} /></>:
             <ConfiguredForm entityType="HRMS.Project"><dl className="hrms-surface hrms-detail-grid">{Object.entries(selected.data).filter(([k,v])=>v!=null&&v!==''&&!k.endsWith('_id')&&!['created_by','revision','hrms_operation_key'].includes(k)).map(([key,v])=><div key={key}><ConfiguredField field={key} label={label(key)}><p className="whitespace-pre-wrap break-words font-medium">{String(v)}</p></ConfiguredField></div>)}</dl></ConfiguredForm>}
-          <section className="hrms-surface hrms-project-team"><div className="hrms-panel-title"><span className="hrms-work-icon"><Users size={23} strokeWidth={1.25} /></span><h3 className="hrms-section-heading">Assigned team</h3></div>
+          <section className="hrms-surface hrms-project-team"><div className="hrms-panel-title"><span className="hrms-work-icon"><Users size={23} strokeWidth={1.25} /></span><h3 className="hrms-section-heading">Assigned team</h3><Link className="hrms-text-link" to={`/hrms/allocations?project=${selected.id}`}>View allocations</Link></div>
             {query.data?.allocations.filter(a=>a.data.project_id===selected.id).map(a=><div key={a.id} className="hrms-notice"><p className="font-medium">{val(a.data,'employee_name')} · {val(a.data,'project_role_name')}</p><p>{val(a.data,'percentage')}% · {val(a.data,'start_date')} to {val(a.data,'end_date')}</p></div>)}
             {!query.data?.allocations.some(a=>a.data.project_id===selected.id)&&<p className="text-sm text-muted-foreground">No allocations yet.</p>}
           </section>
