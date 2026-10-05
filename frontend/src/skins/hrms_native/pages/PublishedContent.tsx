@@ -1,18 +1,108 @@
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
-import { FileText } from 'lucide-react';
+import { X } from 'lucide-react';
 import { request } from '@/core/services/api/client';
-import { ContentCard } from './CockpitPage';
 import { informationCategories } from '../components/Brand';
-export default function PublishedContent({publicPage=false}:{publicPage?:boolean}) {
- const [params,setParams]=useSearchParams();
- const category=informationCategories.find(c=>c.id===params.get('category'))??informationCategories[0];
- const query=useQuery({queryKey:['hrms',publicPage?'public-content':'published-content'],queryFn:()=>publicPage?fetch('/v1/api/hrms/public/content',{credentials:'omit',cache:'no-store'}).then(r=>{if(!r.ok)throw new Error('Unable to load public information');return r.json() as Promise<Record<string,unknown>[]>;}):request<Record<string,unknown>[]>('/hrms/content')});
- const records=query.data?.filter(r=>category.types.includes(String(r.entity_type)))??[];
- return <main className="hrms-information"><p className="hrms-eyebrow">LIFE AT NEWTUPLE</p><h1>Stay informed.<br/><span>Find your next opportunity.</span></h1><p className="hrms-intro">Explore our policies, learning opportunities, holiday calendars, and careers.</p>{publicPage&&<Link className="hrms-outline-button" to="/login">Employee sign in</Link>}
- <nav className="hrms-category-nav" aria-label="Information categories">{informationCategories.map(({id,title,icon:Icon})=><button key={id} aria-pressed={category.id===id} onClick={()=>setParams({category:id})}><Icon size={22} strokeWidth={1.25} aria-hidden="true"/>{title}</button>)}</nav>
- <section aria-labelledby="information-heading" aria-live="polite"><div className="hrms-section-heading"><h2 id="information-heading">{category.title}</h2>{query.isSuccess&&<span>{records.length} published {records.length===1?'item':'items'}</span>}</div>
- {query.isLoading&&<p role="status">Loading published information…</p>}{query.isError&&<div role="alert" className="hrms-empty"><h3>Information couldn’t be loaded</h3><button className="hrms-outline-button" onClick={()=>void query.refetch()}>Try again</button></div>}
- <div className="hrms-published-grid">{records.map(r=><ContentCard key={String(r.id)} item={r}/>)}</div>
- {query.isSuccess&&!records.length&&<div className="hrms-empty"><FileText size={32} strokeWidth={1} aria-hidden="true"/><h3>No {category.title.toLowerCase()} published yet</h3><p>When new information is published{publicPage?' for public viewing':''}, you’ll find it here.</p></div>}</section></main>;
+import { AnimIcon, ArrowRightIcon, SearchIcon } from '../animated-icons';
+import { HeroBackdrop } from '../login/HeroBackdrop';
+import { ShinyText } from '../login/reactbits';
+import { usePrefersReducedMotion, useSmoothScroll } from '../login/motion';
+import { CareerList, HolidayView, LearningList, PolicyList } from '../public-info/CategoryViews';
+import { matches, type Published } from '../public-info/format';
+import '../login/login.css';
+import '../public-info/public-info.css';
+
+const VIEWS = { policies: PolicyList, learning: LearningList, holidays: HolidayView, careers: CareerList } as const;
+
+/** Published HR information: public at /public, and for signed-in employees at /hrms/content. */
+export default function PublishedContent({ publicPage = false }: { publicPage?: boolean }) {
+  const [params, setParams] = useSearchParams();
+  const reducedMotion = usePrefersReducedMotion();
+  const motion = !reducedMotion;
+  useSmoothScroll(motion && publicPage);
+  const [search, setSearch] = useState('');
+  const tabs = useRef<HTMLDivElement>(null);
+
+  const categoryIndex = Math.max(0, informationCategories.findIndex(c => c.id === params.get('category')));
+  const category = informationCategories[categoryIndex];
+  const query = useQuery({
+    queryKey: ['hrms', publicPage ? 'public-content' : 'published-content'],
+    queryFn: () => publicPage
+      ? fetch('/v1/api/hrms/public/content', { credentials: 'omit', cache: 'no-store' }).then(r => { if (!r.ok) throw new Error('Unable to load public information'); return r.json() as Promise<Published[]>; })
+      : request<Published[]>('/hrms/content'),
+  });
+
+  const counts = useMemo(() => Object.fromEntries(informationCategories.map(c => [c.id, query.data?.filter(r => c.types.includes(String(r.entity_type))).length ?? 0])), [query.data]);
+  const inCategory = query.data?.filter(r => category.types.includes(String(r.entity_type))) ?? [];
+  const records = inCategory.filter(r => matches(r, search.trim()));
+  const View = VIEWS[category.id as keyof typeof VIEWS];
+
+  const choose = (id: string) => { setSearch(''); setParams({ category: id }); };
+
+  // Slide the white pill to the pressed tab; tabs can scroll horizontally on narrow screens.
+  useLayoutEffect(() => {
+    const host = tabs.current;
+    if (!host) return;
+    const place = () => {
+      const pressed = host.querySelector<HTMLElement>('button[aria-pressed="true"]');
+      if (!pressed) return;
+      host.style.setProperty('--tab-x', `${pressed.offsetLeft}px`);
+      host.style.setProperty('--tab-w', `${pressed.offsetWidth}px`);
+      if (host.scrollWidth > host.clientWidth) host.scrollTo({ left: pressed.offsetLeft - (host.clientWidth - pressed.offsetWidth) / 2, behavior: 'auto' });
+    };
+    place();
+    const observer = new ResizeObserver(place);
+    observer.observe(host);
+    return () => observer.disconnect();
+  }, [categoryIndex, query.isSuccess]);
+
+  return <main className={`hrms-login hrms-info${publicPage ? '' : ' hrms-info--workspace'}${motion ? ' hrms-login--motion' : ''}`}>
+    <section className="hrms-info-hero">
+      <HeroBackdrop animate={motion && publicPage} />
+      <div className="hrms-info-hero-inner">
+        <p className="hrms-login-chip"><i aria-hidden="true" />Life at Newtuple</p>
+        <h1>Stay informed.<br /><ShinyText text="Find your next opportunity." disabled={!motion} /></h1>
+        <p className="hrms-login-intro">Policies, learning sessions, holiday calendars and open roles — published and approved by HR{publicPage ? ', readable without signing in' : ''}.</p>
+        <div ref={tabs} className="hrms-info-tabs" role="group" aria-label="Information categories">
+          <span className="hrms-info-tab-indicator" aria-hidden="true" />
+          {informationCategories.map(({ id, short, animatedIcon }) => <button key={id} type="button" aria-pressed={category.id === id} onClick={() => choose(id)}>
+            <AnimIcon icon={animatedIcon} size={18} />{short}
+            {query.isSuccess && <span className="hrms-info-tab-count" aria-label={`${counts[id]} published`}>{counts[id]}</span>}
+          </button>)}
+        </div>
+      </div>
+    </section>
+
+    <section className="hrms-info-content" aria-labelledby="information-heading">
+      <header className="hrms-info-head">
+        <div>
+          <p className="hrms-index-label">{category.short}</p>
+          <h2 id="information-heading">{category.title}</h2>
+          <p>{category.description}</p>
+        </div>
+        <label className="hrms-info-search">
+          <span className="sr-only">Search {category.title.toLowerCase()}</span>
+          <AnimIcon icon={SearchIcon} size={17} />
+          <input type="search" value={search} onChange={e => setSearch(e.target.value)} placeholder={`Search ${category.short.toLowerCase()}`} />
+          {search && <button type="button" onClick={() => setSearch('')} aria-label="Clear search"><X size={15} aria-hidden="true" /></button>}
+        </label>
+      </header>
+
+      <div aria-live="polite">
+        {query.isSuccess && <p className="hrms-info-count">{search ? `${records.length} of ${inCategory.length}` : inCategory.length} published {inCategory.length === 1 ? 'item' : 'items'}</p>}
+        {query.isLoading && <div className="hrms-info-skeletons" role="status" aria-label="Loading published information">{[0, 1, 2].map(i => <div key={i} className="hrms-info-skeleton" />)}</div>}
+        {query.isError && <div role="alert" className="hrms-info-empty"><h3>Information couldn’t be loaded</h3><p>Check your connection and try again.</p><button type="button" className="hrms-info-action" onClick={() => void query.refetch()}>Try again</button></div>}
+        {query.isSuccess && records.length > 0 && <div key={category.id} className="hrms-info-view"><View records={records} /></div>}
+        {query.isSuccess && !records.length && (search
+          ? <div className="hrms-info-empty"><h3>No results for “{search}”</h3><p>Try a different word, or clear the search.</p><button type="button" className="hrms-info-action" onClick={() => setSearch('')}>Clear search</button></div>
+          : <div className="hrms-info-empty" data-anim-trigger>
+              <span className="hrms-info-empty-icon"><AnimIcon icon={category.animatedIcon} size={30} every={motion ? 4000 : undefined} /></span>
+              <h3>No {category.title.toLowerCase()} published yet</h3>
+              <p>When HR publishes something{publicPage ? ' for public viewing' : ''}, you’ll find it here.{publicPage ? ' Employees may see more after signing in.' : ''}</p>
+              {publicPage && <Link to="/login" className="hrms-info-action">Employee sign in<AnimIcon icon={ArrowRightIcon} size={15} /></Link>}
+            </div>)}
+      </div>
+    </section>
+  </main>;
 }
