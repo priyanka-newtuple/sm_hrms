@@ -16,3 +16,7 @@ export { HammerIcon } from './hammer';
 export { HandHeartIcon } from './hand-heart';
 export { RocketIcon } from './rocket';
 export { ZapIcon } from './zap';
+export { ExternalLinkIcon } from './external-link';
+export { GraduationCapIcon } from './graduation-cap';
+export { PartyPopperIcon } from './party-popper';
+export { SearchIcon } from './search';
