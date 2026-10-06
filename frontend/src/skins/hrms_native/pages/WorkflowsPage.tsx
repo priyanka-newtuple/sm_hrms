@@ -23,6 +23,7 @@ import OnboardingPage from './OnboardingPage';
 import { ProjectDetail, PROJECT_KINDS } from './ProjectsPage';
 import { LeaveRow, type LeaveItem } from './LeaveRequestsPage';
 import { PerformanceDetail } from './PerformancePage';
+import { PageHero } from '../components/PageHero';
 
 interface WorkflowRow {
   entity_id: string;
@@ -94,12 +95,15 @@ export default function WorkflowsPage() {
   const pageCount = Math.max(1, Math.ceil(list.totalCount / list.pageSize));
 
   return <main className="hrms-brand hrms-workspace-page hrms-workflows-page">
-    <header className="hrms-workspace-heading">
-      <div><p className="hrms-eyebrow">KEEP WORK MOVING</p><h1>Workflows</h1>
-        <p className="hrms-intro">Follow progress, review next steps, and act on work in your scope.</p></div>
-      <div className="hrms-heading-actions hrms-workflow-controls"><PipelineTerminalToggle hidden={hideTerminal} label="Terminal Entities" onToggle={value => { setHideTerminal(value); list.setPage(0); }} />
-        <button type="button" className="hrms-outline-button" aria-label="Refresh workflows" disabled={query.isFetching} onClick={() => void queryClient.invalidateQueries({ queryKey: ['hrms'] })}><RefreshCw size={16} strokeWidth={1.25} className={query.isFetching?'animate-spin':''}/>Refresh</button></div>
-    </header>
+    <PageHero eyebrow="Keep work moving" title="Workflows" intro="Follow progress, review next steps, and act on work in your scope." illustration="workflows"
+      actions={<div className="hrms-workflow-controls"><PipelineTerminalToggle hidden={hideTerminal} label="Terminal Entities" onToggle={value => { setHideTerminal(value); list.setPage(0); }} />
+        <button type="button" className="hrms-outline-button" aria-label="Refresh workflows" disabled={query.isFetching} onClick={() => void queryClient.invalidateQueries({ queryKey: ['hrms'] })}><RefreshCw size={16} strokeWidth={1.25} className={query.isFetching?'animate-spin':''}/>Refresh</button></div>}
+      stats={query.data ? [
+        { label: 'Records', value: query.data.length },
+        { label: 'In progress', value: query.data.filter(row => !row.is_terminal).length, tone: 'attention' },
+        { label: 'Completed', value: query.data.filter(row => row.is_terminal).length, tone: 'positive' },
+        { label: 'Types', value: types.length },
+      ] : undefined} />
     {query.isLoading && <p role="status">Loading workflows…</p>}
     {query.isError && <div role="alert" className="hrms-notice hrms-notice--error"><p>{getApiErrorMessage(query.error)}</p><button className="hrms-outline-button" onClick={()=>void query.refetch()}>Try again</button></div>}
     {query.data && <Card className="hrms-surface hrms-workflow-directory">

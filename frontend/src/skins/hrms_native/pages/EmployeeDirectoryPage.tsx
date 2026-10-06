@@ -6,6 +6,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Link } from 'react-router-dom';
 import { useHrmsCapabilities } from '../capabilities';
 import { getApiErrorMessage, request } from '../../../core/services/api/client';
+import { PageHero } from '../components/PageHero';
 
 interface Employee {
   entity_id: string;
@@ -84,9 +85,14 @@ export default function EmployeeDirectoryPage() {
   const input = 'hrms-field-input';
 
   return <main className="hrms-workspace-page hrms-people-page">
-    <header className="hrms-workspace-heading"><div><p className="hrms-eyebrow">OUR PEOPLE</p><h1>Employees</h1><p className="hrms-intro">Get to know the people behind our work.</p></div>
-      {canCreate && <button type="button" onClick={() => { setCreated(null); setShowForm(true); }} className="hrms-primary-button"><Plus size={16} /> Add Employee</button>}
-    </header>
+    <PageHero eyebrow="Our people" title="Employees" intro="Get to know the people behind our work." illustration="employees"
+      actions={canCreate && <button type="button" onClick={() => { setCreated(null); setShowForm(true); }} className="hrms-primary-button"><Plus size={16} /> Add Employee</button>}
+      stats={employees.isSuccess ? [
+        { label: 'People', value: employees.data.length },
+        { label: 'Active', value: employees.data.filter(employee => employee.employment_status === 'active').length, tone: 'positive' },
+        { label: 'Departments', value: new Set(employees.data.map(employee => employee.department).filter(Boolean)).size },
+        { label: 'Other status', value: employees.data.filter(employee => employee.employment_status !== 'active').length },
+      ] : undefined} />
     {created && <div role="status" className="hrms-notice">
       <strong>{created.employee.full_name} ({created.employee.employee_code}) was added.</strong>{' '}
       Onboarding is {created.onboarding_state.replaceAll('_', ' ')} with {created.onboarding_task_count} assigned tasks.

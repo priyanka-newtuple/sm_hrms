@@ -7,6 +7,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { getApiErrorMessage, request } from '@/core/services/api/client';
+import { PageHero } from '../components/PageHero';
 
 type Data = Record<string, unknown>;
 interface Item { id: string; kind: string; state: string; data: Data; actions: string[]; cycle_name?: string; employee_name?: string; goals?: Item[]; feedback?: Item[] }
@@ -122,7 +123,14 @@ export default function PerformancePage() {
   const resume = useMutation({ mutationFn: (operation: NonNullable<typeof pending.data>[number]) => request(operation.target === 'new' ? '/hrms/performance/cycles' : `/hrms/performance/${operation.target}/actions`, { method: 'POST', body: JSON.stringify({ action: operation.action, data: operation.data, idempotency_key: operation.idempotency_key }) }), onSuccess: () => queryClient.invalidateQueries({ queryKey: ['hrms'] }) });
   const [selected, setSelected] = useState<string | null>(null);
   const [create, setCreate] = useState(false);
-  return <main className="hrms-workspace-page hrms-performance-page"><header className="hrms-workspace-heading"><div><p className="hrms-eyebrow">ROOM TO GROW</p><h1>Performance</h1><p className="hrms-intro">Meaningful goals, thoughtful feedback, and a clear path forward.</p></div><div className="hrms-heading-actions"><Link className="hrms-outline-button" to="/hrms/workflows">View workflows <ArrowRight size={16} /></Link>{query.data?.can_manage && <Button className="hrms-primary-button" variant="primary" size="md" onClick={() => setCreate(true)}><Plus size={16} />Create cycle</Button>}</div></header>
+  return <main className="hrms-workspace-page hrms-performance-page"><PageHero eyebrow="Room to grow" title="Performance" intro="Meaningful goals, thoughtful feedback, and a clear path forward." illustration="performance"
+      actions={<><Link className="hrms-outline-button" to="/hrms/workflows">View workflows <ArrowRight size={16} /></Link>{query.data?.can_manage && <Button className="hrms-primary-button" variant="primary" size="md" onClick={() => setCreate(true)}><Plus size={16} />Create cycle</Button>}</>}
+      stats={query.data ? [
+        { label: 'Cycles', value: query.data.cycles.length },
+        { label: 'Reviews', value: query.data.reviews.length },
+        { label: 'Awaiting you', value: [...query.data.cycles, ...query.data.reviews, ...query.data.assigned_feedback].filter(item => item.actions.length > 0).length, tone: 'attention' },
+        { label: 'Feedback requests', value: query.data.assigned_feedback.length },
+      ] : undefined} />
     {query.isLoading && <p role="status" className="hrms-surface hrms-work-feedback">Loading performance…</p>}{query.isError && <div role="alert" className="hrms-notice hrms-notice--error"><p>{getApiErrorMessage(query.error)}</p><button className="hrms-outline-button" onClick={() => void query.refetch()}>Try again</button></div>}
     {pending.data?.map(operation => <div key={operation.idempotency_key} role="status" className="hrms-notice"><p>An interrupted action needs recovery: {label(operation.action)}.</p><Button className="mt-2" variant="outline" disabled={resume.isPending} onClick={() => resume.mutate(operation)}>Resume action</Button></div>)}
     {resume.isError && <p role="alert">{getApiErrorMessage(resume.error)}</p>}

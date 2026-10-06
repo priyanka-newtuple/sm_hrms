@@ -4,6 +4,7 @@ import { ConfiguredForm, ConfiguredField } from '../forms/ConfiguredForm';
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getApiErrorMessage, request } from '../../../core/services/api/client';
+import { PageHero } from '../components/PageHero';
 
 export interface LeaveItem {
   entity_id: string;
@@ -93,7 +94,14 @@ export default function LeaveRequestsPage() {
   }
 
   return <main className="hrms-workspace-page hrms-leave-page">
-    <header className="hrms-workspace-heading"><div><p className="hrms-eyebrow">TIME TO RECHARGE</p><h1>Leave requests</h1><p className="hrms-intro">Plan time away and keep your team in the loop.</p></div><Link className="hrms-outline-button" to="/hrms/workflows">View workflows <ArrowRight size={16} /></Link></header>
+    <PageHero eyebrow="Time to recharge" title="Leave requests" intro="Plan time away and keep your team in the loop." illustration="leave"
+      actions={<Link className="hrms-outline-button" to="/hrms/workflows">View workflows <ArrowRight size={16} /></Link>}
+      stats={list.isSuccess ? [
+        { label: view === 'mine' ? 'Your requests' : 'Team requests', value: list.data.length },
+        { label: 'Pending', value: list.data.filter(item => item.state === 'pending').length, tone: 'attention' },
+        { label: 'Approved', value: list.data.filter(item => item.state === 'approved').length, tone: 'positive' },
+        { label: 'Days approved', value: list.data.filter(item => item.state === 'approved').reduce((days, item) => days + Math.max(1, Math.round((Date.parse(item.end_date) - Date.parse(item.start_date)) / 86_400_000) + 1), 0) },
+      ] : undefined} />
     <div className="hrms-leave-layout"><section className="hrms-surface hrms-leave-compose" aria-label="Request leave">
     <ConfiguredForm entityType="HRMS.LeaveRequest"><form onSubmit={submit} className="hrms-people-form">
       <div className="hrms-panel-title"><span className="hrms-work-icon"><CalendarDays size={23} strokeWidth={1.25} /></span><div><h2>Request leave</h2><p>Choose your dates and share a reason.</p></div></div>

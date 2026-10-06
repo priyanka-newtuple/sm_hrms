@@ -6,6 +6,7 @@ import { getApiErrorMessage } from '@/core/services/api/client';
 import { useHrmsCapabilities } from '../capabilities';
 import { useWorkflowConfiguration } from '../workflows/WorkflowConfiguration';
 import { ProjectAction, ProjectDetail, ProjectRecovery, useProjects, type Item } from './ProjectsPage';
+import { PageHero } from '../components/PageHero';
 
 const value = (item: Item, key: string) => String(item.data[key] ?? '');
 const humanize = (text: string) => text.replaceAll('_', ' ').replace(/^./, c => c.toUpperCase());
@@ -49,12 +50,17 @@ export default function AllocationsPage() {
   if (!caps.data.capabilities.includes('project:view')) return <p className="p-6" role="alert">You do not have access to Allocations.</p>;
 
   return <main className="hrms-workspace-page hrms-project-page">
-    <header className="hrms-workspace-heading"><div><p className="hrms-eyebrow">PEOPLE & DELIVERY</p><h1>Allocations</h1><p className="hrms-intro">See who is working where, and plan the next assignment.</p></div>
-      {eligible.length > 0 && <button className="hrms-primary-button" onClick={() => {
+    <PageHero eyebrow="People & delivery" title="Allocations" intro="See who is working where, and plan the next assignment." illustration="allocations"
+      actions={eligible.length > 0 && <button className="hrms-primary-button" onClick={() => {
         setProjectId(eligible.some(p => p.id === projectFilter) ? projectFilter : eligible.length === 1 ? eligible[0].id : '');
         setCreating(true);
       }}><Plus size={16} aria-hidden="true" />Add allocation</button>}
-    </header>
+      stats={query.isSuccess ? [
+        { label: 'Allocations', value: allocations.length },
+        { label: 'Active', value: allocations.filter(item => item.state === 'active').length, tone: 'positive' },
+        { label: 'Planned', value: allocations.filter(item => item.state === 'planned').length },
+        { label: 'Pending requests', value: requests.filter(item => item.state === 'pending').length, tone: 'attention' },
+      ] : undefined} />
     <ProjectRecovery />
     <div className="flex flex-wrap gap-3 mb-6" role="group" aria-label="Allocation views">
       <button className={tab === 'allocations' ? 'hrms-primary-button' : 'hrms-outline-button'} aria-pressed={tab === 'allocations'} onClick={() => {setTab('allocations'); setStatus('');}}>Allocations</button>
