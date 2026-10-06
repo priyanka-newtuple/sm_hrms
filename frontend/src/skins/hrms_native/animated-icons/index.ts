@@ -1,0 +1,30 @@
+// Animated icon set for HRMS public pages. Sources come from the lucide-animated registry
+// (`https://lucide-animated.com/r/<name>.json`); add new icons the same way and export them here.
+export { AnimIcon, type AnimatedIcon, type AnimatedIconHandle } from './AnimIcon';
+export { ArrowRightIcon } from './arrow-right';
+export { ArrowUpRightIcon } from './arrow-up-right';
+export { BookTextIcon } from './book-text';
+export { BriefcaseBusinessIcon } from './briefcase-business';
+export { CalendarDaysIcon } from './calendar-days';
+export { CheckIcon } from './check';
+export { EyeIcon } from './eye';
+export { EyeOffIcon } from './eye-off';
+export { FileTextIcon } from './file-text';
+export { LoaderCircleIcon } from './loader-circle';
+export { ZapIcon } from './zap';
+export { GraduationCapIcon } from './graduation-cap';
+export { PartyPopperIcon } from './party-popper';
+export { SearchIcon } from './search';
+export { TrendingUpIcon } from './trending-up';
+export { UsersIcon } from './users';
+export { LayoutGridIcon } from './layout-grid';
+export { SlidersHorizontalIcon } from './sliders-horizontal';
+export { WorkflowIcon } from './workflow';
+export { SettingsIcon } from './settings';
+export { BellIcon } from './bell';
+export { PanelLeftCloseIcon } from './panel-left-close';
+export { PanelLeftOpenIcon } from './panel-left-open';
+export { MenuIcon } from './menu';
+export { UserRoundPlusIcon } from './user-round-plus';
+export { ExternalLinkIcon } from './external-link';
+export { XIcon } from './x';

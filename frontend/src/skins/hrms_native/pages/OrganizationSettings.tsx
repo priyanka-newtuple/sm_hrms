@@ -5,7 +5,7 @@ export default function OrganizationSettings() {
   if (organization.isPending) return <p role="status">Loading organization…</p>;
   if (organization.isError) return <div role="alert"><p>Organization details could not be loaded.</p><button onClick={() => void organization.refetch()}>Retry</button></div>;
   const org = organization.data;
-  return <section className="rounded-3xl border bg-white p-8">
+  return <section className="hrms-surface p-8">
     <h1 className="text-3xl font-light">Organization</h1>
     <p className="my-4 text-slate-600">Your HRMS tenant. Users, roles, forms and workflows belong to this organization.</p>
     <dl className="grid gap-4">

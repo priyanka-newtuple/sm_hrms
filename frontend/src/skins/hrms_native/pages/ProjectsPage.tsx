@@ -10,6 +10,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { getApiErrorMessage, request } from '@/core/services/api/client';
+import { PageHero } from '../components/PageHero';
 
 type Data = Record<string, unknown>;
 export type Item = { id: string; kind: string; state: string; data: Data; actions: string[]; project_name: string };
@@ -83,7 +84,14 @@ export function ProjectControls() {
   const board=useProjects();
   const [action,setAction]=useState<string|null>(null);
   return <div className="hrms-project-controls">
-    <header className="hrms-workspace-heading"><div><p className="hrms-eyebrow">BUILD TOGETHER</p><h1>Projects</h1><p className="hrms-intro">A clear view of your projects, people, and delivery.</p></div><div className="hrms-heading-actions">{board.data?.can_create && <button type="button" className="hrms-primary-button" onClick={()=>setAction('create_project')}><Plus size={16} aria-hidden="true" />Add project</button>}{board.data?.can_create_customer && <button type="button" className="hrms-outline-button" onClick={()=>setAction('create_customer')}><Plus size={16} aria-hidden="true" />Add customer</button>}</div></header>
+    <PageHero eyebrow="Build together" title="Projects" intro="A clear view of your projects, people, and delivery." illustration="projects"
+      actions={<>{board.data?.can_create && <button type="button" className="hrms-primary-button" onClick={()=>setAction('create_project')}><Plus size={16} aria-hidden="true" />Add project</button>}{board.data?.can_create_customer && <button type="button" className="hrms-outline-button" onClick={()=>setAction('create_customer')}><Plus size={16} aria-hidden="true" />Add customer</button>}</>}
+      stats={board.data ? [
+        { label: 'Projects', value: board.data.projects.length },
+        { label: 'Active', value: board.data.projects.filter(p => p.state === 'active').length, tone: 'positive' },
+        { label: 'People allocated', value: new Set(board.data.allocations.filter(a => ['planned', 'active'].includes(a.state)).map(a => val(a.data, 'employee_id'))).size },
+        { label: 'Pending approvals', value: board.data.requests.filter(r => r.state === 'pending').length, tone: 'attention' },
+      ] : undefined} />
     {board.isError && <p role="alert">{getApiErrorMessage(board.error)}</p>}
     <Sheet open={Boolean(action)} onOpenChange={open=>{if(!open)setAction(null);}}><SheetContent className="hrms-brand hrms-review-drawer overflow-y-auto data-[side=right]:w-full data-[side=right]:sm:max-w-4xl"><SheetHeader><SheetTitle>{action === 'create_customer' ? 'Add customer' : 'Create project'}</SheetTitle></SheetHeader>{action && <div className="p-6"><ProjectAction key={action} action={action} done={()=>setAction(null)} /></div>}</SheetContent></Sheet>
     <ProjectRecovery />

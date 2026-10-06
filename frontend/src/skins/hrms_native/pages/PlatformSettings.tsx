@@ -11,6 +11,7 @@ import { getTabGroups, filterTabGroupsByPermission } from '../../../pages/settin
 import type { SettingsTab } from '../../../pages/settings';
 import { useQuery } from '@tanstack/react-query';
 import { request } from '../../../core/services/api/client';
+import { PageHero } from '../components/PageHero';
 
 function ProductRolePolicy() {
   const policy = useQuery({queryKey:['hrms','settings','role-policy'],queryFn:()=>request<Record<string,string[]>>('/hrms/settings/role-capabilities')});
@@ -65,11 +66,13 @@ export default function PlatformSettings() {
   const requested = params.get('tab') ?? 'organizations';
   const active = groups.flatMap(g => g.tabs).find(t => t.id === requested)?.id as SettingsTab | undefined;
   const Component = active ? TAB_COMPONENTS[active] : undefined;
-  return <ConfigurationGuard><section className="flex min-h-[calc(100svh-5rem)] min-w-0 bg-background">
+  return <ConfigurationGuard><div className="hrms-ws-page hrms-settings-page">
+    <PageHero compact eyebrow="Configuration" title="Settings" intro="Organization, people, roles, forms and workflows for this HRMS tenant." illustration="settings" />
+    <section className="hrms-settings-frame flex min-w-0 bg-background">
     <SettingsSidebar groups={groups} activeTab={active ?? null} onTabChange={tab => setParams({tab})} />
     <div className="min-w-0 flex-1 p-6"><Suspense fallback={<p>Loading configuration…</p>}>
       {active === 'roles' && <><ProjectAccessSettings /><CockpitAccessSettings /><ProductRolePolicy /></>}
       {Component ? <Component /> : <p role="alert">This settings section is not available in your organization.</p>}
     </Suspense></div>
-  </section></ConfigurationGuard>;
+  </section></div></ConfigurationGuard>;
 }

@@ -1,13 +1,13 @@
-import { BrandFooter, PublicLayout } from './components/Brand';
-import TenantHeader from './components/TenantHeader';
+import { PublicLayout } from './components/Brand';
 import './brand.css';
+import './workspace/workspace.css';
 import CockpitPage from './pages/CockpitPage';
 import PublishedContent from './pages/PublishedContent';
 import { lazy, Suspense, useEffect, useMemo, type ReactNode } from 'react';
 
-import { Settings, Zap, Users, UserRoundPlus, CalendarDays, TrendingUp, BriefcaseBusiness, SlidersHorizontal, Workflow, Grid2X2 } from 'lucide-react';
+import { WorkspaceShell } from './workspace/Shell';
 
-import { BrowserRouter, Navigate, NavLink, Outlet, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -73,61 +73,7 @@ function SessionQueries({ children }: { children: ReactNode }) {
 
 
 function Layout() {
-
-  const { user, logout } = useAuth();
-
-  const caps = useHrmsCapabilities();
-
-  const allowed = (capability: string) => caps.data?.capabilities.includes(capability) ?? false;
-  const groups = [
-    { label: 'My work', items: [
-      { path: '/hrms/my-work', label: 'My work', icon: Zap },
-      { path: '/hrms/leave', label: 'Leave requests', icon: CalendarDays },
-      { path: '/hrms/performance', label: 'Performance', icon: TrendingUp },
-    ] },
-    { label: 'People', items: [
-      ...(allowed('employee:read') ? [{ path: '/hrms/employees', label: 'Employees', icon: Users }] : []),
-      ...(allowed('onboarding:view') ? [{ path: '/hrms/onboarding', label: 'Onboarding', icon: UserRoundPlus }] : []),
-    ] },
-    { label: 'Delivery', items: allowed('project:view') ? [{ path: '/hrms/projects', label: 'Projects', icon: BriefcaseBusiness }, { path: '/hrms/allocations', label: 'Allocations', icon: Grid2X2 }] : [] },
-    { label: 'HR publishing', items: allowed('cockpit:view') ? [{ path: '/hrms/cockpit', label: 'HR Cockpit', icon: SlidersHorizontal }] : [] },
-    { label: 'Tracking', items: [{ path: '/hrms/workflows', label: 'Workflows', icon: Workflow }] },
-  ].filter(group => group.items.length);
-
-  return <div className="hrms-brand min-h-screen bg-slate-50 md:flex">
-
-    <aside className="flex flex-col border-r bg-white p-5 md:sticky md:top-0 md:h-screen md:w-72 md:shrink-0">
-
-      <TenantHeader />
-
-      <nav aria-label="Main navigation" className="hrms-grouped-navigation">
-        {groups.map(group => <section key={group.label} className="hrms-nav-group" aria-label={group.label}>
-          <h2>{group.label}</h2>
-          {group.items.map(item => <NavLink key={item.path} to={item.path} className={({isActive}) => `hrms-nav-link rounded-full px-5 py-3 ${isActive ? 'bg-blue-700 text-white' : 'text-slate-600 hover:bg-slate-100'}`}><item.icon size={19} strokeWidth={1.25} aria-hidden="true"/><span>{item.label}</span></NavLink>)}
-        </section>)}
-        {caps.isLoading && <p className="hrms-nav-feedback" role="status">Loading work areas…</p>}
-        {caps.isError && <div className="hrms-nav-feedback" role="alert"><p>Some work areas could not be loaded.</p><button onClick={()=>void caps.refetch()}>Retry permissions</button></div>}
-      </nav>
-
-      {caps.data?.capabilities.includes('platform:configure') && <nav aria-label="Configuration navigation" className="mt-4 pt-3 md:mt-auto">
-        <NavLink to="/settings" className={({isActive}) => `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium ${isActive ? 'bg-blue-100 text-blue-900' : 'text-slate-600 hover:bg-slate-100'}`}>
-          <Settings size={19} strokeWidth={1.25} aria-hidden="true" />Settings
-        </NavLink>
-      </nav>}
-
-    </aside>
-
-    <div className="flex min-h-screen min-w-0 flex-1 flex-col">
-
-      <header className="flex items-center justify-end gap-4 border-b bg-white px-6 py-4"><div className="text-right"><p className="font-medium">{user?.fullName}</p><p className="text-sm text-slate-500">{caps.data?.roles.map(role => role.replace(/^hrms_/, '').replaceAll('_', ' ').replace(/\b\w/g, c => c.toUpperCase())).join(' · ') ?? (caps.isPending ? 'Loading role…' : 'Role unavailable — retry permissions')}</p></div><button onClick={() => void logout()} className="rounded-lg border px-3 py-2">Sign out</button></header>
-
-      <div className="min-w-0 flex-1"><Outlet /></div>
-      <BrandFooter compact />
-
-    </div>
-
-  </div>;
-
+  return <WorkspaceShell />;
 }
 
 

@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useHrmsCapabilities } from '../capabilities';
 import { WorkflowStages } from '../workflows/WorkflowConfiguration';
+import { PageHero } from '../components/PageHero';
 export const CONTENT_TYPES=['HRMS.Policy','HRMS.LearningEvent','HRMS.HolidayCalendar','HRMS.JobDescription','HRMS.JobOpening'];
 export const CONTENT_LABELS=['Policies','L&D calendar','Holidays','Job descriptions','Open positions'];
 const internal=new Set(['author_id','author_name','approver_name','publication_id','published_at','revision','hrms_operation_key','identifier']);
@@ -21,7 +22,7 @@ const input='hrms-field-input';
 const contentIcons=[FileText,BookOpen,CalendarDays,BriefcaseBusiness,Users];
 const contentNames=['policy','learning event','holiday calendar','job description','open position'];
 
-function useCockpitBoard() {
+export function useCockpitBoard() {
  const caps = useHrmsCapabilities();
  return useQuery({
   queryKey: ['hrms', 'cockpit'],
@@ -85,7 +86,14 @@ export default function CockpitPage({entityId}:{entityId?:string}) {
  const CategoryIcon=contentIcons[categoryIndex];
  const rows=board?.items.filter(r=>r.kind===kind&&(!publishedOnly||r.state==='published'))??[];
  return <main className={`hrms-brand ${entityId?'hrms-cockpit-embedded':'hrms-workspace-page'} hrms-cockpit-page`}>
-  {!entityId&&<header className="hrms-workspace-heading"><div><p className="hrms-eyebrow">KEEP PEOPLE CONNECTED</p><h1>HR Cockpit</h1><p className="hrms-intro">Share knowledge, opportunities, and what’s coming next.</p></div><Link className="hrms-outline-button" to="/hrms/content">Published information <ArrowUpRight size={16}/></Link></header>}
+  {!entityId&&<PageHero eyebrow="Keep people connected" title="HR Cockpit" intro="Share knowledge, opportunities, and what’s coming next." illustration="cockpit"
+    actions={<Link className="hrms-outline-button" to="/hrms/content">Published information <ArrowUpRight size={16}/></Link>}
+    stats={board ? [
+      { label: 'Drafts', value: board.items.filter(r => r.state === 'draft').length },
+      { label: 'Pending approval', value: board.items.filter(r => r.state === 'pending_approval').length, tone: 'attention' },
+      { label: 'Published', value: board.items.filter(r => r.state === 'published').length, tone: 'positive' },
+      { label: 'Needs your action', value: board.items.filter(r => r.actions.includes('approve') || r.actions.includes('publish')).length },
+    ] : undefined} />}
   {query.isLoading&&<p role="status" className="hrms-work-feedback">Loading content…</p>}
   {query.isError&&<div role="alert" className="hrms-notice hrms-notice--error"><p>{getApiErrorMessage(query.error)}</p><button className="hrms-outline-button" onClick={()=>void query.refetch()}>Try again</button></div>}
   {!entityId&&<nav className="hrms-content-categories" aria-label="Content categories">{CONTENT_TYPES.map((t,i)=>{const Icon=contentIcons[i];return <button key={t} type="button" aria-pressed={kind===t} onClick={()=>{setKind(t);setSelected(null);setCreating(false);setEditing(false);}}><Icon size={20} strokeWidth={1.25} aria-hidden="true"/>{CONTENT_LABELS[i]}</button>;})}</nav>}

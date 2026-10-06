@@ -7,6 +7,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Link } from 'react-router-dom';
 import { useHrmsCapabilities } from '../capabilities';
 import { getApiErrorMessage, request } from '../../../core/services/api/client';
+import { PageHero } from '../components/PageHero';
 
 interface Employee {
   entity_id: string;
@@ -85,9 +86,14 @@ export default function EmployeeDirectoryPage() {
   const input = 'hrms-field-input';
 
   return <main className="hrms-workspace-page hrms-people-page">
-    <header className="hrms-workspace-heading"><div><p className="hrms-eyebrow">OUR PEOPLE</p><h1>Employees</h1><p className="hrms-intro">Get to know the people behind our work.</p></div>
-      {canCreate && <button type="button" onClick={() => { setCreated(null); setShowForm(true); }} className="hrms-primary-button"><Plus size={16} /> Add Employee</button>}
-    </header>
+    <PageHero eyebrow="Our people" title="Employees" intro="Get to know the people behind our work." illustration="employees"
+      actions={canCreate && <button type="button" onClick={() => { setCreated(null); setShowForm(true); }} className="hrms-primary-button"><Plus size={16} /> Add Employee</button>}
+      stats={employees.isSuccess ? [
+        { label: 'People', value: employees.data.length },
+        { label: 'Active', value: employees.data.filter(employee => employee.employment_status === 'active').length, tone: 'positive' },
+        { label: 'Departments', value: new Set(employees.data.map(employee => employee.department).filter(Boolean)).size },
+        { label: 'Other status', value: employees.data.filter(employee => employee.employment_status !== 'active').length },
+      ] : undefined} />
     {created && <div role="status" className="hrms-notice">
       <strong>{created.employee.full_name} ({created.employee.employee_code}) was added.</strong>{' '}
       Onboarding is {created.onboarding_state.replaceAll('_', ' ')} with {created.onboarding_task_count} assigned tasks.
@@ -126,7 +132,7 @@ export default function EmployeeDirectoryPage() {
             <ConfiguredField field="designation" label="Designation" className="text-sm font-medium"><select required value={form.designation} onChange={(e) => set('designation')(e.target.value)} className={input}><option value="">Select designation…</option>{options.data?.designations.map((item) => <option key={item} value={item}>{item}</option>)}</select></ConfiguredField>
           </div>
           <ConfiguredField field="role" label="Role" className="block text-sm font-medium"><select required value={form.role} onChange={(e) => set('role')(e.target.value)} className={input}>{options.data?.roles.map((role) => <option key={role} value={role}>{labelForRole(role)}</option>)}</select></ConfiguredField>
-          <ConfiguredField field="reports_to_employee_code" label="Reporting manager" className="block text-sm font-medium"><select value={form.reports_to_entity_id} onChange={(e) => set('reports_to_entity_id')(e.target.value)} className={input}><option value="">None</option>{employees.data?.filter((item) => item.employment_status === 'active').map((item) => <option key={item.entity_id} value={item.entity_id}>{item.full_name} — {item.designation}</option>)}</select></ConfiguredField>
+          <ConfiguredField field="reports_to_employee_code" label="Reporting manager" className="block text-sm font-medium"><select value={form.reports_to_entity_id} onChange={(e) => set('reports_to_entity_id')(e.target.value)} className={input}><option value="">None</option>{employees.data?.filter((item) => item.employment_status === 'active').map((item) => <option key={item.entity_id} value={item.entity_id}>{item.full_name} · {item.designation}</option>)}</select></ConfiguredField>
           <div className="grid gap-3 sm:grid-cols-3">
             <ConfiguredField field="employment_type" label="Employment type" className="text-sm font-medium"><select value={form.employment_type} onChange={(e) => set('employment_type')(e.target.value)} className={input}><option value="full_time">Full time</option><option value="contract">Contract</option><option value="intern">Intern</option></select></ConfiguredField>
             <ConfiguredField field="date_joined" label="Date joined" className="text-sm font-medium"><input required type="date" value={form.date_joined} onChange={(e) => set('date_joined')(e.target.value)} className={input} /></ConfiguredField>

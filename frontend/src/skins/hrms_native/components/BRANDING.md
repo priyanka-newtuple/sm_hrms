@@ -5,25 +5,31 @@ The brand components use the supplied Newtuple design guideline: cobalt
 rounded cards and a geometric-wave footer. Original assets live in
 `frontend/public/hrms-brand/`; they are not recolored or distorted.
 
-`BrandFooter` is mounted once per shared layout: `PublicLayout` covers login,
-public information and authentication routes; the authenticated layout covers
-HRMS modules and the authorized native Settings surface. New routes under these
-layouts inherit the footer. The footer stays in document flow and never covers
-forms, tables or actions. Signed-in pages use `compact`: a 48px curve (one-third of the public footer’s maximum height). The footer has no copyright section, blue text strip,
-promotional text or sign-in links on either public or signed-in pages. The original full-resolution
-PNG remains unchanged on public pages. Signed-in pages use `BrandWave`, a
-vector rendition of the blue/grey curves, drawn for a shallow 48px band. This
-avoids compressing a raster image and stays sharp on high-density displays.
+Public routes (`PublicLayout`: login, public information and authentication pages) share
+`PublicHeader`: one quiet bar (logo, text navigation, dark CTA), a sliding cobalt underline on
+the hovered or active category, frosted background once scrolled, tighten-on-scroll and hide-while-scrolling-down, and a menu sheet below 1000px.
+They have no footer; content ends at the page body. Signed-in pages keep `BrandFooter compact`: the
+48px vector `BrandWave` band only. Do not add numbered index labels (01, 02 …) to public pages.
+
+Public-page icons are lucide-animated components in `../animated-icons/` (source:
+`https://lucide-animated.com/r/<name>.json`). Render them through `AnimIcon`, which plays
+the icon when its nearest link/button is hovered or focused. `PublicLayout` wraps them in
+`MotionConfig reducedMotion="user"`. The login is a single, non-scrolling screen in the workspace's light theme over an animated
+cobalt line field (`login/Waves`, adapted from React Bits): published information cards on the
+left and the sign-in card on the right, with nothing else.
 
 `BrandLogo` clips the whitespace around the original logo canvas using CSS while
 preserving its aspect ratio. The geometric image is decorative and omitted from
 the accessibility tree.
 
-`BrandedLoginPage` reuses the native login component, including validation,
-registration and SSO. The `.hrms-auth-form` CSS adapter hides only its original
-branding block and removes the outer container decoration. When upgrading the
-native login component, verify these selectors against its markup and check
-both Sign In and Sign Up modes. No native platform file is changed.
+`BrandedLoginPage` renders the product-owned `login/HrmsSignInForm`, which calls the
+same core `useAuth` methods, password rule (`isPasswordValid`) and pending-approval
+routing as native `pages/auth/LoginPage.tsx`; only markup and styles differ. When the
+native login flow changes, mirror it in `HrmsSignInForm` and check both Sign in and
+Create account modes. Public-page motion is the `login/Waves` line background (login and the
+compact light information banner) plus adapted React Bits pieces, all switched off under
+`prefers-reduced-motion`.
+No native platform file is changed.
 
 Public category links use `/public?category=policies|learning|holidays|careers`.
 Careers groups published job descriptions and open positions. Data and audience

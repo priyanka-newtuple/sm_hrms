@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { CheckCircle2, Circle, Clock3, Search, UserRound, CalendarDays } from 'lucide-react';
 import { getApiErrorMessage, request } from '../../../core/services/api/client';
+import { PageHero } from '../components/PageHero';
 
 interface Step {
   sequence: number;
@@ -69,7 +70,13 @@ export default function OnboardingPage({ caseId, embedded = false }: { caseId?: 
   });
 
   return <main className={`hrms-brand hrms-people-page ${embedded ? 'hrms-onboarding-embedded' : 'hrms-workspace-page'}`}>
-    {!embedded && <header className="hrms-workspace-heading"><div><p className="hrms-eyebrow">A GREAT START</p><h1>Onboarding</h1><p className="hrms-intro">Every step, every owner. Help your new colleagues settle in.</p></div></header>}
+    {!embedded && <PageHero eyebrow="A great start" title="Onboarding" intro="Every step, every owner. Help your new colleagues settle in." illustration="onboarding"
+      stats={cases.data ? [
+        { label: 'Open cases', value: cases.data.filter(item => item.completed_steps < item.total_steps).length },
+        { label: 'Steps ready', value: cases.data.reduce((sum, item) => sum + item.steps.filter(step => step.readiness === 'ready').length, 0), tone: 'attention' },
+        { label: 'Steps completed', value: cases.data.reduce((sum, item) => sum + item.completed_steps, 0), tone: 'positive' },
+        { label: 'Fully onboarded', value: cases.data.filter(item => item.total_steps > 0 && item.completed_steps === item.total_steps).length },
+      ] : undefined} />}
     {cases.isLoading && <p role="status" className="hrms-surface hrms-work-feedback">Loading onboarding cases…</p>}
     {cases.isError && <div role="alert" className="hrms-notice hrms-notice--error"><p>{getApiErrorMessage(cases.error)}</p><button className="hrms-outline-button" onClick={() => void cases.refetch()}>Try again</button></div>}
     {actionError && <p role="alert" className="hrms-notice hrms-notice--error">{actionError}</p>}
