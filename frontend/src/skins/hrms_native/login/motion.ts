@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import Lenis from 'lenis';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -6,19 +6,7 @@ import 'lenis/dist/lenis.css';
 
 gsap.registerPlugin(ScrollTrigger);
 
-const REDUCED_MOTION = '(prefers-reduced-motion: reduce)';
-
-/** Tracks the operating-system reduced-motion preference so every effect can opt out together. */
-export function usePrefersReducedMotion() {
-  const [reduced, setReduced] = useState(() => typeof window !== 'undefined' && window.matchMedia(REDUCED_MOTION).matches);
-  useEffect(() => {
-    const query = window.matchMedia(REDUCED_MOTION);
-    const update = () => setReduced(query.matches);
-    query.addEventListener('change', update);
-    return () => query.removeEventListener('change', update);
-  }, []);
-  return reduced;
-}
+export { usePrefersReducedMotion } from '../components/useReducedMotion';
 
 /**
  * One-shot staggered reveal when a section enters the viewport. Unlike a scrubbed timeline it
