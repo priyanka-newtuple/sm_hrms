@@ -16,6 +16,8 @@ export default function BrandedLoginPage() {
   return <main className={`hrms-login hrms-login-screen${motion ? ' hrms-login--motion' : ''}`}>
     <Waves animate={motion} className="hrms-login-waves" />
     <div className="hrms-login-panel">
+      <span className="hrms-login-glow hrms-login-glow--a" aria-hidden="true" />
+      <span className="hrms-login-glow hrms-login-glow--b" aria-hidden="true" />
       <section className="hrms-login-info" aria-labelledby="hrms-discover-title">
         <div className="hrms-login-intro-row">
           <div>
@@ -28,7 +30,7 @@ export default function BrandedLoginPage() {
         <InformationLinks />
       </section>
 
-      <SpotlightCard className="hrms-login-card" aria-label="Employee access">
+      <SpotlightCard className="hrms-login-card" spotlightColor="rgba(255, 255, 255, 0.55)" aria-label="Employee access">
         <HrmsSignInForm magnetic={motion} />
       </SpotlightCard>
     </div>
