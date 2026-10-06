@@ -3,8 +3,6 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
-ARG VITE_UNICORN_PROJECT_ID=
-ENV VITE_UNICORN_PROJECT_ID=$VITE_UNICORN_PROJECT_ID
 ENV VITE_SKIN_ID=newtuple-hrms-native
 ENV VITE_API_BASE_URL=/v1/api
 ENV CUSTOMER_SKINS_PATH=/app/src/skins/hrms_native/customer-skins.ts

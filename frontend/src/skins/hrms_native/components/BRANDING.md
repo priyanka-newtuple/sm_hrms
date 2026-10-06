@@ -26,8 +26,9 @@ the accessibility tree.
 same core `useAuth` methods, password rule (`isPasswordValid`) and pending-approval
 routing as native `pages/auth/LoginPage.tsx`; only markup and styles differ. When the
 native login flow changes, mirror it in `HrmsSignInForm` and check both Sign in and
-Create account modes. Motion lives in `login/` (Lenis and the React Bits Silk backdrop — or Unicorn Studio via
-`VITE_UNICORN_PROJECT_ID` — on the public information page, adapted React Bits on the login) and is switched off under `prefers-reduced-motion`.
+Create account modes. Public-page motion is the `login/Waves` line background (login and the
+compact light information banner) plus adapted React Bits pieces, all switched off under
+`prefers-reduced-motion`.
 No native platform file is changed.
 
 Public category links use `/public?category=policies|learning|holidays|careers`.
