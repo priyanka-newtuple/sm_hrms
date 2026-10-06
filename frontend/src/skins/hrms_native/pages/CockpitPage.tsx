@@ -2,7 +2,8 @@ import { createRequestId } from '../requestId';
 import { FileCheck2, FileText, BookOpen, CalendarDays, BriefcaseBusiness, Users, Plus, ArrowUpRight } from 'lucide-react';
 import { WorkPanel } from '../components/WorkPanel';
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
+import { WorkFromHome } from './WorkFromHome';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { request, getApiErrorMessage } from '@/core/services/api/client';
 import { Button } from '@/components/ui/button';
@@ -75,6 +76,14 @@ function Editor({kind,item,board,done}:{kind:string;item?:Item;board:Board;done:
  })}</fieldset>{!board.approvers.length&&<p role="alert">An independent active approver is required. Configure cockpit approvers under Settings → Roles.</p>}{save.isError&&<p role="alert" className="text-destructive">{getApiErrorMessage(save.error)}. Retry keeps the same request.</p>}<div className="hrms-form-actions">{save.isError && (save.error as {status?:number}).status===422 && <Button className="hrms-outline-button" type="button" variant="outline" onClick={()=>{setSubmitted(null);setKey(createRequestId());save.reset();}}>Correct draft</Button>}<Button className="hrms-primary-button" variant="primary" disabled={save.isPending||!board.approvers.length} type="submit">{save.isError?'Retry save':'Save draft'}</Button><Button className="hrms-outline-button" type="button" variant="outline" disabled={save.isPending} onClick={done}>Cancel</Button></div><p className="text-sm text-muted-foreground">Public content and linked documents will be visible without signing in. Save as a draft, preview, then submit for independent approval.</p></form>;
 }
 export default function CockpitPage({entityId}:{entityId?:string}) {
+ const [params,setParams]=useSearchParams();
+ const caps=useHrmsCapabilities();
+ const wfh=params.get('area')==='wfh';
+ if(entityId)return <ContentCockpit entityId={entityId}/>;
+ return <><nav className="hrms-content-categories px-6 pt-6" aria-label="HR Cockpit areas"><button aria-pressed={!wfh} onClick={()=>setParams({})}>Content & publishing</button>{caps.data?.capabilities.includes('wfh:approve')&&<button aria-pressed={wfh} onClick={()=>setParams({area:'wfh'})}>Work from home</button>}</nav>{wfh&&caps.data?.capabilities.includes('wfh:approve')?<main className="hrms-workspace-page"><WorkFromHome cockpit/></main>:<ContentCockpit/>}</>;
+}
+
+function ContentCockpit({entityId}:{entityId?:string}) {
  const caps=useHrmsCapabilities();const client=useQueryClient();const [kind,setKind]=useState(CONTENT_TYPES[0]);const [creating,setCreating]=useState(false);const [selected,setSelected]=useState<string|null>(entityId??null);const [editing,setEditing]=useState(false);const [pending,setPending]=useState<{id:string;action:string;revision:number;key:string}|null>(null);
  const [publishedOnly,setPublishedOnly]=useState(false);
  const query=useCockpitBoard();

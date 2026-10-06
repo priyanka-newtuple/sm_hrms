@@ -8,6 +8,7 @@ import { Link } from 'react-router-dom';
 import { useHrmsCapabilities } from '../capabilities';
 import { getApiErrorMessage, request } from '../../../core/services/api/client';
 import { PageHero } from '../components/PageHero';
+import { WorkFromHome } from './WorkFromHome';
 
 interface Employee {
   entity_id: string;
@@ -34,6 +35,15 @@ const labelForRole = (role: string) => ({
 }[role] ?? role);
 
 export default function EmployeeDirectoryPage() {
+  const caps = useHrmsCapabilities();
+  const [view, setView] = useState('directory');
+  const canRead = caps.data?.capabilities.includes('employee:read');
+  if (caps.isLoading) return <p role="status">Loading employee access…</p>;
+  if (caps.isError) return <div role="alert">Could not load access. <button onClick={() => void caps.refetch()}>Try again</button></div>;
+  return <><nav className="hrms-content-categories px-6 pt-6" aria-label="Employee views">{canRead && <button aria-pressed={view === 'directory'} onClick={() => setView('directory')}>Directory</button>}<button aria-pressed={!canRead || view === 'calendar'} onClick={() => setView('calendar')}>Work location calendar</button></nav>{canRead && view === 'directory' ? <EmployeeDirectory /> : <main className="hrms-workspace-page"><WorkFromHome /></main>}</>;
+}
+
+function EmployeeDirectory() {
   const { data: capabilities } = useHrmsCapabilities();
   const canCreate = capabilities?.capabilities.includes('employee:create') ?? false;
   const queryClient = useQueryClient();

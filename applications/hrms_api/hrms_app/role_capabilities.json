@@ -1,12 +1,16 @@
 {
   "hrms_employee": [
     "leave:create",
-    "project:view"
+    "project:view",
+    "wfh:view",
+    "wfh:request"
   ],
   "hrms_manager": [
     "leave:create",
     "leave:decide",
-    "project:view"
+    "project:view",
+    "wfh:view",
+    "wfh:request"
   ],
   "hrms_hr_basic": [
     "employee:read",
@@ -16,7 +20,9 @@
     "project:view",
     "project:read_all",
     "cockpit:view",
-    "cockpit:author"
+    "cockpit:author",
+    "wfh:view",
+    "wfh:request"
   ],
   "hrms_hr_full": [
     "employee:read",
@@ -31,18 +37,26 @@
     "cockpit:view",
     "cockpit:author",
     "cockpit:approve",
-    "cockpit:publish"
+    "cockpit:publish",
+    "wfh:view",
+    "wfh:request",
+    "wfh:configure",
+    "wfh:approve"
   ],
   "hrms_office_admin": [
     "leave:create",
     "project:view",
-    "project:read_all"
+    "project:read_all",
+    "wfh:view",
+    "wfh:request"
   ],
   "hrms_finance": [
     "leave:create",
     "project:view",
     "project:read_all",
-    "project:commercial_all"
+    "project:commercial_all",
+    "wfh:view",
+    "wfh:request"
   ],
   "hrms_delivery_manager": [
     "leave:create",
@@ -53,7 +67,9 @@
     "project:create",
     "project:commercial_all",
     "customer:create",
-    "allocation:request"
+    "allocation:request",
+    "wfh:view",
+    "wfh:request"
   ],
   "admin": [
     "employee:read",
@@ -64,7 +80,11 @@
     "performance:approve_cycle",
     "leave:create",
     "onboarding:view",
-    "project:view"
+    "project:view",
+    "wfh:view",
+    "wfh:request",
+    "wfh:configure",
+    "wfh:approve"
   ],
   "superadmin": [
     "employee:read",
@@ -88,16 +108,24 @@
     "cockpit:view",
     "cockpit:author",
     "cockpit:approve",
-    "cockpit:publish"
+    "cockpit:publish",
+    "wfh:view",
+    "wfh:request",
+    "wfh:configure",
+    "wfh:approve"
   ],
   "hrms_performance_approver": [
     "performance:approve_cycle",
     "leave:create",
-    "project:view"
+    "project:view",
+    "wfh:view",
+    "wfh:request"
   ],
   "viewer": [
     "employee:read",
-    "project:view"
+    "project:view",
+    "wfh:view",
+    "wfh:request"
   ],
   "hrms_project_manager": [
     "leave:create",
@@ -106,12 +134,16 @@
     "project:manage_assigned",
     "project:commercial_assigned",
     "customer:create",
-    "allocation:request"
+    "allocation:request",
+    "wfh:view",
+    "wfh:request"
   ],
   "hrms_recruiter": [
     "leave:create",
     "project:view",
     "cockpit:view",
-    "cockpit:jobs"
+    "cockpit:jobs",
+    "wfh:view",
+    "wfh:request"
   ]
 }

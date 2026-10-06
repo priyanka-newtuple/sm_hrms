@@ -6,6 +6,8 @@ from .policy import capabilities
 from .cockpit_catalog import TYPES as COCKPIT_TYPES
 
 FORM_ACCESS = {
+    'HRMS.WorkFromHomePolicy': {'wfh:configure'},
+    'HRMS.WorkFromHomeRequest': {'wfh:request', 'wfh:approve'},
     **{kind: {'cockpit:view'} for kind in COCKPIT_TYPES},
     'HRMS.Employee': {'employee:create', 'employee:read'},
     'HRMS.LeaveRequest': {'leave:create'},

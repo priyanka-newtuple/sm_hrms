@@ -4,6 +4,7 @@ import { useHrmsCapabilities } from '../capabilities';
 import { useCockpitBoard } from '../pages/CockpitPage';
 import { useProjects } from '../pages/ProjectsPage';
 import type { LeaveItem } from '../pages/LeaveRequestsPage';
+import { useWfhInbox } from '../pages/WorkFromHome';
 
 export type OnboardingCase = { entity_id: string; employee_name: string; steps: { sequence: number; title: string; owner_name: string; can_complete: boolean; due_date: string | null }[] };
 
@@ -11,7 +12,7 @@ export type OnboardingCase = { entity_id: string; employee_name: string; steps: 
 export const isForbidden = (error: unknown) => (error as { status?: number } | null)?.status === 403;
 export const retryUnlessForbidden = (count: number, error: unknown) => !isForbidden(error) && count < 1;
 
-export interface WaitingSource { key: 'leave' | 'cockpit' | 'projects' | 'onboarding'; label: string; path: string; count: number; loading: boolean }
+export interface WaitingSource { key: 'leave' | 'cockpit' | 'projects' | 'onboarding' | 'wfh'; label: string; path: string; count: number; loading: boolean }
 
 /**
  * What the signed-in person can act on right now, per work area. Shares query keys with the pages,
@@ -25,6 +26,7 @@ export function useWaitingActions() {
   const leaveApprovals = useQuery({ queryKey: ['hrms', 'leave', 'approvals'], queryFn: () => request<LeaveItem[]>('/hrms/leave-requests?view=approvals&limit=100'), retry: retryUnlessForbidden });
   const cockpit = useCockpitBoard();
   const projects = useProjects();
+  const wfh = useWfhInbox();
 
   const onboardingActions = onboarding.data?.flatMap(c => c.steps.filter(s => s.can_complete).map(s => ({ ...s, caseId: c.entity_id, employee: c.employee_name }))) ?? [];
   const pendingLeave = leaveApprovals.data?.filter(item => item.state === 'pending') ?? [];
@@ -32,6 +34,7 @@ export function useWaitingActions() {
   const projectActions = projects.data?.requests.filter(r => r.state === 'pending' && r.actions.includes('approve')) ?? [];
 
   const sources: WaitingSource[] = [
+    { key: 'wfh' as const, label: 'WFH approvals', path: '/hrms/cockpit?area=wfh', count: wfh.data?.length ?? 0, loading: wfh.isLoading || wfh.isError, show: has('wfh:approve') },
     { key: 'leave' as const, label: 'Leave approvals', path: '/hrms/leave', count: pendingLeave.length, loading: leaveApprovals.isLoading, show: (leaveApprovals.data?.length ?? 0) > 0 },
     { key: 'cockpit' as const, label: 'HR content', path: '/hrms/cockpit', count: cockpitActions.length, loading: cockpit.isLoading, show: has('cockpit:view') },
     { key: 'projects' as const, label: 'Projects', path: '/hrms/projects', count: projectActions.length, loading: projects.isLoading, show: has('project:view') },

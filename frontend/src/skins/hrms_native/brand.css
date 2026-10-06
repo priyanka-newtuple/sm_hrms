@@ -121,6 +121,15 @@
 .hrms-workspace-heading h1 { font-size:clamp(32px,3vw,44px); font-weight:200; line-height:1.2; letter-spacing:-.035em; margin-bottom:12px; }
 .hrms-workspace-heading .hrms-eyebrow { margin-bottom:14px; }
 .hrms-workspace-heading .hrms-intro { margin-bottom:0; }
+.hrms-wfh-calendar { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:4px; }
+.hrms-wfh-weekday { text-align:center; font-size:12px; padding:8px 0; color:#4b5563; }
+.hrms-wfh-day { min-height:100px; border:1px solid #e5e7eb; border-radius:12px; background:#fff; padding:8px; overflow-wrap:anywhere; }
+.hrms-wfh-day[data-selected=true] { border-color:#0047ab; background:#eff5fd; }
+.hrms-wfh-day > button { border-radius:50%; width:30px; height:30px; color:#0047ab; font-weight:600; }
+.hrms-wfh-day > button:disabled { color:#6b7280; cursor:default; }
+.hrms-wfh-day > button[aria-pressed=true] { background:#0047ab; color:white; }
+.hrms-wfh-day ul { font-size:12px; line-height:1.5; }
+@media(max-width:600px) { .hrms-wfh-day { min-height:72px; padding:3px; } .hrms-wfh-day ul { font-size:10px; } }
 .hrms-work-panels { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr)); gap:24px; align-items:start; }
 .hrms-work-panel { background:#fff; border:1px solid #e5e7eb; border-radius:24px; overflow:hidden; }
 .hrms-work-panel-header { display:flex; align-items:center; gap:14px; padding:24px; border-bottom:1px solid #eef0f3; }

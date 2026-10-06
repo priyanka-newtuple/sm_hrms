@@ -12,6 +12,7 @@ import { usePrefersReducedMotion } from '../components/useReducedMotion';
 import { formatDate, toDate, todayIso } from '../public-info/format';
 import { CockpitInbox } from './CockpitPage';
 import { ProjectInbox } from './ProjectsPage';
+import { WfhInbox } from './WorkFromHome';
 import type { LeaveItem } from './LeaveRequestsPage';
 import { Illustration } from '../components/Illustration';
 import { ActionDonut } from '../workspace/ActionDonut';
@@ -101,6 +102,7 @@ export default function MyWorkPage() {
       {(leaveApprovals.data?.length ?? 0) > 0 && <LeaveInbox items={pendingLeave} loading={leaveApprovals.isLoading} error={leaveApprovals.isError ? getApiErrorMessage(leaveApprovals.error) : undefined} retry={() => void leaveApprovals.refetch()} />}
       <CockpitInbox />
       <ProjectInbox />
+      <WfhInbox />
       <WorkPanel title="Onboarding tasks" description="Help new colleagues get started." icon={UserRoundPlus} count={onboardingActions.length} loading={onboarding.isLoading} error={onboarding.isError ? getApiErrorMessage(onboarding.error) : undefined} retry={() => void onboarding.refetch()} empty="No onboarding tasks are waiting for you.">
         <ul>{onboardingActions.map(a => <li className="hrms-work-item" key={`${a.caseId}-${a.sequence}`}><p className="hrms-work-item-context">{a.employee}</p><h3>{a.title}</h3><p>Assigned to {a.owner_name}{a.due_date ? ` · Due ${a.due_date}` : ''}</p><Link className="hrms-outline-button" to={`/hrms/workflows?case=${a.caseId}`}>Open task <ArrowRight size={15} aria-hidden="true" /></Link></li>)}</ul>
       </WorkPanel>

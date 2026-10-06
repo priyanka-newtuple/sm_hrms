@@ -1,4 +1,5 @@
 import CockpitPage, { CONTENT_TYPES } from './CockpitPage';
+import { WfhRequestRow, type Booking } from './WorkFromHome';
 import { WorkflowStages } from '../workflows/WorkflowConfiguration';
 import { useSearchParams } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
@@ -26,6 +27,7 @@ import { PerformanceDetail } from './PerformancePage';
 import { PageHero } from '../components/PageHero';
 
 interface WorkflowRow {
+  wfh?: Booking;
   entity_id: string;
   entity_type: string;
   title: string;
@@ -129,6 +131,7 @@ export default function WorkflowsPage() {
         {selected && ['HRMS.PerformanceCycle', 'HRMS.PerformanceReview', 'HRMS.ProjectFeedback'].includes(selected.entity_type) && <PerformanceDetail key={selected.entity_id} entityId={selected.entity_id} />}
         {selected && PROJECT_KINDS.includes(selected.entity_type) && <ProjectDetail key={selected.entity_id} entityId={selected.entity_id} />}
         {selected && CONTENT_TYPES.includes(selected.entity_type) && <CockpitPage key={selected.entity_id} entityId={selected.entity_id} />}
+        {selected?.wfh && <ul className="p-6"><WfhRequestRow item={selected.wfh} /></ul>}
           {selected?.leave && selected.leave_view && <ul className="px-6"><LeaveRow item={selected.leave} view={selected.leave_view}
           onChange={() => void queryClient.invalidateQueries({ queryKey: ['hrms'] })} /></ul>}
       </SheetContent>

@@ -23,6 +23,7 @@ from .cockpit import CockpitService, Command as CockpitCommand
 from .projects import ProjectsService
 from .project_contracts import Action as ProjectAction
 from .project_access import ProjectAccessRequest
+from .wfh import WfhService, PolicyInput, RequestInput, DecisionInput
 
 
 class Decision(BaseModel):
@@ -39,6 +40,7 @@ def create_app(platform=None, journal=None):
     performance = PerformanceService(service)
     projects = ProjectsService(service)
     cockpit = CockpitService(platform, journal)
+    wfh = WfhService(service)
 
     @asynccontextmanager
     async def lifespan(app):
@@ -66,6 +68,26 @@ def create_app(platform=None, journal=None):
     @app.get('/health')
     def health():
         return {'status': 'ok', 'service': 'hrms-application'}
+
+    @app.get('/v1/api/hrms/wfh')
+    def wfh_board(year: int = Query(ge=2000, le=2100), current=Depends(actor)):
+        return wfh.board(current, year)
+
+    @app.post('/v1/api/hrms/wfh/policy')
+    def wfh_policy(payload: PolicyInput, current=Depends(actor)):
+        return wfh.save_policy(current, payload)
+
+    @app.get('/v1/api/hrms/wfh/inbox')
+    def wfh_inbox(current=Depends(actor)):
+        return wfh.inbox(current)
+
+    @app.post('/v1/api/hrms/wfh/requests')
+    def wfh_request(payload: RequestInput, current=Depends(actor)):
+        return wfh.create(current, payload)
+
+    @app.post('/v1/api/hrms/wfh/requests/{entity_id}/actions')
+    def wfh_decision(entity_id: UUID, payload: DecisionInput, current=Depends(actor)):
+        return wfh.decide(current, str(entity_id), payload)
 
     @app.get('/v1/api/hrms/public/content')
     def public_content():
@@ -169,7 +191,7 @@ def create_app(platform=None, journal=None):
     @app.get('/v1/api/hrms/workflows')
     def workflows(current=Depends(actor)):
         from .workflow_config import configured_workflow_rows
-        return configured_workflow_rows(platform, workflow_rows(service, current) + performance.workflows(current) + projects.workflows(current) + cockpit.workflows(current))
+        return configured_workflow_rows(platform, workflow_rows(service, current) + performance.workflows(current) + projects.workflows(current) + cockpit.workflows(current) + wfh.workflows(current))
 
     @app.get('/v1/api/hrms/projects')
     def project_dashboard(current=Depends(actor)):

@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import EmployeeDirectoryPage from './EmployeeDirectoryPage';
 
-vi.mock('../capabilities', () => ({ useHrmsCapabilities: () => ({ data: { capabilities: ['employee:create'] } }) }));
+vi.mock('../capabilities', () => ({ useHrmsCapabilities: () => ({ data: { capabilities: ['employee:create', 'employee:read'] } }) }));
 vi.mock('../forms/ConfiguredForm', () => ({ ConfiguredForm: () => null, ConfiguredField: () => null }));
 vi.mock('../../../core/services/api/client', () => ({ request: vi.fn(async () => []), getApiErrorMessage: String }));
 

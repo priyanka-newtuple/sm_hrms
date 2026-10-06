@@ -230,7 +230,7 @@ export function WorkspaceShell() {
       { path: '/hrms/performance', label: 'Performance', icon: TrendingUpIcon, keywords: 'goals reviews feedback cycle' },
     ] },
     { label: 'People', items: [
-      ...(allowed('employee:read') ? [{ path: '/hrms/employees', label: 'Employees', icon: UsersIcon, keywords: 'directory people staff' }] : []),
+      ...((allowed('employee:read') || allowed('wfh:view')) ? [{ path: '/hrms/employees', label: 'Employees', icon: UsersIcon, keywords: 'directory people staff' }] : []),
       ...(allowed('onboarding:view') ? [{ path: '/hrms/onboarding', label: 'Onboarding', icon: UserRoundPlusIcon, badge: waiting.countFor('onboarding'), keywords: 'new hire joiner steps' }] : []),
     ] },
     { label: 'Delivery', items: allowed('project:view') ? [

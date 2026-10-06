@@ -304,6 +304,8 @@ class HrmsService:
                 raise AppError(400, 'Your employee profile has no linked reporting manager')
             marker = hashlib.sha256(f'{actor.organization_id}:{actor.user_id}:leave:{request.idempotency_key}'.encode()).hexdigest()
             rows = self.platform.records(LEAVE, LEAVE_FIELDS)
+            from .wfh import WfhService
+            WfhService(self).check_leave_conflict(db, actor, own['entity_id'], request.start_date, request.end_date)
             states = self.platform.states('hrms_leaverequest')
             for row in rows:
                 d = row['data']
