@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { BookOpen, ArrowRight, ArrowUpRight, BriefcaseBusiness, CalendarDays, TrendingUp, UserRoundPlus } from 'lucide-react';
+import { ArrowRight, UserRoundPlus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { request, getApiErrorMessage } from '@/core/services/api/client';
 import { useHrmsCapabilities } from '../capabilities';
@@ -13,16 +13,8 @@ export default function MyWorkPage() {
   const caps = useHrmsCapabilities();
   const query = useQuery({ queryKey: ['hrms', 'my-work'], queryFn: () => request<WorkCase[]>('/hrms/onboarding') });
   const actions = query.data?.flatMap(c => c.steps.filter(s => s.can_complete).map(s => ({ ...s, caseId: c.entity_id, employee: c.employee_name }))) ?? [];
-  const destinations = [
-    { path: '/hrms/leave', title: 'Leave requests', description: 'Plan time away and review team requests.', icon: CalendarDays },
-    { path: '/hrms/performance', title: 'Performance', description: 'Keep goals, reviews, and development moving.', icon: TrendingUp },
-    ...(caps.data?.capabilities.includes('project:view') ? [{ path: '/hrms/projects', title: 'Projects', description: 'Explore your projects and team allocations.', icon: BriefcaseBusiness }] : []),
-    { path: '/hrms/content', title: 'Company resources', description: 'Find published policies, learning events, holidays, and opportunities.', icon: BookOpen },
-  ];
   return <main className="hrms-workspace-page">
-    <header className="hrms-workspace-heading"><div><p className="hrms-eyebrow">YOUR WORKSPACE</p><h1>My work</h1><p className="hrms-intro">A clear view of what needs your attention.</p></div><Link className="hrms-outline-button" to="/hrms/workflows">View workflows <ArrowRight size={16} aria-hidden="true" /></Link></header>
-    <nav className="hrms-work-shortcuts" aria-label="Work shortcuts">{destinations.map(({path,title,description,icon:Icon}) => <Link key={path} className="hrms-resource-card" to={path}><Icon size={26} strokeWidth={1.25} aria-hidden="true" /><ArrowUpRight className="hrms-card-arrow" size={18} aria-hidden="true" /><h2>{title}</h2><p>{description}</p></Link>)}</nav>
-    <div className="hrms-work-section-title"><h2>Your tasks & approvals</h2><p>Available actions are based on your role and assignments.</p></div>
+    <header className="hrms-workspace-heading"><div><p className="hrms-eyebrow">MY WORK</p><h1>My tasks &amp; approvals</h1><p className="hrms-intro">Available actions are based on your role and assignments.</p></div></header>
     {caps.isLoading && <p role="status">Loading permissions…</p>}
     {caps.isError && <div role="alert" className="hrms-work-feedback"><p>Some work areas couldn’t be loaded.</p><button className="hrms-outline-button" onClick={() => void caps.refetch()}>Retry permissions</button></div>}
     <div className="hrms-work-panels"><CockpitInbox /><ProjectInbox />
