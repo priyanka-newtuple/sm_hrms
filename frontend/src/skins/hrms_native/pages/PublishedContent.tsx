@@ -61,13 +61,14 @@ export default function PublishedContent({ publicPage = false }: { publicPage?: 
       <div className="hrms-info-hero-inner">
         <h1>Stay informed. <span>Find your next opportunity.</span></h1>
         <p className="hrms-info-intro">Policies, learning, holidays and open roles — published by HR{publicPage ? ', readable without signing in' : ''}.</p>
-        <div ref={tabs} className="hrms-info-tabs" role="group" aria-label="Information categories">
+        {/* The public header already lists the categories; only the signed-in page needs this switcher. */}
+        {!publicPage && <div ref={tabs} className="hrms-info-tabs" role="group" aria-label="Information categories">
           <span className="hrms-info-tab-indicator" aria-hidden="true" />
           {informationCategories.map(({ id, short, animatedIcon }) => <button key={id} type="button" aria-pressed={category.id === id} onClick={() => choose(id)}>
             <AnimIcon icon={animatedIcon} size={18} />{short}
             {query.isSuccess && <span className="hrms-info-tab-count" aria-label={`${counts[id]} published`}>{counts[id]}</span>}
           </button>)}
-        </div>
+        </div>}
       </div>
     </section>
 
