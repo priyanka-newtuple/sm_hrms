@@ -11,7 +11,7 @@ def wfh_packs(cls):
             {'field': 'annual_days', 'type': 'integer', 'required': True, 'description': 'Annual WFH allowance (full days)'},
             {'field': 'notice_days', 'type': 'integer', 'required': True, 'description': 'Minimum notice (calendar days)'},
             {'field': 'revision', 'type': 'integer'},
-        ), 'draft', ('draft', 'active'), frozenset(), (('draft', 'activate', 'active'),)),
+        ), 'draft', ('draft', 'active'), frozenset({'active'}), (('draft', 'activate', 'active'),)),
         cls(REQUEST, 'Work from home request', 'WFH', (
             {'field': 'employee_id', 'type': 'string', 'required': True},
             {'field': 'policy_id', 'type': 'string', 'required': True},

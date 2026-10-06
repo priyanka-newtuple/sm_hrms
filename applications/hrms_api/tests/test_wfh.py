@@ -12,6 +12,22 @@ from hrms_app.wfh_catalog import POLICY, REQUEST
 from test_performance import Platform, Journal, actor
 
 
+@pytest.mark.parametrize('entity_type', [POLICY, REQUEST])
+def test_wfh_workflows_have_reachable_terminal_states(entity_type):
+    pack = pack_by_type(entity_type)
+    assert pack.terminal_states
+    for state in pack.states:
+        reachable, pending = set(), [state]
+        while pending:
+            current = pending.pop()
+            if current in reachable:
+                continue
+            reachable.add(current)
+            pending.extend(target for source, _, target in pack.transitions if source == current)
+        assert reachable & pack.terminal_states
+    assert all(source not in pack.terminal_states for source, _, _ in pack.transitions)
+
+
 class WfhJournal(Journal):
     def execute(self, sql, params):
         return SimpleNamespace(fetchone=lambda: next(((k,) for k, o in self.ops.items()
