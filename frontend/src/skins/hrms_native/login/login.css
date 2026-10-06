@@ -87,7 +87,7 @@
 @keyframes hrms-spin { to { transform:rotate(1turn); } }
 
 /* ── Single-screen login (light workspace theme) ───────────── */
-.hrms-login-screen { position:relative; isolation:isolate; overflow:hidden; display:grid; place-items:center; min-height:calc(100svh - 78px); padding:8px 16px 20px; background:radial-gradient(60% 70% at 85% 15%, #dbe7fb 0%, transparent 60%), radial-gradient(50% 60% at 10% 90%, #e8f0fe 0%, transparent 60%), linear-gradient(115deg,#ffffff 0%,#f3f7ff 55%,#e9f1ff 100%); }
+.hrms-login-screen { position:relative; isolation:isolate; overflow:hidden; display:grid; place-items:center; margin-top:calc(-1 * var(--pub-h, 0px)); min-height:100svh; padding:calc(var(--pub-h, 0px) + 8px) 16px 20px; background:radial-gradient(60% 70% at 85% 15%, #dbe7fb 0%, transparent 60%), radial-gradient(50% 60% at 10% 90%, #e8f0fe 0%, transparent 60%), linear-gradient(115deg,#ffffff 0%,#f3f7ff 55%,#e9f1ff 100%); }
 .hrms-waves { position:absolute; inset:0; z-index:-1; overflow:hidden; pointer-events:none; }
 .hrms-waves canvas { display:block; width:100%; height:100%; }
 /* Fade the lines out behind the content so text and cards stay crisp. */
@@ -126,7 +126,7 @@
 /* Phones and tablets (the header's menu sheet already lists the four categories):
    short Discover intro on top, cards hidden, then the sign-in card. */
 @media (max-width:1000px) {
-  .hrms-login-screen { place-items:center; min-height:calc(100svh - 77px); padding:32px 24px 40px; }
+  .hrms-login-screen { place-items:center; min-height:100svh; padding:calc(var(--pub-h, 0px) + 28px) 24px 40px; }
   .hrms-login-panel { grid-template-columns:1fr; gap:28px; max-width:600px; padding:0; }
   .hrms-login-info { padding:0 4px; }
   .hrms-login-info .hrms-resource-grid { display:none; }
@@ -147,8 +147,7 @@
   .hrms-login-art { height:96px; margin:-12px -6px -12px 0; }
   .hrms-login-info .hrms-login-intro-row h1 { font-size:clamp(18px, 9.4cqi, 30px); letter-spacing:-.04em; }
   .hrms-login-info .hrms-resource-grid { gap:10px; }
-  /* The phone header is 65px tall; fill exactly to the bottom edge. */
-  .hrms-login-screen { min-height:calc(100svh - 65px); padding:28px 18px 32px; }
+    .hrms-login-screen { min-height:100svh; padding:calc(var(--pub-h, 0px) + 20px) 18px 32px; }
   .hrms-login-panel { gap:24px; }
   /* Compact sign-in card on phones. */
   .hrms-login-card { padding:20px 16px 18px; border-radius:22px; }
@@ -213,7 +212,7 @@
 
 /* Shorter laptop screens: tighten vertical rhythm so the whole login fits without scrolling. */
 @media (min-width:1001px) and (max-height:860px) {
-  .hrms-login-screen { padding:4px 16px 14px; }
+  .hrms-login-screen { padding:calc(var(--pub-h, 0px) + 2px) 16px 14px; }
   .hrms-login-panel { padding:16px 32px; gap:48px; }
   .hrms-login-info h1 { margin:0 0 6px; font-size:clamp(30px,3vw,40px); }
   .hrms-login-intro-row { margin-bottom:12px; grid-template-columns:minmax(0,1fr) 210px; }

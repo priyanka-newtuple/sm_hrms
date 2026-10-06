@@ -5,7 +5,7 @@
 .hrms-info--workspace .hrms-info-content { padding-inline:16px; }
 
 /* ── Banner: compact and light, matching the login and workspace headers ── */
-.hrms-info-hero { position:relative; isolation:isolate; overflow:hidden; max-width:1220px; margin:12px auto 0; border:1px solid #dfe8f7; border-radius:26px; background:radial-gradient(60% 90% at 90% 0%, #dbe7fb 0%, transparent 60%), linear-gradient(115deg,#ffffff 0%,#f3f7ff 55%,#e9f1ff 100%); color:var(--ink); }
+.hrms-info-hero { position:relative; isolation:isolate; overflow:hidden; max-width:1220px; margin:8px auto 0; border:1px solid #dfe8f7; border-radius:26px; background:radial-gradient(60% 90% at 90% 0%, #dbe7fb 0%, transparent 60%), linear-gradient(115deg,#ffffff 0%,#f3f7ff 55%,#e9f1ff 100%); color:var(--ink); }
 .hrms-info-waves { position:absolute; inset:0; z-index:-1; mask-image:linear-gradient(90deg, transparent 0%, rgba(0,0,0,.35) 35%, black 75%); -webkit-mask-image:linear-gradient(90deg, transparent 0%, rgba(0,0,0,.35) 35%, black 75%); }
 .hrms-info-waves canvas { display:block; width:100%; height:100%; }
 .hrms-info-hero-inner { position:relative; display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; gap:18px 32px; padding:26px 30px; }
