@@ -254,7 +254,7 @@
 .hrms-donut-legend b { font-family:var(--mono); font-weight:500; }
 
 /* ── Coming up (My Work) ────────────────────────────────────── */
-.hrms-coming { display:flex; flex-direction:column; padding:20px 22px; border:1px solid var(--line); border-radius:22px; background:white; }
+.hrms-coming { display:flex; flex-direction:column; margin:20px 0 40px; padding:20px 22px; border:1px solid var(--line); border-radius:22px; background:white; }
 .hrms-coming header { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
 .hrms-coming h2 { color:var(--ink); font-size:16px; font-weight:600; }
 .hrms-coming-all { display:inline-flex; align-items:center; gap:6px; color:var(--cobalt); font-size:13px; font-weight:500; text-decoration:none; }

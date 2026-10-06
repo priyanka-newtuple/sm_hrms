@@ -38,13 +38,9 @@ export default function BrandedLoginPage() {
               <p className="hrms-login-chip"><i aria-hidden="true" />Welcome to Newtuple</p>
               <LocalTime />
             </div>
-            <SplitHeadline
-              label="Everything that connects us. All in one place."
-              lines={['Everything that', 'connects us.']}
-              accent={<ShinyText text="All in one place." disabled={!motion} />}
-              animate={motion}
-            />
-            <p className="hrms-login-intro">Your work, your development, and everything that connects us — leave, projects, performance and onboarding in one workspace.</p>
+            {/* Simplified introduction (follows main: a direct heading with a short tagline). */}
+            <SplitHeadline label="Discover what’s happening" lines={['Discover', 'what’s happening']} animate={motion} />
+            <p className="hrms-login-tagline">Everything that connects us. <ShinyText text="All in one place." disabled={!motion} /></p>
             <CultureDNA animate={motion} />
           </div>
 
@@ -60,8 +56,8 @@ export default function BrandedLoginPage() {
     <section ref={discover} id="discover" className="hrms-login-discover" aria-labelledby="hrms-discover-title">
       <div className="hrms-discover-aside">
         <p className="hrms-index-label">Open to everyone</p>
-        <h2 id="hrms-discover-title">Discover what’s happening</h2>
-        <p>Policies, learning, holidays and careers — published by HR and readable without signing in.</p>
+        <h2 id="hrms-discover-title">Published by HR</h2>
+        <p>Policies, learning, holidays and careers — readable without signing in.</p>
         <Link to="/public" className="hrms-discover-link">Browse everything<AnimIcon icon={ArrowRightIcon} size={16} /></Link>
       </div>
       <InformationLinks />

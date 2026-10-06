@@ -1,3 +1,4 @@
+import { createRequestId } from '../requestId';
 import { BriefcaseBusiness, ArrowRight, Plus, Search, Users } from 'lucide-react';
 import { WorkPanel } from '../components/WorkPanel';
 import { useHrmsCapabilities } from '../capabilities';
@@ -50,7 +51,7 @@ export function ProjectAction({ item, action, done }: { item?: Item; action: str
   const previewMutation = useMutation({ mutationFn: () => {
     const projectId = item?.kind === 'HRMS.Project' ? item.id : val(item?.data ?? {},'project_id');
     const allocationId = item?.kind === 'HRMS.Allocation' ? item.id : val(item?.data ?? {},'allocation_id');
-    return request<NonNullable<typeof preview>>(`/hrms/projects/${projectId}/capacity${allocationId ? `?allocation_id=${allocationId}` : ''}`, {method:'POST',body:JSON.stringify({action:'preview',data,idempotency_key:crypto.randomUUID()})});
+    return request<NonNullable<typeof preview>>(`/hrms/projects/${projectId}/capacity${allocationId ? `?allocation_id=${allocationId}` : ''}`, {method:'POST',body:JSON.stringify({action:'preview',data,idempotency_key:createRequestId()})});
   }, onSuccess: setPreview });
   function field(key: string, type='text', required=true) {
     return <ConfiguredField key={key} field={key} label={label(key)}><input type={type} required={required} className={input} min={type==='number'?0:undefined} step={type==='number'?'any':undefined} maxLength={4000} value={val(data,key)} onChange={e=>{setData({...data,[key]:type==='number'?Number(e.target.value):e.target.value});setPreview(null);}} /></ConfiguredField>;
@@ -59,7 +60,7 @@ export function ProjectAction({ item, action, done }: { item?: Item; action: str
     return <ConfiguredField field={key} label={label(key.replace(/_id$/, ""))}><select required={required} className={input} value={val(data,key)} onChange={e=>{setData({...data,[key]:e.target.value || null});setPreview(null);}}><option value="">Select…</option>{choices.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></ConfiguredField>;
   }
   function enumeration(key:string, values:string[]) {return select(key,values.map(v=>({id:v,name:label(v)})),false);}
-  function submit(e:FormEvent) {e.preventDefault();const body=pending ?? {action,data,expected_revision:Number(item?.data.revision ?? 0),idempotency_key:crypto.randomUUID()};setPending(body);mutation.mutate(body);}
+  function submit(e:FormEvent) {e.preventDefault();const body=pending ?? {action,data,expected_revision:Number(item?.data.revision ?? 0),idempotency_key:createRequestId()};setPending(body);mutation.mutate(body);}
   const entityType = projectForm ? 'HRMS.Project' : allocationForm ? 'HRMS.Allocation' : action === 'create_customer' ? 'HRMS.Customer' : item?.kind ?? 'HRMS.Project';
   return <ConfiguredForm entityType={entityType} aliases={{pm_id:'pm_name',dm_id:'dm_name',customer_id:'customer_name',employee_id:'employee_name',project_role_id:'project_role_name',approver_id:'approver_name'}}><form onSubmit={submit} className="hrms-surface hrms-people-form hrms-project-form"><h3 className="hrms-section-heading">{label(action)}</h3>
     <fieldset disabled={Boolean(pending)||mutation.isPending} className="grid gap-5 disabled:opacity-60 sm:grid-cols-2">

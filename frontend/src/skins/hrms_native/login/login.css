@@ -17,12 +17,13 @@
 .hrms-login-time { display:inline-flex; align-items:center; gap:8px; color:rgba(255,255,255,.7); font-family:var(--mono); font-size:12px; }
 .hrms-login-time i { width:14px; height:1px; background:currentColor; }
 .hrms-login--motion .hrms-login-chip i { animation:hrms-login-pulse 2.4s ease-in-out infinite; }
-.hrms-split-headline { margin:26px 0 22px; font-size:clamp(40px,5vw,74px); line-height:1.0; font-weight:200; letter-spacing:-.05em; }
+.hrms-split-headline { margin:26px 0 14px; font-size:clamp(38px,4.4vw,64px); line-height:1.02; font-weight:200; letter-spacing:-.05em; }
 .hrms-split-line { display:block; }
 .hrms-split-word { display:inline-block; overflow:hidden; vertical-align:top; padding-bottom:.08em; margin-right:.22em; }
 .hrms-split-word > span { display:inline-block; transform-origin:0 100%; }
 .hrms-split-accent { display:block; font-weight:300; }
 .hrms-login--motion .hrms-split-word > span, .hrms-login--motion .hrms-split-accent { opacity:0; }
+.hrms-login-tagline { max-width:480px; margin-bottom:6px; color:rgba(255,255,255,.82); font-size:clamp(18px,1.6vw,22px); font-weight:300; line-height:1.5; letter-spacing:-.01em; }
 .hrms-login-intro { max-width:470px; color:rgba(255,255,255,.76); font-size:17px; font-weight:300; line-height:1.75; }
 
 /* React Bits: ShinyText */

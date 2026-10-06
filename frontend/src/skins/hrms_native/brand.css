@@ -62,11 +62,11 @@
 .hrms-outline-button:hover { background:#eff6ff; }
 .hrms-login-layout { max-width:1280px; margin:auto; padding:32px 32px 40px; display:grid; grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr); gap:90px; align-items:start; }
 .hrms-eyebrow { color:#0047ab; font-size:11px; font-weight:600; letter-spacing:.18em; margin-bottom:20px; }
-.hrms-welcome h1,.hrms-information h1 { font-size:clamp(36px,4vw,56px); line-height:1.15; letter-spacing:-.04em; font-weight:200; margin:0 0 24px; }
-.hrms-welcome h1 span,.hrms-information h1 span { color:#0047ab; }
+.hrms-information h1 { font-size:clamp(36px,4vw,56px); line-height:1.15; letter-spacing:-.04em; font-weight:200; margin:0 0 24px; }
+.hrms-information h1 span { color:#0047ab; }
+.hrms-welcome h1 { font-size:28px; line-height:1.25; letter-spacing:-.02em; font-weight:300; margin:0 0 10px; }
+.hrms-welcome-tagline { color:#4b5563; font-size:14px; line-height:1.6; margin:0 0 24px; }
 .hrms-intro { color:#4b5563; font-weight:300; font-size:17px; line-height:1.8; max-width:490px; margin-bottom:24px; }
-.hrms-explore-heading { margin:48px 0 18px; display:flex; flex-wrap:wrap; align-items:center; gap:10px; justify-content:space-between; }
-.hrms-explore-heading h2 { font-size:14px; font-weight:600; }
 .hrms-resource-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
 .hrms-resource-card { position:relative; display:block; border:1px solid #e5e7eb; border-radius:24px; padding:23px; background:#f9fafb; text-decoration:none; transition:border-color .3s,background .3s; }
 .hrms-resource-card:hover { border-color:#0047ab; background:#eff6ff; }
@@ -103,7 +103,7 @@
 .hrms-published-grid article { padding:32px; border-color:#e5e7eb; border-radius:24px; line-height:1.8; overflow-wrap:anywhere; }
 .hrms-published-grid article > p { color:#4b5563; }
 @media(max-width:1000px) { .hrms-login-layout { gap:36px; padding-top:32px; } .hrms-product-label { display:none; } .hrms-category-nav { grid-template-columns:repeat(2,minmax(0,1fr)); } }
-@media(max-width:760px) { .hrms-public-header { padding:8px 16px; flex-wrap:wrap; gap:8px; } .hrms-public-header > a:last-child { padding:8px 12px; font-size:12px; } .hrms-login-layout { display:flex; flex-direction:column; padding:24px 20px 0; gap:32px; } .hrms-signin { width:100%; padding:24px; } .hrms-resource-card { padding:20px; } .hrms-explore-heading { margin-top:28px; } .hrms-information { padding:32px 20px; } .hrms-published-grid { grid-template-columns:1fr; } .hrms-category-nav button { padding:16px 12px; font-size:12px; } }
+@media(max-width:760px) { .hrms-public-header { padding:8px 16px; flex-wrap:wrap; gap:8px; } .hrms-public-header > a:last-child { padding:8px 12px; font-size:12px; } .hrms-login-layout { display:flex; flex-direction:column; padding:24px 20px 0; gap:32px; } .hrms-signin { width:100%; padding:24px; } .hrms-resource-card { padding:20px; } .hrms-information { padding:32px 20px; } .hrms-published-grid { grid-template-columns:1fr; } .hrms-category-nav button { padding:16px 12px; font-size:12px; } }
 @media(prefers-reduced-motion:reduce) { .hrms-resource-card { transition:none; } }
 
 /* Workspace pages retain the brand accent without taking space from daily work. */
@@ -115,14 +115,6 @@
 .hrms-workspace-heading h1 { font-size:clamp(32px,3vw,44px); font-weight:200; line-height:1.2; letter-spacing:-.035em; margin-bottom:12px; }
 .hrms-workspace-heading .hrms-eyebrow { margin-bottom:14px; }
 .hrms-workspace-heading .hrms-intro { margin-bottom:0; }
-.hrms-work-shortcuts { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:20px; }
-.hrms-work-shortcuts .hrms-resource-card { background:#fff; padding:28px; }
-.hrms-work-shortcuts .hrms-resource-card:hover { background:#eff6ff; }
-.hrms-work-shortcuts h2 { font-size:17px; font-weight:600; margin:22px 0 8px; }
-.hrms-work-shortcuts p { font-size:14px; }
-.hrms-work-section-title { margin:40px 0 20px; }
-.hrms-work-section-title h2 { font-size:20px; font-weight:600; }
-.hrms-work-section-title p { font-size:13px; color:#6b7280; margin-top:7px; }
 .hrms-work-panels { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr)); gap:24px; align-items:start; }
 .hrms-work-panel { background:#fff; border:1px solid #e5e7eb; border-radius:24px; overflow:hidden; }
 .hrms-work-panel-header { display:flex; align-items:center; gap:14px; padding:24px; border-bottom:1px solid #eef0f3; }
@@ -143,7 +135,7 @@
 .hrms-work-item p { font-size:12px; color:#6b7280; line-height:1.7; margin:6px 0; }
 .hrms-work-item .hrms-work-item-context { color:#0047ab; font-size:11px; font-weight:500; }
 .hrms-work-item .hrms-outline-button { margin-top:12px; font-size:12px; padding:8px 14px; }
-@media(max-width:760px) { .hrms-workspace-page { padding:28px 20px; } .hrms-workspace-heading { align-items:flex-start; flex-direction:column; } .hrms-work-shortcuts { grid-template-columns:1fr; gap:12px; } .hrms-work-shortcuts .hrms-resource-card { padding:24px; } .hrms-work-section-title { margin-top:32px; } }
+@media(max-width:760px) { .hrms-workspace-page { padding:28px 20px; } .hrms-workspace-heading { align-items:flex-start; flex-direction:column; } }
 .hrms-brand > aside { border-color:#e5e7eb; }
 .hrms-brand > aside a { text-decoration:none; }
 .hrms-brand > aside nav a[aria-current="page"] { background:#0047ab; color:white; }

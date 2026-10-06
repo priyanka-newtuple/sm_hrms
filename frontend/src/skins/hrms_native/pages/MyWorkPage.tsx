@@ -5,7 +5,7 @@ import { request, getApiErrorMessage } from '@/core/services/api/client';
 import { useAuth } from '../../../core/auth';
 import { useHrmsCapabilities } from '../capabilities';
 import { WorkPanel } from '../components/WorkPanel';
-import { AnimIcon, ArrowRightIcon, BookTextIcon, BriefcaseBusinessIcon, CalendarDaysIcon, TrendingUpIcon, type AnimatedIcon } from '../animated-icons';
+import { AnimIcon, ArrowRightIcon } from '../animated-icons';
 import { LocalTime } from '../login/LocalTime';
 import { ShinyText } from '../login/reactbits';
 import { usePrefersReducedMotion } from '../components/useReducedMotion';
@@ -46,7 +46,6 @@ export default function MyWorkPage() {
   const { user } = useAuth();
   const caps = useHrmsCapabilities();
   const motion = !usePrefersReducedMotion();
-  const has = (capability: string) => caps.data?.capabilities.includes(capability) ?? false;
   const waiting = useWaitingActions();
   const { sources, total, onboarding, onboardingActions, leaveApprovals, pendingLeave } = waiting;
   const summaryLoading = waiting.loading;
@@ -61,12 +60,6 @@ export default function MyWorkPage() {
   const firstName = user?.fullName?.trim().split(/\s+/)[0] || 'there';
   const roles = caps.data?.roles.map(roleName) ?? [];
 
-  const destinations: Array<{ path: string; title: string; description: string; icon: AnimatedIcon }> = [
-    { path: '/hrms/leave', title: 'Leave', description: 'Plan time away', icon: CalendarDaysIcon },
-    { path: '/hrms/performance', title: 'Performance', description: 'Goals and reviews', icon: TrendingUpIcon },
-    ...(has('project:view') ? [{ path: '/hrms/projects', title: 'Projects', description: 'Teams and allocations', icon: BriefcaseBusinessIcon }] : []),
-    { path: '/hrms/content', title: 'Resources', description: 'Policies and holidays', icon: BookTextIcon },
-  ];
 
   return <main className={`hrms-ws-page hrms-mywork${motion ? ' hrms-ws--motion' : ''}`}>
     <section className="hrms-mw-hero" aria-labelledby="hrms-mw-title">
@@ -96,16 +89,8 @@ export default function MyWorkPage() {
       </aside>
     </section>
 
-    <div className="hrms-mw-row">
-    <nav className="hrms-mw-links" aria-label="Work shortcuts">
-      {destinations.map(({ path, title, description, icon }) => <Link key={path} to={path} className="hrms-mw-link">
-        <span className="hrms-mw-link-icon"><AnimIcon icon={icon} size={20} /></span>
-        <span><strong>{title}</strong><small>{description}</small></span>
-        <AnimIcon icon={ArrowRightIcon} size={16} className="hrms-mw-link-arrow" />
-      </Link>)}
-    </nav>
+    {/* Focused on tasks and approvals (follows main): no shortcut cards; the sidebar covers navigation. */}
     <ComingUp />
-    </div>
 
     <header className="hrms-mw-section">
       <div><h2>Tasks &amp; approvals</h2><p>Actions you can take, based on your role and assignments.</p></div>

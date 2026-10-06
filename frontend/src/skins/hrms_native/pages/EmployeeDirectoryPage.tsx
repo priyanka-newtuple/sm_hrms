@@ -1,3 +1,4 @@
+import { createRequestId } from '../requestId';
 import { ConfiguredForm, ConfiguredField } from '../forms/ConfiguredForm';
 import { useMemo, useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -41,7 +42,7 @@ export default function EmployeeDirectoryPage() {
   const [showForm, setShowForm] = useState(false);
   const [created, setCreated] = useState<CreatedEmployee | null>(null);
   const [error, setError] = useState('');
-  const [key, setKey] = useState(() => crypto.randomUUID());
+  const [key, setKey] = useState(() => createRequestId());
   const [form, setForm] = useState({
     first_name: '', last_name: '', work_email: '', department: '', designation: '',
     role: 'hrms_employee', reports_to_entity_id: '', date_joined: new Date().toISOString().slice(0, 10),
@@ -74,7 +75,7 @@ export default function EmployeeDirectoryPage() {
       }),
     }),
     onSuccess: (result) => {
-      setError(''); setShowForm(false); setKey(crypto.randomUUID());
+      setError(''); setShowForm(false); setKey(createRequestId());
       setCreated(result);
       void queryClient.invalidateQueries({ queryKey: ['hrms'] });
     },
