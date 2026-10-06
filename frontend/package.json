@@ -60,6 +60,7 @@
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",
     "lenis": "^1.3.26",
+    "lottie-web": "^5.13.0",
     "lucide-react": "^0.562.0",
     "motion": "^14.0.0",
     "radix-ui": "^1.4.3",
