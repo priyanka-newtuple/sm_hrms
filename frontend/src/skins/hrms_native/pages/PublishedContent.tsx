@@ -5,9 +5,8 @@ import { X } from 'lucide-react';
 import { request } from '@/core/services/api/client';
 import { informationCategories } from '../components/Brand';
 import { AnimIcon, ArrowRightIcon, SearchIcon } from '../animated-icons';
-import { HeroBackdrop } from '../login/HeroBackdrop';
-import { ShinyText } from '../login/reactbits';
-import { usePrefersReducedMotion, useSmoothScroll } from '../login/motion';
+import { Waves } from '../login/Waves';
+import { usePrefersReducedMotion } from '../components/useReducedMotion';
 import { CareerList, HolidayView, LearningList, PolicyList } from '../public-info/CategoryViews';
 import { matches, type Published } from '../public-info/format';
 import '../login/login.css';
@@ -20,7 +19,6 @@ export default function PublishedContent({ publicPage = false }: { publicPage?: 
   const [params, setParams] = useSearchParams();
   const reducedMotion = usePrefersReducedMotion();
   const motion = !reducedMotion;
-  useSmoothScroll(motion && publicPage);
   const [search, setSearch] = useState('');
   const tabs = useRef<HTMLDivElement>(null);
 
@@ -59,11 +57,10 @@ export default function PublishedContent({ publicPage = false }: { publicPage?: 
 
   return <main className={`hrms-login hrms-info${publicPage ? '' : ' hrms-info--workspace'}${motion ? ' hrms-login--motion' : ''}`}>
     <section className="hrms-info-hero">
-      <HeroBackdrop animate={motion && publicPage} />
+      <Waves animate={motion} className="hrms-info-waves" />
       <div className="hrms-info-hero-inner">
-        <p className="hrms-login-chip"><i aria-hidden="true" />Life at Newtuple</p>
-        <h1>Stay informed.<br /><ShinyText text="Find your next opportunity." disabled={!motion} /></h1>
-        <p className="hrms-login-intro">Policies, learning sessions, holiday calendars and open roles — published and approved by HR{publicPage ? ', readable without signing in' : ''}.</p>
+        <h1>Stay informed. <span>Find your next opportunity.</span></h1>
+        <p className="hrms-info-intro">Policies, learning, holidays and open roles — published by HR{publicPage ? ', readable without signing in' : ''}.</p>
         <div ref={tabs} className="hrms-info-tabs" role="group" aria-label="Information categories">
           <span className="hrms-info-tab-indicator" aria-hidden="true" />
           {informationCategories.map(({ id, short, animatedIcon }) => <button key={id} type="button" aria-pressed={category.id === id} onClick={() => choose(id)}>
