@@ -1,3 +1,4 @@
+import { createRequestId } from '../requestId';
 import { ArrowRight, Plus, Layers, Target, MessageSquare, CheckCircle2 } from 'lucide-react';
 import { WorkflowStages, useWorkflowConfiguration, transitionLabel } from '../workflows/WorkflowConfiguration';
 import { ConfiguredForm, ConfiguredField } from '../forms/ConfiguredForm';
@@ -50,7 +51,7 @@ function ActionForm({ item, action, done }: { item?: Item; action: string; done:
   }
   function submit(event: FormEvent) {
     event.preventDefault();
-    const body = pending ?? { idempotency_key: crypto.randomUUID(), action, data: cycle ? {
+    const body = pending ?? { idempotency_key: createRequestId(), action, data: cycle ? {
       ...data, participants: participants.map(employee_id => ({ employee_id, calibrator_user_id: calibrator })),
     } : data };
     setPending(body); mutation.mutate(body);

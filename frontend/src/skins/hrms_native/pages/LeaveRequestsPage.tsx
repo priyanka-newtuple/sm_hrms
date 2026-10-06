@@ -1,3 +1,4 @@
+import { createRequestId } from '../requestId';
 import { CalendarDays, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { ConfiguredForm, ConfiguredField } from '../forms/ConfiguredForm';
@@ -28,7 +29,7 @@ export function LeaveRow({ item, view, onChange }: { item: LeaveItem; view: View
   const decision = useMutation({
     mutationFn: (trigger: string) => request(`/hrms/leave-requests/${item.entity_id}/actions`, {
       method: 'POST',
-      body: JSON.stringify({ trigger, idempotency_key: crypto.randomUUID() }),
+      body: JSON.stringify({ trigger, idempotency_key: createRequestId() }),
     }),
     onSuccess: () => { setError(''); onChange(); },
     onError: (cause) => setError(getApiErrorMessage(cause)),
@@ -78,7 +79,7 @@ export default function LeaveRequestsPage() {
   const create = useMutation({
     mutationFn: () => request('/hrms/leave-requests', {
       method: 'POST',
-      body: JSON.stringify({ start_date: startDate, end_date: endDate, leave_type: leaveType, reason, idempotency_key: crypto.randomUUID() }),
+      body: JSON.stringify({ start_date: startDate, end_date: endDate, leave_type: leaveType, reason, idempotency_key: createRequestId() }),
     }),
     onSuccess: () => {
       setError(''); setStartDate(''); setEndDate(''); setReason('');
