@@ -1,7 +1,6 @@
 // Animated icon set for HRMS public pages. Sources come from the lucide-animated registry
 // (`https://lucide-animated.com/r/<name>.json`); add new icons the same way and export them here.
 export { AnimIcon, type AnimatedIcon, type AnimatedIconHandle } from './AnimIcon';
-export { ArrowDownIcon } from './arrow-down';
 export { ArrowRightIcon } from './arrow-right';
 export { ArrowUpRightIcon } from './arrow-up-right';
 export { BookTextIcon } from './book-text';
@@ -12,11 +11,7 @@ export { EyeIcon } from './eye';
 export { EyeOffIcon } from './eye-off';
 export { FileTextIcon } from './file-text';
 export { LoaderCircleIcon } from './loader-circle';
-export { HammerIcon } from './hammer';
-export { HandHeartIcon } from './hand-heart';
-export { RocketIcon } from './rocket';
 export { ZapIcon } from './zap';
-export { ExternalLinkIcon } from './external-link';
 export { GraduationCapIcon } from './graduation-cap';
 export { PartyPopperIcon } from './party-popper';
 export { SearchIcon } from './search';
@@ -30,5 +25,6 @@ export { BellIcon } from './bell';
 export { PanelLeftCloseIcon } from './panel-left-close';
 export { PanelLeftOpenIcon } from './panel-left-open';
 export { MenuIcon } from './menu';
-export { XIcon } from './x';
 export { UserRoundPlusIcon } from './user-round-plus';
+export { ExternalLinkIcon } from './external-link';
+export { XIcon } from './x';

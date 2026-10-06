@@ -14,10 +14,9 @@ They have no footer; content ends at the page body. Signed-in pages keep `BrandF
 Public-page icons are lucide-animated components in `../animated-icons/` (source:
 `https://lucide-animated.com/r/<name>.json`). Render them through `AnimIcon`, which plays
 the icon when its nearest link/button is hovered or focused. `PublicLayout` wraps them in
-`MotionConfig reducedMotion="user"`. The login hero visual is `login/CultureDNA`: Newtuple's
-published values (Customer obsession, Learn by doing, Own your craft, Speed as a habit —
-source: newtuple.com/life-at-newtuple) on an animated SVG double helix. Keep its quotes in
-sync with that page.
+`MotionConfig reducedMotion="user"`. The login is a single, non-scrolling screen in the workspace's light theme over an animated
+cobalt line field (`login/Waves`, adapted from React Bits): published information cards on the
+left and the sign-in card on the right, with nothing else.
 
 `BrandLogo` clips the whitespace around the original logo canvas using CSS while
 preserving its aspect ratio. The geometric image is decorative and omitted from
@@ -27,8 +26,8 @@ the accessibility tree.
 same core `useAuth` methods, password rule (`isPasswordValid`) and pending-approval
 routing as native `pages/auth/LoginPage.tsx`; only markup and styles differ. When the
 native login flow changes, mirror it in `HrmsSignInForm` and check both Sign in and
-Create account modes. Motion lives in `login/` (Lenis, Scrollytelling, React Bits Silk backdrop
-or Unicorn Studio via `VITE_UNICORN_PROJECT_ID`, anime.js, adapted React Bits) and is switched off under `prefers-reduced-motion`.
+Create account modes. Motion lives in `login/` (Lenis and the React Bits Silk backdrop — or Unicorn Studio via
+`VITE_UNICORN_PROJECT_ID` — on the public information page, adapted React Bits on the login) and is switched off under `prefers-reduced-motion`.
 No native platform file is changed.
 
 Public category links use `/public?category=policies|learning|holidays|careers`.

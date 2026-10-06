@@ -1,68 +1,36 @@
-import { useRef } from 'react';
-import { Link } from 'react-router-dom';
-import * as Scrollytelling from '@bsmnt/scrollytelling';
-import { AnimIcon, ArrowDownIcon, ArrowRightIcon } from '../animated-icons';
 import { InformationLinks } from '../components/Brand';
-import { HeroBackdrop } from '../login/HeroBackdrop';
-import { CultureDNA } from '../login/CultureDNA';
-import { SplitHeadline } from '../login/SplitHeadline';
 import { HrmsSignInForm } from '../login/HrmsSignInForm';
-import { LocalTime } from '../login/LocalTime';
-import { ShinyText, SpotlightCard } from '../login/reactbits';
-import { LifeAtNewtuple } from '../login/LifeAtNewtuple';
-import { usePrefersReducedMotion, useRevealOnEnter, useSmoothScroll } from '../login/motion';
+import { SpotlightCard } from '../login/reactbits';
+import { Waves } from '../login/Waves';
+import { Illustration } from '../components/Illustration';
+import { usePrefersReducedMotion } from '../components/useReducedMotion';
 import '../login/login.css';
 
-
+/**
+ * Single-screen login in the workspace's light theme over an animated line field (React Bits Waves):
+ * published information on the left, the sign-in form on the right, nothing else.
+ */
 export default function BrandedLoginPage() {
-  const reducedMotion = usePrefersReducedMotion();
-  const motion = !reducedMotion;
-  useSmoothScroll(motion);
-  const discover = useRef<HTMLElement>(null);
-  useRevealOnEnter(discover, '.hrms-discover-aside > *, .hrms-resource-card', motion);
+  const motion = !usePrefersReducedMotion();
 
-  return <main className={`hrms-login${motion ? ' hrms-login--motion' : ''}`}>
-    <Scrollytelling.Root start="top top" end="bottom top" scrub disabled={!motion}>
-      <section className="hrms-login-hero">
-        <Scrollytelling.Animation tween={{ target: '.hrms-login-backdrop', start: 0, end: 100, to: { scale: 1.12, yPercent: 8, ease: 'none' } }} />
-        <Scrollytelling.Animation tween={[
-          { target: '.hrms-login-story', start: 0, end: 100, to: { y: -90, opacity: 0.25, ease: 'none' } },
-          { target: '.hrms-dna', start: 0, end: 100, to: { y: -50, ease: 'none' } },
-          { target: '.hrms-login-card', start: 0, end: 100, to: { y: -40, ease: 'none' } },
-        ]} />
-        <HeroBackdrop animate={motion} />
-
-        <div className="hrms-login-hero-inner">
-          <div className="hrms-login-story">
-            <div className="hrms-login-meta">
-              <p className="hrms-login-chip"><i aria-hidden="true" />Welcome to Newtuple</p>
-              <LocalTime />
-            </div>
-            {/* Simplified introduction (follows main: a direct heading with a short tagline). */}
-            <SplitHeadline label="Discover what’s happening" lines={['Discover', 'what’s happening']} animate={motion} />
-            <p className="hrms-login-tagline">Everything that connects us. <ShinyText text="All in one place." disabled={!motion} /></p>
-            <CultureDNA animate={motion} />
+  return <main className={`hrms-login hrms-login-screen${motion ? ' hrms-login--motion' : ''}`}>
+    <Waves animate={motion} className="hrms-login-waves" />
+    <div className="hrms-login-panel">
+      <section className="hrms-login-info" aria-labelledby="hrms-discover-title">
+        <div className="hrms-login-intro-row">
+          <div>
+            <h1 id="hrms-discover-title">Discover what’s happening</h1>
+            <p className="hrms-login-tagline">Everything that connects us. All in one place.</p>
           </div>
-
-          <SpotlightCard className="hrms-login-card" spotlightColor="rgba(255, 255, 255, 0.16)" aria-label="Employee access">
-            <HrmsSignInForm magnetic={motion} />
-          </SpotlightCard>
+          {/* "Hello" by LottieFiles creator suhayrasarwar — the same illustration family as the workspace. */}
+          <div className="hrms-login-art"><Illustration name="login" animate={motion} /></div>
         </div>
-
-        <a className="hrms-login-scroll" href="#discover"><span>Scroll to discover</span><AnimIcon icon={ArrowDownIcon} size={15} every={motion ? 3000 : undefined} /></a>
+        <InformationLinks />
       </section>
-    </Scrollytelling.Root>
 
-    <section ref={discover} id="discover" className="hrms-login-discover" aria-labelledby="hrms-discover-title">
-      <div className="hrms-discover-aside">
-        <p className="hrms-index-label">Open to everyone</p>
-        <h2 id="hrms-discover-title">Published by HR</h2>
-        <p>Policies, learning, holidays and careers — readable without signing in.</p>
-        <Link to="/public" className="hrms-discover-link">Browse everything<AnimIcon icon={ArrowRightIcon} size={16} /></Link>
-      </div>
-      <InformationLinks />
-    </section>
-
-    <LifeAtNewtuple animate={motion} />
+      <SpotlightCard className="hrms-login-card" aria-label="Employee access">
+        <HrmsSignInForm magnetic={motion} />
+      </SpotlightCard>
+    </div>
   </main>;
 }
