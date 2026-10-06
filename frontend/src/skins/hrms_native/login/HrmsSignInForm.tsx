@@ -143,7 +143,7 @@ export function HrmsSignInForm({ magnetic }: { magnetic: boolean }) {
       <Field id={ids.email} label="Work email"><input id={ids.email} name="email" type="email" autoComplete="email" required placeholder=" " value={email} onChange={e => setEmail(e.target.value)} /></Field>
 
       {showOrgName && <div className="hrms-field-enter">
-        <p className="hrms-org-notice"><Building2 size={16} aria-hidden="true" />Personal email detected. Add your organization name to request a new workspace — a platform administrator reviews it.</p>
+        <p className="hrms-org-notice"><Building2 size={16} aria-hidden="true" />Personal email detected. Add your organization name to request a new workspace. A platform administrator will review it.</p>
         <Field id={ids.org} label="Organization name"><input id={ids.org} name="orgName" type="text" required placeholder=" " value={orgName} onChange={e => setOrgName(e.target.value)} /></Field>
       </div>}
 

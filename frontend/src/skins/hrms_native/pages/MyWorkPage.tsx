@@ -81,7 +81,7 @@ export default function MyWorkPage() {
         <div className="hrms-mw-leave">
           <p className="hrms-mw-label">Your next time off</p>
           {myLeave.isLoading ? <p>Loading…</p>
-            : leaveUnavailable ? <p>Leave isn’t linked to this account — it has no employee profile.</p>
+            : leaveUnavailable ? <p>Leave isn’t linked to this account because it has no employee profile.</p>
             : myLeave.isError ? <p>Couldn’t load your leave. <button type="button" className="hrms-mw-retry" onClick={() => void myLeave.refetch()}>Try again</button></p>
             : nextLeave && nextLeaveStart ? <p><strong>{formatDate(nextLeaveStart)}</strong> · {nextLeave.leave_type} <span className="hrms-mw-state" data-state={nextLeave.state}>{nextLeave.state}</span></p>
             : <p>Nothing planned yet. <Link to="/hrms/leave">Request leave<AnimIcon icon={ArrowRightIcon} size={14} /></Link></p>}

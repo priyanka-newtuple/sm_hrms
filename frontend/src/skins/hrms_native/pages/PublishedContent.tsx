@@ -60,7 +60,7 @@ export default function PublishedContent({ publicPage = false }: { publicPage?: 
       <Waves animate={motion} className="hrms-info-waves" />
       <div className="hrms-info-hero-inner">
         <h1>Stay informed. <span>Find your next opportunity.</span></h1>
-        <p className="hrms-info-intro">Policies, learning, holidays and open roles — published by HR{publicPage ? ', readable without signing in' : ''}.</p>
+        <p className="hrms-info-intro">Policies, learning, holidays and open roles, published by HR{publicPage ? ' and readable without signing in' : ''}.</p>
         {/* The public header already lists the categories; only the signed-in page needs this switcher. */}
         {!publicPage && <div ref={tabs} className="hrms-info-tabs" role="group" aria-label="Information categories">
           <span className="hrms-info-tab-indicator" aria-hidden="true" />
