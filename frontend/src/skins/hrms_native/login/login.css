@@ -93,6 +93,12 @@
 /* Fade the lines out behind the content so text and cards stay crisp. */
 .hrms-login-waves { mask-image:radial-gradient(120% 90% at 50% 50%, black 30%, rgba(0,0,0,.55) 75%); -webkit-mask-image:radial-gradient(120% 90% at 50% 50%, black 30%, rgba(0,0,0,.55) 75%); }
 .hrms-login-panel { position:relative; display:grid; grid-template-columns:minmax(0,1.15fr) minmax(360px,.85fr); align-items:center; gap:64px; width:100%; max-width:1240px; padding:24px 32px; }
+/* Heading and illustration always share one row; the art column scales with the viewport. */
+.hrms-login-intro-row { display:grid; grid-template-columns:minmax(0,1fr) clamp(150px,21vw,300px); align-items:center; gap:8px; margin-bottom:18px; }
+.hrms-login-intro-row .hrms-login-tagline { margin-bottom:0; }
+/* The heading sizes itself to its column (container units) so it never wraps to a second line. */
+.hrms-login-intro-row > div:first-child { container-type:inline-size; min-width:0; }
+.hrms-login-info .hrms-login-intro-row h1 { white-space:nowrap; font-size:clamp(19px, 8.2cqi, 48px); }
 .hrms-login-art { position:relative; height:240px; margin:-40px -20px -36px 0; }
 .hrms-login-art::before { content:''; position:absolute; inset:14% 10%; border-radius:50%; background:radial-gradient(circle, rgba(255,255,255,.95) 0%, rgba(231,239,252,.7) 50%, transparent 72%); }
 .hrms-login-art .hrms-illustration { position:relative; width:100%; height:100%; }
@@ -132,6 +138,11 @@
 @media (max-width:640px) {
   .hrms-login-intro-row { grid-template-columns:minmax(0,1fr) 104px; }
   .hrms-login-art { height:120px; margin:-16px -8px -16px 0; }
+}
+@media (max-width:430px) {
+  .hrms-login-intro-row { grid-template-columns:minmax(0,1fr) 78px; gap:2px; }
+  .hrms-login-art { height:96px; margin:-12px -6px -12px 0; }
+  .hrms-login-info .hrms-login-intro-row h1 { font-size:clamp(18px, 9.4cqi, 30px); letter-spacing:-.04em; }
   .hrms-login-info .hrms-resource-grid { gap:10px; }
   /* The phone header is 65px tall; fill exactly to the bottom edge. */
   .hrms-login-screen { min-height:calc(100svh - 65px); padding:28px 18px 32px; }
@@ -190,6 +201,9 @@
   .hrms-signin-head > p:last-child { display:none; }
   .hrms-mode-switch { margin:12px 0 12px; }
   .hrms-mode-switch button { padding:8px 12px; }
+}
+@media (max-width:340px) {
+  .hrms-login-info .hrms-login-intro-row h1 { font-size:clamp(14px, 8.4cqi, 20px); }
 }
 @media (prefers-reduced-motion:reduce) {
   .hrms-login *, .hrms-login *::before { animation:none!important; transition:none!important; }
