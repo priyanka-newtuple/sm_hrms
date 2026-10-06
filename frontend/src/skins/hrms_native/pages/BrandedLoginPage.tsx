@@ -18,6 +18,7 @@ export default function BrandedLoginPage() {
     <div className="hrms-login-panel">
       <span className="hrms-login-glow hrms-login-glow--a" aria-hidden="true" />
       <span className="hrms-login-glow hrms-login-glow--b" aria-hidden="true" />
+      <span className="hrms-login-glow hrms-login-glow--c" aria-hidden="true" />
       <section className="hrms-login-info" aria-labelledby="hrms-discover-title">
         <div className="hrms-login-intro-row">
           <div>
