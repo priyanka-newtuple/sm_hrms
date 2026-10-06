@@ -7,7 +7,7 @@ import { useEffect, useRef } from 'react';
  */
 export type IllustrationName =
   | 'my-work' | 'leave' | 'performance' | 'employees' | 'onboarding' | 'projects'
-  | 'allocations' | 'cockpit' | 'workflows' | 'settings' | 'all-clear';
+  | 'allocations' | 'cockpit' | 'workflows' | 'settings' | 'all-clear' | 'login';
 
 const cache = new Map<IllustrationName, Promise<unknown>>();
 const load = (name: IllustrationName) => {
