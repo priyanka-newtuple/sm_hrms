@@ -70,7 +70,7 @@ export default function OnboardingPage({ caseId, embedded = false }: { caseId?: 
   });
 
   return <main className={`hrms-brand hrms-people-page ${embedded ? 'hrms-onboarding-embedded' : 'hrms-workspace-page'}`}>
-    {!embedded && <PageHero eyebrow="A great start" title="Onboarding" intro="Every step, every owner. Help your new colleagues settle in." illustration="onboarding"
+    {!embedded && <PageHero title="Onboarding" intro="Every step, every owner. Help your new colleagues settle in." illustration="onboarding"
       stats={cases.data ? [
         { label: 'Open cases', value: cases.data.filter(item => item.completed_steps < item.total_steps).length },
         { label: 'Steps ready', value: cases.data.reduce((sum, item) => sum + item.steps.filter(step => step.readiness === 'ready').length, 0), tone: 'attention' },

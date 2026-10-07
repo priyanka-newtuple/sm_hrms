@@ -96,7 +96,7 @@ export function ProjectControls() {
   const board=useProjects();
   const [action,setAction]=useState<string|null>(null);
   return <div className="hrms-project-controls">
-    <PageHero eyebrow="Build together" title="Projects" intro="A clear view of your projects, people, and delivery." illustration="projects"
+    <PageHero title="Projects" intro="A clear view of your projects, people, and delivery." illustration="projects"
       actions={<>{board.data?.can_create && <button type="button" className="hrms-primary-button" onClick={()=>setAction('create_project')}><Plus size={16} aria-hidden="true" />Add project</button>}{board.data?.can_create_customer && <button type="button" className="hrms-outline-button" onClick={()=>setAction('create_customer')}><Plus size={16} aria-hidden="true" />Add customer</button>}</>}
       stats={board.data ? [
         { label: 'Projects', value: board.data.projects.length },

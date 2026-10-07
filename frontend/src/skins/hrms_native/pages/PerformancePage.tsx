@@ -124,7 +124,7 @@ export default function PerformancePage() {
   const resume = useMutation({ mutationFn: (operation: NonNullable<typeof pending.data>[number]) => request(operation.target === 'new' ? '/hrms/performance/cycles' : `/hrms/performance/${operation.target}/actions`, { method: 'POST', body: JSON.stringify({ action: operation.action, data: operation.data, idempotency_key: operation.idempotency_key }) }), onSuccess: () => queryClient.invalidateQueries({ queryKey: ['hrms'] }) });
   const [selected, setSelected] = useState<string | null>(null);
   const [create, setCreate] = useState(false);
-  return <main className="hrms-workspace-page hrms-performance-page"><PageHero eyebrow="Room to grow" title="Performance" intro="Meaningful goals, thoughtful feedback, and a clear path forward." illustration="performance"
+  return <main className="hrms-workspace-page hrms-performance-page"><PageHero title="Performance" intro="Meaningful goals, thoughtful feedback, and a clear path forward." illustration="performance"
       actions={<><Link className="hrms-outline-button" to="/hrms/workflows">View workflows <ArrowRight size={16} /></Link>{query.data?.can_manage && <Button className="hrms-primary-button" variant="primary" size="md" onClick={() => setCreate(true)}><Plus size={16} />Create cycle</Button>}</>}
       stats={query.data ? [
         { label: 'Cycles', value: query.data.cycles.length },

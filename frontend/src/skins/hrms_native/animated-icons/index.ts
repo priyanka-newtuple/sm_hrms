@@ -28,3 +28,5 @@ export { MenuIcon } from './menu';
 export { UserRoundPlusIcon } from './user-round-plus';
 export { ExternalLinkIcon } from './external-link';
 export { XIcon } from './x';
+export { CookingPotIcon } from './cooking-pot';
+export { FolderOpenIcon } from './folder-open';
