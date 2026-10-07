@@ -97,7 +97,7 @@ export default function WorkflowsPage() {
   const pageCount = Math.max(1, Math.ceil(list.totalCount / list.pageSize));
 
   return <main className="hrms-brand hrms-workspace-page hrms-workflows-page">
-    <PageHero eyebrow="Keep work moving" title="Workflows" intro="Follow progress, review next steps, and act on work in your scope." illustration="workflows"
+    <PageHero title="Workflows" intro="Follow progress, review next steps, and act on work in your scope." illustration="workflows"
       actions={<div className="hrms-workflow-controls"><PipelineTerminalToggle hidden={hideTerminal} label="Terminal Entities" onToggle={value => { setHideTerminal(value); list.setPage(0); }} />
         <button type="button" className="hrms-outline-button" aria-label="Refresh workflows" disabled={query.isFetching} onClick={() => void queryClient.invalidateQueries({ queryKey: ['hrms'] })}><RefreshCw size={16} strokeWidth={1.25} className={query.isFetching?'animate-spin':''}/>Refresh</button></div>}
       stats={query.data ? [

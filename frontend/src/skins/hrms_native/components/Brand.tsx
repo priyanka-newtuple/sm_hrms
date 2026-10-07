@@ -3,13 +3,19 @@ import { BookOpen, BriefcaseBusiness, CalendarDays, FileText, Menu, X } from 'lu
 import { MotionConfig } from 'motion/react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { BrandWave } from './BrandWave';
-import { AnimIcon, ArrowUpRightIcon, BookTextIcon, BriefcaseBusinessIcon, CalendarDaysIcon, FileTextIcon } from '../animated-icons';
+import { AnimIcon, ArrowUpRightIcon, BookTextIcon, BriefcaseBusinessIcon, CalendarDaysIcon, CookingPotIcon, FileTextIcon, FolderOpenIcon } from '../animated-icons';
 
 export const informationCategories = [
   { id: 'policies', title: 'Policies', short: 'Policies', description: 'Our policies, clearly explained.', icon: FileText, animatedIcon: FileTextIcon, types: ['HRMS.Policy'] },
   { id: 'learning', title: 'Learning & development', short: 'Learning', description: 'Make room for your next skill.', icon: BookOpen, animatedIcon: BookTextIcon, types: ['HRMS.LearningEvent'] },
   { id: 'holidays', title: 'Holiday calendar', short: 'Holidays', description: 'Plan ahead for the year.', icon: CalendarDays, animatedIcon: CalendarDaysIcon, types: ['HRMS.HolidayCalendar'] },
   { id: 'careers', title: 'Careers', short: 'Careers', description: 'Explore roles and opportunities.', icon: BriefcaseBusiness, animatedIcon: BriefcaseBusinessIcon, types: ['HRMS.JobDescription', 'HRMS.JobOpening'] },
+];
+
+/** Other Newtuple tools, opened as plain external links (no session or token is forwarded). */
+export const externalResources = [
+  { id: 'tiffin', title: 'Tiffin Tuple', description: 'Order meals at the office.', href: 'https://internalapps.newtuple.com/', icon: CookingPotIcon },
+  { id: 'templates', title: 'Templates', description: 'Shared document templates.', href: 'https://drive.google.com/drive/folders/17COpLtuSfClDYcWGzLOKYktXLrKF1Pb_', icon: FolderOpenIcon },
 ];
 
 export function BrandLogo() {
@@ -93,6 +99,7 @@ function PublicHeader() {
     {menuOpen && <div id="hrms-public-menu" className="hrms-public-menu">
       <nav aria-label="Public information">
         {informationCategories.map(({ id, title }) => <Link key={id} to={`/public?category=${id}`} aria-current={active === id ? 'page' : undefined} onClick={() => setMenuOpen(false)}>{title}<AnimIcon icon={ArrowUpRightIcon} size={16} /></Link>)}
+        {externalResources.map(({ id, title, href }) => <a key={id} href={href} target="_blank" rel="noopener noreferrer" onClick={() => setMenuOpen(false)}>{title}<AnimIcon icon={ArrowUpRightIcon} size={16} /><span className="sr-only"> (opens in a new tab)</span></a>)}
       </nav>
       <Link className="hrms-pub-cta" to={cta.to} onClick={() => setMenuOpen(false)}><span>{cta.label}</span><AnimIcon icon={ArrowUpRightIcon} size={15} /></Link>
     </div>}
@@ -110,5 +117,10 @@ export function InformationLinks() {
     <AnimIcon icon={animatedIcon} className="hrms-card-icon" size={28} />
     <span className="hrms-card-arrow" aria-hidden="true"><AnimIcon icon={ArrowUpRightIcon} size={18} /></span>
     <h3>{title}</h3><p>{description}</p>
-  </Link>)}</nav>;
+  </Link>)}
+    {externalResources.map(({ id, title, description, href, icon }) => <a className="hrms-resource-card" key={id} href={href} target="_blank" rel="noopener noreferrer">
+    <AnimIcon icon={icon} className="hrms-card-icon" size={28} />
+    <span className="hrms-card-arrow" aria-hidden="true"><AnimIcon icon={ArrowUpRightIcon} size={18} /></span>
+    <h3>{title}</h3><p>{description}</p><span className="sr-only"> (opens in a new tab)</span>
+  </a>)}</nav>;
 }

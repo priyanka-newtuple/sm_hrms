@@ -95,7 +95,7 @@ export default function LeaveRequestsPage() {
   }
 
   return <main className="hrms-workspace-page hrms-leave-page">
-    <PageHero eyebrow="Time to recharge" title="Leave requests" intro="Plan time away and keep your team in the loop." illustration="leave"
+    <PageHero title="Leave requests" intro="Plan time away and keep your team in the loop." illustration="leave"
       actions={<Link className="hrms-outline-button" to="/hrms/workflows">View workflows <ArrowRight size={16} /></Link>}
       stats={list.isSuccess ? [
         { label: view === 'mine' ? 'Your requests' : 'Team requests', value: list.data.length },
