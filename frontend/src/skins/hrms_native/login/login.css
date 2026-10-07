@@ -90,9 +90,9 @@
 .hrms-login-screen { position:relative; isolation:isolate; overflow:hidden; display:grid; place-items:center; margin-top:calc(-1 * var(--pub-h, 0px)); min-height:100svh; padding:calc(var(--pub-h, 0px) + 8px) 16px 20px; background:radial-gradient(60% 70% at 85% 15%, #dbe7fb 0%, transparent 60%), radial-gradient(50% 60% at 10% 90%, #e8f0fe 0%, transparent 60%), linear-gradient(115deg,#ffffff 0%,#f3f7ff 55%,#e9f1ff 100%); }
 /* Office photo background: covers every viewport, focal point tuned per breakpoint. */
 .hrms-login-photo { position:absolute; inset:0; z-index:-3; overflow:hidden; }
-.hrms-login-photo img { width:100%; height:100%; object-fit:cover; object-position:55% 60%; filter:saturate(.92); }
-/* Light cobalt veil keeps the theme and text contrast: strongest behind the copy, lighter where the photo shows. */
-.hrms-login-veil { position:absolute; inset:0; z-index:-2; pointer-events:none; background:linear-gradient(100deg, rgba(244,248,255,.9) 0%, rgba(244,248,255,.74) 36%, rgba(230,239,255,.42) 62%, rgba(10,31,77,.22) 100%), radial-gradient(70% 60% at 80% 20%, rgba(0,71,171,.18), transparent 70%); }
+.hrms-login-photo img { width:100%; height:100%; object-fit:cover; object-position:55% 60%; }
+/* Cobalt-navy tint: deepest behind the copy, lighter on the right so the office stays visible. */
+.hrms-login-veil { position:absolute; inset:0; z-index:-2; pointer-events:none; background:linear-gradient(100deg, rgba(6,20,56,.86) 0%, rgba(8,28,74,.66) 38%, rgba(0,47,116,.42) 66%, rgba(0,47,116,.3) 100%), linear-gradient(0deg, rgba(6,20,56,.5), transparent 40%); }
 .hrms-waves { position:absolute; inset:0; z-index:-1; overflow:hidden; pointer-events:none; }
 .hrms-waves canvas { display:block; width:100%; height:100%; }
 .hrms-login-panel { position:relative; display:grid; grid-template-columns:minmax(0,1.15fr) minmax(360px,.85fr); align-items:center; gap:64px; width:100%; max-width:1240px; padding:24px 32px; }
@@ -135,7 +135,7 @@
   .hrms-login-info .hrms-resource-grid { display:none; }
   /* Portrait crop: keep the team at the desks in view. */
   .hrms-login-photo img { object-position:42% 72%; }
-  .hrms-login-veil { background:linear-gradient(180deg, rgba(244,248,255,.9) 0%, rgba(244,248,255,.62) 34%, rgba(230,239,255,.4) 70%, rgba(10,31,77,.25) 100%); }
+  .hrms-login-veil { background:linear-gradient(180deg, rgba(6,20,56,.8) 0%, rgba(8,28,74,.62) 40%, rgba(0,47,116,.5) 75%, rgba(6,20,56,.75) 100%); }
   .hrms-login-glow--a { width:260px; height:260px; right:-40px; top:auto; bottom:22%; }
   .hrms-login-glow--b { width:200px; height:200px; right:auto; left:-30px; bottom:4%; }
   .hrms-login-glow--c { display:none; }
@@ -192,32 +192,61 @@
 @keyframes hrms-glow-a { to { transform:translate(-50px, 60px) scale(1.1); } }
 @keyframes hrms-glow-b { to { transform:translate(60px, -40px) scale(.9); } }
 
-.hrms-login-screen .hrms-login-card { background:linear-gradient(145deg, rgba(255,255,255,.62) 0%, rgba(255,255,255,.34) 48%, rgba(255,255,255,.22) 100%); border:1px solid rgba(255,255,255,.65); backdrop-filter:blur(26px) saturate(1.9); -webkit-backdrop-filter:blur(26px) saturate(1.9); box-shadow:inset 0 1px 0 rgba(255,255,255,.95), inset 0 -1px 0 rgba(255,255,255,.35), 0 40px 80px -36px rgba(0,47,116,.45), 0 10px 30px -18px rgba(10,31,77,.18); }
-/* Light-catching rim. */
-.hrms-login-screen .hrms-login-card::after { content:''; position:absolute; inset:0; border-radius:inherit; padding:1.2px; pointer-events:none; background:linear-gradient(140deg, rgba(255,255,255,1), rgba(255,255,255,.2) 38%, rgba(255,255,255,0) 60%, rgba(111,156,240,.55)); -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite:xor; mask:linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); }
-.hrms-login-screen .hrms-mode-switch { background:rgba(255,255,255,.42); border-color:rgba(255,255,255,.75); box-shadow:inset 0 1px 2px rgba(10,31,77,.06); }
-.hrms-login-screen .hrms-field-box { background:rgba(255,255,255,.5); border-color:rgba(255,255,255,.8); box-shadow:inset 0 1px 2px rgba(10,31,77,.05); }
-.hrms-login-screen .hrms-field-box:hover { border-color:rgba(0,71,171,.25); }
-.hrms-login-screen .hrms-field-box:focus-within { background:rgba(255,255,255,.85); border-color:var(--cobalt); box-shadow:0 0 0 4px rgba(0,71,171,.12); }
-.hrms-login-screen .hrms-field-box input:-webkit-autofill { -webkit-box-shadow:0 0 0 40px #eef4fd inset; }
-.hrms-login-screen .hrms-sso button { background:rgba(255,255,255,.5); border-color:rgba(255,255,255,.85); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); }
-.hrms-login-screen .hrms-sso button:hover { background:rgba(255,255,255,.85); border-color:rgba(0,71,171,.2); }
-.hrms-login-screen .hrms-or { color:#4b5568; }
-.hrms-login-screen .hrms-or::before, .hrms-login-screen .hrms-or::after { background:rgba(10,31,77,.14); }
-/* A touch more opacity over the photo so labels stay legible. */
-.hrms-login-screen .hrms-login-card { background:linear-gradient(145deg, rgba(255,255,255,.72) 0%, rgba(255,255,255,.48) 50%, rgba(255,255,255,.36) 100%); }
-.hrms-login-screen .hrms-submit { box-shadow:0 16px 30px -14px rgba(0,71,171,.75), inset 0 1px 0 rgba(255,255,255,.25); }
+/* Tinted glass over the photo: translucent cobalt-white surfaces, light rim, white text. */
+.hrms-login-screen .hrms-login-card { color:white; background:linear-gradient(145deg, rgba(255,255,255,.16) 0%, rgba(255,255,255,.06) 50%, rgba(111,156,240,.08) 100%), rgba(8,26,70,.42); border:1px solid rgba(255,255,255,.26); backdrop-filter:blur(26px) saturate(1.6); -webkit-backdrop-filter:blur(26px) saturate(1.6); box-shadow:inset 0 1px 0 rgba(255,255,255,.4), 0 40px 80px -30px rgba(2,8,30,.75); }
+.hrms-login-screen .hrms-login-card::after { content:''; position:absolute; inset:0; border-radius:inherit; padding:1.2px; pointer-events:none; background:linear-gradient(140deg, rgba(255,255,255,.85), rgba(255,255,255,.12) 38%, rgba(255,255,255,0) 60%, rgba(143,179,240,.55)); -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite:xor; mask:linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); }
+.hrms-login-screen .hrms-index-label { color:var(--ice); }
+.hrms-login-screen .hrms-signin-head h2 { color:white; }
+.hrms-login-screen .hrms-signin-head > p:last-child { color:rgba(255,255,255,.75); }
+.hrms-login-screen .hrms-mode-switch { background:rgba(255,255,255,.08); border-color:rgba(255,255,255,.2); box-shadow:none; }
+.hrms-login-screen .hrms-mode-switch button { color:rgba(255,255,255,.78); }
+.hrms-login-screen .hrms-mode-switch button[aria-pressed=true] { color:var(--ink); }
+.hrms-login-screen .hrms-mode-indicator { background:white; box-shadow:0 8px 20px -8px rgba(2,8,30,.6); }
+.hrms-login-screen .hrms-field-box { background:rgba(255,255,255,.1); border-color:rgba(255,255,255,.22); box-shadow:none; }
+.hrms-login-screen .hrms-field-box:hover { border-color:rgba(255,255,255,.4); }
+.hrms-login-screen .hrms-field-box:focus-within { background:rgba(255,255,255,.16); border-color:rgba(255,255,255,.75); box-shadow:0 0 0 4px rgba(255,255,255,.12); }
+.hrms-login-screen .hrms-field-box input { color:white; caret-color:white; }
+.hrms-login-screen .hrms-field-box input:-webkit-autofill { -webkit-text-fill-color:white; -webkit-box-shadow:0 0 0 40px #24427f inset; }
+.hrms-login-screen .hrms-field-box label { color:rgba(255,255,255,.7); }
+.hrms-login-screen .hrms-field-box input:focus ~ label, .hrms-login-screen .hrms-field-box input:-webkit-autofill ~ label { color:var(--ice); }
+.hrms-login-screen .hrms-field-box input:not(:focus):not(:placeholder-shown) ~ label { color:rgba(255,255,255,.62); }
+.hrms-login-screen .hrms-field-line { background:white; }
+.hrms-login-screen .hrms-reveal { color:rgba(255,255,255,.75); }
+.hrms-login-screen .hrms-reveal:hover { background:rgba(255,255,255,.14); color:white; }
+.hrms-login-screen .hrms-forgot { color:var(--ice); }
+.hrms-login-screen .hrms-submit { background:white; color:var(--ink); box-shadow:0 18px 36px -16px rgba(2,8,30,.8); }
+.hrms-login-screen .hrms-submit::before { background:var(--ice); }
+.hrms-login-screen .hrms-submit i { background:var(--cobalt); color:white; }
+.hrms-login-screen .hrms-or { color:rgba(255,255,255,.7); }
+.hrms-login-screen .hrms-or::before, .hrms-login-screen .hrms-or::after { background:rgba(255,255,255,.2); }
+.hrms-login-screen .hrms-sso button { background:rgba(255,255,255,.1); border-color:rgba(255,255,255,.24); color:white; backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); }
+.hrms-login-screen .hrms-sso button:hover { background:rgba(255,255,255,.2); border-color:rgba(255,255,255,.45); box-shadow:0 14px 28px -18px rgba(2,8,30,.8); }
+.hrms-login-screen .hrms-org-notice { background:rgba(255,200,87,.14); border:1px solid rgba(255,200,87,.35); color:#ffe2a8; }
+.hrms-login-screen .hrms-form-error { background:rgba(254,202,202,.12); border-color:rgba(254,202,202,.4); color:#ffd4d4; }
+.hrms-login-screen .hrms-password-meter li { background:rgba(255,255,255,.08); color:rgba(255,255,255,.7); }
+.hrms-login-screen .hrms-password-meter li[data-met=true] { background:rgba(207,224,255,.2); color:white; }
+.hrms-login-screen .hrms-strength i { background:rgba(255,255,255,.15); }
+.hrms-login-screen .hrms-strength i[data-on=true] { background:white; }
+.hrms-login-screen .hrms-strength span { color:var(--ice); }
+.hrms-login-screen a:focus-visible, .hrms-login-screen button:focus-visible { outline-color:white; }
 
+/* Discover copy and information cards in the same tinted glass. */
+.hrms-login-screen .hrms-login-info h1 { color:white; }
+.hrms-login-screen .hrms-login-tagline { color:rgba(255,255,255,.8); }
+.hrms-login-screen .hrms-login-art::before { background:radial-gradient(circle, rgba(255,255,255,.35) 0%, rgba(207,224,255,.18) 50%, transparent 72%); }
 
-/* Information cards share the frosted glass finish. */
+.hrms-login-screen .hrms-login-info .hrms-resource-card { position:relative; overflow:hidden; color:white; background:linear-gradient(145deg, rgba(255,255,255,.16) 0%, rgba(255,255,255,.06) 55%, rgba(111,156,240,.08) 100%), rgba(8,26,70,.32); border:1px solid rgba(255,255,255,.24); backdrop-filter:blur(22px) saturate(1.6); -webkit-backdrop-filter:blur(22px) saturate(1.6); box-shadow:inset 0 1px 0 rgba(255,255,255,.35), 0 24px 48px -30px rgba(2,8,30,.7); }
+.hrms-login-screen .hrms-login-info .hrms-resource-card::after { content:''; position:absolute; inset:0; border-radius:inherit; padding:1px; pointer-events:none; background:linear-gradient(140deg, rgba(255,255,255,.75), rgba(255,255,255,.1) 40%, rgba(255,255,255,0) 60%, rgba(143,179,240,.45)); -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite:xor; mask:linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); }
+.hrms-login-screen .hrms-login-info .hrms-resource-card p { color:rgba(255,255,255,.72); }
+.hrms-login-screen .hrms-login-info .hrms-resource-card:hover, .hrms-login-screen .hrms-login-info .hrms-resource-card:focus-visible { background:linear-gradient(145deg, rgba(255,255,255,.28), rgba(255,255,255,.14)); border-color:rgba(255,255,255,.4); box-shadow:inset 0 1px 0 rgba(255,255,255,.45), 0 28px 54px -28px rgba(2,8,30,.8); }
+.hrms-login-screen .hrms-login-info .hrms-card-icon { background:rgba(255,255,255,.16); color:white; box-shadow:inset 0 1px 0 rgba(255,255,255,.3); }
+.hrms-login-screen .hrms-login-info .hrms-resource-card:hover .hrms-card-icon { background:white; color:var(--cobalt); }
+.hrms-login-screen .hrms-login-info .hrms-card-arrow { color:rgba(255,255,255,.75); }
+.hrms-login-screen .hrms-login-info .hrms-resource-card:hover .hrms-card-arrow { background:rgba(255,255,255,.18); color:white; }
+
+/* Third glow orb behind the information cards (desktop). */
 .hrms-login-glow--c { width:300px; height:300px; left:14%; top:42%; background:radial-gradient(circle at 40% 40%, #8fb3f0, #5b8def 50%, transparent 72%); opacity:.55; }
 .hrms-login--motion .hrms-login-glow--c { animation:hrms-glow-b 18s ease-in-out infinite alternate-reverse; }
-.hrms-login-screen .hrms-login-info .hrms-resource-card { position:relative; overflow:hidden; background:linear-gradient(145deg, rgba(255,255,255,.6) 0%, rgba(255,255,255,.3) 55%, rgba(255,255,255,.2) 100%); border:1px solid rgba(255,255,255,.7); backdrop-filter:blur(22px) saturate(1.8); -webkit-backdrop-filter:blur(22px) saturate(1.8); box-shadow:inset 0 1px 0 rgba(255,255,255,.95), 0 24px 48px -34px rgba(0,47,116,.45); }
-.hrms-login-screen .hrms-login-info .hrms-resource-card::after { content:''; position:absolute; inset:0; border-radius:inherit; padding:1px; pointer-events:none; background:linear-gradient(140deg, rgba(255,255,255,1), rgba(255,255,255,.15) 40%, rgba(255,255,255,0) 60%, rgba(111,156,240,.45)); -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite:xor; mask:linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); }
-.hrms-login-screen .hrms-login-info .hrms-resource-card:hover, .hrms-login-screen .hrms-login-info .hrms-resource-card:focus-visible { background:linear-gradient(145deg, rgba(255,255,255,.82), rgba(255,255,255,.5)); border-color:rgba(255,255,255,.9); box-shadow:inset 0 1px 0 #fff, 0 28px 54px -30px rgba(0,47,116,.55); }
-.hrms-login-screen .hrms-login-info .hrms-card-icon { background:rgba(255,255,255,.65); box-shadow:inset 0 1px 0 #fff, 0 6px 14px -10px rgba(0,47,116,.5); }
-.hrms-login-screen .hrms-login-info .hrms-resource-card:hover .hrms-card-icon { background:var(--cobalt); }
-.hrms-login-screen .hrms-login-info .hrms-resource-card:hover .hrms-card-arrow { background:rgba(255,255,255,.7); }
 
 /* Shorter laptop screens: tighten vertical rhythm so the whole login fits without scrolling. */
 @media (min-width:1001px) and (max-height:860px) {
@@ -256,3 +285,8 @@
 @media (prefers-reduced-motion:reduce) {
   .hrms-login *, .hrms-login *::before { animation:none!important; transition:none!important; }
 }
+
+/* Deeper cobalt glows on the photo theme so the tinted glass keeps its contrast. */
+.hrms-login-screen .hrms-login-glow--a { background:radial-gradient(circle at 35% 35%, #2f6fd6, #0047ab 55%, transparent 72%); opacity:.5; }
+.hrms-login-screen .hrms-login-glow--b { background:radial-gradient(circle at 40% 40%, #3b74d8, #0047ab 50%, transparent 72%); opacity:.4; }
+.hrms-login-screen .hrms-login-glow--c { background:radial-gradient(circle at 40% 40%, #3b74d8, #0047ab 50%, transparent 72%); opacity:.35; }
