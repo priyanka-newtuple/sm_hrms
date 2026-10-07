@@ -1,6 +1,7 @@
 """HRMS API and browser gateway. The platform is an internal upstream service."""
 from contextlib import asynccontextmanager
 from dataclasses import replace
+from json import JSONDecodeError
 import os
 from uuid import UUID
 
@@ -296,8 +297,14 @@ def create_app(platform=None, journal=None):
             from starlette.concurrency import run_in_threadpool
             current = await run_in_threadpool(platform.actor, token)
             payload = None
-            if request.method != 'GET' and 'application/json' in request.headers.get('content-type', ''):
-                payload = await request.json()
+            if request.method != 'GET' and 'application/json' in request.headers.get('content-type', '').lower():
+                # Native actions such as user approval have no body even when the
+                # browser client sends its default JSON Content-Type header.
+                if await request.body():
+                    try:
+                        payload = await request.json()
+                    except (JSONDecodeError, UnicodeDecodeError) as exc:
+                        raise AppError(400, 'Invalid JSON request body') from exc
             authorize_configuration(current, request.query_params, payload)
         else:
             raise AppError(403, 'Use the HRMS application action for this operation')

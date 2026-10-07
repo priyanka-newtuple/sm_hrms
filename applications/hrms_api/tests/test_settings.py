@@ -100,3 +100,40 @@ def test_project_access_settings_authorization_validation_and_revision():
     assert journal.project_policy('other')['roles'] == {}
     caps=client.get('/v1/api/hrms/capabilities',headers={'Authorization':'Bearer hrms_project_manager'}).json()['capabilities']
     assert 'project:view' not in caps
+
+
+@pytest.mark.parametrize('method,path', [
+    ('POST', 'users/user-id/approve'),
+    ('POST', 'users/user-id/reject'),
+    ('DELETE', 'config/picklists/picklist-id'),
+])
+def test_bodyless_settings_actions_preserve_human_token_and_empty_body(surface, method, path):
+    client, calls = surface
+    response = client.request(method, '/v1/api/' + path, headers={
+        'Authorization': 'Bearer superadmin', 'Content-Type': 'application/json',
+    })
+    assert response.status_code == 200
+    assert len(calls) == 1
+    assert calls[0].headers['authorization'] == 'Bearer superadmin'
+    assert calls[0].content == b''
+
+
+@pytest.mark.parametrize('body', [b'{', b' ', b'\xff'])
+def test_invalid_settings_json_returns_client_error_without_upstream_write(surface, body):
+    client, calls = surface
+    response = client.post('/v1/api/users/user-id/approve', headers={
+        'Authorization': 'Bearer superadmin', 'Content-Type': 'application/json',
+    }, content=body)
+    assert response.status_code == 400
+    assert not calls
+
+
+def test_bodyless_settings_actions_keep_authorization_checks(surface):
+    client, calls = surface
+    assert client.post('/v1/api/users/user-id/approve', headers={
+        'Authorization': 'Bearer hrms_employee', 'Content-Type': 'application/json',
+    }).status_code == 403
+    assert client.post('/v1/api/users/user-id/approve?organization_id=other', headers={
+        'Authorization': 'Bearer superadmin', 'Content-Type': 'application/json',
+    }).status_code == 403
+    assert not calls
