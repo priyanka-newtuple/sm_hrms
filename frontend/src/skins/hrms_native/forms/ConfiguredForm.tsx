@@ -20,7 +20,7 @@ export function ConfiguredForm({entityType, aliases = {}, children}: {entityType
 }
 
 /** Keep authorized options and command types; overlay tenant presentation metadata. */
-export function ConfiguredField({field, label, children, className = 'block space-y-1 text-sm'}: {field:string; label:string; children:ReactNode; className?:string}) {
+export function ConfiguredField({field, label, children, action, className = 'block space-y-1 text-sm'}: {field:string; label:string; children:ReactNode; action?:ReactNode; className?:string}) {
   const context = useContext(Context);
   const config = context.fields.find(f=>f.field===(context.aliases[field]??field));
   const text = config?.description?.trim() || label;
@@ -52,5 +52,6 @@ export function ConfiguredField({field, label, children, className = 'block spac
     }
     return cloneElement(control,configured);
   });
+  if (action && !config?.read_only) return <div className={`${className} ${config?.col_span===2?'sm:col-span-2':''}`}><label className="block space-y-1"><span>{text}</span>{content}</label>{action}</div>;
   return <label className={`${className} ${config?.col_span===2?'sm:col-span-2':''}`}><span>{text}</span>{content}</label>;
 }

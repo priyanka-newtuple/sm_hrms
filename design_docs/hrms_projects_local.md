@@ -7,7 +7,7 @@ The Projects module is available at http://localhost:5182/hrms/projects. It uses
 The real-platform test leaves **Local Projects Review** with Demo Project Manager as PM, Demo Delivery Manager as DM, and a 50% Demo Employee allocation in February–April 2043. The project and allocation are active. The dates deliberately avoid real staffing periods.
 
 1. Sign in as `demo.delivery-manager@newtuple.com`. Open Projects. You can create customers and projects, submit project requests, and manage allocations.
-2. Choose **Add customer**, then **Create project**. Select a PM, DM, dates and an independent Super Admin approver.
+2. Choose **Add project**. Select an existing customer, or choose **Create customer** beneath the Customer field to create one in the same drawer. Saving selects the new customer automatically; cancelling returns to the preserved project draft. Customer creation requires `customer:create` and is hidden for a configured read-only Customer field. Select a PM, DM, dates and an independent Super Admin approver.
 3. Open the new **Project Approval** row and **Submit**. A draft project shell is not yet operational.
 4. Sign in as `demo.superadmin@newtuple.com`. Open the request from My Work, Projects or Workflows. Compare current/proposed values and approve, reject or request changes.
 5. Sign in as `demo.project-manager@newtuple.com`. Open the approved project and **Request allocation**. Choose an employee, project role, dates and percentage; **Preview capacity** checks actual date intervals. Open the resulting Allocation approval row and submit it.
