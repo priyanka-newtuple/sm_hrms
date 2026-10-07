@@ -88,6 +88,10 @@ def system():
             },
         }
     ]
+    employees.extend({'entity_id': f'{key}-employee', 'data': {
+        'first_name': key.upper(), 'last_name': 'Employee',
+        'platform_user_id': ids[key], 'designation': designation, 'employment_status': 'active',
+    }} for key, designation in [('pm', 'Project Manager'), ('dm', 'Delivery Manager')])
     service = ProjectsService(
         SimpleNamespace(
             platform=platform,
@@ -524,3 +528,61 @@ def test_project_role_form_missing_or_inactive_fails_closed(system):
     with pytest.raises(AppError) as error:
         service.options(actor(ids['pm'], 'hrms_project_manager'))
     assert error.value.status == 409
+
+
+def test_manager_options_use_employee_designation_not_just_user_role(system):
+    service, _, _, ids = system
+    who = actor(ids['sa'], 'superadmin')
+    options = service.options(who)
+    assert [(r['id'], r['name']) for r in options['pms']] == [(ids['pm'], 'PM Employee')]
+    assert [(r['id'], r['name']) for r in options['dms']] == [(ids['dm'], 'DM Employee')]
+    assert ids['sa'] not in [r['id'] for r in options['pms'] + options['dms']]
+    employees = service.hrms.employees()
+    next(r for r in employees if r['data'].get('platform_user_id') == ids['pm'])['data']['designation'] = 'Engineer'
+    service.hrms.employees = lambda: deepcopy(employees)
+    assert service.options(who)['pms'] == []
+
+
+def test_manager_options_normalize_designation_and_ignore_inactive_or_unlinked_employees(system):
+    service, _, _, ids = system
+    employees = service.hrms.employees()
+    pm = next(r for r in employees if r['data'].get('platform_user_id') == ids['pm'])
+    pm['data']['designation'] = '  PROJECT   manager  '
+    employees.append({'entity_id':'unlinked', 'data':{
+        'first_name':'Unlinked', 'designation':'Project Manager', 'employment_status':'active'}})
+    employees.append({'entity_id':'inactive-login', 'data':{
+        'first_name':'Inactive user', 'designation':'Project Manager', 'employment_status':'active',
+        'platform_user_id':'not-an-active-tenant-user'}})
+    service.hrms.employees = lambda: deepcopy(employees)
+    assert [r['id'] for r in service.options(actor(ids['sa'], 'superadmin'))['pms']] == [ids['pm']]
+    pm['data']['employment_status'] = 'inactive'
+    assert service.options(actor(ids['sa'], 'superadmin'))['pms'] == []
+
+
+def test_designation_does_not_grant_permissions(system):
+    service, _, _, ids = system
+    employees = service.hrms.employees()
+    employees.append({'entity_id':'hr-employee', 'data':{
+        'first_name':'HR', 'designation':'Delivery Manager', 'employment_status':'active',
+        'platform_user_id':ids['hr']}})
+    service.hrms.employees = lambda: deepcopy(employees)
+    assert [r['id'] for r in service.options(actor(ids['sa'], 'superadmin'))['dms']] == [ids['dm']]
+    data = project_data(ids)
+    data['dm_id'] = ids['hr']
+    with pytest.raises(AppError, match='designated Delivery Manager'):
+        perform(system, 'sa', 'new', 'create_project', data)
+
+
+def test_stale_manager_choices_are_rechecked_on_create_and_approval(system):
+    service, platform, _, ids = system
+    data = project_data(ids)
+    change = perform(system, 'pm', 'new', 'create_project', data)['entity_id']
+    perform(system, 'pm', change, 'submit')
+    employees = service.hrms.employees()
+    next(r for r in employees if r['data'].get('platform_user_id') == ids['dm'])['data']['designation'] = 'Engineer'
+    service.hrms.employees = lambda: deepcopy(employees)
+    with pytest.raises(AppError, match='designated Delivery Manager'):
+        perform(system, 'pm', 'new', 'create_project', data)
+    with pytest.raises(AppError, match='designated Delivery Manager'):
+        perform(system, 'sa', change, 'approve')
+    assert platform.rows[change]['state'] == 'pending'

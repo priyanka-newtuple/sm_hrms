@@ -215,6 +215,39 @@ class ProjectsService:
             actions += ["approve", "request_changes", "reject"]
         return actions
 
+    def manager_options(self, actor, people=None, employees=None):
+        """Join live tenant employee designations to authorized, active login users."""
+        people = self.people(actor) if people is None else people
+        employees = self.hrms.employees() if employees is None else employees
+        users = {user['id']: user for user in people}
+        choices = {'pms': {}, 'dms': {}}
+        rules = {
+            'project manager': ('pms', {'project:manage_assigned', 'project:manage_all'}),
+            'delivery manager': ('dms', {'project:manage_all'}),
+        }
+        for employee in employees:
+            data = employee['data']
+            if (data.get('employment_status') or '').strip().casefold() != 'active':
+                continue
+            designation = ' '.join((data.get('designation') or '').split()).casefold()
+            rule = rules.get(designation)
+            user = users.get(data.get('platform_user_id'))
+            if rule and user and rule[1].intersection(user['capabilities']):
+                choices[rule[0]][user['id']] = {**user, 'name': name(employee) or user['name']}
+        return {key: sorted(rows.values(), key=lambda row: (row['name'].casefold(), row['id']))
+                for key, rows in choices.items()}
+
+    def validate_managers(self, actor, values, people=None):
+        choices = self.manager_options(actor, people)
+        selected = []
+        for key, group, designation in [('pm_id', 'pms', 'Project Manager'),
+                                         ('dm_id', 'dms', 'Delivery Manager')]:
+            person = next((row for row in choices[group] if row['id'] == values[key]), None)
+            check(person is not None,
+                  f'Select an active employee designated {designation} with the required project access', 422)
+            selected.append(person)
+        return selected
+
     def options(self, actor):
         require(actor, "project:view")
         people = (
@@ -227,6 +260,8 @@ class ProjectsService:
         )
         snap = self.snapshot()
         can_create = "project:create" in capabilities(actor)
+        employees = self.hrms.employees()
+        managers = self.manager_options(actor, people, employees)
         return {
             "customers": [
                 {"id": r["entity_id"], "name": r["data"]["name"]}
@@ -237,18 +272,13 @@ class ProjectsService:
             "project_roles": self.project_roles(actor),
             "employees": [
                 {"id": r["entity_id"], "name": name(r)}
-                for r in self.hrms.employees()
+                for r in employees
                 if r["data"].get("employment_status") == "active"
             ]
             if can_create
             else [],
-            "pms": [
-                u
-                for u in people
-                if "project:manage_assigned" in u["capabilities"]
-                or "project:manage_all" in u["capabilities"]
-            ],
-            "dms": [u for u in people if "project:manage_all" in u["capabilities"]],
+            'pms': managers['pms'],
+            'dms': managers['dms'],
             "approvers": [
                 u
                 for u in people
@@ -298,8 +328,7 @@ class ProjectsService:
             )
             return row
 
-        pm = person("pm_id", {"project:manage_all", "project:manage_assigned"})
-        dm = person("dm_id", {"project:manage_all"})
+        pm, dm = self.validate_managers(actor, values, people)
         approver = person("approver_id", {"project:approve"})
         check(approver["id"] != actor.user_id, "Self approval is not allowed", 422)
         customer = self.find(snap, CUSTOMER, values["customer_id"])
@@ -778,6 +807,7 @@ class ProjectsService:
             )
             proposed = d["proposed"]
             if row["kind"] == CHANGE:
+                self.validate_managers(actor, proposed)
                 check(
                     project["data"]["revision"] == d["expected_revision"],
                     "Project changed; create a fresh amendment",

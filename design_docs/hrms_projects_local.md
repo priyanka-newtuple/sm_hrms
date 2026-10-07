@@ -112,3 +112,31 @@ Run the regular HRMS installation, or run the targeted migration with the same
 installer environment: `python -m hrms_app.install_project_roles`. Deploy this
 configuration migration together with the API/UI change. An empty list remains
 empty with guidance in the form; a missing/inactive form produces an error.
+
+
+## Dynamic project and delivery manager choices
+
+Project creation and amendment load manager choices from current, active
+`HRMS.Employee` records in the tenant through the public platform API. The PM
+list uses designation **Project Manager**; the DM list uses designation
+**Delivery Manager**. Matching ignores case and extra spaces. Choices display
+employee names and store the linked platform user ID used by assignments and
+approvals. They refresh when the form opens/refocuses; there is no static manager
+picklist to maintain.
+
+An employee must have a linked active tenant user and the existing project access:
+PM requires `project:manage_assigned` or `project:manage_all`; DM requires
+`project:manage_all`. A matching designation alone grants no permissions.
+Super Admins without the corresponding employee designation do not appear just
+because they have broad access. The independent Approver dropdown keeps its
+existing permission rules, and PM users still create projects with themselves as
+PM unless they have manage-all access. Selections are revalidated on submission
+and approval as well as creation/amendment.
+
+Maintain designation through the employee record, and maintain project access
+through native-style Settings > Roles > Project and allocation access. The
+current native form builder supports static picklists and reference-field
+mappings, but has no configurable employee lookup filtered by designation; this
+selection is handled in the HRMS API using native employee data. Native platform
+source, authentication and workflow execution are unchanged. No data migration
+is required for this change.
