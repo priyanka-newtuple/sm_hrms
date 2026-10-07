@@ -50,7 +50,7 @@ export default function AllocationsPage() {
   if (!caps.data.capabilities.includes('project:view')) return <p className="p-6" role="alert">You do not have access to Allocations.</p>;
 
   return <main className="hrms-workspace-page hrms-project-page">
-    <PageHero eyebrow="People & delivery" title="Allocations" intro="See who is working where, and plan the next assignment." illustration="allocations"
+    <PageHero title="Allocations" intro="See who is working where, and plan the next assignment." illustration="allocations"
       actions={eligible.length > 0 && <button className="hrms-primary-button" onClick={() => {
         setProjectId(eligible.some(p => p.id === projectFilter) ? projectFilter : eligible.length === 1 ? eligible[0].id : '');
         setCreating(true);

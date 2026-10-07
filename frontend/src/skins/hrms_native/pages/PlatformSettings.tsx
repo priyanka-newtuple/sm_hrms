@@ -67,7 +67,7 @@ export default function PlatformSettings() {
   const active = groups.flatMap(g => g.tabs).find(t => t.id === requested)?.id as SettingsTab | undefined;
   const Component = active ? TAB_COMPONENTS[active] : undefined;
   return <ConfigurationGuard><div className="hrms-ws-page hrms-settings-page">
-    <PageHero compact eyebrow="Configuration" title="Settings" intro="Organization, people, roles, forms and workflows for this HRMS tenant." illustration="settings" />
+    <PageHero compact title="Settings" intro="Organization, people, roles, forms and workflows for this HRMS tenant." illustration="settings" />
     <section className="hrms-settings-frame flex min-w-0 bg-background">
     <SettingsSidebar groups={groups} activeTab={active ?? null} onTabChange={tab => setParams({tab})} />
     <div className="min-w-0 flex-1 p-6"><Suspense fallback={<p>Loading configuration…</p>}>
