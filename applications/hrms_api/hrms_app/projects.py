@@ -4,6 +4,7 @@ import hashlib
 from datetime import UTC, date, datetime, timedelta
 
 from .catalog import pack_by_type
+from .form_config import form_configuration
 from .performance import PerformanceService, check, parse
 from .policy import capabilities, require
 from .project_catalog import (
@@ -12,7 +13,6 @@ from .project_catalog import (
     CHANGE,
     CUSTOMER,
     PROJECT,
-    ROLE,
     TYPES,
 )
 from .project_contracts import (
@@ -234,9 +234,7 @@ class ProjectsService:
             ]
             if can_create
             else [],
-            "project_roles": [
-                {"id": r["entity_id"], "name": r["data"]["name"]} for r in snap[ROLE]
-            ],
+            "project_roles": self.project_roles(actor),
             "employees": [
                 {"id": r["entity_id"], "name": name(r)}
                 for r in self.hrms.employees()
@@ -259,6 +257,20 @@ class ProjectsService:
             "can_create": can_create,
             "can_create_customer": "customer:create" in capabilities(actor),
         }
+
+    def project_roles(self, actor):
+        """Current tenant form/picklist is the sole source of selectable staffing roles."""
+        form = form_configuration(self.platform, actor, ALLOCATION)
+        field = next((f for f in form['fields'] if f['field'] == 'project_role_id'), None)
+        check(field is not None and field.get('enum_values') is not None,
+              'Configure the Project role picklist in the Allocation form in Settings', 409)
+        labels = field.get('enum_labels', {})
+        return [{'id': value, 'name': labels.get(value, value)} for value in field['enum_values']]
+
+    def project_role(self, actor, value):
+        role = next((r for r in self.project_roles(actor) if r['id'] == value), None)
+        check(role is not None, 'Choose a project role from the current configured picklist', 422)
+        return role
 
     def project_values(self, actor, data, snap):
         values = parse(ProjectInput, data)
@@ -330,11 +342,11 @@ class ProjectsService:
             None,
         )
         check(employee is not None, "Choose an active employee", 422)
-        role = self.find(snap, ROLE, values["project_role_id"])
+        role = self.project_role(actor, values["project_role_id"])
         values.update(
             project_id=project["entity_id"],
             employee_name=name(employee),
-            project_role_name=role["data"]["name"],
+            project_role_name=role["name"],
         )
         people = self.people(actor)
         approver_id = (
@@ -803,6 +815,7 @@ class ProjectsService:
                         422,
                     )
                 if d["kind"] != "release":
+                    self.project_role(actor, proposed["project_role_id"])
                     check(
                         project["state"] in LIVE,
                         "Project must be planned or active",

@@ -4,7 +4,7 @@ import { WorkPanel } from '../components/WorkPanel';
 import { useHrmsCapabilities } from '../capabilities';
 import { WorkflowStages, useWorkflowConfiguration, transitionLabel } from '../workflows/WorkflowConfiguration';
 import { ConfiguredForm, ConfiguredField } from '../forms/ConfiguredForm';
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -40,6 +40,11 @@ export function ProjectAction({ item, action, done, onCreated }: { item?: Item; 
   const [preview, setPreview] = useState<{ segments: {start_date:string;end_date:string;committed:number;proposed:number;total:number}[]; over_capacity:boolean } | null>(null);
   const queryClient = useQueryClient();
   const options = useQuery({ queryKey: ['hrms','project-options'], staleTime: 0, refetchOnMount: 'always', queryFn: () => request<Options>('/hrms/projects/options'), enabled: projectForm || allocationForm || action === 'release_allocation' });
+  useEffect(() => {
+    const refresh = () => { void queryClient.invalidateQueries({queryKey:['hrms','project-options']}); };
+    window.addEventListener('form-schemas-changed', refresh);
+    return () => window.removeEventListener('form-schemas-changed', refresh);
+  }, [queryClient]);
   const mutation = useMutation({ mutationFn: (body: Body) => request<{entity_id: string}>(item ? `/hrms/projects/${item.id}/actions` : '/hrms/projects/actions', { method:'POST', body:JSON.stringify(body) }),
     onSuccess: async (result, body) => {
       if (action === 'create_customer') onCreated?.({id: result.entity_id, name: val(body.data, 'name')});
@@ -74,11 +79,11 @@ export function ProjectAction({ item, action, done, onCreated }: { item?: Item; 
   }} />;
   const customers = options.data?.customers ?? [];
   const customerChoices = createdCustomer && !customers.some(customer=>customer.id === createdCustomer.id) ? [...customers, createdCustomer] : customers;
-  return <ConfiguredForm entityType={entityType} aliases={{pm_id:'pm_name',dm_id:'dm_name',customer_id:'customer_name',employee_id:'employee_name',project_role_id:'project_role_name',approver_id:'approver_name'}}><form onSubmit={submit} className="hrms-surface hrms-people-form hrms-project-form"><h3 className="hrms-section-heading">{label(action)}</h3>
+  return <ConfiguredForm entityType={entityType} aliases={{pm_id:'pm_name',dm_id:'dm_name',customer_id:'customer_name',employee_id:'employee_name',approver_id:'approver_name'}}><form onSubmit={submit} className="hrms-surface hrms-people-form hrms-project-form"><h3 className="hrms-section-heading">{label(action)}</h3>
     <fieldset disabled={Boolean(pending)||mutation.isPending} className="grid gap-5 disabled:opacity-60 sm:grid-cols-2">
       {action==='create_customer' && <>{field('name')}{field('contact_name','text',false)}{field('contact_email','email',false)}{field('currency','text',false)}{field('contract_value','number',false)}</>}
       {projectForm && <>{field('name')}{field('description','text',false)}{select('customer_id',customerChoices)}{select('pm_id',options.data?.pms??[])}{select('dm_id',options.data?.dms??[])}{select('approver_id',options.data?.approvers??[])}{field('start_date','date')}{field('end_date','date')}{enumeration('engagement_type',['time_material','fixed_price','internal'])}{field('practice','text',false)}{enumeration('health',['green','amber','red'])}{field('currency','text',false)}{field('budget_amount','number',false)}{field('billing_rate','number',false)}{field('planned_hours','number',false)}{field('note','text',false)}</>}
-      {allocationForm && <>{select('employee_id',options.data?.employees??[])}{select('project_role_id',options.data?.project_roles??[])}{field('start_date','date')}{field('end_date','date')}{field('percentage','number')}{enumeration('billable',['yes','no'])}{field('billing_rate','number',false)}{select('approver_id',options.data?.approvers??[],false)}{field('note','text',false)}<p className="text-sm text-muted-foreground sm:col-span-2">The project Delivery Manager approves. If you are that DM, choose an independent approver. A capacity exception requires a reason. Pending requests do not book capacity.</p></>}
+      {allocationForm && <>{select('employee_id',options.data?.employees??[])}{select('project_role_id',options.data?.project_roles??[])}{options.isSuccess && options.data.project_roles.length === 0 && <p role="status" className="text-sm text-muted-foreground">No project roles are configured. Ask a tenant administrator to update the Project role picklist in Settings.</p>}{field('start_date','date')}{field('end_date','date')}{field('percentage','number')}{enumeration('billable',['yes','no'])}{field('billing_rate','number',false)}{select('approver_id',options.data?.approvers??[],false)}{field('note','text',false)}<p className="text-sm text-muted-foreground sm:col-span-2">The project Delivery Manager approves. If you are that DM, choose an independent approver. A capacity exception requires a reason. Pending requests do not book capacity.</p></>}
       {action==='release_allocation' && <>{select('approver_id',options.data?.approvers??[],false)}{field('note')}<p className="text-sm sm:col-span-2">After approval, this allocation is cancelled and its capacity is released. Its history is retained.</p></>}
       {['reject','request_changes'].includes(action) && field('comment')}
       {action==='approve' && <p className="sm:col-span-2 text-sm">Approve this version and apply its proposed values. Capacity and project dates are checked again before committing.</p>}

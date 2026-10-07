@@ -34,7 +34,7 @@ Platform Admin is not automatically a business project approver. Adding a read-a
 ## Native records and workflow stages
 
 - `HRMS.Customer`: customer reference and contact/commercial metadata; creation supported. No standalone CRM UI.
-- `HRMS.ProjectRole`: configurable project staffing roles, separate from login roles. Six initial reference values are installed.
+- `HRMS.ProjectRole`: legacy staffing-role records retained for history. New choices come from the native Allocation form Project role picklist, independently of login roles.
 - `HRMS.Project`: Draft → Planned → Active → On hold / Completed → Archived. Resume returns an on-hold project to Active.
 - `HRMS.ProjectChange`: reused existing request entity; Draft → Pending → Approved / Changes requested / Rejected. Withdrawal returns Pending to Draft; Revise reopens returned/rejected requests.
 - `HRMS.Allocation`: Planned → Active → Completed, with approved cancellation/release preserving history.
@@ -85,3 +85,30 @@ Projects is a directory with one row per project. Open **View details → Add al
 Super Admin can change these permissions in **Settings → Roles → Project and allocation access**. Defaults allow assigned Project Managers, Delivery Managers and Super Admin to request allocations. Existing read-only scopes for other roles are preserved. A user needs `project:view`, a project management scope, and `allocation:request`; multiple roles combine. Management of assigned projects still requires the actor to be the project's PM. Approval requires the designated independent approver and the applicable management/approval permission.
 
 GET/PUT `/hrms/settings/project-access` manage tenant-scoped overrides in the HRMS application's own database. Saves are audited and revision checked. Native roles are the role catalog, fetched with the configuring user's token. Overrides affect only project capabilities; they cannot grant platform configuration or HR permissions. The API rechecks policy on each authenticated request. Browser menus refresh on navigation/refocus; refreshing the page also picks up a changed policy. Native state-machine code, workflow execution and core database tables are unchanged.
+
+
+## Project role picklist
+
+The allocation Project role dropdown reads every value and label from the native
+`HRMS.Allocation` form (`hrms_allocation_form_v1`), field `project_role_id`.
+As a tenant Super Admin, open native **Settings > Forms**, edit **Allocation form**,
+and configure the **Project role** field picklist. Maintain its options through
+**Settings > Fields > Picklists** (initial name: **HRMS Project roles**).
+The application refreshes the choices when reopened/refocused or when a form save
+broadcasts a change. Server validation reads the current list for allocation
+requests, amendments, capacity previews and approval. Removed values cannot be
+used for new or approved allocations; existing allocation history retains its
+saved role label. Labels can change independently of stable option values.
+
+The installer attaches a native picklist through public platform APIs. Its six
+initial roles are Project Manager, Engineer, QA Engineer, Designer, Business
+Analyst and Consultant. On first migration, it also includes all legacy project
+roles, preserving their IDs as static values so existing drafts continue to work.
+New options may use ordinary string values; no ProjectRole record is required.
+Existing picklist bindings and configured enum choices are preserved, and later
+installs do not re-add deliberately removed options or reset a tenant's list.
+
+Run the regular HRMS installation, or run the targeted migration with the same
+installer environment: `python -m hrms_app.install_project_roles`. Deploy this
+configuration migration together with the API/UI change. An empty list remains
+empty with guidance in the form; a missing/inactive form produces an error.

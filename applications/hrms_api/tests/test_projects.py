@@ -3,6 +3,7 @@ from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
+from hrms_app.catalog import pack_by_type
 from hrms_app.errors import AppError
 from hrms_app.policy import ROLE_CAPABILITIES
 from hrms_app.project_catalog import (
@@ -14,6 +15,21 @@ from hrms_app.project_catalog import (
 from hrms_app.project_contracts import Action
 from hrms_app.projects import ProjectsService, capacity_segments
 from test_performance import Journal, Platform, actor
+
+
+class ProjectPlatform(Platform):
+    def __init__(self):
+        super().__init__()
+        self.role_options = []
+        self.role_form = {**pack_by_type(ALLOCATION).form_request(), 'fields': [
+            {'field': 'project_role_id', 'type': 'enum', 'picklist_id': 'staffing-roles'}]}
+
+    def call(self, method, path, **kwargs):
+        if method == 'GET' and path == '/forms/config':
+            return {'items': [deepcopy(self.role_form)]}
+        if method == 'GET' and path == '/config/picklists':
+            return {'items': [{'id': 'staffing-roles', 'options': deepcopy(self.role_options)}]}
+        return super().call(method, path, **kwargs)
 
 
 class ProjectJournal(Journal):
@@ -34,7 +50,7 @@ class ProjectJournal(Journal):
 
 @pytest.fixture
 def system():
-    platform, journal = Platform(), ProjectJournal()
+    platform, journal = ProjectPlatform(), ProjectJournal()
     ids = {
         key: str(uuid4())
         for key in (
@@ -51,6 +67,7 @@ def system():
     }
     platform.add(CUSTOMER, {"name": "Customer"}, entity_id=ids["customer"])
     platform.add(ROLE, {"name": "Engineer"}, entity_id=ids["role"])
+    platform.role_options = [{"value": ids["role"], "label": "Engineer"}]
     people = [
         {"id": ids[k], "name": k, "capabilities": ROLE_CAPABILITIES[r]}
         for k, r in [
@@ -431,6 +448,7 @@ def test_tenant_and_draft_visibility(system):
 
 def test_configured_allocation_access_is_enforced(system):
     from dataclasses import replace
+
     from hrms_app.policy import capabilities
     service, platform, _, ids = system
     project = open_project(system)
@@ -450,6 +468,7 @@ def test_configured_allocation_access_is_enforced(system):
 
 def test_project_policy_cannot_grant_core_or_hr_permissions():
     from dataclasses import replace
+
     from hrms_app.policy import capabilities
     from hrms_app.project_access import validate_project_access
     for grants in [['platform:configure'], ['employee:create'], ['allocation:request'], ['project:view', 'allocation:request']]:
@@ -461,3 +480,47 @@ def test_project_policy_cannot_grant_core_or_hr_permissions():
     sa = replace(actor('admin', 'superadmin'), project_policy={'superadmin': []})
     assert 'platform:configure' in capabilities(sa)
     assert 'project:view' not in capabilities(sa)
+
+
+def test_project_role_options_follow_all_native_picklist_values_and_labels(system):
+    service, platform, _, ids = system
+    platform.role_options = [{'value': f'role-{i}', 'label': f'Role {i}'} for i in range(40)]
+    options = service.options(actor(ids['pm'], 'hrms_project_manager'))
+    assert options['project_roles'] == [{'id': o['value'], 'name': o['label']} for o in platform.role_options]
+    platform.role_options = [{'value': 'architect', 'label': 'Solution Architect'}]
+    assert service.options(actor(ids['pm'], 'hrms_project_manager'))['project_roles'] == [
+        {'id': 'architect', 'name': 'Solution Architect'}]
+
+
+def test_allocation_accepts_static_picklist_value_without_role_record(system):
+    _, platform, _, ids = system
+    project = open_project(system)
+    platform.role_options.append({'value': 'architect', 'label': 'Solution Architect'})
+    data = allocation_data(ids)
+    data['project_role_id'] = 'architect'
+    change = perform(system, 'pm', project, 'request_allocation', data)['entity_id']
+    assert platform.rows[change]['data']['proposed']['project_role_name'] == 'Solution Architect'
+    perform(system, 'pm', change, 'submit')
+    perform(system, 'dm', change, 'approve')
+
+
+def test_removed_picklist_role_is_rejected_at_request_and_approval(system):
+    service, platform, _, ids = system
+    project = open_project(system)
+    change = perform(system, 'pm', project, 'request_allocation', allocation_data(ids))['entity_id']
+    perform(system, 'pm', change, 'submit')
+    platform.role_options = []
+    assert service.options(actor(ids['pm'], 'hrms_project_manager'))['project_roles'] == []
+    with pytest.raises(AppError, match='current configured picklist'):
+        perform(system, 'dm', change, 'approve')
+    with pytest.raises(AppError, match='current configured picklist'):
+        perform(system, 'pm', project, 'request_allocation', allocation_data(ids))
+    assert platform.rows[change]['state'] == 'pending'
+
+
+def test_project_role_form_missing_or_inactive_fails_closed(system):
+    service, platform, _, ids = system
+    platform.role_form['is_active'] = False
+    with pytest.raises(AppError) as error:
+        service.options(actor(ids['pm'], 'hrms_project_manager'))
+    assert error.value.status == 409

@@ -3,13 +3,13 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ProjectAction } from './ProjectsPage';
 
-const state = vi.hoisted(() => ({allowed:true, readonly:false, fail:false, posts:[] as Record<string, unknown>[]}));
+const state = vi.hoisted(() => ({allowed:true, readonly:false, fail:false, posts:[] as Record<string, unknown>[], roleOptions:[] as {id:string;name:string}[]}));
 vi.mock('../capabilities', () => ({useHrmsCapabilities:()=>({data:{capabilities:state.allowed ? ['customer:create'] : []}})}));
 vi.mock('@/core/services/api/client', () => ({
   getApiErrorMessage:(error:Error)=>error.message,
   request:vi.fn(async (path:string, options?:{body:string})=>{
     if (path.includes('/forms/')) return {fields:state.readonly && path.endsWith('HRMS.Project') ? [{field:'customer_name', read_only:true}] : []};
-    if (path.endsWith('/options')) return {customers:[],pms:[],dms:[],approvers:[],employees:[],project_roles:[]};
+    if (path.endsWith('/options')) return {customers:[],pms:[],dms:[],approvers:[],employees:[],project_roles:state.roleOptions};
     if (options?.body) {
       state.posts.push(JSON.parse(options.body));
       if (state.fail) throw new Error('Network unavailable');
@@ -18,9 +18,9 @@ vi.mock('@/core/services/api/client', () => ({
     return [];
   }),
 }));
-function show() {
+function show(action = 'create_project') {
   const client = new QueryClient({defaultOptions:{queries:{retry:false},mutations:{retry:false}}});
-  return render(<QueryClientProvider client={client}><ProjectAction action="create_project" done={vi.fn()} /></QueryClientProvider>);
+  return render(<QueryClientProvider client={client}><ProjectAction action={action} done={vi.fn()} /></QueryClientProvider>);
 }
 async function startCustomer() {
   fireEvent.change(await screen.findByLabelText('Name'), {target:{value:'Project draft'}});
@@ -28,7 +28,7 @@ async function startCustomer() {
   await screen.findByRole('heading',{name:'Create customer'});
   fireEvent.change(await screen.findByLabelText('Name'), {target:{value:'New customer'}});
 }
-beforeEach(()=>{state.allowed=true;state.readonly=false;state.fail=false;state.posts=[];});
+beforeEach(()=>{state.allowed=true;state.readonly=false;state.fail=false;state.posts=[];state.roleOptions=[];});
 afterEach(cleanup);
 
 describe('Customer creation within a project draft',()=>{
@@ -64,5 +64,26 @@ describe('Customer creation within a project draft',()=>{
     state.allowed=restriction!=='permission'; state.readonly=restriction==='readonly';
     show(); await screen.findByLabelText('Customer');
     expect(screen.queryByRole('button',{name:'Create customer'})).toBeNull();
+  });
+});
+
+
+describe('Configured project role choices',()=>{
+  it('shows every configured role label with its static value and refreshes after Settings changes',async()=>{
+    state.roleOptions=Array.from({length:12},(_,i)=>({id:`role-${i}`,name:`Role ${i}`}));
+    show('request_allocation');
+    const role=await screen.findByLabelText('Project role') as HTMLSelectElement;
+    await waitFor(()=>expect(role.options).toHaveLength(13));
+    fireEvent.change(role,{target:{value:'role-11'}});
+    expect(role.value).toBe('role-11');
+    state.roleOptions=[{id:'architect',name:'Solution Architect'}];
+    window.dispatchEvent(new Event('form-schemas-changed'));
+    await screen.findByRole('option',{name:'Solution Architect'});
+    expect(screen.queryByRole('option',{name:'Role 11'})).toBeNull();
+  });
+  it('explains an empty picklist without inventing default choices',async()=>{
+    show('request_allocation');
+    expect(await screen.findByText(/No project roles are configured/)).toBeTruthy();
+    expect((screen.getByLabelText('Project role') as HTMLSelectElement).options).toHaveLength(1);
   });
 });

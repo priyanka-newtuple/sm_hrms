@@ -58,7 +58,7 @@ class ProjectInput(Dates):
 
 class AllocationInput(Dates):
     employee_id: UUID
-    project_role_id: UUID
+    project_role_id: str = Field(min_length=1)
     percentage: float = Field(gt=0, le=100, allow_inf_nan=False)
     billable: Literal["yes", "no"] = "yes"
     billing_rate: float = Field(default=0, ge=0, allow_inf_nan=False)

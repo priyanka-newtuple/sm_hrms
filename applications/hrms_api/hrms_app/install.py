@@ -2,13 +2,14 @@
 import os
 
 from .catalog import PACKS
+from .cockpit_catalog import TYPES as COCKPIT_TYPES
 from .errors import AppError
+from .install_project_roles import install_project_role_picklist
 from .platform import PlatformClient
 from .policy import ROLE_CAPABILITIES
 from .project_catalog import TYPES as PROJECT_TYPES
-from .cockpit_catalog import TYPES as COCKPIT_TYPES
-from .wfh_catalog import TYPES as WFH_TYPES
 from .provisioning import ensure_tenant_administrator
+from .wfh_catalog import TYPES as WFH_TYPES
 
 
 def install():
@@ -65,10 +66,7 @@ def install():
                     matching = [api.call('POST', f"/workflow-state-machines/{draft['id']}/publish", json={'definition': definition})['state_machine']]
             machines[pack.machine_name] = matching[0]['machine_name']
 
-    project_roles = api.records('HRMS.ProjectRole', ['name'])
-    for role_name in ('Project Manager', 'Engineer', 'QA Engineer', 'Designer', 'Business Analyst', 'Consultant'):
-        if not any(r['data'].get('name') == role_name for r in project_roles):
-            api.create_record('HRMS.ProjectRole', {'name': role_name}, None)
+    install_project_role_picklist(api)
 
     roles = api.call('GET', '/roles')
     by_name = {r['name']: r for r in roles}
