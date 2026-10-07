@@ -88,10 +88,13 @@
 
 /* ── Single-screen login (light workspace theme) ───────────── */
 .hrms-login-screen { position:relative; isolation:isolate; overflow:hidden; display:grid; place-items:center; margin-top:calc(-1 * var(--pub-h, 0px)); min-height:100svh; padding:calc(var(--pub-h, 0px) + 8px) 16px 20px; background:radial-gradient(60% 70% at 85% 15%, #dbe7fb 0%, transparent 60%), radial-gradient(50% 60% at 10% 90%, #e8f0fe 0%, transparent 60%), linear-gradient(115deg,#ffffff 0%,#f3f7ff 55%,#e9f1ff 100%); }
+/* Office photo background: covers every viewport, focal point tuned per breakpoint. */
+.hrms-login-photo { position:absolute; inset:0; z-index:-3; overflow:hidden; }
+.hrms-login-photo img { width:100%; height:100%; object-fit:cover; object-position:55% 60%; filter:saturate(.92); }
+/* Light cobalt veil keeps the theme and text contrast: strongest behind the copy, lighter where the photo shows. */
+.hrms-login-veil { position:absolute; inset:0; z-index:-2; pointer-events:none; background:linear-gradient(100deg, rgba(244,248,255,.9) 0%, rgba(244,248,255,.74) 36%, rgba(230,239,255,.42) 62%, rgba(10,31,77,.22) 100%), radial-gradient(70% 60% at 80% 20%, rgba(0,71,171,.18), transparent 70%); }
 .hrms-waves { position:absolute; inset:0; z-index:-1; overflow:hidden; pointer-events:none; }
 .hrms-waves canvas { display:block; width:100%; height:100%; }
-/* Fade the lines out behind the content so text and cards stay crisp. */
-.hrms-login-waves { mask-image:radial-gradient(120% 90% at 50% 50%, black 30%, rgba(0,0,0,.55) 75%); -webkit-mask-image:radial-gradient(120% 90% at 50% 50%, black 30%, rgba(0,0,0,.55) 75%); }
 .hrms-login-panel { position:relative; display:grid; grid-template-columns:minmax(0,1.15fr) minmax(360px,.85fr); align-items:center; gap:64px; width:100%; max-width:1240px; padding:24px 32px; }
 /* Heading and illustration always share one row; the art column scales with the viewport. */
 .hrms-login-intro-row { display:grid; grid-template-columns:minmax(0,1fr) clamp(150px,21vw,300px); align-items:center; gap:8px; margin-bottom:18px; }
@@ -130,6 +133,9 @@
   .hrms-login-panel { grid-template-columns:1fr; gap:28px; max-width:600px; padding:0; }
   .hrms-login-info { padding:0 4px; }
   .hrms-login-info .hrms-resource-grid { display:none; }
+  /* Portrait crop: keep the team at the desks in view. */
+  .hrms-login-photo img { object-position:42% 72%; }
+  .hrms-login-veil { background:linear-gradient(180deg, rgba(244,248,255,.9) 0%, rgba(244,248,255,.62) 34%, rgba(230,239,255,.4) 70%, rgba(10,31,77,.25) 100%); }
   .hrms-login-glow--a { width:260px; height:260px; right:-40px; top:auto; bottom:22%; }
   .hrms-login-glow--b { width:200px; height:200px; right:auto; left:-30px; bottom:4%; }
   .hrms-login-glow--c { display:none; }
@@ -196,7 +202,10 @@
 .hrms-login-screen .hrms-field-box input:-webkit-autofill { -webkit-box-shadow:0 0 0 40px #eef4fd inset; }
 .hrms-login-screen .hrms-sso button { background:rgba(255,255,255,.5); border-color:rgba(255,255,255,.85); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); }
 .hrms-login-screen .hrms-sso button:hover { background:rgba(255,255,255,.85); border-color:rgba(0,71,171,.2); }
-.hrms-login-screen .hrms-or::before, .hrms-login-screen .hrms-or::after { background:rgba(10,31,77,.1); }
+.hrms-login-screen .hrms-or { color:#4b5568; }
+.hrms-login-screen .hrms-or::before, .hrms-login-screen .hrms-or::after { background:rgba(10,31,77,.14); }
+/* A touch more opacity over the photo so labels stay legible. */
+.hrms-login-screen .hrms-login-card { background:linear-gradient(145deg, rgba(255,255,255,.72) 0%, rgba(255,255,255,.48) 50%, rgba(255,255,255,.36) 100%); }
 .hrms-login-screen .hrms-submit { box-shadow:0 16px 30px -14px rgba(0,71,171,.75), inset 0 1px 0 rgba(255,255,255,.25); }
 
 

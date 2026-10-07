@@ -1,20 +1,25 @@
 import { InformationLinks } from '../components/Brand';
 import { HrmsSignInForm } from '../login/HrmsSignInForm';
 import { SpotlightCard } from '../login/reactbits';
-import { Waves } from '../login/Waves';
 import { Illustration } from '../components/Illustration';
 import { usePrefersReducedMotion } from '../components/useReducedMotion';
 import '../login/login.css';
 
 /**
- * Single-screen login in the workspace's light theme over an animated line field (React Bits Waves):
+ * Single-screen login in the workspace's light theme over the Newtuple office photo:
  * published information on the left, the sign-in form on the right, nothing else.
  */
 export default function BrandedLoginPage() {
   const motion = !usePrefersReducedMotion();
 
   return <main className={`hrms-login hrms-login-screen${motion ? ' hrms-login--motion' : ''}`}>
-    <Waves animate={motion} className="hrms-login-waves" />
+    {/* Newtuple office photo: AVIF/WebP at three widths, chosen by viewport; decorative only. */}
+    <picture className="hrms-login-photo" aria-hidden="true">
+      <source type="image/avif" srcSet="/hrms-brand/login/office-768.avif 768w, /hrms-brand/login/office-1280.avif 1280w, /hrms-brand/login/office-1672.avif 1672w" sizes="100vw" />
+      <source type="image/webp" srcSet="/hrms-brand/login/office-768.webp 768w, /hrms-brand/login/office-1280.webp 1280w, /hrms-brand/login/office-1672.webp 1672w" sizes="100vw" />
+      <img src="/hrms-brand/login/office-1672.jpg" alt="" decoding="async" fetchPriority="high" />
+    </picture>
+    <span className="hrms-login-veil" aria-hidden="true" />
     <div className="hrms-login-panel">
       <span className="hrms-login-glow hrms-login-glow--a" aria-hidden="true" />
       <span className="hrms-login-glow hrms-login-glow--b" aria-hidden="true" />
