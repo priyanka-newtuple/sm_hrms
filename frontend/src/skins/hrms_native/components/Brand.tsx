@@ -112,13 +112,13 @@ export function PublicLayout() {
 }
 
 /** Numbered public-information cards; the cobalt fill rises on hover and keyboard focus. */
-export function InformationLinks() {
+export function InformationLinks({ includeExternal = true }: { includeExternal?: boolean }) {
   return <nav className="hrms-resource-grid" aria-label="Explore public information">{informationCategories.map(({ id, title, description, animatedIcon }) => <Link className="hrms-resource-card" key={id} to={`/public?category=${id}`}>
     <AnimIcon icon={animatedIcon} className="hrms-card-icon" size={28} />
     <span className="hrms-card-arrow" aria-hidden="true"><AnimIcon icon={ArrowUpRightIcon} size={18} /></span>
     <h3>{title}</h3><p>{description}</p>
   </Link>)}
-    {externalResources.map(({ id, title, description, href, icon }) => <a className="hrms-resource-card" key={id} href={href} target="_blank" rel="noopener noreferrer">
+    {includeExternal && externalResources.map(({ id, title, description, href, icon }) => <a className="hrms-resource-card" key={id} href={href} target="_blank" rel="noopener noreferrer">
     <AnimIcon icon={icon} className="hrms-card-icon" size={28} />
     <span className="hrms-card-arrow" aria-hidden="true"><AnimIcon icon={ArrowUpRightIcon} size={18} /></span>
     <h3>{title}</h3><p>{description}</p><span className="sr-only"> (opens in a new tab)</span>

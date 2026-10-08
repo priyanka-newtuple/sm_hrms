@@ -14,9 +14,12 @@ They have no footer; content ends at the page body. Signed-in pages keep `BrandF
 Public-page icons are lucide-animated components in `../animated-icons/` (source:
 `https://lucide-animated.com/r/<name>.json`). Render them through `AnimIcon`, which plays
 the icon when its nearest link/button is hovered or focused. `PublicLayout` wraps them in
-`MotionConfig reducedMotion="user"`. The login is a single, non-scrolling screen in the workspace's light theme over an animated
-cobalt line field (`login/Waves`, adapted from React Bits): published information cards on the
-left and the sign-in card on the right, with nothing else.
+`MotionConfig reducedMotion="user"`. The login uses the approved bright office composition: the Newtuple office photo with
+“MAKE IT HAPPEN” on the red pillar fades into four discovery cards on the left, with
+a white sign-in panel on the right. Tiffin Tuple and Templates remain as compact
+links below the cards. On phones the photo precedes the login form, then discovery.
+The existing logo asset and its rendering are unchanged. Public pages have no footer.
+
 
 `BrandLogo` clips the whitespace around the original logo canvas using CSS while
 preserving its aspect ratio. The geometric image is decorative and omitted from
