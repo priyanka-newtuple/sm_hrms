@@ -5,7 +5,7 @@ import pytest
 from hrms_app.cockpit import CockpitService, Command
 from hrms_app.errors import AppError
 from hrms_app.policy import capabilities
-from test_performance import Journal, Platform, actor
+from test_performance import UNMIGRATED_TENANT, Journal, Platform, actor
 
 
 @pytest.fixture
@@ -24,6 +24,8 @@ def system():
         if method == "GET" and path == "/forms/config":
             pack = pack_by_type(kwargs["params"]["entity_type"])
             return {"items": [pack.form_request()]}
+        if method == "GET" and path in UNMIGRATED_TENANT:
+            return UNMIGRATED_TENANT[path]
         return native(method, path, **kwargs)
 
     p.call = call
@@ -182,3 +184,31 @@ def test_cockpit_override_preserves_other_capabilities():
     changed = replace(who, cockpit_policy={"superadmin": []})
     assert "cockpit:view" not in capabilities(changed)
     assert "platform:configure" in capabilities(changed)
+
+
+def test_migrated_content_types_are_validated(system):
+    s, p, _ = system
+    pinned = [{"name": "draft", "method_refs": [{"method_id": "block"}]}]
+    schema = {
+        "HRMS.Policy": [{"field": "publish_from", "type": "datetime"}],
+        "HRMS.JobOpening": [{"field": "openings", "type": "int", "required": True}],
+    }
+    native = p.call
+
+    def call(method, path, **kwargs):
+        if method == "GET" and path == "/workflow-state-machines":
+            return {"published_items": [
+                {"entity_type": kind, "is_active": True, "name": kind,
+                 "definition": {"states": pinned, "entity_schema": {"fields": fields}}}
+                for kind, fields in schema.items()]}
+        return native(method, path, **kwargs)
+
+    p.call = call
+    who = actor("hrms_super_admin")
+    policy = {"title": "T", "body": "B", "audience": "employees", "approver_id": "approver"}
+    assert s.validate(who, "HRMS.Policy", {**policy, "publish_from": "2026-10-12"})
+    with pytest.raises(AppError, match="must be an ISO date"):
+        s.validate(who, "HRMS.Policy", {**policy, "publish_from": "next week"})
+    opening = {**policy, "job_description_id": "jd", "requisition_code": "R1", "hiring_manager_id": "approver"}
+    with pytest.raises(AppError, match="openings must be an integer"):
+        s.validate(who, "HRMS.JobOpening", {**opening, "openings": "2"})

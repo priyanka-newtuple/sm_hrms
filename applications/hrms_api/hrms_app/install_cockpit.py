@@ -5,6 +5,7 @@ import os
 from .catalog import pack_by_type
 from .cockpit_catalog import TYPES
 from .errors import AppError
+from .form_config import has_method_blocks
 from .platform import PlatformClient
 
 
@@ -48,9 +49,11 @@ def install():
                 )
         forms = api.call("GET", "/forms/config", params={"entity_type": kind})["items"]
         form = next((f for f in forms if f["schema_key"] == pack.schema_key), None)
-        if not form:
+        # A type moved onto method blocks is configured there; leave its legacy Form alone.
+        migrated = has_method_blocks(api, kind)
+        if not form and not migrated:
             api.call("POST", "/forms/config", json=pack.form_request())
-        else:
+        elif form and not migrated:
             known = {f["field"] for f in form["fields"]}
             additions = [f for f in pack.fields if f["field"] not in known]
             if additions:

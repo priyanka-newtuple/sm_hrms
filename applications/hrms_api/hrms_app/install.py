@@ -4,6 +4,7 @@ import os
 from .catalog import PACKS
 from .cockpit_catalog import TYPES as COCKPIT_TYPES
 from .errors import AppError
+from .form_config import has_method_blocks
 from .install_project_roles import install_project_role_picklist
 from .platform import PlatformClient
 from .policy import ROLE_CAPABILITIES
@@ -44,7 +45,8 @@ def install():
                 api.call('PUT', f'/entity-types/{pack.entity_type}', json={
                     'schema_definition': {**schema, 'fields': [*schema.get('fields', []), *additions]}})
         forms = api.call('GET', '/forms/config', params={'entity_type': pack.entity_type})['items']
-        if not any(f['schema_key'] == pack.schema_key for f in forms):
+        # A type moved onto method blocks is configured there; never recreate its legacy Form.
+        if not any(f['schema_key'] == pack.schema_key for f in forms) and not has_method_blocks(api, pack.entity_type):
             api.call('POST', '/forms/config', json=pack.form_request())
         if pack.states:
             published = api.call('GET', '/workflow-state-machines', params={'scope': 'published'})['published_items']
@@ -87,7 +89,8 @@ def install():
     role_spec = dict(name=service_name, display_name='HRMS Application Service',
         description='Internal API client for HRMS; never assign to a human user',
         permissions=[{'permission_key': key} for key in ['entity_record:write', 'workflow:read', 'workflow:write',
-            'user:read', 'user:write', 'role:read', 'form:read', 'integration:read']],
+            'user:read', 'user:write', 'role:read', 'form:read', 'integration:read',
+            'field_library:read', 'method_library:read']],
         entity_permissions=[{'entity_type': p.entity_type, 'action': action}
                             for p in runtime_packs for action in ['view', 'create', 'edit']],
         field_permissions=[{'entity_type': p.entity_type, 'field_name': field['field'],

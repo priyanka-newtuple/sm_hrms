@@ -15,6 +15,14 @@ def actor(user, *roles):
     return Actor(user, 'org', '', frozenset(roles), frozenset())
 
 
+# Native configuration reads for a tenant whose forms are not on method blocks yet.
+UNMIGRATED_TENANT = {
+    '/workflow-state-machines': {'published_items': []},
+    '/method-library/methods': {'items': []},
+    '/config/picklists': {'items': []},
+}
+
+
 class Platform:
     org = 'org'
     email = 'service@example.com'
