@@ -55,6 +55,12 @@ jobs:
           USER: ${{ vars.HRMS_DEPLOY_USER }}
           PORT: ${{ vars.HRMS_DEPLOY_PORT }}
           SHA: ${{ github.sha }}
+          EMAIL_ENABLED: ${{ secrets.EMAIL_ENABLED }}
+          EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
         run: |
           set -euo pipefail
           [[ "$SHA" =~ ^[a-f0-9]{40}$ ]]
@@ -68,3 +74,7 @@ jobs:
           ssh "${opts[@]}" -p "$PORT" "$USER@$HOST" "mkdir -p /opt/newtuple-hrms/releases/$SHA"
           scp "${opts[@]}" -P "$PORT" release/* "$USER@$HOST:/opt/newtuple-hrms/releases/$SHA/"
           ssh "${opts[@]}" -p "$PORT" "$USER@$HOST" "bash /opt/newtuple-hrms/releases/$SHA/deploy.sh $SHA"
+          # Pass email credentials only over SSH stdin, never command arguments or artifacts.
+          python3 -c 'import json, os; print(json.dumps({k: os.environ.get(k, "") for k in ("EMAIL_ENABLED", "EMAIL_FROM", "SMTP_HOST", "SMTP_PORT", "SMTP_USERNAME", "SMTP_PASSWORD")}))' | \
+            ssh "${opts[@]}" -p "$PORT" "$USER@$HOST" \
+              "IMAGE_TAG=$SHA docker compose --project-name newtuple-hrms-production --env-file /opt/newtuple-hrms/production.env -f /opt/newtuple-hrms/releases/$SHA/compose.yml run --rm -T --no-deps platform-install python -m hrms_app.configure_email"

@@ -8,6 +8,7 @@ import json
 from pathlib import Path
 
 from .errors import AppError
+from .employee_access import identity_roles, may_manage
 from .onboarding_template import DEFAULT_ONBOARDING_STEPS
 from .policy import capabilities, require
 
@@ -60,7 +61,23 @@ class HrmsService:
     def directory(self, actor):
         require(actor, 'employee:read')
         rows = self.employees()
-        return sorted([self.employee_item(row, rows) for row in rows], key=lambda r: r['full_name'].casefold())
+        users = {u['id']: u for u in self.platform.users()}
+        states = self.platform.states('hrms_onboardingcase')
+        cases = {c['data'].get('employee_id'): c for c in self.platform.records(CASE, CASE_FIELDS)}
+        result = []
+        for row in rows:
+            item = self.employee_item(row, rows)
+            user = users.get(row['data'].get('platform_user_id'))
+            item['account_status'] = user['status'] if user else 'not_linked'
+            item['uses_google_sign_in'] = bool(user and user.get('auth_type') == 'google')
+            item['can_setup_access'] = bool(user and user.get('organization_id') == actor.organization_id
+                and user['status'] in {'pending', 'active'} and item['employment_status'] == 'active'
+                and 'employee:activate' in capabilities(actor)
+                and may_manage(actor, identity_roles(self.platform, actor, user)))
+            case = cases.get(row['entity_id'])
+            item['onboarding_state'] = states.get(case['entity_id'], 'not_started') if case else 'not_started'
+            result.append(item)
+        return sorted(result, key=lambda r: r['full_name'].casefold())
 
     def form_options(self, actor):
         require(actor, 'employee:create')
@@ -69,7 +86,7 @@ class HrmsService:
         if 'employee:assign_hr_role' in capabilities(actor):
             roles += ['hrms_manager', 'hrms_hr_basic']
         if 'employee:assign_hr_full' in capabilities(actor):
-            roles += ['hrms_hr_full']
+            roles += ['hrms_hr_full', 'hrms_project_manager', 'hrms_delivery_manager']
         return dict(departments=sorted(set(REFERENCE_OPTIONS['departments']) | {r['data']['department'] for r in rows if r['data'].get('department')}),
                     designations=sorted(set(REFERENCE_OPTIONS['designations']) | {r['data']['designation'] for r in rows if r['data'].get('designation')}), roles=roles)
 
@@ -175,6 +192,19 @@ class HrmsService:
             existing = next((r for r in rows if str(r['data'].get('work_email', '')).lower() == email), None)
             if existing and existing['data'].get('hrms_operation_key') != marker:
                 raise AppError(409, 'An employee with this work email already exists')
+            users = self.platform.users()
+            identity = next((u for u in users if u['email'].lower() == email), None)
+            if identity:
+                if identity.get('organization_id') != actor.organization_id or identity['status'] not in {'pending', 'active'}:
+                    raise AppError(409, 'Existing account requires administrator review')
+                if any(r['data'].get('platform_user_id') == identity['id'] and r is not existing for r in rows):
+                    raise AppError(409, 'This account is already linked to an employee')
+                assigned = identity_roles(self.platform, actor, identity)
+                if op.progress.get('identity_requested') and assigned - {'hrms_employee', request.role}:
+                    raise AppError(409, 'Account roles changed during provisioning; administrator reconciliation is required')
+                if not op.progress.get('identity_requested') and (request.role not in assigned or
+                        (assigned - {'hrms_employee'} and 'platform:configure' not in capabilities(actor))):
+                    raise AppError(403, 'Existing account access must be reviewed by Super Admin; select its current role')
             data = {k: v for k, v in payload.items() if k not in {'idempotency_key', 'reports_to_entity_id', 'role'}}
             data.update(work_email=email, employment_status='active', hrms_role=request.role,
                         reports_to_employee_code=manager['data'].get('employee_code') if manager else None,
@@ -184,10 +214,6 @@ class HrmsService:
             employee_id = existing['entity_id']
             op.checkpoint(employee_id=employee_id)
             # The public registration API creates a pending account without activating login.
-            users = self.platform.users()
-            identity = next((u for u in users if u['email'].lower() == email), None)
-            if identity and not op.progress.get('identity_requested'):
-                raise AppError(409, 'A platform account with this work email already exists')
             if not identity:
                 org = self.platform.call('GET', '/organizations/current')
                 if (org.get('domain') or '').lower() != self.domain:
@@ -201,13 +227,15 @@ class HrmsService:
                 if response.get('organization_id') != actor.organization_id or response.get('approval_type') != 'pending_org_admin':
                     raise AppError(409, 'Identity provisioning did not return a pending account in this organization')
                 identity = next(u for u in self.platform.users() if u['id'] == response['user_id'])
-            if identity['status'] not in {'pending', 'suspended'}:
-                raise AppError(409, 'The new employee identity must remain pending or suspended')
+            if identity['status'] not in {'pending', 'active'}:
+                raise AppError(409, 'The employee identity must be pending or active')
             roles = self.platform.call('GET', '/roles')
             role = next((r for r in roles if r['name'] == request.role), None)
             if not role:
                 raise AppError(409, 'The requested HRMS role has not been installed')
-            self.platform.call('PUT', f"/roles/users/{identity['id']}/role", json={'role_id': role['id']})
+            if op.progress.get('identity_requested') and identity['status'] == 'pending' and not op.progress.get('role_assigned'):
+                self.platform.call('PUT', f"/roles/users/{identity['id']}/role", json={'role_id': role['id']})
+                op.checkpoint(role_assigned=True)
             current = self.platform.record(employee_id)
             data = {**current['data'], 'employee_code': current['data']['identifier'], 'platform_user_id': identity['id']}
             self.platform.call('PUT', f'/entity-records/{employee_id}', json={'data': data})
@@ -247,7 +275,7 @@ class HrmsService:
             final = self.platform.record(employee_id)
             result = dict(employee=self.employee_item(final, rows), onboarding_entity_id=case_id,
                           onboarding_state=state, onboarding_task_count=len(DEFAULT_ONBOARDING_STEPS),
-                          account_status='pending', idempotent=False)
+                          account_status=identity['status'], idempotent=False)
             self.journal.audit(db, actor, 'employee.created', employee_id)
             op.finish(result)
             return result

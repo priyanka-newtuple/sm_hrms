@@ -17,6 +17,7 @@ from .settings_gateway import configuration_route, authorize_configuration
 from .requests import EmployeeCreateRequest, LeaveCreateRequest
 from .responses import EmployeeCreateResponse, EmployeeListItem, LeaveCreateResponse, LeaveListItem, OnboardingCaseItem
 from .service import HrmsService
+from .employee_access import setup_access
 from .workflow_view import workflow_rows
 from .performance import PerformanceService
 from .performance_contracts import Action as PerformanceAction
@@ -25,6 +26,10 @@ from .projects import ProjectsService
 from .project_contracts import Action as ProjectAction
 from .project_access import ProjectAccessRequest
 from .wfh import WfhService, PolicyInput, RequestInput, DecisionInput
+
+
+class EmployeeAccessRequest(BaseModel):
+    idempotency_key: str = Field(min_length=8, max_length=128)
 
 
 class Decision(BaseModel):
@@ -180,6 +185,10 @@ def create_app(platform=None, journal=None):
     @app.get('/v1/api/hrms/employees', response_model=list[EmployeeListItem])
     def directory(current=Depends(actor)):
         return service.directory(current)
+
+    @app.post('/v1/api/hrms/employees/{employee_id}/setup-access')
+    def employee_setup_access(employee_id: str, payload: EmployeeAccessRequest, current=Depends(actor)):
+        return setup_access(service, current, employee_id, payload.idempotency_key)
 
     @app.post('/v1/api/hrms/employees', response_model=EmployeeCreateResponse, status_code=201)
     def create_employee(payload: EmployeeCreateRequest, current=Depends(actor)):

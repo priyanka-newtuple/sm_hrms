@@ -87,7 +87,7 @@ def install():
     role_spec = dict(name=service_name, display_name='HRMS Application Service',
         description='Internal API client for HRMS; never assign to a human user',
         permissions=[{'permission_key': key} for key in ['entity_record:write', 'workflow:read', 'workflow:write',
-            'user:read', 'user:write', 'role:read', 'form:read']],
+            'user:read', 'user:write', 'role:read', 'form:read', 'integration:read']],
         entity_permissions=[{'entity_type': p.entity_type, 'action': action}
                             for p in runtime_packs for action in ['view', 'create', 'edit']],
         field_permissions=[{'entity_type': p.entity_type, 'field_name': field['field'],

@@ -30,7 +30,7 @@ class EmployeeCreateRequest(BaseModel):
     work_email: EmailStr
     department: str = Field(min_length=1, max_length=100)
     designation: str = Field(min_length=1, max_length=100)
-    role: Literal["hrms_employee", "hrms_manager", "hrms_hr_basic", "hrms_hr_full"] = (
+    role: Literal["hrms_employee", "hrms_manager", "hrms_hr_basic", "hrms_hr_full", "hrms_project_manager", "hrms_delivery_manager"] = (
         "hrms_employee"
     )
     reports_to_entity_id: str | None = None

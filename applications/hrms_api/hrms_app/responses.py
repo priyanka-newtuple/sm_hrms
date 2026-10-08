@@ -33,6 +33,10 @@ class EmployeeListItem(BaseModel):
     reports_to_name: str | None = None
     employment_status: str
     role: str
+    account_status: str = "not_linked"
+    onboarding_state: str = "not_started"
+    can_setup_access: bool = False
+    uses_google_sign_in: bool = False
 
 
 class EmployeeCreateResponse(BaseModel):

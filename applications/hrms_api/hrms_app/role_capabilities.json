@@ -22,7 +22,8 @@
     "cockpit:view",
     "cockpit:author",
     "wfh:view",
-    "wfh:request"
+    "wfh:request",
+    "employee:activate"
   ],
   "hrms_hr_full": [
     "employee:read",
@@ -41,7 +42,8 @@
     "wfh:view",
     "wfh:request",
     "wfh:configure",
-    "wfh:approve"
+    "wfh:approve",
+    "employee:activate"
   ],
   "hrms_office_admin": [
     "leave:create",
@@ -112,7 +114,8 @@
     "wfh:view",
     "wfh:request",
     "wfh:configure",
-    "wfh:approve"
+    "wfh:approve",
+    "employee:activate"
   ],
   "hrms_performance_approver": [
     "performance:approve_cycle",

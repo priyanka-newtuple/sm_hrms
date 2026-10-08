@@ -20,6 +20,10 @@ interface Employee {
   reports_to_name: string | null;
   employment_status: string;
   role: string;
+  account_status: string;
+  onboarding_state: string;
+  can_setup_access: boolean;
+  uses_google_sign_in: boolean;
 }
 interface Options { departments: string[]; designations: string[]; roles: string[] }
 interface CreatedEmployee {
@@ -31,6 +35,7 @@ interface CreatedEmployee {
 
 const labelForRole = (role: string) => ({
   hrms_employee: 'Employee', hrms_manager: 'Manager',
+  hrms_project_manager: 'Project Manager', hrms_delivery_manager: 'Delivery Manager',
   hrms_hr_basic: 'HR - Basic', hrms_hr_full: 'HR - Full',
 }[role] ?? role);
 
@@ -55,6 +60,7 @@ function EmployeeDirectory({ tabs }: { tabs: ReactNode }) {
   const [showForm, setShowForm] = useState(false);
   const [created, setCreated] = useState<CreatedEmployee | null>(null);
   const [error, setError] = useState('');
+  const [accessMessage, setAccessMessage] = useState('');
   const [key, setKey] = useState(() => createRequestId());
   const [form, setForm] = useState({
     first_name: '', last_name: '', work_email: '', department: '', designation: '',
@@ -94,6 +100,14 @@ function EmployeeDirectory({ tabs }: { tabs: ReactNode }) {
     },
     onError: (cause) => setError(getApiErrorMessage(cause)),
   });
+  const setupAccess = useMutation({
+    mutationFn: (employee: Employee) => request<{ message: string }>(`/hrms/employees/${employee.entity_id}/setup-access`, {
+      method: 'POST', body: JSON.stringify({ idempotency_key: createRequestId() }),
+    }),
+    onSuccess: (result) => setAccessMessage(result.message),
+    onError: (cause) => setAccessMessage(getApiErrorMessage(cause)),
+    onSettled: () => void queryClient.invalidateQueries({ queryKey: ['hrms'] }),
+  });
   const set = (field: keyof typeof form) => (value: string) => setForm((current) => ({ ...current, [field]: value }));
   function submit(event: FormEvent<HTMLFormElement>) { event.preventDefault(); create.mutate(); }
   const input = 'hrms-field-input';
@@ -110,8 +124,10 @@ function EmployeeDirectory({ tabs }: { tabs: ReactNode }) {
     {created && <div role="status" className="hrms-notice">
       <strong>{created.employee.full_name} ({created.employee.employee_code}) was added.</strong>{' '}
       Onboarding is {created.onboarding_state.replaceAll('_', ' ')} with {created.onboarding_task_count} assigned tasks.
+      {' '}Use the account access action below to activate the account and request a secure setup email.
       {' '}<Link to={`/hrms/onboarding?case=${created.onboarding_entity_id}`} className="hrms-text-link">View onboarding steps <ArrowRight size={15} /></Link>
     </div>}
+    {accessMessage && <div role={setupAccess.isError ? "alert" : "status"} className="hrms-notice">{accessMessage}</div>}
     <div className="hrms-filter-bar"><label className="hrms-search"><Search size={18} aria-hidden="true" /><input aria-label="Search employees" placeholder="Search by name, email or code…" value={search} onChange={(event) => setSearch(event.target.value)} className={input} /></label>
       <select aria-label="Employment status" value={status} onChange={(event) => setStatus(event.target.value)} className={input}>
         <option value="">All statuses</option><option value="active">Active</option><option value="on_leave">On leave</option><option value="offboarded">Offboarded</option>
@@ -122,16 +138,22 @@ function EmployeeDirectory({ tabs }: { tabs: ReactNode }) {
     {employees.data && <div className="hrms-surface hrms-directory">
       <div className="hrms-directory-heading"><span className="hrms-work-icon"><Users size={22} strokeWidth={1.25} /></span><div><h2>Employee directory</h2><p>{visible.length} of {employees.data.length} employees</p></div></div><div className="hrms-table-scroll">
       <table className="hrms-people-table"><thead className="bg-slate-50 text-slate-600"><tr>
-        {['Name', 'Code', 'Department', 'Designation', 'Reports To', 'Role', 'Status'].map((heading) => <th key={heading} className="p-3">{heading}</th>)}
+        {['Name', 'Code', 'Department', 'Designation', 'Reports To', 'Access role', 'Employment', 'Account access', 'Onboarding'].map((heading) => <th key={heading} className="p-3">{heading}</th>)}
       </tr></thead><tbody>{visible.map((employee) => <tr key={employee.entity_id} className="border-t border-slate-100">
         <td className="p-3"><strong>{employee.full_name}</strong><span className="hrms-employee-email">{employee.work_email}</span></td><td className="p-3">{employee.employee_code}</td><td className="p-3">{employee.department}</td>
         <td className="p-3">{employee.designation}</td><td className="p-3">{employee.reports_to_name || '—'}</td>
         <td className="p-3">{labelForRole(employee.role)}</td><td className="p-3"><span className="hrms-status" data-state={employee.employment_status}>{employee.employment_status.replaceAll('_', ' ')}</span></td>
-      </tr>)}{visible.length === 0 && <tr><td colSpan={7} className="hrms-empty-message">No employees match your filters.</td></tr>}</tbody></table></div>
+        <td className="p-3"><span>{(employee.account_status ?? 'not_linked').replaceAll('_', ' ')}</span>
+          {employee.can_setup_access && <button type="button" className="hrms-text-link" disabled={setupAccess.isPending}
+            onClick={() => { setAccessMessage(''); setupAccess.mutate(employee); }}>
+            {setupAccess.isPending && setupAccess.variables?.entity_id === employee.entity_id ? 'Requesting�' : employee.uses_google_sign_in ? 'Enable Google sign-in' : employee.account_status === 'pending' ? 'Activate & send setup email' : 'Request setup email'}
+          </button>}</td>
+        <td className="p-3">{(employee.onboarding_state ?? 'not_started').replaceAll('_', ' ')}</td>
+      </tr>)}{visible.length === 0 && <tr><td colSpan={9} className="hrms-empty-message">No employees match your filters.</td></tr>}</tbody></table></div>
     </div>}
     <Sheet open={showForm} onOpenChange={setShowForm}>
       <SheetContent className="hrms-brand hrms-employee-form overflow-y-auto data-[side=right]:w-full data-[side=right]:sm:max-w-2xl">
-        <SheetHeader><p className="hrms-eyebrow">GROW THE TEAM</p><SheetTitle>Add Employee</SheetTitle><p className="hrms-form-intro">Create an employee profile and start their onboarding journey.</p></SheetHeader>
+        <SheetHeader><p className="hrms-eyebrow">GROW THE TEAM</p><SheetTitle>Add Employee</SheetTitle><p className="hrms-form-intro">Create an employee profile, link their account, and start onboarding. New accounts wait for HR activation; privileged access requires Super Admin.</p></SheetHeader>
         {options.isLoading && <p role="status" className="hrms-work-feedback">Loading employee options…</p>}
         {options.isError && <div role="alert" className="hrms-notice hrms-notice--error">{getApiErrorMessage(options.error)}<button className="hrms-outline-button" onClick={() => void options.refetch()}>Try again</button></div>}
         <ConfiguredForm entityType="HRMS.Employee"><form onSubmit={submit} className="hrms-people-form">
@@ -144,7 +166,7 @@ function EmployeeDirectory({ tabs }: { tabs: ReactNode }) {
             <ConfiguredField field="department" label="Department" className="text-sm font-medium"><select required value={form.department} onChange={(e) => set('department')(e.target.value)} className={input}><option value="">Select department…</option>{options.data?.departments.map((item) => <option key={item} value={item}>{item}</option>)}</select></ConfiguredField>
             <ConfiguredField field="designation" label="Designation" className="text-sm font-medium"><select required value={form.designation} onChange={(e) => set('designation')(e.target.value)} className={input}><option value="">Select designation…</option>{options.data?.designations.map((item) => <option key={item} value={item}>{item}</option>)}</select></ConfiguredField>
           </div>
-          <ConfiguredField field="role" label="Role" className="block text-sm font-medium"><select required value={form.role} onChange={(e) => set('role')(e.target.value)} className={input}>{options.data?.roles.map((role) => <option key={role} value={role}>{labelForRole(role)}</option>)}</select></ConfiguredField>
+          <ConfiguredField field="role" label="Access role" className="block text-sm font-medium"><select required value={form.role} onChange={(e) => set('role')(e.target.value)} className={input}>{options.data?.roles.map((role) => <option key={role} value={role}>{labelForRole(role)}</option>)}</select></ConfiguredField>
           <ConfiguredField field="reports_to_employee_code" label="Reporting manager" className="block text-sm font-medium"><select value={form.reports_to_entity_id} onChange={(e) => set('reports_to_entity_id')(e.target.value)} className={input}><option value="">None</option>{employees.data?.filter((item) => item.employment_status === 'active').map((item) => <option key={item.entity_id} value={item.entity_id}>{item.full_name} · {item.designation}</option>)}</select></ConfiguredField>
           <div className="grid gap-3 sm:grid-cols-3">
             <ConfiguredField field="employment_type" label="Employment type" className="text-sm font-medium"><select value={form.employment_type} onChange={(e) => set('employment_type')(e.target.value)} className={input}><option value="full_time">Full time</option><option value="contract">Contract</option><option value="intern">Intern</option></select></ConfiguredField>
@@ -156,7 +178,7 @@ function EmployeeDirectory({ tabs }: { tabs: ReactNode }) {
             <ConfiguredField field="work_location" label="Work location" className="text-sm font-medium"><input maxLength={100} value={form.work_location} onChange={(e) => set('work_location')(e.target.value)} className={input} /></ConfiguredField>
           </div>
           {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
-          <div className="hrms-form-actions"><button type="button" onClick={() => setShowForm(false)} className="hrms-outline-button">Cancel</button><button type="submit" disabled={create.isPending || !options.data} className="hrms-primary-button">{create.isPending ? 'Creating…' : 'Create employee'}</button></div>
+          <div className="hrms-form-actions"><button type="button" onClick={() => setShowForm(false)} className="hrms-outline-button">Cancel</button><button type="submit" disabled={create.isPending || !options.data} className="hrms-primary-button">{create.isPending ? 'Creating…' : 'Create employee & start onboarding'}</button></div>
         </form></ConfiguredForm>
       </SheetContent>
     </Sheet>
