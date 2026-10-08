@@ -14,7 +14,7 @@ from hrms_app.project_catalog import (
 )
 from hrms_app.project_contracts import Action
 from hrms_app.projects import ProjectsService, capacity_segments
-from test_performance import Journal, Platform, actor
+from test_performance import UNMIGRATED_TENANT, Journal, Platform, actor
 
 
 class ProjectPlatform(Platform):
@@ -28,7 +28,9 @@ class ProjectPlatform(Platform):
         if method == 'GET' and path == '/forms/config':
             return {'items': [deepcopy(self.role_form)]}
         if method == 'GET' and path == '/config/picklists':
-            return {'items': [{'id': 'staffing-roles', 'options': deepcopy(self.role_options)}]}
+            return {'items': [{'id': 'staffing-roles', 'name': 'HRMS Project roles', 'options': deepcopy(self.role_options)}]}
+        if method == 'GET' and path in UNMIGRATED_TENANT:
+            return UNMIGRATED_TENANT[path]
         return super().call(method, path, **kwargs)
 
 
@@ -491,6 +493,15 @@ def test_project_role_options_follow_all_native_picklist_values_and_labels(syste
     platform.role_options = [{'value': f'role-{i}', 'label': f'Role {i}'} for i in range(40)]
     options = service.options(actor(ids['pm'], 'hrms_project_manager'))
     assert options['project_roles'] == [{'id': o['value'], 'name': o['label']} for o in platform.role_options]
+    platform.role_options = [{'value': 'architect', 'label': 'Solution Architect'}]
+    assert service.options(actor(ids['pm'], 'hrms_project_manager'))['project_roles'] == [
+        {'id': 'architect', 'name': 'Solution Architect'}]
+
+
+def test_a_plain_text_role_field_offers_the_tenant_role_picklist(system):
+    # A form migrated before the role picklist was bound keeps project_role_id as text.
+    service, platform, _, ids = system
+    platform.role_form['fields'] = [{'field': 'project_role_id', 'type': 'string', 'enum_values': []}]
     platform.role_options = [{'value': 'architect', 'label': 'Solution Architect'}]
     assert service.options(actor(ids['pm'], 'hrms_project_manager'))['project_roles'] == [
         {'id': 'architect', 'name': 'Solution Architect'}]

@@ -3,6 +3,7 @@
 import os
 
 from .catalog import pack_by_type
+from .form_config import has_method_blocks
 from .platform import PlatformClient
 from .project_catalog import ALLOCATION, ROLE
 
@@ -23,6 +24,8 @@ def install_project_role_picklist(api):
         "items"
     ]
     form = next((f for f in forms if f["schema_key"] == pack.schema_key), None)
+    if form is None and has_method_blocks(api, ALLOCATION):
+        return  # The role list lives on the Allocation method block's field now.
     if form is None:
         raise RuntimeError(
             "Install the Allocation form before installing project roles"

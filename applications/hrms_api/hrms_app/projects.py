@@ -5,6 +5,7 @@ from datetime import UTC, date, datetime, timedelta
 
 from .catalog import pack_by_type
 from .form_config import form_configuration
+from .install_project_roles import PICKLIST_NAME
 from .performance import PerformanceService, check, parse
 from .policy import capabilities, require
 from .project_catalog import (
@@ -289,13 +290,21 @@ class ProjectsService:
         }
 
     def project_roles(self, actor):
-        """Current tenant form/picklist is the sole source of selectable staffing roles."""
+        """The Allocation form's role select; a plain-text role field offers the tenant's role picklist."""
+        missing = 'Configure the Project role picklist in the Allocation form in Settings'
         form = form_configuration(self.platform, actor, ALLOCATION)
         field = next((f for f in form['fields'] if f['field'] == 'project_role_id'), None)
-        check(field is not None and field.get('enum_values') is not None,
-              'Configure the Project role picklist in the Allocation form in Settings', 409)
-        labels = field.get('enum_labels', {})
-        return [{'id': value, 'name': labels.get(value, value)} for value in field['enum_values']]
+        check(field is not None, missing, 409)
+        if field.get('type') == 'enum':
+            values, labels = field.get('enum_values') or [], field.get('enum_labels') or {}
+        else:
+            picklist = next((p for p in self.platform.call('GET', '/config/picklists')['items']
+                             if p.get('name') == PICKLIST_NAME), None)
+            check(picklist is not None, missing, 409)
+            options = picklist.get('options', [])
+            values = [o['value'] if isinstance(o, dict) else o for o in options]
+            labels = {o['value']: o.get('label', o['value']) for o in options if isinstance(o, dict)}
+        return [{'id': value, 'name': labels.get(value, value)} for value in values]
 
     def project_role(self, actor, value):
         role = next((r for r in self.project_roles(actor) if r['id'] == value), None)

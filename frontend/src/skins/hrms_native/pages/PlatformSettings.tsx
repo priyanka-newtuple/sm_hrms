@@ -32,7 +32,8 @@ export function ConfigurationGuard({children}: {children: ReactNode}) {
 const TAB_COMPONENTS: Partial<Record<SettingsTab, React.ComponentType>> = {
   funnels: lazy(() => import('../../../pages/settings/components/funnels/FunnelsTab')),
   fields: lazy(() => import('../../../pages/settings/components/fields/FieldsTab')),
-  forms: lazy(() => import('../../../pages/settings/components/form-config/FormConfigTab')),
+  // `forms` is the platform's public route for the Method Library, not the legacy Form Configuration.
+  forms: lazy(() => import('../../../pages/settings/components/methods/MethodsTab')),
   automations: lazy(() => import('../../../pages/settings/components/automations/AutomationsTab')),
   agents: lazy(() => import('../../../pages/settings/components/agents/AgentsTab')),
   agent_runs: lazy(() => import('../../../pages/settings/components/agents/AgentRunConsole')),

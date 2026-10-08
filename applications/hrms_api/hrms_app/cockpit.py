@@ -9,8 +9,14 @@ from pydantic import BaseModel, ConfigDict, Field
 from .catalog import pack_by_type
 from .cockpit_catalog import INTERNAL, TYPES
 from .errors import AppError
+from .form_config import configured_form
 from .policy import capabilities, require, role_capabilities
 from .workflow_config import configured_workflow_rows
+
+# Native field types a content value is checked against. `datetime` is where date
+# fields land in the Field Library; the cockpit still stores ISO dates in them.
+TEXT_TYPES = {"string", "text", "email", "enum", "date", "datetime", "phone", "url"}
+INTEGER_TYPES = {"int", "integer"}
 
 
 class Command(BaseModel):
@@ -207,19 +213,7 @@ class CockpitService:
         check(kind in TYPES, "Unsupported content type")
         pack = pack_by_type(kind)
         fields = {f["field"]: f for f in pack.fields}
-        forms = self.platform.call(
-            "GET", "/forms/config", params={"entity_type": kind}
-        )["items"]
-        form = next(
-            (
-                f
-                for f in forms
-                if f["schema_key"] == pack.schema_key and f.get("is_active", True)
-            ),
-            None,
-        )
-        check(form is not None, "Content form is missing or inactive", 409)
-        for f in form["fields"]:
+        for f in configured_form(self.platform, kind)["fields"]:
             if f["field"] not in INTERNAL:
                 fields[f["field"]] = {**fields.get(f["field"], {}), **f}
         allowed = set(fields) - INTERNAL | {"approver_id"}
@@ -235,14 +229,19 @@ class CockpitService:
                 continue
             if f.get("enum_values"):
                 check(value in f["enum_values"], f"{key} is not a configured option")
-            if f["type"] in {"string", "text", "email", "enum", "date"}:
+            if f["type"] in TEXT_TYPES:
                 check(isinstance(value, str), f"{key} must be text")
             if f["type"] == "date":
                 try:
                     date.fromisoformat(value)
                 except (ValueError, TypeError):
                     raise AppError(422, f"{key} must be an ISO date")
-            if f["type"] == "integer":
+            if f["type"] == "datetime":
+                try:
+                    datetime.fromisoformat(value)
+                except (ValueError, TypeError):
+                    raise AppError(422, f"{key} must be an ISO date")
+            if f["type"] in INTEGER_TYPES:
                 check(
                     isinstance(value, int) and not isinstance(value, bool),
                     f"{key} must be an integer",
@@ -355,18 +354,7 @@ class CockpitService:
                 if creating or cmd.action == "edit":
                     data = cmd.data
                     if cmd.action == "edit":
-                        forms = self.platform.call(
-                            "GET", "/forms/config", params={"entity_type": kind}
-                        )["items"]
-                        form = next(
-                            (
-                                f
-                                for f in forms
-                                if f["schema_key"] == pack_by_type(kind).schema_key
-                            ),
-                            {},
-                        )
-                        for field in form.get("fields", []):
+                        for field in configured_form(self.platform, kind)["fields"]:
                             if (
                                 field.get("read_only")
                                 and field["field"] not in INTERNAL
