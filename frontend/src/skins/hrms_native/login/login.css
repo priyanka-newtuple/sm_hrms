@@ -93,19 +93,17 @@
 .hrms-login-photo img { position:absolute; width:100%; height:100%; object-fit:cover; object-position:50% 57%; }
 .hrms-login-photo::after { content:''; position:absolute; inset:0; background:linear-gradient(0deg,#f8faff 0%,rgba(248,250,255,.75) 7%,transparent 24%),linear-gradient(90deg,transparent 90%,#f5f9ff 100%); }
 .hrms-login-info { grid-area:discover; position:relative; }
-.hrms-login-info h1 { margin:0 0 8px; color:var(--ink); font-size:clamp(30px,3.35vw,54px); font-weight:300; line-height:1.12; letter-spacing:-.045em; }
-.hrms-login-tagline { margin:0 0 20px; color:#63728b; font-size:clamp(15px,1.45vw,21px); line-height:1.5; }
-.hrms-login-info .hrms-resource-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
-.hrms-login-info .hrms-resource-card { position:relative; display:grid; grid-template-columns:36px minmax(0,1fr); column-gap:14px; align-content:center; min-height:88px; padding:16px 35px 16px 18px; border:1px solid #e2eaf6; border-radius:16px; background:#fff; color:var(--ink); text-decoration:none; box-shadow:0 8px 22px -15px #aac0e0; transition:box-shadow .2s,border-color .2s; }
-.hrms-login-info .hrms-card-icon { grid-row:1 / 3; align-self:center; width:32px; height:32px; padding:0; color:var(--cobalt); background:none; }
-.hrms-login-info .hrms-card-arrow { position:absolute; right:12px; top:50%; transform:translateY(-50%); color:var(--cobalt); }
-.hrms-login-info .hrms-resource-card h3 { margin:0 0 4px; padding:0; font-size:14px; font-weight:600; line-height:1.3; }
-.hrms-login-info .hrms-resource-card p { margin:0; color:#63728b; font-size:12px; line-height:1.4; }
+.hrms-login-info h1 { margin:0 0 8px; color:var(--ink); font-size:clamp(28px,2.7vw,42px); font-weight:300; line-height:1.12; letter-spacing:-.045em; }
+.hrms-login-tagline { margin:0 0 14px; color:#63728b; font-size:clamp(14px,1.2vw,18px); line-height:1.5; }
+.hrms-login-info .hrms-resource-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; max-height:clamp(180px,30svh,300px); overflow-y:auto; padding:4px; margin:-4px; scrollbar-width:thin; scrollbar-color:#b4c8e6 transparent; }
+.hrms-login-info .hrms-resource-card { position:relative; display:grid; grid-template-columns:28px minmax(0,1fr); column-gap:10px; align-content:center; min-height:72px; padding:12px 27px 12px 12px; border:1px solid #e2eaf6; border-radius:16px; background:#fff; color:var(--ink); text-decoration:none; box-shadow:0 8px 22px -15px #aac0e0; transition:box-shadow .2s,border-color .2s; }
+.hrms-login-info .hrms-card-icon { grid-row:1 / 3; align-self:center; width:25px; height:25px; padding:0; color:var(--cobalt); background:none; }
+.hrms-login-info .hrms-card-arrow { position:absolute; right:8px; top:50%; transform:translateY(-50%); color:var(--cobalt); }
+.hrms-login-info .hrms-resource-card h3 { margin:0 0 4px; padding:0; font-size:13px; font-weight:600; line-height:1.3; }
+.hrms-login-info .hrms-resource-card p { margin:0; color:#63728b; font-size:11px; line-height:1.4; }
 .hrms-login-info .hrms-resource-card:hover { border-color:#a3bde6; box-shadow:0 8px 24px -12px #9bb4dc; }
 .hrms-login-info .hrms-resource-card::before { display:none; }
-.hrms-login-tools { display:flex; flex-wrap:wrap; gap:20px; margin-top:16px; }
-.hrms-login-tools a { display:inline-flex; align-items:center; gap:7px; font-size:12px; color:var(--cobalt); }
-.hrms-login-tools a:focus-visible,.hrms-login-info .hrms-resource-card:focus-visible { outline:2px solid var(--cobalt); outline-offset:4px; }
+.hrms-login-info .hrms-resource-card:focus-visible { outline:2px solid var(--cobalt); outline-offset:2px; }
 .hrms-login-screen .hrms-login-card { grid-area:access; align-self:center; width:100%; margin:28px 0; padding:clamp(24px,3vw,46px) clamp(24px,2.3vw,36px); background:white; border:1px solid #edf2fa; border-radius:28px; box-shadow:0 16px 55px -30px #b5c9e8; backdrop-filter:none; }
 .hrms-login-screen .hrms-signin-head { text-align:center; }
 .hrms-login-screen .hrms-index-label { justify-content:center; }
@@ -123,9 +121,9 @@
   .hrms-login-screen { padding-bottom:18px; }
   .hrms-login-panel { min-height:calc(100svh - var(--pub-h,84px) - 18px); grid-template-rows:minmax(220px,1fr) auto; }
   .hrms-login-photo { min-height:220px; }
-  .hrms-login-info h1 { font-size:clamp(28px,3vw,44px); }
+  .hrms-login-info h1 { font-size:clamp(28px,2.7vw,38px); }
   .hrms-login-tagline { margin-bottom:14px; }
-  .hrms-login-info .hrms-resource-card { min-height:76px; padding-block:12px; }
+  .hrms-login-info .hrms-resource-card { min-height:72px; padding-block:10px; }
   .hrms-login-screen .hrms-login-card { padding:26px; margin:16px 0; }
   .hrms-login-screen .hrms-signin-head h2 { font-size:32px; }
   .hrms-mode-switch { margin:18px 0; }
@@ -137,8 +135,12 @@
   .hrms-login-photo { min-height:0; margin-inline:-24px; }
   .hrms-login-photo img { object-position:50% 62%; }
   .hrms-login-screen .hrms-login-card { max-width:480px; justify-self:center; margin:0 0 32px; }
+  .hrms-login-info .hrms-resource-grid { grid-template-columns:repeat(2,minmax(0,1fr)); max-height:none; overflow:visible; }
   .hrms-login-info h1 { font-size:clamp(28px,5vw,38px); }
   .hrms-login-tagline { font-size:15px; }
+}
+@media (min-width:1001px) and (max-width:1199px) {
+  .hrms-login-info .hrms-resource-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
 }
 @media (max-width:480px) {
   .hrms-login-screen { padding-inline:16px; }

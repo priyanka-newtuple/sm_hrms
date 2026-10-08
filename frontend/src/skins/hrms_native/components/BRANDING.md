@@ -15,9 +15,11 @@ Public-page icons are lucide-animated components in `../animated-icons/` (source
 `https://lucide-animated.com/r/<name>.json`). Render them through `AnimIcon`, which plays
 the icon when its nearest link/button is hovered or focused. `PublicLayout` wraps them in
 `MotionConfig reducedMotion="user"`. The login uses the approved bright office composition: the Newtuple office photo with
-“MAKE IT HAPPEN” on the red pillar fades into four discovery cards on the left, with
-a white sign-in panel on the right. Tiffin Tuple and Templates remain as compact
-links below the cards. On phones the photo precedes the login form, then discovery.
+“MAKE IT HAPPEN” on the red pillar fades into a compact discovery grid on the left, with
+a white sign-in panel on the right. Tiffin Tuple and Templates share the same cards
+as the four information categories. Wide screens use three columns; additional
+options wrap into rows within a scrollable area. Smaller screens use two or one
+columns and expand naturally. On phones the photo precedes the login form, then discovery.
 The existing logo asset and its rendering are unchanged. Public pages have no footer.
 
 
