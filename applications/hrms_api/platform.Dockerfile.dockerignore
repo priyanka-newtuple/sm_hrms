@@ -1,6 +1,9 @@
 **
 !backend/
 !backend/**
+!applications/hrms_api/platform_tools/
+!applications/hrms_api/platform_tools/**
+applications/hrms_api/platform_tools/**/__pycache__
 backend/.venv
 backend/hrms
 backend/hrms_native
