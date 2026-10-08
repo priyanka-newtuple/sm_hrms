@@ -3573,12 +3573,16 @@ class WorkflowServiceManager:
             # `{required, table_config: {...}}`, so the config the renderer
             # wants sits one level in. Taking `settings` wholesale produced
             # `table_config.table_config` and a grid with no columns at all.
+            # A plain JSON field (no grid) shares this catalogue code; its settings
+            # hold only usage keys like `required`, and turning those into a
+            # column-less table_config made every save fail "expects table rows".
             nested_table = settings.get("table_config")
-            attributes["table_config"] = (
-                nested_table
-                if isinstance(nested_table, dict) and nested_table
-                else settings or None
-            )
+            if isinstance(nested_table, dict) and nested_table:
+                attributes["table_config"] = nested_table
+            elif settings.get("columns"):
+                attributes["table_config"] = settings
+            else:
+                attributes["table_config"] = None
         elif config_kind == FieldTypeConfigKind.AUTO_NUMBER:
             attributes["auto_number_config"] = settings or None
         # Presentation settings that belong to no single type: a field's colour

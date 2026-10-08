@@ -158,7 +158,9 @@ BLOCK_MARKER = "[migrated-from-form:"  # + schema_key + "]" in the block descrip
 # the WHOLE settings dict rather than settings["<kind>_config"]
 # (workflow/manager.py::_entity_field_from_method_field). Reported so the
 # converter can be fixed before those fields are relied on.
-CONVERTER_WHOLE_SETTINGS_KINDS = {"currency", "table", "auto_number"}
+CONVERTER_WHOLE_SETTINGS_KINDS = {"currency", "auto_number"}
+# Engine types with no catalogue code of their own, migrated onto the nearest one.
+ENGINE_TYPE_ALIASES = {"date": "datetime"}
 
 
 def _schema() -> str:
@@ -370,6 +372,9 @@ def _resolve_code(entry: dict[str, Any], encoding: str, by_engine: dict[str, str
     raw = str(entry.get("type") or "").strip().lower()
     if raw in {"number", "integer"}:
         raw = "int"
+    # The catalogue has no plain-date type: a date lands on Date & Time, whose
+    # value check accepts the same strings.
+    raw = ENGINE_TYPE_ALIASES.get(raw, raw)
     if raw == "multi_select" and (entry.get("picklist_id") or encoding == "plm"):
         return raw, "picklist_multi"
     return raw, by_engine.get(raw)

@@ -114,8 +114,8 @@ def matches_workflow_value(type_name: str, value: object, enum_values: list | No
     """Check a workflow value against a declared type name.
 
     Deliberately separate from `_matches_entity_field_type`, which the two disagree with on
-    several inputs — `None` (rejected here, accepted there), `float` given an int, `number` given
-    a float, `dict`/`list`, and unrecognised type names (permissive here, strict there). They serve
+    several inputs — `None` (rejected here, accepted there), `number` given a float,
+    `dict`/`list`, and unrecognised type names (permissive here, strict there). They serve
     different contracts and must not be merged without deciding, per caller, which semantic is
     wanted.
     """
@@ -129,7 +129,8 @@ def matches_workflow_value(type_name: str, value: object, enum_values: list | No
     if normalized in {"integer", "int"}:
         return isinstance(value, int) and not isinstance(value, bool)
     if normalized == "float":
-        return isinstance(value, float)
+        # A whole number is a valid decimal: JSON sends 50, not 50.0, for a Decimal field.
+        return isinstance(value, (int, float)) and not isinstance(value, bool)
     if normalized == "number":
         return isinstance(value, int) and not isinstance(value, bool)
     if normalized in {"boolean", "bool"}:
