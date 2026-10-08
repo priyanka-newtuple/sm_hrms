@@ -7,4 +7,6 @@ RUN apt-get update -qq \
 COPY backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY backend/ .
+# HRMS one-off maintenance tools, run with `docker exec`; the platform source above stays unchanged.
+COPY applications/hrms_api/platform_tools/ /app/hrms_platform_tools/
 CMD ["sh", "-c", "alembic -c ${ALEMBIC_CONFIG_PATH:-/app/backend/alembic.ini} upgrade head && python main.py"]

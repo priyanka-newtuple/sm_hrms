@@ -13,18 +13,18 @@ type, so without this fix it would retype them to `int` and every Project
 create would fail "expects type 'int', got 'float'".
 
 The fix: set those three fields back to `float`, which the migration then lands
-on the Field Library's Decimal type (alembic 202610080001). Nothing else on the
+on the Field Library's Decimal type (created by forms_migration.py). Nothing else on the
 Form is touched; records are never touched.
 
 Idempotent: fields already `float` are left alone. Dry run is the default and
 writes nothing; --apply performs the write. --revert sets them back to `int`.
 
-Run from backend/ with the app's environment (DATABASE_URL, POSTGRES_APP_SCHEMA),
-BEFORE scripts/migrate_forms_to_method_blocks.py:
+Runs inside the platform-api container, with its environment (DATABASE_URL,
+POSTGRES_APP_SCHEMA), BEFORE forms_migration.py:
 
-    python scripts/data_repairs/restore_hrms_project_decimal_fields.py             # dry run
-    python scripts/data_repairs/restore_hrms_project_decimal_fields.py --apply     # write
-    python scripts/data_repairs/restore_hrms_project_decimal_fields.py --revert --apply   # undo
+    python /app/hrms_platform_tools/restore_project_decimal_fields.py             # dry run
+    python /app/hrms_platform_tools/restore_project_decimal_fields.py --apply     # write
+    python /app/hrms_platform_tools/restore_project_decimal_fields.py --revert --apply   # undo
 """
 
 from __future__ import annotations
@@ -33,9 +33,6 @@ import argparse
 import hashlib
 import json
 import os
-import sys
-
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 import sqlalchemy as sa
 from sqlalchemy import create_engine
@@ -150,7 +147,7 @@ def main() -> None:
     if not report["forms_found"]:
         print(f"No active '{SCHEMA_KEY}' Form in this database - nothing to do.")
     elif report["changed"] and args.apply and not args.revert:
-        print("Next: run scripts/migrate_forms_to_method_blocks.py (dry run, then --apply).")
+        print("Next: run forms_migration.py (dry run, then --apply).")
 
 
 if __name__ == "__main__":
