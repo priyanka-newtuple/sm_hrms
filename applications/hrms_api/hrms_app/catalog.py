@@ -89,6 +89,10 @@ PACKS = (
             {"field": "notice_period_days", "type": "integer"},
             {"field": "phone", "type": "string"},
             {"field": "hrms_role", "type": "string"},
+            # Exit: a future last working day means on notice; on or after it, offboarded.
+            {"field": "last_working_day", "type": "date"},
+            {"field": "exit_reason", "type": "string"},
+            {"field": "exit_note", "type": "text"},
         ),
         initial_state="",
         states=(),

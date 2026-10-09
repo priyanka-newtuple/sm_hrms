@@ -15,7 +15,7 @@ from .journal import Journal
 from .platform import PlatformClient
 from .policy import capabilities
 from .settings_gateway import configuration_route, authorize_configuration
-from .requests import EmployeeCreateRequest, LeaveCreateRequest
+from .requests import EmployeeCreateRequest, EmployeeExitRequest, EmployeeOperationRequest, EmployeeUpdateRequest, LeaveCreateRequest
 from .responses import EmployeeCreateResponse, EmployeeListItem, LeaveCreateResponse, LeaveListItem, OnboardingCaseItem
 from .service import HrmsService
 from .employee_access import setup_access
@@ -187,6 +187,18 @@ def create_app(platform=None, journal=None):
     @app.get('/v1/api/hrms/employees', response_model=list[EmployeeListItem])
     def directory(current=Depends(actor)):
         return service.directory(current)
+
+    @app.put('/v1/api/hrms/employees/{employee_id}', response_model=EmployeeListItem)
+    def update_employee(employee_id: str, payload: EmployeeUpdateRequest, current=Depends(actor)):
+        return service.update_employee(current, employee_id, payload)
+
+    @app.post('/v1/api/hrms/employees/{employee_id}/exit', response_model=EmployeeListItem)
+    def exit_employee(employee_id: str, payload: EmployeeExitRequest, current=Depends(actor)):
+        return service.exit_employee(current, employee_id, payload)
+
+    @app.post('/v1/api/hrms/employees/{employee_id}/exit/withdraw', response_model=EmployeeListItem)
+    def withdraw_employee_exit(employee_id: str, payload: EmployeeOperationRequest, current=Depends(actor)):
+        return service.withdraw_exit(current, employee_id, payload.idempotency_key)
 
     @app.post('/v1/api/hrms/employees/{employee_id}/setup-access')
     def employee_setup_access(employee_id: str, payload: EmployeeAccessRequest, current=Depends(actor)):

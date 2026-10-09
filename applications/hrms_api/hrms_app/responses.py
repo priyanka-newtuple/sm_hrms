@@ -38,6 +38,17 @@ class EmployeeListItem(BaseModel):
     onboarding_state: str = "not_started"
     can_setup_access: bool = False
     uses_google_sign_in: bool = False
+    # Editable details, so the edit form starts from what is saved.
+    reports_to_entity_id: str | None = None
+    date_joined: str | None = None
+    employment_type: str | None = None
+    work_location: str | None = None
+    notice_period_days: int | None = None
+    phone: str | None = None
+    # Exit: an active employee with a future last working day is serving notice.
+    last_working_day: str | None = None
+    exit_reason: str | None = None
+    on_notice: bool = False
 
 
 class EmployeeCreateResponse(BaseModel):

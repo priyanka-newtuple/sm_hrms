@@ -20,7 +20,9 @@ LIVE_ALLOCATION = {'planned', 'active'}
 EMPLOYEE_FIELDS = ['identifier', 'employee_code', 'first_name', 'last_name', 'work_email',
                    'department', 'designation', 'employment_status', 'reports_to_employee_code',
                    'platform_user_id', 'hrms_role', 'employment_type', 'date_joined', 'work_location',
-                   'notice_period_days', 'phone', 'hrms_operation_key']
+                   'notice_period_days', 'phone', 'last_working_day', 'exit_reason', 'exit_note',
+                   'hrms_operation_key']
+OFFBOARDED = 'offboarded'
 CASE_FIELDS = ['identifier', 'employee_id', 'template_key', 'template_version', 'hrms_operation_key']
 LEAVE_FIELDS = ['identifier', 'employee_id', 'manager_id', 'start_date', 'end_date',
                 'leave_type', 'reason', 'hrms_operation_key']
@@ -55,7 +57,8 @@ def reporting_manager(employee, employees):
     """The one other employee, with a login, whose code is this employee's reports_to."""
     code = employee['data'].get('reports_to_employee_code')
     found = [e for e in employees if code and e['data'].get('employee_code') == code
-             and e['entity_id'] != employee['entity_id'] and e['data'].get('platform_user_id')]
+             and e['entity_id'] != employee['entity_id'] and e['data'].get('platform_user_id')
+             and e['data'].get('employment_status') != OFFBOARDED]
     return found[0] if len(found) == 1 else None
 
 
@@ -76,6 +79,7 @@ class LeaveApprovers:
                if a['data'].get('employee_id') == employee['entity_id']
                and a['data'].get('start_date', '') <= end and a['data'].get('end_date', '') >= start}
         pms -= {None, '', employee['data'].get('platform_user_id')}
+        pms -= {e['data'].get('platform_user_id') for e in self.employees if e['data'].get('employment_status') == OFFBOARDED}
         if pms:
             return pms
         manager = reporting_manager(employee, self.employees)
@@ -98,7 +102,14 @@ class HrmsService:
                     full_name=name(row), work_email=data.get('work_email') or '',
                     department=data.get('department') or '', designation=data.get('designation') or '',
                     reports_to_name=name(manager) if manager else None,
-                    employment_status=data.get('employment_status') or '', role=data.get('hrms_role') or 'hrms_employee')
+                    employment_status=data.get('employment_status') or '', role=data.get('hrms_role') or 'hrms_employee',
+                    reports_to_entity_id=manager['entity_id'] if manager else None,
+                    date_joined=data.get('date_joined'), employment_type=data.get('employment_type'),
+                    work_location=data.get('work_location'), notice_period_days=data.get('notice_period_days'),
+                    phone=data.get('phone'), last_working_day=data.get('last_working_day'),
+                    exit_reason=data.get('exit_reason'),
+                    on_notice=bool(data.get('employment_status') == 'active' and data.get('last_working_day')
+                                   and data['last_working_day'] > datetime.now(UTC).date().isoformat()))
 
     def directory(self, actor):
         require(actor, 'employee:read')
@@ -205,6 +216,119 @@ class HrmsService:
                     'idempotency_key': f"hrms:step:{actor.user_id}:{step['task_id']}"})
                 self.journal.audit(db, actor, 'onboarding.step.completed', step['task_id'])
             return self.onboarding(actor, case_id)[0]
+
+    def _editable_employee(self, rows, employee_id):
+        employee = next((r for r in rows if r['entity_id'] == employee_id), None)
+        if not employee:
+            raise AppError(404, 'Employee was not found')
+        if employee['data'].get('employment_status') == OFFBOARDED:
+            raise AppError(409, 'This employee has left; their record can no longer be changed')
+        return employee
+
+    def _check_reporting_manager(self, rows, employee, manager_id):
+        """An active employee other than this one, and not someone who reports up to them."""
+        if not manager_id:
+            return None
+        manager = next((r for r in rows if r['entity_id'] == manager_id), None)
+        if not manager or manager['data'].get('employment_status') != 'active':
+            raise AppError(400, 'Reporting manager must be active in this organization')
+        by_code = {r['data'].get('employee_code'): r for r in rows if r['data'].get('employee_code')}
+        seen, current = set(), manager
+        while current is not None and current['entity_id'] not in seen:
+            if current['entity_id'] == employee['entity_id']:
+                raise AppError(400, 'An employee cannot report to themselves or to someone who reports to them')
+            seen.add(current['entity_id'])
+            current = by_code.get(current['data'].get('reports_to_employee_code'))
+        return manager
+
+    def update_employee(self, actor, employee_id, request):
+        require(actor, 'employee:create')
+        payload = request.model_dump(mode='json')
+        with self.journal.lock(actor.organization_id) as db:
+            op = self.journal.operation(db, actor, f'employee-update:{request.idempotency_key}', {**payload, 'employee_id': employee_id})
+            if op.result:
+                return op.result
+            rows = self.employees()
+            employee = self._editable_employee(rows, employee_id)
+            options = self.form_options(actor)
+            current = employee['data']
+            # Keep a value that is no longer offered (an older department, say) rather than refuse the edit.
+            for key, choices in (('department', options['departments']), ('designation', options['designations'])):
+                if getattr(request, key) not in choices and getattr(request, key) != current.get(key):
+                    raise AppError(400, 'Select an active department and designation')
+            manager = self._check_reporting_manager(rows, employee, request.reports_to_entity_id)
+            record = self.platform.record(employee_id)
+            data = {**record['data'], **{k: v for k, v in payload.items() if k not in {'idempotency_key', 'reports_to_entity_id'}},
+                    'reports_to_employee_code': manager['data'].get('employee_code') if manager else None}
+            self.platform.call('PUT', f'/entity-records/{employee_id}', json={'data': data})
+            self.journal.audit(db, actor, 'employee.updated', employee_id)
+            result = self.employee_item({**employee, 'data': data}, rows)
+            op.finish(result)
+            return result
+
+    def exit_employee(self, actor, employee_id, request):
+        """Record an employee leaving. A future last working day leaves them active and on notice;
+        on or after it they are offboarded and their sign-in is suspended. Calling again on or
+        after the last day completes a notice period. Exits, terminations included, are for HR Full."""
+        require(actor, 'employee:exit')
+        payload = request.model_dump(mode='json')
+        with self.journal.lock(actor.organization_id) as db:
+            op = self.journal.operation(db, actor, f'employee-exit:{request.idempotency_key}', {**payload, 'employee_id': employee_id})
+            if op.result:
+                return op.result
+            rows = self.employees()
+            employee = self._editable_employee(rows, employee_id)
+            joined = employee['data'].get('date_joined')
+            if joined and request.last_working_day.isoformat() < str(joined)[:10]:
+                raise AppError(400, 'The last working day cannot be before the joining date')
+            user_id = employee['data'].get('platform_user_id')
+            identity = next((u for u in self.platform.users() if u['id'] == user_id), None) if user_id else None
+            if identity and not may_manage(actor, identity_roles(self.platform, actor, identity)):
+                raise AppError(403, 'Only Super Admin can record the exit of a privileged account')
+            leaving = request.last_working_day <= datetime.now(UTC).date()
+            record = self.platform.record(employee_id)['data']
+            # Completing a notice period without a new note keeps the note recorded with the resignation.
+            data = {**record, 'last_working_day': payload['last_working_day'],
+                    'exit_reason': request.reason, 'exit_note': request.note or record.get('exit_note'),
+                    'employment_status': OFFBOARDED if leaving else 'active'}
+            if leaving and identity and identity['status'] in {'active', 'pending'}:
+                self._end_access(op, user_id, identity['status'])
+            self.platform.call('PUT', f'/entity-records/{employee_id}', json={'data': data})
+            self.journal.audit(db, actor, 'employee.offboarded' if leaving else 'employee.notice_recorded', employee_id)
+            result = self.employee_item({**employee, 'data': data}, rows)
+            op.finish(result)
+            return result
+
+    def _end_access(self, op, user_id, status):
+        """Suspend the leaver's membership here; an invite never activated is also rejected so it
+        cannot be approved later. A retry tolerates steps the interrupted attempt already did."""
+        retry = op.progress.get('suspend_requested')
+        op.checkpoint(suspend_requested=True)
+        steps = ['suspend'] + (['reject'] if status == 'pending' else [])
+        for step in steps:
+            try:
+                self.platform.call('POST', f'/users/{user_id}/{step}')
+            except AppError:
+                if not retry:
+                    raise
+
+    def withdraw_exit(self, actor, employee_id, idempotency_key):
+        """A resignation withdrawn while the employee is still on notice."""
+        require(actor, 'employee:exit')
+        with self.journal.lock(actor.organization_id) as db:
+            op = self.journal.operation(db, actor, f'employee-exit-withdraw:{idempotency_key}', {'employee_id': employee_id})
+            if op.result:
+                return op.result
+            rows = self.employees()
+            employee = self._editable_employee(rows, employee_id)
+            if not employee['data'].get('last_working_day'):
+                raise AppError(409, 'This employee has no exit to withdraw')
+            data = {**self.platform.record(employee_id)['data'], 'last_working_day': None, 'exit_reason': None, 'exit_note': None}
+            self.platform.call('PUT', f'/entity-records/{employee_id}', json={'data': data})
+            self.journal.audit(db, actor, 'employee.exit_withdrawn', employee_id)
+            result = self.employee_item({**employee, 'data': data}, rows)
+            op.finish(result)
+            return result
 
     def complete_invite_step(self, employee_id):
         """After HR activates a hire's account, mark "Invite employee to HRMS" done, once the work

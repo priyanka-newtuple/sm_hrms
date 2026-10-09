@@ -50,3 +50,40 @@ class EmployeeCreateRequest(BaseModel):
                 raise ValueError(f"{field} must not be blank")
             setattr(self, field, value)
         return self
+
+
+class EmployeeUpdateRequest(BaseModel):
+    """Job and personal details HR may correct after hiring. Identity (work email, employee code)
+    and access role are changed elsewhere."""
+    first_name: str = Field(min_length=1, max_length=100)
+    last_name: str = Field(min_length=1, max_length=100)
+    department: str = Field(min_length=1, max_length=100)
+    designation: str = Field(min_length=1, max_length=100)
+    reports_to_entity_id: str | None = None
+    date_joined: date
+    employment_type: Literal["full_time", "contract", "intern"] = "full_time"
+    work_location: str | None = Field(default=None, max_length=100)
+    notice_period_days: int | None = Field(default=None, ge=0, le=365)
+    phone: str | None = Field(default=None, max_length=30)
+    idempotency_key: str = Field(min_length=8, max_length=128)
+
+    @model_validator(mode="after")
+    def normalize_text(self) -> Self:
+        for field in ("first_name", "last_name", "department", "designation"):
+            value = str(getattr(self, field)).strip()
+            if not value:
+                raise ValueError(f"{field} must not be blank")
+            setattr(self, field, value)
+        return self
+
+
+class EmployeeExitRequest(BaseModel):
+    """An employee leaving: the last working day decides whether they are on notice or offboarded."""
+    last_working_day: date
+    reason: Literal["resignation", "termination", "contract_end", "retirement", "other"]
+    note: str | None = Field(default=None, max_length=2000)
+    idempotency_key: str = Field(min_length=8, max_length=128)
+
+
+class EmployeeOperationRequest(BaseModel):
+    idempotency_key: str = Field(min_length=8, max_length=128)
