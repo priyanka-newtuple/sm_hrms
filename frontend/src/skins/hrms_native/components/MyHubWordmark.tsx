@@ -1,4 +1,4 @@
-/** Shared, accessible portal wordmark. The Newtuple logo remains a separate asset. */
+/** Approved MyHub artwork, shared by the public header and sign-in heading. */
 export function MyHubWordmark() {
-  return <span className="hrms-myhub"><span className="hrms-myhub-my">My</span><span className="hrms-myhub-hub">Hub</span></span>;
+  return <span className="hrms-myhub"><img src="/hrms-brand/myhub-wordmark-3d.png" alt="MyHub" width={1774} height={887} draggable={false} /></span>;
 }

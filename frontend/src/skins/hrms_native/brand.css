@@ -343,9 +343,9 @@
 .hrms-nav-feedback button { color:#0047ab; text-decoration:underline; }
 @media(max-width:767px) { .hrms-grouped-navigation { flex-direction:row; flex-wrap:wrap; gap:20px; } .hrms-nav-group { min-width:150px; } }
 
-/* MyHub: shared live-text wordmark, paired with the unchanged Newtuple logo. */
-.hrms-myhub { display:inline-flex; align-items:baseline; font-family:"Segoe UI",system-ui,-apple-system,BlinkMacSystemFont,sans-serif; font-size:1em; line-height:1.15; letter-spacing:-.055em; white-space:nowrap; font-style:normal; }
-.hrms-myhub-my { color:#0a1f4d; font-weight:350; }
-.hrms-myhub-hub { color:#0047ab; font-weight:700; }
+/* Approved upright 3D wordmark. Crop only its surrounding whitespace in CSS,
+   retaining the exact artwork and soft bottom shadow at both display sizes. */
+.hrms-myhub { display:inline-block; position:relative; width:4.5em; aspect-ratio:1510 / 550; overflow:hidden; vertical-align:middle; }
+.hrms-myhub img { position:absolute; display:block; width:117.4834%; max-width:none; height:auto; left:-9.2715%; top:-32.7273%; }
 .hrms-pub-myhub { display:inline-flex; align-items:center; padding-left:16px; border-left:1px solid #d8e3f3; font-size:25px; }
 @media(max-width:560px) { .hrms-pub-myhub { padding-left:10px; font-size:21px; } .hrms-pub-brand { gap:10px; } }

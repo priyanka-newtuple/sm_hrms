@@ -57,3 +57,11 @@ The portal name is **MyHub**. Reuse `MyHubWordmark` beside the unchanged Newtupl
 logo in the public header and as the login heading. Its system-font lettering
 pairs a light navy My with a bold cobalt Hub; scale the same wordmark rather
 than creating separate treatments. The sign-in form no longer offers self-registration.
+
+
+The approved MyHub wordmark now uses `public/hrms-brand/myhub-wordmark-3d.png`:
+bold upright navy/cobalt lettering, shallow 3D perspective and a soft bottom
+shadow. `MyHubWordmark` renders the same approved artwork at both sizes with
+accessible alternative text; CSS trims only surrounding whitespace. Do not
+italicize or replace it with the earlier light-weight text treatment. The
+original Newtuple logo is unchanged.
