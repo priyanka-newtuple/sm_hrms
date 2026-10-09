@@ -15,6 +15,8 @@ from .policy import capabilities, require
 EMPLOYEE = 'HRMS.Employee'
 CASE = 'HRMS.OnboardingCase'
 LEAVE = 'HRMS.LeaveRequest'
+ALLOCATION_FIELDS = ['project_id', 'employee_id', 'start_date', 'end_date']
+LIVE_ALLOCATION = {'planned', 'active'}
 EMPLOYEE_FIELDS = ['identifier', 'employee_code', 'first_name', 'last_name', 'work_email',
                    'department', 'designation', 'employment_status', 'reports_to_employee_code',
                    'platform_user_id', 'hrms_role', 'employment_type', 'date_joined', 'work_location',
@@ -45,6 +47,37 @@ def leave_days(start, end, holidays):
     first, last = date.fromisoformat(start), date.fromisoformat(end)
     days = (first + timedelta(offset) for offset in range((last - first).days + 1))
     return sum(1 for day in days if day.weekday() < 5 and day.isoformat() not in holidays)
+
+
+def reporting_manager(employee, employees):
+    """The one other employee, with a login, whose code is this employee's reports_to."""
+    code = employee['data'].get('reports_to_employee_code')
+    found = [e for e in employees if code and e['data'].get('employee_code') == code
+             and e['entity_id'] != employee['entity_id'] and e['data'].get('platform_user_id')]
+    return found[0] if len(found) == 1 else None
+
+
+class LeaveApprovers:
+    """Who may decide a leave request: the project manager of every project the employee is
+    allocated to over the leave dates (any one of them decides), else the reporting manager.
+    An employee never approves their own leave."""
+
+    def __init__(self, platform, employees):
+        self.employees = employees
+        states = platform.states('hrms_allocation')
+        self.allocations = [r for r in platform.records('HRMS.Allocation', ALLOCATION_FIELDS)
+                            if states.get(r['entity_id']) in LIVE_ALLOCATION]
+        self.pm_of = {r['entity_id']: r['data'].get('pm_id') for r in platform.records('HRMS.Project', ['pm_id'])}
+
+    def __call__(self, employee, start, end):
+        pms = {self.pm_of.get(a['data'].get('project_id')) for a in self.allocations
+               if a['data'].get('employee_id') == employee['entity_id']
+               and a['data'].get('start_date', '') <= end and a['data'].get('end_date', '') >= start}
+        pms -= {None, '', employee['data'].get('platform_user_id')}
+        if pms:
+            return pms
+        manager = reporting_manager(employee, self.employees)
+        return {manager['data']['platform_user_id']} if manager else set()
 
 
 class HrmsService:
@@ -311,16 +344,18 @@ class HrmsService:
     def leave(self, actor, view, limit, offset):
         employees = self.employees()
         own = self.own_employee(actor, employees)
-        if view == 'mine':
-            visible = [own]
-        elif view == 'approvals':
-            visible = [r for r in employees if r['data'].get('reports_to_employee_code') == own['data'].get('employee_code')
-                       and r['entity_id'] != own['entity_id']]
-        else:
+        if view not in {'mine', 'approvals'}:
             raise AppError(400, 'view must be mine or approvals')
-        names = {r['entity_id']: name(r) for r in visible}
+        by_id = {e['entity_id']: e for e in employees}
+        names = {key: name(e) for key, e in by_id.items()}
         states = self.platform.states('hrms_leaverequest')
-        rows = [r for r in self.platform.records(LEAVE, LEAVE_FIELDS) if r['data'].get('employee_id') in names]
+        rows = [r for r in self.platform.records(LEAVE, LEAVE_FIELDS) if r['data'].get('employee_id') in by_id]
+        if view == 'mine':
+            rows = [r for r in rows if r['data']['employee_id'] == own['entity_id']]
+        else:
+            approvers = LeaveApprovers(self.platform, employees)
+            rows = [r for r in rows if r['data']['employee_id'] != own['entity_id'] and actor.user_id in approvers(
+                by_id[r['data']['employee_id']], r['data']['start_date'], r['data']['end_date'])]
         from .wfh import WfhService
         holidays = WfhService(self).holiday_dates()
         return [dict(entity_id=r['entity_id'], identifier=r['data'].get('identifier') or '',
@@ -337,9 +372,11 @@ class HrmsService:
                 return {**op.result, 'idempotent': True}
             employees = self.employees()
             own = self.own_employee(actor, employees)
-            managers = [r for r in employees if r['data'].get('employee_code') == own['data'].get('reports_to_employee_code')]
-            if len(managers) != 1 or not managers[0]['data'].get('platform_user_id'):
-                raise AppError(400, 'Your employee profile has no linked reporting manager')
+            start, end = request.start_date.isoformat(), request.end_date.isoformat()
+            if not LeaveApprovers(self.platform, employees)(own, start, end):
+                raise AppError(400, 'Nobody can approve this leave: you have no project manager for these dates '
+                                    'and no linked reporting manager')
+            manager = reporting_manager(own, employees)
             marker = hashlib.sha256(f'{actor.organization_id}:{actor.user_id}:leave:{request.idempotency_key}'.encode()).hexdigest()
             rows = self.platform.records(LEAVE, LEAVE_FIELDS)
             from .wfh import WfhService
@@ -356,7 +393,8 @@ class HrmsService:
                     and d['start_date'] <= request.end_date.isoformat() and d['end_date'] >= request.start_date.isoformat()):
                     raise AppError(409, 'A pending or approved leave request overlaps these dates')
             data = request.model_dump(mode='json', exclude={'idempotency_key'})
-            data.update(employee_id=own['entity_id'], manager_id=managers[0]['entity_id'], hrms_operation_key=marker)
+            data.update(employee_id=own['entity_id'], manager_id=manager['entity_id'] if manager else None,
+                        hrms_operation_key=marker)
             row = self._create_once(op, 'leave', LEAVE, data, actor.user_id, rows, marker)
             state = self.platform.enroll(row['entity_id'], 'hrms_leaverequest')
             result = dict(entity_id=row['entity_id'], identifier=row['data'].get('identifier') or '', state=state, idempotent=False)
@@ -374,13 +412,13 @@ class HrmsService:
         if not owner:
             raise AppError(404, 'Employee was not found')
         own = owner['data'].get('platform_user_id') == actor.user_id
-        managers = [e for e in employees if e['data'].get('employee_code') == owner['data'].get('reports_to_employee_code')]
-        manager = len(managers) == 1 and managers[0]['data'].get('platform_user_id') == actor.user_id and not own
-        if not own and not manager:
+        approver = not own and actor.user_id in LeaveApprovers(self.platform, employees)(
+            owner, row['data']['start_date'], row['data']['end_date'])
+        if not own and not approver:
             raise AppError(404, 'Leave request was not found')
         state = self.platform.states('hrms_leaverequest').get(entity_id)
-        # The employee's reporting manager decides, whatever their role: a manager who is
-        # also an admin or HR would otherwise leave their reports' leave undecidable.
+        # Approvers decide whatever their role: a project or reporting manager who is also an
+        # admin or HR would otherwise leave the request undecidable.
         allowed = (['cancel'] if own else ['approve', 'reject']) if state == 'pending' else []
         return dict(entity_id=entity_id, current_state=state, available_transitions=[
             dict(trigger=t, label=t.title(), allowed=True) for t in allowed])

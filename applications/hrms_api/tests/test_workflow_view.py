@@ -62,3 +62,23 @@ def test_duplicate_identity_links_fail_closed():
         workflow_rows(Service([employee('one', 'actor', 'E1'), employee('two', 'actor', 'E2')]),
                       SimpleNamespace(user_id='actor'))
     assert error.value.status == 409
+
+
+def test_leave_on_a_project_goes_to_its_project_manager_not_the_reporting_manager():
+    class ProjectService(Service):
+        def records(self, kind, fields):
+            if kind == 'HRMS.Allocation':
+                return [dict(entity_id='alloc', data=dict(employee_id='report', project_id='P1',
+                                                          start_date='2026-09-01', end_date='2026-12-31'))]
+            if kind == 'HRMS.Project':
+                return [dict(entity_id='P1', data=dict(pm_id='pm-user'))]
+            return super().records(kind, fields)
+
+        def states(self, machine):
+            return {'alloc': 'active'} if machine == 'hrms_allocation' else super().states(machine)
+
+    people = [employee('own', 'actor', 'M1'), employee('report', 'report-user', 'E1', 'M1'), employee('pm', 'pm-user', 'P1')]
+    manager_rows = {r['entity_id'] for r in workflow_rows(ProjectService(people), SimpleNamespace(user_id='actor'))}
+    pm_rows = {r['entity_id']: r for r in workflow_rows(ProjectService(people), SimpleNamespace(user_id='pm-user'))}
+    assert 'report-leave' not in manager_rows
+    assert pm_rows['report-leave']['leave_view'] == 'approvals'
