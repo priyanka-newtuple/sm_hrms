@@ -366,7 +366,9 @@ class HrmsService:
         if not own and not manager:
             raise AppError(404, 'Leave request was not found')
         state = self.platform.states('hrms_leaverequest').get(entity_id)
-        allowed = (['cancel'] if own else ['approve', 'reject'] if 'leave:decide' in capabilities(actor) else []) if state == 'pending' else []
+        # The employee's reporting manager decides, whatever their role: a manager who is
+        # also an admin or HR would otherwise leave their reports' leave undecidable.
+        allowed = (['cancel'] if own else ['approve', 'reject']) if state == 'pending' else []
         return dict(entity_id=entity_id, current_state=state, available_transitions=[
             dict(trigger=t, label=t.title(), allowed=True) for t in allowed])
 
