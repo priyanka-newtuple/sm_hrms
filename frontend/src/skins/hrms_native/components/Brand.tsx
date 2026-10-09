@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { BookOpen, BriefcaseBusiness, CalendarDays, FileText, Menu, X } from 'lucide-react';
+import { BookOpen, BriefcaseBusiness, CalendarDays, FileText, Menu, X, Utensils, ChartNoAxesColumnIncreasing } from 'lucide-react';
 import { MotionConfig } from 'motion/react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { MyHubWordmark } from './MyHubWordmark';
@@ -85,11 +85,18 @@ function PublicHeader() {
         <Link to="/login" className="hrms-pub-home" aria-label="Newtuple HRMS home"><BrandLogo /></Link>
         <span className="hrms-pub-myhub"><MyHubWordmark /></span>
       </div>
+      <div className="hrms-header-navigation">
       <nav ref={nav} className="hrms-pub-links" aria-label="Public information" onMouseLeave={restIndicator} onBlur={restIndicator}>
         <span ref={indicator} className="hrms-nav-indicator" aria-hidden="true" />
         {informationCategories.map(({ id, short }) => <Link key={id} to={`/public?category=${id}`} aria-current={active === id ? 'page' : undefined}
           onMouseEnter={event => moveIndicator(event.currentTarget)} onFocus={event => moveIndicator(event.currentTarget)}>{short}</Link>)}
+        <a href={externalResources[1].href} target="_blank" rel="noopener noreferrer" onMouseEnter={event => moveIndicator(event.currentTarget)} onFocus={event => moveIndicator(event.currentTarget)}>Templates<span className="sr-only"> (opens in a new tab)</span></a>
       </nav>
+      <nav className="hrms-community-tabs" aria-label="Community tools">
+        <a href={externalResources[0].href} target="_blank" rel="noopener noreferrer"><Utensils size={15} aria-hidden="true" />Tiffin Tuple<span className="sr-only"> (opens in a new tab)</span></a>
+        <button type="button" disabled title="Surveys and polls for everyone — coming soon"><ChartNoAxesColumnIncreasing size={15} aria-hidden="true" /><span>Create survey / poll<small>Coming soon</small></span></button>
+      </nav>
+      </div>
       <div className="hrms-pub-actions">
         <Link className="hrms-pub-cta" to={cta.to}><span>{cta.label}</span><AnimIcon icon={ArrowUpRightIcon} size={15} /></Link>
         <button type="button" className="hrms-menu-toggle" aria-expanded={menuOpen} aria-controls="hrms-public-menu" aria-label={menuOpen ? 'Close menu' : 'Open menu'} onClick={() => setMenuOpen(open => !open)}>
@@ -101,6 +108,7 @@ function PublicHeader() {
       <nav aria-label="Public information">
         {informationCategories.map(({ id, title }) => <Link key={id} to={`/public?category=${id}`} aria-current={active === id ? 'page' : undefined} onClick={() => setMenuOpen(false)}>{title}<AnimIcon icon={ArrowUpRightIcon} size={16} /></Link>)}
         {externalResources.map(({ id, title, href }) => <a key={id} href={href} target="_blank" rel="noopener noreferrer" onClick={() => setMenuOpen(false)}>{title}<AnimIcon icon={ArrowUpRightIcon} size={16} /><span className="sr-only"> (opens in a new tab)</span></a>)}
+        <span className="hrms-survey-placeholder">Create survey / poll <small>Coming soon</small></span>
       </nav>
       <Link className="hrms-pub-cta" to={cta.to} onClick={() => setMenuOpen(false)}><span>{cta.label}</span><AnimIcon icon={ArrowUpRightIcon} size={15} /></Link>
     </div>}

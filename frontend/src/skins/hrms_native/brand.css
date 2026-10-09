@@ -349,3 +349,17 @@
 .hrms-myhub img { position:absolute; display:block; width:117.4834%; max-width:none; height:auto; left:-9.2715%; top:-32.7273%; }
 .hrms-pub-myhub { display:inline-flex; align-items:center; padding-left:16px; border-left:1px solid #d8e3f3; font-size:25px; }
 @media(max-width:560px) { .hrms-pub-myhub { padding-left:10px; font-size:21px; } .hrms-pub-brand { gap:10px; } }
+
+/* Information and community tools sit in separate, matching navigation groups. */
+.hrms-header-navigation { display:flex; align-items:center; gap:12px; }
+.hrms-pub-links a { padding-inline:11px; font-size:13px; white-space:nowrap; }
+.hrms-community-tabs { display:flex; align-items:stretch; gap:3px; padding:4px; border:1px solid #e3eaf5; border-radius:14px; background:#f5f8fd; }
+.hrms-community-tabs a,.hrms-community-tabs button { display:flex; align-items:center; gap:7px; padding:4px 10px; color:#0047ab; font-size:12px; font-weight:600; white-space:nowrap; border-radius:10px; text-decoration:none; }
+.hrms-community-tabs a:hover { background:white; }
+.hrms-community-tabs button:disabled { cursor:default; color:#64748b; opacity:1; }
+.hrms-community-tabs small { display:block; font-size:9px; font-weight:400; color:#64748b; }
+.hrms-survey-placeholder { display:flex; justify-content:space-between; padding:12px; color:#64748b; font-size:14px; }
+.hrms-survey-placeholder small { font-size:11px; }
+@media(max-width:1350px) { .hrms-header-navigation { display:none; } .hrms-pub-bar { grid-template-columns:1fr auto; } .hrms-menu-toggle { display:grid; } }
+
+.hrms-public-menu { background:#fff; }

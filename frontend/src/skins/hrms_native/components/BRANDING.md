@@ -65,3 +65,13 @@ shadow. `MyHubWordmark` renders the same approved artwork at both sizes with
 accessible alternative text; CSS trims only surrounding whitespace. Do not
 italicize or replace it with the earlier light-weight text treatment. The
 original Newtuple logo is unchanged.
+
+
+Login discovery contains social cards (LinkedIn, YouTube, Instagram, X), not
+repeated information navigation. Templates joins Policies/Learning/Holidays/Careers
+in the header; a separate community group contains Tiffin Tuple and a clearly
+unavailable Create survey / poll entry. Survey creation is intended for everyone
+but remains unimplemented. Mobile navigation exposes the same destinations.
+SocialDiscovery uses owner-supplied profile URLs and bundled SVG platform marks;
+All four cards link to owner-provided Newtuple accounts. Cards link
+out without embedding third-party feeds or loading social tracking scripts.
