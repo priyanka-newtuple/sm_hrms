@@ -105,7 +105,7 @@ def project_packs(pack, existing):
             ("draft", "planned", "active", "on_hold", "completed", "archived"),
             frozenset({"archived"}),
             (
-                ("draft", "approve", "planned"),
+                ("draft", "approve", "active"),
                 ("planned", "start", "active"),
                 ("active", "hold", "on_hold"),
                 ("on_hold", "resume", "active"),

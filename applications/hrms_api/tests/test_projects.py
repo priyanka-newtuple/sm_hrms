@@ -153,7 +153,7 @@ def open_project(system):
         "entity_id"
     ]
     project = platform.rows[change]["data"]["project_id"]
-    perform(system, "pm", change, "submit")
+    assert platform.rows[change]["state"] == "pending"
     perform(system, "sa", change, "approve")
     return project
 
@@ -173,7 +173,7 @@ def allocation_data(ids, **extra):
 def test_project_creation_approval_amendment_and_scope(system):
     service, platform, _, ids = system
     project = open_project(system)
-    assert platform.rows[project]["state"] == "planned"
+    assert platform.rows[project]["state"] == "active"
     hr = service.dashboard(actor(ids["hr"], "hrms_hr_full"))
     assert "budget_amount" not in hr["projects"][0]["data"]
     assert "billing_rate" not in hr["requests"][0]["data"]["proposed"]
@@ -231,7 +231,7 @@ def test_stale_version_and_recheck_at_approval(system):
     _service, platform, _, ids = system
     project = open_project(system)
     with pytest.raises(AppError, match="changed"):
-        perform(system, "pm", project, "start", revision=99)
+        perform(system, "pm", project, "hold", revision=99)
     change = perform(system, "pm", project, "request_allocation", allocation_data(ids))[
         "entity_id"
     ]
@@ -272,7 +272,7 @@ def test_partial_approval_recovery_blocks_other_mutations(system):
     change = perform(system, "pm", "new", "create_project", project_data(ids))[
         "entity_id"
     ]
-    perform(system, "pm", change, "submit")
+    assert platform.rows[change]["state"] == "pending"
     revision = platform.rows[change]["data"]["revision"]
     platform.fail_trigger = "approve"
     with pytest.raises(AppError, match="Injected"):
@@ -337,7 +337,6 @@ def test_project_lifecycle_and_committed_date_bounds(system):
     perform(system, "pm", change, "submit")
     perform(system, "dm", change, "approve")
     allocation = service.snapshot()[ALLOCATION][0]["entity_id"]
-    perform(system, "pm", project, "start")
     perform(system, "pm", allocation, "start")
     perform(system, "pm", project, "hold")
     with pytest.raises(AppError):
@@ -364,7 +363,7 @@ def test_failure_after_approval_transition_resumes_without_duplicate(system):
         "entity_id"
     ]
     project = platform.rows[change]["data"]["project_id"]
-    perform(system, "pm", change, "submit")
+    assert platform.rows[change]["state"] == "pending"
     revision = platform.rows[change]["data"]["revision"]
     original_call = platform.call
 
@@ -393,7 +392,7 @@ def test_failure_after_approval_transition_resumes_without_duplicate(system):
         system, "sa", change, "approve", key="partial-approval-123", revision=revision
     )
     assert (
-        platform.rows[project]["state"] == "planned"
+        platform.rows[project]["state"] == "active"
         and platform.rows[change]["data"]["applied"] == "yes"
     )
     assert len(service.snapshot()[PROJECT]) == 1
@@ -588,7 +587,7 @@ def test_stale_manager_choices_are_rechecked_on_create_and_approval(system):
     service, platform, _, ids = system
     data = project_data(ids)
     change = perform(system, 'pm', 'new', 'create_project', data)['entity_id']
-    perform(system, 'pm', change, 'submit')
+    assert platform.rows[change]["state"] == "pending"
     employees = service.hrms.employees()
     next(r for r in employees if r['data'].get('platform_user_id') == ids['dm'])['data']['designation'] = 'Engineer'
     service.hrms.employees = lambda: deepcopy(employees)
@@ -597,3 +596,28 @@ def test_stale_manager_choices_are_rechecked_on_create_and_approval(system):
     with pytest.raises(AppError, match='designated Delivery Manager'):
         perform(system, 'sa', change, 'approve')
     assert platform.rows[change]['state'] == 'pending'
+
+
+def test_creation_submits_to_independent_approver_and_retry_is_idempotent(system):
+    service, platform, _, ids = system
+    result = perform(system, "pm", "new", "create_project", project_data(ids), key="auto-submit")
+    change = result["entity_id"]
+    assert platform.rows[change]["state"] == "pending"
+    board = service.dashboard(actor(ids["sa"], "superadmin"))
+    assert any(r["id"] == change and "approve" in r["actions"] for r in board["requests"])
+    assert perform(system, "pm", "new", "create_project", project_data(ids), key="auto-submit") == result
+    with pytest.raises(AppError):
+        perform(system, "pm", change, "approve")
+    perform(system, "sa", change, "approve")
+    assert platform.rows[platform.rows[change]["data"]["project_id"]]["state"] == "active"
+    assert len(service.snapshot()[PROJECT]) == 1
+
+
+def test_creation_retry_recovers_failed_auto_submission_without_duplicates(system):
+    service, platform, _, ids = system
+    platform.fail_trigger = "submit"
+    with pytest.raises(AppError, match="Injected"):
+        perform(system, "pm", "new", "create_project", project_data(ids), key="retry-submit")
+    result = perform(system, "pm", "new", "create_project", project_data(ids), key="retry-submit")
+    assert platform.rows[result["entity_id"]]["state"] == "pending"
+    assert len(service.snapshot()[PROJECT]) == 1

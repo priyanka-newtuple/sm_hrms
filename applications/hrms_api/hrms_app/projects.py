@@ -634,6 +634,7 @@ class ProjectsService:
                 "project",
             )
             proposal(CHANGE, "$project", values, approver, approver_name, note, 0)
+            transition({"entity_id": "$created"}, "submit")
             return ops
         row = next(
             (
@@ -986,7 +987,9 @@ class ProjectsService:
             for index in range(
                 operation.progress["step"], len(operation.progress["project_plan"])
             ):
-                step = operation.progress["project_plan"][index]
+                step = dict(operation.progress["project_plan"][index])
+                if step["op"] != "create" and step["target"].startswith("$"):
+                    step["target"] = refs[step["target"][1:]]
                 marker = hashlib.sha256(
                     f"{actor.organization_id}:{key}:{index}".encode()
                 ).hexdigest()

@@ -93,6 +93,7 @@ export function ProjectAction({ item, action, done, onCreated }: { item?: Item; 
     {previewMutation.isError && <p role="alert">{getApiErrorMessage(previewMutation.error)}</p>}
     {preview && <div className="hrms-notice"><p className="font-medium">{preview.over_capacity?'Capacity exception approval required':'Within capacity'}</p>{preview.segments.map(s=><p key={s.start_date}>{s.start_date} – {s.end_date}: {s.committed}% committed + {s.proposed}% proposed = {s.total}%</p>)}</div>}
     {mutation.isError && <p role="alert" className="text-sm text-destructive">{getApiErrorMessage(mutation.error)}{pending && ' Retry retains this exact request. Incomplete operations can also be resumed from Projects.'}</p>}
+    {action==='create_project' && <p className="text-sm text-muted-foreground">Creating this project sends it to the selected approver. Once approved, it becomes active.</p>}
     <div className="hrms-form-actions"><Button className="hrms-primary-button" variant="primary" type="submit" disabled={mutation.isPending}>{mutation.isPending?'Saving…':pending?'Retry action':label(action)}</Button><Button className="hrms-outline-button" type="button" variant="outline" disabled={Boolean(pending)} onClick={done}>Cancel</Button></div>
   </form></ConfiguredForm>;
 }
