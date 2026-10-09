@@ -117,3 +117,37 @@ Rerunning installation reuses the tenant and existing native configuration. It
 does not reset passwords or remove additional roles from an existing Super
 Admin. A missing/inactive membership, wrong organization, or missing native
 Super Admin role fails installation rather than bypassing tenant checks.
+
+
+## Google Workspace sign-in
+
+HRMS offers Google sign-in for `@newtuple.com` only. Password sign-in remains
+available. Microsoft login and callback routes are not exposed by HRMS.
+The unchanged platform validates the Google-returned email domain before linking
+or creating a user (`GOOGLE_ALLOWED_DOMAIN` is fixed to `newtuple.com` in Compose).
+The gateway binds OAuth state to a secure, HTTP-only browser cookie and validates
+the redirect URI. Existing native invitation and approval rules still apply;
+active sessions must also belong to the configured HRMS tenant.
+
+Activation:
+
+1. Set up an HTTPS hostname for HRMS and set `HRMS_PUBLIC_URL` in the private
+   server `production.env` to that origin, with no trailing slash. The initial
+   HTTP IP address cannot be used for production Google sign-in.
+2. In the Newtuple Google Cloud organization, configure the OAuth consent
+   audience as **Internal**. This restricts authentication to managed Workspace
+   accounts; the email-domain check alone does not prove Workspace membership.
+3. Create an OAuth client of type **Web application**. Register exactly
+   `https://YOUR-HRMS-HOST/auth/google/callback` as its authorized redirect URI.
+4. Add repository or `hrms-production` environment secrets `GOOGLE_CLIENT_ID`
+   and `GOOGLE_CLIENT_SECRET`. These are separate from SMTP credentials.
+5. Deploy main. CI sends both credentials over SSH stdin to a mode-600 server
+   environment file before restarting the platform. Neither credential goes
+   into frontend bundles, build artifacts, command arguments or logs. Empty
+   secrets preserve any existing server configuration; partial pairs fail.
+6. Verify an approved Newtuple employee can sign in, a pending employee follows
+   the native approval flow, and a personal Google account is rejected.
+
+Google callback credentials cannot be tested end-to-end until the OAuth client
+and HTTPS hostname are configured. Reference:
+https://developers.google.com/identity/openid-connect/openid-connect

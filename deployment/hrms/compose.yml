@@ -77,6 +77,10 @@ services:
       BOOTSTRAP_SUPER_ADMIN_PASSWORD: ${HRMS_PLATFORM_ADMIN_PASSWORD:?Run the HRMS
         setup script}
       FRONTEND_URL: ${HRMS_PUBLIC_URL:?required}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_REDIRECT_URI: ${HRMS_PUBLIC_URL:?required}/auth/google/callback
+      GOOGLE_ALLOWED_DOMAIN: newtuple.com
       ACTION_RUNS_WORKER_ENABLED: 'false'
       BULK_IMPORT_WORKER_ENABLED: 'false'
       ENCRYPTION_KEY: ${HRMS_ENCRYPTION_KEY:?required}
@@ -146,6 +150,7 @@ services:
   hrms-app-db:
     image: postgres:16-alpine
     environment:
+      GOOGLE_REDIRECT_URI: ${HRMS_PUBLIC_URL:?required}/auth/google/callback
       POSTGRES_USER: hrms_application
       POSTGRES_PASSWORD: ${HRMS_APP_DB_PASSWORD:?Run the HRMS setup script}
       POSTGRES_DB: hrms_application

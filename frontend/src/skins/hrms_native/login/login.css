@@ -71,7 +71,7 @@
 .hrms-submit:disabled i { transform:none; }
 .hrms-or { display:flex; align-items:center; gap:12px; margin:22px 0 14px; color:#8a92a3; font-size:12px; letter-spacing:.06em; }
 .hrms-or::before, .hrms-or::after { content:''; flex:1; height:1px; background:var(--line); }
-.hrms-sso { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.hrms-sso { display:grid; grid-template-columns:1fr; gap:10px; }
 .hrms-sso button { display:flex; align-items:center; justify-content:center; gap:10px; padding:13px 12px; border:1px solid var(--line); border-radius:16px; background:white; color:#1f2937; font-size:14px; font-weight:500; transition:transform .3s var(--ease-out), border-color .3s ease, box-shadow .3s ease; }
 .hrms-sso button:hover { transform:translateY(-2px); border-color:#c6d3ea; box-shadow:0 12px 24px -16px rgba(10,31,77,.45); }
 .hrms-sso button:focus-visible { outline:2px solid var(--cobalt); outline-offset:2px; }
@@ -154,3 +154,5 @@
 @media (prefers-reduced-motion:reduce) {
   .hrms-login *, .hrms-login *::before { animation:none!important; transition:none!important; }
 }
+
+.hrms-google-help { text-align:center; font-size:12px; color:var(--muted); margin:10px 0 0; }

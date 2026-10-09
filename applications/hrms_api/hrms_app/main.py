@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field
 
 from .errors import AppError
+from .google_auth import google_auth
 from .journal import Journal
 from .platform import PlatformClient
 from .policy import capabilities
@@ -284,15 +285,16 @@ def create_app(platform=None, journal=None):
 
     # Explicit read/auth facade: no catch-all mutation proxy. Core task/record/transition,
     # bulk-import, agent and configuration mutations cannot bypass HRMS business rules.
-    public_gets = {'auth/google/url', 'auth/microsoft/url', 'auth/status', 'invitations/validate'}
+    public_gets = {'auth/status', 'invitations/validate'}
     auth_posts = {'auth/login', 'auth/refresh', 'auth/logout', 'auth/forgot-password',
-                  'auth/reset-password', 'auth/google/callback', 'auth/microsoft/callback',
-                  'auth/microsoft/id-token', 'invitations/accept'}
+                  'auth/reset-password', 'invitations/accept'}
     private_gets = {'auth/me', 'users/me/organizations', 'organizations/current', 'roles/my-permissions',
                     'workflow-state-machines', 'permissions'}
 
     @app.api_route('/v1/api/{path:path}', methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE'])
     async def facade(path: str, request: Request):
+        if path in {'auth/google/url', 'auth/google/callback'}:
+            return await google_auth(platform, request, path)
         token = request.headers.get('authorization', '').removeprefix('Bearer ').removeprefix('bearer ')
         if request.method == 'GET' and path in public_gets:
             pass

@@ -30,8 +30,8 @@ jobs:
           docker build -f frontend/Dockerfile.platform -t sm-hrms-platform-web:$SHA frontend
           mkdir release
           docker save sm-hrms-platform:$SHA sm-hrms-application:$SHA sm-hrms-platform-web:$SHA | gzip > release/images.tar.gz
-          cp deployment/hrms/compose.yml deployment/hrms/deploy.sh release/
-          cd release && sha256sum images.tar.gz compose.yml deploy.sh > SHA256SUMS
+          cp deployment/hrms/compose.yml deployment/hrms/deploy.sh deployment/hrms/configure_google.py release/
+          cd release && sha256sum images.tar.gz compose.yml deploy.sh configure_google.py > SHA256SUMS
       - uses: actions/upload-artifact@v4
         with:
           name: hrms-${{ github.sha }}
@@ -55,6 +55,8 @@ jobs:
           USER: ${{ vars.HRMS_DEPLOY_USER }}
           PORT: ${{ vars.HRMS_DEPLOY_PORT }}
           SHA: ${{ github.sha }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           EMAIL_ENABLED: ${{ secrets.EMAIL_ENABLED }}
           EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
           SMTP_HOST: ${{ secrets.SMTP_HOST }}
@@ -73,6 +75,9 @@ jobs:
           opts=(-i ~/.ssh/hrms -o BatchMode=yes -o StrictHostKeyChecking=yes)
           ssh "${opts[@]}" -p "$PORT" "$USER@$HOST" "mkdir -p /opt/newtuple-hrms/releases/$SHA"
           scp "${opts[@]}" -P "$PORT" release/* "$USER@$HOST:/opt/newtuple-hrms/releases/$SHA/"
+          # OAuth credentials travel over encrypted stdin, never release artifacts or arguments.
+          python3 -c 'import json, os; print(json.dumps({k: os.environ.get(k, "") for k in ("GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET")}))' | \
+            ssh "${opts[@]}" -p "$PORT" "$USER@$HOST" "python3 /opt/newtuple-hrms/releases/$SHA/configure_google.py"
           ssh "${opts[@]}" -p "$PORT" "$USER@$HOST" "bash /opt/newtuple-hrms/releases/$SHA/deploy.sh $SHA"
           # Pass email credentials only over SSH stdin, never command arguments or artifacts.
           python3 -c 'import json, os; print(json.dumps({k: os.environ.get(k, "") for k in ("EMAIL_ENABLED", "EMAIL_FROM", "SMTP_HOST", "SMTP_PORT", "SMTP_USERNAME", "SMTP_PASSWORD")}))' | \

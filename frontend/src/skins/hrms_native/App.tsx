@@ -42,9 +42,8 @@ const ForgotPasswordPage = lazy(() => import('../../pages/auth/Forgot-Password')
 
 const ResetPasswordPage = lazy(() => import('../../pages/auth/Reset-Password'));
 
-const GoogleCallbackPage = lazy(() => import('../../pages/auth/GoogleCallbackPage'));
+const GoogleCallbackPage = lazy(() => import('./login/GoogleCallbackPage'));
 
-const MicrosoftCallbackPage = lazy(() => import('../../pages/auth/MicrosoftCallbackPage'));
 
 const AcceptInvitePage = lazy(() => import('../../pages/auth/AcceptInvitePage'));
 
@@ -110,7 +109,6 @@ export default function App() {
 
     <Route path="/auth/google/callback" element={<GoogleCallbackPage />} />
 
-    <Route path="/auth/microsoft/callback" element={<MicrosoftCallbackPage />} />
 
     </Route>
     <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
