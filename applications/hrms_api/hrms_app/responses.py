@@ -60,6 +60,7 @@ class OnboardingStepItem(BaseModel):
     due_date: datetime | None = None
     depends_on: list[int]
     can_complete: bool = False
+    assigned_to_me: bool = False  # Owned by the reader; HR may complete others' steps too.
 
 
 class OnboardingCaseItem(BaseModel):

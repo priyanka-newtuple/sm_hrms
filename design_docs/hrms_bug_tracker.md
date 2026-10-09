@@ -51,13 +51,13 @@ Started 2026-10-09. Reviewed against `main` at `6a7c474` on the local stack (`lo
 
 | ID | Sev | Bug | Fix | Where | Status |
 |---|---|---|---|---|---|
-| MW-1 | Med | Performance tasks (goals to approve, self review, manager review, feedback, cycle approval) never appear in My Work or in the badge. | Code | `frontend/.../workspace/useWaitingActions.ts:36-42` | ☐ Open |
+| MW-1 | Med | Performance tasks (goals to approve, self review, manager review, feedback, cycle approval) never appear in My Work or in the badge. | Code | `frontend/.../workspace/useWaitingActions.ts:36-42` | ☑ Fixed (branch `fix/hrms-bugs-batch-1`) |
 | MW-2 | Med | Leave requests the person isn't allowed to decide still show as "Leave approvals". "Review request" then opens a page with no buttons. | Code | `useWaitingActions.ts:32,38`, `service.py:309-311` | ☑ Fixed (by LV-1) |
-| MW-3 | Med | HR sees every new hire's ready onboarding steps as "waiting on you", including steps owned by IT or the new hire. This inflates the count. | Code | `service.py:124-126`, `useWaitingActions.ts:31` | ☐ Open |
-| MW-4 | Low | Counts can be wrong. Leave lists are cut at 100 rows (history included), and "Next time off" and "Days approved" use the same partial list. | Code | `service.py:316-320`, `useWaitingActions.ts:26,32` | ☐ Open |
-| MW-5 | Low | If the WFH inbox call fails, the "Waiting on you" summary shows "…" forever. | Code | `useWaitingActions.ts:37,47` | ☐ Open |
-| MW-6 | Low | One leave request without a workflow enrollment makes the whole Workflows board return 409 for everyone who can see it. | Code | `workflow_config.py:29-31`, `service.py:347-348` | ☐ Open |
-| MW-7 | Low | Due dates are shown as raw ISO text ("Due 2026-10-08T07:22:34…"). | Code | `frontend/.../pages/MyWorkPage.tsx:107` | ☐ Open |
+| MW-3 | Med | HR sees every new hire's ready onboarding steps as "waiting on you", including steps owned by IT or the new hire. This inflates the count. | Code | `service.py:124-126`, `useWaitingActions.ts:31` | ☑ Fixed (branch `fix/hrms-bugs-batch-1`) |
+| MW-4 | Low | Counts can be wrong. Leave lists are cut at 100 rows (history included), and "Next time off" and "Days approved" use the same partial list. | Code | `service.py:316-320`, `useWaitingActions.ts:26,32` | ☑ Fixed (branch `fix/hrms-bugs-batch-1`) |
+| MW-5 | Low | If the WFH inbox call fails, the "Waiting on you" summary shows "…" forever. | Code | `useWaitingActions.ts:37,47` | ☑ Fixed (branch `fix/hrms-bugs-batch-1`) |
+| MW-6 | Low | One leave request without a workflow enrollment makes the whole Workflows board return 409 for everyone who can see it. | Code | `workflow_config.py:29-31`, `service.py:347-348` | ☑ Fixed (branch `fix/hrms-bugs-batch-1`) |
+| MW-7 | Low | Due dates are shown as raw ISO text ("Due 2026-10-08T07:22:34…"). | Code | `frontend/.../pages/MyWorkPage.tsx:107` | ☑ Fixed (branch `fix/hrms-bugs-batch-1`) |
 
 ## Employees
 

@@ -161,6 +161,7 @@ class HrmsService:
                     readiness=readiness, owner_name=users.get(task.get('assigned_to'), 'Unassigned') if task else 'Unassigned',
                     owner_role=ROLE_NAMES.get(step.assignee_role, 'New employee'),
                     due_date=task.get('due_date') if task else None, depends_on=list(step.depends_on),
+                    assigned_to_me=bool(task and task.get('assigned_to') == actor.user_id),
                     can_complete=bool(task and state == 'in_progress' and readiness == 'ready'
                         and task['status'] not in {'COMPLETED', 'CANCELLED'}
                         and ('onboarding:manage' in caps or task.get('assigned_to') == actor.user_id))))
@@ -345,7 +346,7 @@ class HrmsService:
             raise AppError(403, 'Your account has no unique employee profile')
         return own[0]
 
-    def leave(self, actor, view, limit, offset):
+    def leave(self, actor, view, limit, offset, state=None):
         employees = self.employees()
         own = self.own_employee(actor, employees)
         if view not in {'mine', 'approvals'}:
@@ -360,6 +361,9 @@ class HrmsService:
             approvers = LeaveApprovers(self.platform, employees)
             rows = [r for r in rows if r['data']['employee_id'] != own['entity_id'] and actor.user_id in approvers(
                 by_id[r['data']['employee_id']], r['data']['start_date'], r['data']['end_date'])]
+        if state:
+            rows = [r for r in rows if states.get(r['entity_id'], 'not_enrolled') == state]
+        rows.sort(key=lambda r: r['data']['start_date'], reverse=True)  # Newest first, so limits keep the current ones.
         from .wfh import WfhService
         holidays = WfhService(self).holiday_dates()
         return [dict(entity_id=r['entity_id'], identifier=r['data'].get('identifier') or '',

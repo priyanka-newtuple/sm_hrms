@@ -2,11 +2,13 @@
 from .errors import AppError
 
 
-def configured_workflow_rows(platform, rows):
+def configured_workflow_rows(platform, rows, skip_unenrolled=False):
+    """Attach each row's enrolled workflow version. A row without exactly one enrollment, or whose state
+    its version lacks, fails the whole call unless `skip_unenrolled`, which leaves just that row out."""
     if not rows:
         return rows
     ids = {r['entity_id'] for r in rows}
-    enrollments, offset = {}, 0
+    enrollments, duplicated, offset = {}, set(), 0
     while True:
         page = platform.call('GET', '/workflow-enrollments', params={'limit': 200, 'offset': offset})
         if page.get('scan_truncated'):
@@ -16,7 +18,9 @@ def configured_workflow_rows(platform, rows):
                 raise AppError(502, 'Workflow configuration belongs to another organization')
             if enrollment['entity_id'] in ids:
                 if enrollment['entity_id'] in enrollments:
-                    raise AppError(409, 'HRMS requires one workflow enrollment per record')
+                    if not skip_unenrolled:
+                        raise AppError(409, 'HRMS requires one workflow enrollment per record')
+                    duplicated.add(enrollment['entity_id'])
                 enrollments[enrollment['entity_id']] = enrollment
         if not page['has_more']:
             break
@@ -27,6 +31,8 @@ def configured_workflow_rows(platform, rows):
     result = []
     for row in rows:
         enrollment = enrollments.get(row['entity_id'])
+        if skip_unenrolled and (not enrollment or row['entity_id'] in duplicated):
+            continue
         if not enrollment:
             raise AppError(409, 'The HRMS record has no workflow enrollment')
         key = (enrollment['machine_name'], enrollment['machine_version'])
@@ -47,6 +53,8 @@ def configured_workflow_rows(platform, rows):
         state = enrollment['current_state']
         metadata = next((s for s in config['states'] if s['name'] == state), None)
         if metadata is None:
+            if skip_unenrolled:
+                continue
             raise AppError(409, 'The current state is missing from the enrolled workflow version')
         transition_labels = {t['trigger'].replace('_', ' '): t['label'] for t in config['transitions'] if t['from_state'] == state}
         next_action = ', '.join(transition_labels.get(a, a) for a in row.get('next_action', '').split(', '))

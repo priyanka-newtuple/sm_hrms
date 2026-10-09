@@ -92,3 +92,19 @@ def test_new_api_tasks_and_existing_native_tasks_use_same_template():
     assert task_for_step([{'id': '1', 'description': 'HRMS onboarding step 1; template v1;'}], step)['id'] == '1'
     with pytest.raises(AppError):
         task_for_step([{'stage': 'onboarding-step-1'}, {'description': 'HRMS onboarding step 1; template v1;'}], step)
+
+
+def test_steps_say_whether_they_are_assigned_to_the_reader():
+    # HR can complete any ready step, but only its owner's My Work counts it as waiting on them.
+    service = HrmsService(Platform(), Journal(), 'newtuple.com')
+    hr_steps = service.onboarding(actor('hr-user', 'hrms_hr_full'))[0]['steps']
+    owner_steps = service.onboarding(actor('owner'))[0]['steps']
+    assert hr_steps[0]['can_complete'] and not hr_steps[0]['assigned_to_me']
+    assert owner_steps[0]['can_complete'] and owner_steps[0]['assigned_to_me']
+
+
+def test_api_response_models_carry_the_fields_my_work_reads():
+    # Service tests bypass FastAPI's response models, which drop any field they do not declare.
+    from hrms_app.responses import LeaveListItem, OnboardingStepItem
+    assert 'assigned_to_me' in OnboardingStepItem.model_fields
+    assert 'days' in LeaveListItem.model_fields

@@ -246,3 +246,17 @@ def test_a_configured_leave_type_and_reason_pass_the_form_check(monkeypatch):
     platform.form_fields[1]['required'] = True
     error = create(platform, LEAVE_START, LEAVE_END, monkeypatch, leave_type='sick', reason='Fever')
     assert 'Nobody can approve' in error.detail
+
+
+def test_leave_lists_are_newest_first_and_filter_by_state(monkeypatch):
+    monkeypatch.setattr(WfhService, 'holiday_dates', lambda self: set())
+    platform = Platform()
+    states = {'old': 'approved', 'new': 'pending', 'mid': 'pending'}
+    platform.leave = [dict(entity_id=key, data=dict(employee_id='dev', start_date=start, end_date=start, leave_type='annual'))
+                      for key, start in (('old', '2044-01-04'), ('new', '2044-06-06'), ('mid', '2044-03-07'))]
+    platform.states = lambda machine: {} if machine == 'hrms_allocation' else states
+    service = HrmsService(platform, None, 'example.com')
+    who = actor('dev-user', 'hrms_employee')
+    assert [r['entity_id'] for r in service.leave(who, 'mine', 100, 0)] == ['new', 'mid', 'old']
+    assert [r['entity_id'] for r in service.leave(who, 'mine', 100, 0, 'pending')] == ['new', 'mid']
+    assert [r['entity_id'] for r in service.leave(who, 'mine', 1, 0, 'pending')] == ['new']

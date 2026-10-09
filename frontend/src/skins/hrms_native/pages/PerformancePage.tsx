@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { getApiErrorMessage, request } from '@/core/services/api/client';
 import { PageHero } from '../components/PageHero';
+import { awaitingYou } from './performanceAwaiting';
 
 type Data = Record<string, unknown>;
 interface Item { id: string; kind: string; state: string; data: Data; actions: string[]; cycle_name?: string; employee_name?: string; goals?: Item[]; feedback?: Item[] }
@@ -129,7 +130,7 @@ export default function PerformancePage() {
       stats={query.data ? [
         { label: 'Cycles', value: query.data.cycles.length },
         { label: 'Reviews', value: query.data.reviews.length },
-        { label: 'Awaiting you', value: [...query.data.cycles, ...query.data.reviews, ...query.data.assigned_feedback].filter(item => item.actions.length > 0).length, tone: 'attention' },
+        { label: 'Awaiting you', value: awaitingYou(query.data).length, tone: 'attention' },
         { label: 'Feedback requests', value: query.data.assigned_feedback.length },
       ] : undefined} />
     {query.isLoading && <p role="status" className="hrms-surface hrms-work-feedback">Loading performance…</p>}{query.isError && <div role="alert" className="hrms-notice hrms-notice--error"><p>{getApiErrorMessage(query.error)}</p><button className="hrms-outline-button" onClick={() => void query.refetch()}>Try again</button></div>}

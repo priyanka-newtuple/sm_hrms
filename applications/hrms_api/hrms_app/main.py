@@ -203,7 +203,9 @@ def create_app(platform=None, journal=None):
     @app.get('/v1/api/hrms/workflows')
     def workflows(current=Depends(actor)):
         from .workflow_config import configured_workflow_rows
-        return configured_workflow_rows(platform, workflow_rows(service, current) + performance.workflows(current) + projects.workflows(current) + cockpit.workflows(current) + wfh.workflows(current))
+        # One record without a usable enrollment must not hide everyone's other work.
+        return configured_workflow_rows(platform, workflow_rows(service, current) + performance.workflows(current) + projects.workflows(current) + cockpit.workflows(current) + wfh.workflows(current),
+                                        skip_unenrolled=True)
 
     @app.get('/v1/api/hrms/projects')
     def project_dashboard(current=Depends(actor)):
@@ -269,8 +271,9 @@ def create_app(platform=None, journal=None):
         return service.complete_case(current, str(case_id))
 
     @app.get('/v1/api/hrms/leave-requests', response_model=list[LeaveListItem])
-    def leave(view: str = 'mine', limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0), current=Depends(actor)):
-        return service.leave(current, view, limit, offset)
+    def leave(view: str = 'mine', limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0),
+              state: str | None = None, current=Depends(actor)):
+        return service.leave(current, view, limit, offset, state)
 
     @app.post('/v1/api/hrms/leave-requests', response_model=LeaveCreateResponse, status_code=201)
     def create_leave(payload: LeaveCreateRequest, current=Depends(actor)):
