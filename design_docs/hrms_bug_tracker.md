@@ -80,7 +80,7 @@ Started 2026-10-09. Reviewed against `main` at `6a7c474` on the local stack (`lo
 | ON-3 | Med | Steps go to the first person who matches the role, not the right person. In local data, 6 of 8 steps belong to a Super Admin with no employee profile, and the hire's own manager never gets a step. | Code | `service.py:259-266`, `onboarding_template.py:31-38` | ☐ Open |
 | ON-4 | Med | A step or case can't be reassigned, re-dated or cancelled (no-show, withdrawn offer). | Code | `main.py:262-268`, `catalog.py:107-110` | ☐ Open |
 | ON-5 | Med | Due dates count from the moment HR creates the case, not from the joining date, and nothing flags overdue steps. | Code | `service.py:271`, `frontend/.../OnboardingPage.tsx:116` | ☐ Open |
-| ON-6 | Med | One bad case (unknown template, deleted employee, duplicate step) breaks the whole Onboarding page, My Work and Workflows for everyone. | Code | `service.py:39,106-110` | ☐ Open |
+| ON-6 | Med | One bad case (unknown template, deleted employee, duplicate step) breaks the whole Onboarding page, My Work and Workflows for everyone. | Code | `service.py:39,106-110` | ☑ Fixed (branch `fix/hrms-bugs-batch-1`) |
 
 ## Performance
 

@@ -108,3 +108,38 @@ def test_api_response_models_carry_the_fields_my_work_reads():
     from hrms_app.responses import LeaveListItem, OnboardingStepItem
     assert 'assigned_to_me' in OnboardingStepItem.model_fields
     assert 'days' in LeaveListItem.model_fields
+
+
+class BrokenCasePlatform(Platform):
+    """The working case plus one that cannot be read."""
+
+    def __init__(self, broken):
+        super().__init__()
+        self.broken = broken
+
+    def records(self, kind, fields):
+        rows = super().records(kind, fields)
+        if kind == 'HRMS.Employee':
+            return rows
+        bad = dict(entity_id='bad', data=dict(employee_id='employee', template_key='default_onboarding', template_version=1))
+        if self.broken == 'template':
+            bad['data']['template_version'] = 99
+        if self.broken == 'employee':
+            bad['data']['employee_id'] = 'deleted'
+        return rows + [bad]
+
+    def steps_by_case(self):
+        duplicate = self.items + [dict(self.items[0], id='dup')] if self.broken == 'duplicate' else self.items
+        return {'case': self.items, 'bad': duplicate}
+
+    def states(self, machine):
+        return {'case': self.state, 'bad': 'in_progress'}
+
+
+@pytest.mark.parametrize('broken', ['template', 'employee', 'duplicate'])
+def test_one_unreadable_case_does_not_hide_the_others(broken):
+    service = HrmsService(BrokenCasePlatform(broken), Journal(), 'newtuple.com')
+    assert [c['entity_id'] for c in service.onboarding(actor('hr', 'hrms_hr_full'))] == ['case']
+    with pytest.raises(AppError) as error:
+        service.onboarding(actor('hr', 'hrms_hr_full'), 'bad')
+    assert error.value.status == 409

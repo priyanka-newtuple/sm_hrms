@@ -146,35 +146,40 @@ class HrmsService:
             tasks = steps_by_case.get(case['entity_id'], [])
             if 'onboarding:view' not in caps and not any(t.get('assigned_to') == actor.user_id for t in tasks):
                 continue
-            if case['data'].get('template_version') != 1 or case['data'].get('template_key') != 'default_onboarding':
-                raise AppError(409, 'This onboarding template version is not supported')
-            employee = employees.get(case['data'].get('employee_id'))
-            if employee is None:
-                raise AppError(409, 'Onboarding employee was not found')
-            completed = {s.sequence for s in DEFAULT_ONBOARDING_STEPS
-                         if (t := task_for_step(tasks, s)) and t['status'] == 'COMPLETED'}
-            state = states.get(case['entity_id'], 'not_started')
-            steps = []
-            for step in DEFAULT_ONBOARDING_STEPS:
-                task = task_for_step(tasks, step)
-                readiness = ('completed' if step.sequence in completed else 'waiting'
-                             if any(d not in completed for d in step.depends_on) else 'ready')
-                steps.append(dict(sequence=step.sequence, task_id=task['id'] if task else None,
-                    title=step.title, status=task['status'].lower() if task else 'not_started',
-                    readiness=readiness, owner_name=users.get(task.get('assigned_to'), 'Unassigned') if task else 'Unassigned',
-                    owner_role=ROLE_NAMES.get(step.assignee_role, 'New employee'),
-                    due_date=task.get('due_date') if task else None, depends_on=list(step.depends_on),
-                    assigned_to_me=bool(task and task.get('assigned_to') == actor.user_id),
-                    can_complete=bool(task and state == 'in_progress' and readiness == 'ready'
-                        and task['status'] not in {'COMPLETED', 'CANCELLED'}
-                        and ('onboarding:manage' in caps or task.get('assigned_to') == actor.user_id))))
-            result.append(dict(entity_id=case['entity_id'], identifier=case['data'].get('identifier') or '',
-                employee_entity_id=employee['entity_id'], employee_name=name(employee),
-                employee_code=employee['data'].get('employee_code') or '', designation=employee['data'].get('designation') or '',
-                department=employee['data'].get('department') or '', state=state, completed_steps=len(completed),
-                total_steps=len(DEFAULT_ONBOARDING_STEPS), steps=steps,
-                can_complete_case='onboarding:manage' in caps and state == 'in_progress'
-                    and len(completed) == len(DEFAULT_ONBOARDING_STEPS)))
+            try:
+                if case['data'].get('template_version') != 1 or case['data'].get('template_key') != 'default_onboarding':
+                    raise AppError(409, 'This onboarding template version is not supported')
+                employee = employees.get(case['data'].get('employee_id'))
+                if employee is None:
+                    raise AppError(409, 'Onboarding employee was not found')
+                completed = {s.sequence for s in DEFAULT_ONBOARDING_STEPS
+                             if (t := task_for_step(tasks, s)) and t['status'] == 'COMPLETED'}
+                state = states.get(case['entity_id'], 'not_started')
+                steps = []
+                for step in DEFAULT_ONBOARDING_STEPS:
+                    task = task_for_step(tasks, step)
+                    readiness = ('completed' if step.sequence in completed else 'waiting'
+                                 if any(d not in completed for d in step.depends_on) else 'ready')
+                    steps.append(dict(sequence=step.sequence, task_id=task['id'] if task else None,
+                        title=step.title, status=task['status'].lower() if task else 'not_started',
+                        readiness=readiness, owner_name=users.get(task.get('assigned_to'), 'Unassigned') if task else 'Unassigned',
+                        owner_role=ROLE_NAMES.get(step.assignee_role, 'New employee'),
+                        due_date=task.get('due_date') if task else None, depends_on=list(step.depends_on),
+                        assigned_to_me=bool(task and task.get('assigned_to') == actor.user_id),
+                        can_complete=bool(task and state == 'in_progress' and readiness == 'ready'
+                            and task['status'] not in {'COMPLETED', 'CANCELLED'}
+                            and ('onboarding:manage' in caps or task.get('assigned_to') == actor.user_id))))
+                result.append(dict(entity_id=case['entity_id'], identifier=case['data'].get('identifier') or '',
+                    employee_entity_id=employee['entity_id'], employee_name=name(employee),
+                    employee_code=employee['data'].get('employee_code') or '', designation=employee['data'].get('designation') or '',
+                    department=employee['data'].get('department') or '', state=state, completed_steps=len(completed),
+                    total_steps=len(DEFAULT_ONBOARDING_STEPS), steps=steps,
+                    can_complete_case='onboarding:manage' in caps and state == 'in_progress'
+                        and len(completed) == len(DEFAULT_ONBOARDING_STEPS)))
+            except AppError:
+                if case_id:
+                    raise  # Acting on this case needs it readable.
+                continue  # One unreadable case must not hide everyone else's onboarding.
         if case_id and not result:
             raise AppError(404, 'Onboarding case was not found or is not assigned to you')
         return sorted(result, key=lambda r: r['employee_name'].casefold())
