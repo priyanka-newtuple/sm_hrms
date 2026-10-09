@@ -9,6 +9,8 @@ import httpx
 
 from .errors import AppError
 
+MACHINE_NAME_TTL_SECONDS = 60
+
 
 @dataclass(frozen=True)
 class Actor:
@@ -32,6 +34,8 @@ class PlatformClient:
         self._token = ''
         self._expires = 0.0
         self._login_lock = threading.Lock()
+        self._machines: dict[str, list[str]] = {}
+        self._machines_at = float('-inf')
 
     def close(self):
         self.http.close()
@@ -187,8 +191,17 @@ class PlatformClient:
         pack = next((p for p in PACKS if p.machine_name == name), None)
         if not pack:
             return name
-        workflows = self.call('GET', '/workflow-state-machines', params={'scope': 'published'})['published_items']
-        matches = [w for w in workflows if w['entity_type'] == pack.entity_type and w['is_active']]
+        # A workflow keeps its machine name across republishes; it changes only when a workflow is
+        # replaced. So resolve every type from one published listing and reuse it briefly, instead
+        # of downloading every definition on each lookup.
+        if time.monotonic() - self._machines_at > MACHINE_NAME_TTL_SECONDS:
+            active = {}
+            for w in self.call('GET', '/workflow-state-machines', params={'scope': 'published'})['published_items']:
+                if w['is_active']:
+                    active.setdefault(w['entity_type'], []).append(w['machine_name'])
+            self._machines, self._machines_at = active, time.monotonic()
+        matches = self._machines.get(pack.entity_type, [])
         if len(matches) != 1:
+            self._machines_at = float('-inf')  # Do not keep serving a listing that needs fixing.
             raise AppError(409, f'{pack.label} needs exactly one active workflow')
-        return matches[0]['machine_name']
+        return matches[0]

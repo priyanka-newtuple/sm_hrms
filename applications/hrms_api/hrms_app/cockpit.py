@@ -1,5 +1,6 @@
 """HR publishing orchestration using only public platform contracts."""
 
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, date, datetime
 from urllib.parse import urlsplit
 from uuid import uuid4
@@ -87,11 +88,24 @@ class CockpitService:
         return result
 
     def people(self, actor):
+        """Active users, other than the actor, whose roles grant cockpit:approve."""
+        candidates = [
+            u
+            for u in self.platform.users()
+            if u.get("status") == "active"
+            and u.get("email") != self.platform.email
+            and u["id"] != actor.user_id
+        ]
+        # The platform only lists roles per user; fetch them concurrently instead of one by one.
+        with ThreadPoolExecutor(max_workers=8) as pool:
+            all_roles = list(
+                pool.map(
+                    lambda u: self.platform.call("GET", f"/roles/users/{u['id']}/roles"),
+                    candidates,
+                )
+            )
         result = []
-        for u in self.platform.users():
-            if u.get("status") != "active" or u.get("email") == self.platform.email:
-                continue
-            roles = self.platform.call("GET", f"/roles/users/{u['id']}/roles")
+        for u, roles in zip(candidates, all_roles):
             caps = set().union(
                 *(
                     role_capabilities(r["role_name"], None, actor.cockpit_policy)
@@ -99,7 +113,7 @@ class CockpitService:
                     if r["organization_id"] == actor.organization_id
                 )
             )
-            if "cockpit:approve" in caps and u["id"] != actor.user_id:
+            if "cockpit:approve" in caps:
                 result.append({"id": u["id"], "name": u["full_name"]})
         return result
 
