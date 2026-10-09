@@ -360,16 +360,23 @@
 .hrms-community-tabs small { display:block; font-size:9px; font-weight:400; color:#64748b; }
 .hrms-survey-placeholder { display:flex; justify-content:space-between; padding:12px; color:#64748b; font-size:14px; }
 .hrms-survey-placeholder small { font-size:11px; }
-/* Keep all navigation visible on smaller desktops and zoomed-in windows. */
-@media(min-width:768px) and (max-width:1350px) {
-  .hrms-public-shell { --pub-h:132px; }
-  .hrms-pub-bar { height:118px; grid-template-columns:1fr auto; grid-template-rows:54px 50px; gap:4px 16px; }
-  .hrms-pub-brand { grid-column:1; grid-row:1; }
-  .hrms-pub-actions { grid-column:2; grid-row:1; }
-  .hrms-header-navigation { grid-column:1 / -1; grid-row:2; justify-content:center; }
-  .hrms-pub-links { display:flex; }
+/* Keep desktop navigation beside the brand in one compact row. */
+@media(min-width:1001px) {
+  .hrms-pub-bar { grid-template-columns:auto minmax(0,1fr) auto; gap:16px; }
+  .hrms-header-navigation { justify-content:flex-start; min-width:0; }
   .hrms-menu-toggle { display:none; }
 }
-@media(max-width:767px) { .hrms-header-navigation { display:none; } .hrms-pub-bar { grid-template-columns:1fr auto; } .hrms-menu-toggle { display:grid; } }
+@media(min-width:1001px) and (max-width:1350px) {
+  .hrms-pub-bar { gap:10px; padding-inline:12px; }
+  .hrms-pub-brand { gap:10px; }
+  .hrms-pub-myhub { font-size:21px; padding-left:10px; }
+  .hrms-header-navigation { gap:8px; }
+  .hrms-pub-links { display:flex; height:38px; padding:3px; }
+  .hrms-pub-links a { font-size:12px; padding-inline:8px; }
+  .hrms-community-tabs { padding:3px; }
+  .hrms-community-tabs a,.hrms-community-tabs button { font-size:11px; gap:5px; padding-inline:7px; }
+  .hrms-pub-cta { font-size:12px; height:38px; padding-inline:12px; gap:6px; }
+}
+@media(max-width:1000px) { .hrms-header-navigation { display:none; } .hrms-pub-bar { grid-template-columns:1fr auto; } .hrms-menu-toggle { display:grid; } }
 
 .hrms-public-menu { background:#fff; }
