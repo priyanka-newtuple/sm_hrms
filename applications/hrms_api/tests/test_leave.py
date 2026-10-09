@@ -1,8 +1,13 @@
+from contextlib import contextmanager
+from types import SimpleNamespace
+
 import pytest
 
 from hrms_app.errors import AppError
 from hrms_app.platform import Actor
-from hrms_app.service import HrmsService
+from hrms_app.requests import LeaveCreateRequest
+from hrms_app.service import HrmsService, leave_days
+from hrms_app.wfh import WfhService
 
 
 def actor(user_id, role):
@@ -62,3 +67,45 @@ def test_people_other_than_the_direct_manager_cannot_see_or_decide(who):
 @pytest.mark.parametrize('state', ['approved', 'rejected', 'cancelled'])
 def test_decided_leave_offers_no_actions(state):
     assert triggers(Platform(state), 'boss-user', 'superadmin', 'lead') == []
+
+
+# 2044-03-04 is a Friday; 03-05/06 the weekend; 03-07 a Monday.
+@pytest.mark.parametrize(('start', 'end', 'holidays', 'days'), [
+    ('2044-03-04', '2044-03-07', set(), 2),             # Friday to Monday skips the weekend
+    ('2044-03-05', '2044-03-06', set(), 0),             # weekend only
+    ('2044-03-07', '2044-03-11', {'2044-03-09'}, 4),    # a published holiday mid-week
+    ('2044-03-07', '2044-03-07', set(), 1),
+])
+def test_leave_counts_working_days_only(start, end, holidays, days):
+    assert leave_days(start, end, holidays) == days
+
+
+class Journal:
+    def __init__(self):
+        self.ops = {}
+
+    @contextmanager
+    def lock(self, org):
+        yield self
+
+    def operation(self, db, who, key, payload):
+        return self.ops.setdefault(key, SimpleNamespace(result=None))
+
+
+@pytest.mark.parametrize(('start', 'end'), [('2044-03-05', '2044-03-06'), ('2044-03-09', '2044-03-09')])
+def test_leave_on_weekends_or_holidays_only_is_refused(monkeypatch, start, end):
+    monkeypatch.setattr(WfhService, 'holiday_dates', lambda self: {'2044-03-09'})
+    request = LeaveCreateRequest(start_date=start, end_date=end, leave_type='annual', idempotency_key='weekend-0001')
+    with pytest.raises(AppError) as error:
+        HrmsService(Platform(), Journal(), 'example.com').create_leave(actor('dev-user', 'hrms_employee'), request)
+    assert error.value.status == 422 and 'working day' in error.value.detail
+
+
+def test_leave_lists_carry_their_working_days(monkeypatch):
+    monkeypatch.setattr(WfhService, 'holiday_dates', lambda self: set())
+    platform = Platform()
+    leave = dict(entity_id='dev-leave', data=dict(employee_id='dev', start_date='2044-03-04', end_date='2044-03-07',
+                                                  leave_type='annual'))
+    platform.records = lambda kind, fields: [leave] if kind == 'HRMS.LeaveRequest' else platform.people
+    rows = HrmsService(platform, Journal(), 'example.com').leave(actor('dev-user', 'hrms_employee'), 'mine', 100, 0)
+    assert [(r['entity_id'], r['days']) for r in rows] == [('dev-leave', 2)]

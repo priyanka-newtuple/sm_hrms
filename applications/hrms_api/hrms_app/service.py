@@ -1,7 +1,7 @@
 """HRMS composition and business rules over the native platform HTTP API."""
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 import hashlib
 import secrets
 import json
@@ -38,6 +38,13 @@ def task_for_step(tasks, step):
     if len(matches) > 1:
         raise AppError(409, 'Duplicate onboarding tasks require reconciliation')
     return matches[0] if matches else None
+
+
+def leave_days(start, end, holidays):
+    """Working days in an inclusive ISO date range: weekdays that are not published holidays."""
+    first, last = date.fromisoformat(start), date.fromisoformat(end)
+    days = (first + timedelta(offset) for offset in range((last - first).days + 1))
+    return sum(1 for day in days if day.weekday() < 5 and day.isoformat() not in holidays)
 
 
 class HrmsService:
@@ -314,9 +321,12 @@ class HrmsService:
         names = {r['entity_id']: name(r) for r in visible}
         states = self.platform.states('hrms_leaverequest')
         rows = [r for r in self.platform.records(LEAVE, LEAVE_FIELDS) if r['data'].get('employee_id') in names]
+        from .wfh import WfhService
+        holidays = WfhService(self).holiday_dates()
         return [dict(entity_id=r['entity_id'], identifier=r['data'].get('identifier') or '',
                      employee_name=names[r['data']['employee_id']], start_date=r['data']['start_date'],
                      end_date=r['data']['end_date'], leave_type=r['data']['leave_type'], reason=r['data'].get('reason'),
+                     days=leave_days(r['data']['start_date'], r['data']['end_date'], holidays),
                      state=states.get(r['entity_id'], 'not_enrolled')) for r in rows[offset:offset + limit]]
 
     def create_leave(self, actor, request):
@@ -333,7 +343,10 @@ class HrmsService:
             marker = hashlib.sha256(f'{actor.organization_id}:{actor.user_id}:leave:{request.idempotency_key}'.encode()).hexdigest()
             rows = self.platform.records(LEAVE, LEAVE_FIELDS)
             from .wfh import WfhService
-            WfhService(self).check_leave_conflict(db, actor, own['entity_id'], request.start_date, request.end_date)
+            wfh = WfhService(self)
+            if not leave_days(request.start_date.isoformat(), request.end_date.isoformat(), wfh.holiday_dates()):
+                raise AppError(422, 'These dates are only weekends or published holidays; choose at least one working day')
+            wfh.check_leave_conflict(db, actor, own['entity_id'], request.start_date, request.end_date)
             states = self.platform.states('hrms_leaverequest')
             for row in rows:
                 d = row['data']

@@ -13,6 +13,8 @@ export interface LeaveItem {
   employee_name: string;
   start_date: string;
   end_date: string;
+  /** Working days: weekdays that are not published holidays. */
+  days?: number;
   leave_type: string;
   reason: string | null;
   state: string;
@@ -101,7 +103,7 @@ export default function LeaveRequestsPage() {
         { label: view === 'mine' ? 'Your requests' : 'Team requests', value: list.data.length },
         { label: 'Pending', value: list.data.filter(item => item.state === 'pending').length, tone: 'attention' },
         { label: 'Approved', value: list.data.filter(item => item.state === 'approved').length, tone: 'positive' },
-        { label: 'Days approved', value: list.data.filter(item => item.state === 'approved').reduce((days, item) => days + Math.max(1, Math.round((Date.parse(item.end_date) - Date.parse(item.start_date)) / 86_400_000) + 1), 0) },
+        { label: 'Days approved', value: list.data.filter(item => item.state === 'approved').reduce((days, item) => days + (item.days ?? Math.max(1, Math.round((Date.parse(item.end_date) - Date.parse(item.start_date)) / 86_400_000) + 1)), 0) },
       ] : undefined} />
     <div className="hrms-leave-layout"><section className="hrms-surface hrms-leave-compose" aria-label="Request leave">
     <ConfiguredForm entityType="HRMS.LeaveRequest"><form onSubmit={submit} className="hrms-people-form">

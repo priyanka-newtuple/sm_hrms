@@ -81,15 +81,15 @@ def main():
     assert manager_login.status_code == 200, manager_login.text
     manager_headers = {'Authorization': 'Bearer ' + manager_login.json()['access_token']}
     leave = app.post('/hrms/leave-requests', headers=user_headers, json=dict(
-        start_date='2041-09-21', end_date='2041-09-22', leave_type='annual', reason='Local boundary verification',
-        idempotency_key='boundary-smoke-leave-v1'))
+        start_date='2041-09-23', end_date='2041-09-24', leave_type='annual', reason='Local boundary verification',
+        idempotency_key='boundary-smoke-leave-v2'))
     assert leave.status_code == 201, leave.text
     entity_id = leave.json()['entity_id']
     denied = app.post(f'/hrms/leave-requests/{entity_id}/actions', headers=user_headers,
-                      json={'trigger':'approve', 'idempotency_key':'boundary-smoke-decision-self'})
+                      json={'trigger':'approve', 'idempotency_key':'boundary-smoke-decision-self-v2'})
     assert denied.status_code == 403, denied.text
     approved = app.post(f'/hrms/leave-requests/{entity_id}/actions', headers=manager_headers,
-                        json={'trigger':'approve','idempotency_key':'boundary-smoke-decision-v1'})
+                        json={'trigger':'approve','idempotency_key':'boundary-smoke-decision-v2'})
     assert approved.status_code == 200, approved.text
     assert platform.states('hrms_leaverequest')[entity_id] == 'approved'
     assert platform.states('hrms_onboardingcase')[case_id] == 'completed'

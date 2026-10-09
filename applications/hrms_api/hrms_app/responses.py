@@ -20,6 +20,7 @@ class LeaveListItem(BaseModel):
     end_date: str
     leave_type: str
     reason: str | None = None
+    days: int = 0  # Working days: weekdays that are not published holidays.
     state: str
 
 

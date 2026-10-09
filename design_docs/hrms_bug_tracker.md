@@ -39,7 +39,7 @@ Started 2026-10-09. Reviewed against `main` at `6a7c474` on the local stack (`lo
 | ID | Sev | Bug | Fix | Where | Status |
 |---|---|---|---|---|---|
 | LV-1 | High | Only users with the Manager or Delivery Manager role can approve. If someone's manager has another role (admin, superadmin, HR, PM, finance), nobody can ever approve their leave. In local data: the Delivery Manager reports to Superadmin, who sees the request but gets no buttons. | Code | `role_capabilities.json:10,65`, `policy.py:17-23`, `service.py:369` | ☑ Fixed (branch `fix/hrms-bugs-batch-1`) |
-| LV-2 | High | Weekends and holidays are counted as leave days. A Saturday–Sunday leave was accepted and approved (LVE-0001), and "Days approved" counts calendar days. | Code | `service.py:322-344`, `frontend/.../LeaveRequestsPage.tsx:104` | ☐ Open |
+| LV-2 | High | Weekends and holidays are counted as leave days. A Saturday–Sunday leave was accepted and approved (LVE-0001), and "Days approved" counts calendar days. | Code | `service.py:322-344`, `frontend/.../LeaveRequestsPage.tsx:104` | ☑ Fixed (branch `fix/hrms-bugs-batch-1`) |
 | LV-3 | Med | Approved leave can't be cancelled. Cancel is only offered while pending, and the workflow has no approved → cancelled step. | Settings + Code | Funnels → Leave Request (add approved→cancelled), plus `service.py:369` | ☐ Open |
 | LV-4 | Med | Leave can be requested for past dates (for example last year), and requests whose dates have passed stay pending forever. | Code | `service.py:322-344,369`, `requests.py:18-24` | ☐ Open |
 | LV-5 | Med | Employees with no reporting manager (for example the CEO) can't apply for leave at all. | Code | `service.py:330-332` | ☐ Open |
