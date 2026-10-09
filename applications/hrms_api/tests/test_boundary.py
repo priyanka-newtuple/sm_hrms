@@ -74,3 +74,28 @@ def test_employee_creation_requires_permission_before_upstream_writes():
         'first_name': 'Test', 'last_name': 'Employee', 'work_email': 'test@newtuple.com',
         'department': 'Engineering', 'designation': 'Engineer', 'date_joined': '2026-09-28', 'idempotency_key': 'test-operation'})
     assert response.status_code == 403
+
+
+def test_workflow_list_is_empty_not_forbidden_for_people_without_workflow_access():
+    import httpx
+
+    def platform_response(request):
+        token = request.headers['authorization'].removeprefix('Bearer ')
+        if token != 'admin':
+            return httpx.Response(403, json={'detail': 'Forbidden'})
+        return httpx.Response(200, json={'scope': 'all', 'published_items': [{'machine_name': 'wf'}], 'draft_items': []})
+
+    class Platform:
+        org = 'org'
+        http = httpx.Client(base_url='http://platform.test/', transport=httpx.MockTransport(platform_response))
+        def actor(self, token):
+            return Actor(token, 'org', token, frozenset({token}), frozenset())
+    client = TestClient(create_app(Platform(), object()))
+    for role in ('hrms_employee', 'hrms_manager'):
+        response = client.get('/v1/api/workflow-state-machines?scope=all', headers={'Authorization': f'Bearer {role}'})
+        assert response.status_code == 200 and response.json() == {'scope': 'all', 'published_items': [], 'draft_items': []}
+    admin = client.get('/v1/api/workflow-state-machines?scope=all', headers={'Authorization': 'Bearer admin'})
+    assert admin.json()['published_items'] == [{'machine_name': 'wf'}]  # people with access still get the real list
+    # Only the list read is softened: other refusals pass through unchanged.
+    active = client.get('/v1/api/workflow-state-machines/wf/active', headers={'Authorization': 'Bearer hrms_employee'})
+    assert active.status_code == 403

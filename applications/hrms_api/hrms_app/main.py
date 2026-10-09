@@ -330,6 +330,11 @@ def create_app(platform=None, journal=None):
             if isinstance(exc, AppError):
                 raise
             raise AppError(503, 'The platform is unavailable') from exc
+        if request.method == 'GET' and path == 'workflow-state-machines' and response.status_code == 403:
+            # The shared skin loader lists workflows for every signed-in user, but only people with
+            # platform workflow access may read them; give everyone else the empty list it falls back on.
+            return JSONResponse({'scope': request.query_params.get('scope', 'all'),
+                                 'published_items': [], 'draft_items': []})
         return response
 
     return app

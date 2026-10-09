@@ -16,7 +16,7 @@ Started 2026-10-09. Reviewed against `main` at `6a7c474` on the local stack (`lo
 |---|---|---|---|---|---|
 | X-1 | High | Fields added or made required in Settings → Fields/Forms don't show up or save on the Leave, Employees, Performance and HR Cockpit screens. The forms and API contracts only know their built-in fields. | Code | `requests.py`, `performance_contracts.py`, `cockpit.py:41-73`, `frontend/.../pages/*Page.tsx` | ☐ Open |
 | X-2 | High | Renaming or adding a step in Settings → Funnels breaks the Leave, Onboarding, Performance and HR Cockpit buttons. The action names are hard-coded, so renamed steps lose their button and new steps never get one. | Code | `service.py:111-168,369`, `performance.py:97-140`, `cockpit.py:106-160` | ☐ Open |
-| X-3 | Low | Every HRMS page logs `403 /v1/api/workflow-state-machines` for everyone except admins. The skin loader fetches the workflow list, but the HRMS gateway only allows that call for Settings users. *(reproduced)* | Code | `settings_gateway.py` (allow the read), or stop the call in the HRMS skin | ☐ Open |
+| X-3 | Low | Every HRMS page logs `403 /v1/api/workflow-state-machines` for everyone except admins. The skin loader fetches the workflow list, but the HRMS gateway only allows that call for Settings users. *(reproduced)* | Code | `settings_gateway.py` (allow the read), or stop the call in the HRMS skin | ☑ Fixed (branch `fix/hrms-bugs-batch-1`): the 403 came from the platform (no workflow read permission), not the gateway; the gateway now answers that one list read with the empty list the skin falls back on |
 
 ## HR Cockpit (Policies, L&D calendar, Holidays, Job descriptions, Open positions)
 
