@@ -88,7 +88,7 @@ Started 2026-10-09. Reviewed against `main` at `6a7c474` on the local stack (`lo
 |---|---|---|---|---|---|
 | PF-1 | High | One employee who leaves blocks the whole cycle. Every stage waits for all reviews and there is no way to withdraw a participant. | Code | `performance.py:252-261,119-140`, `performance_catalog.py:27-39` | ☐ Open |
 | PF-2 | High | A feedback request can't be cancelled or reassigned. If the reviewer never answers, the manager review and the whole cycle are stuck. | Code | `performance.py:308-309`, `performance_catalog.py:50` | ☐ Open |
-| PF-3 | High | One unfinished or failed action by any user locks every performance action for the whole company, and only that user can resume it. | Code | `performance.py:49-50,344-346,362` | ☐ Open |
+| PF-3 | High | One unfinished or failed action by any user locks every performance action for the whole company, and only that user can resume it. | Code | `performance.py:49-50,344-346,362` | ☑ Fixed (branch `fix/hrms-bugs-batch-1`): an interrupted action now holds up only the records it was changing, and the message names whose action must be resumed. If the platform refuses the first change, nothing is left to recover. HR Cockpit had the same company-wide hold and got the same fix |
 | PF-4 | High | HR can't close the cycle until every employee acknowledges, and there's no override. | Code | `performance.py:261`, `performance_catalog.py:39` | ☐ Open |
 | PF-5 | High | Cycle dates and deadlines aren't enforced. The 2042 test cycle was fully run and closed today. | Code | `performance.py:120-139,251-262` | ☐ Open |
 | PF-6 | Med | People who join after the cycle is approved can't be added. | Code | `performance.py:102-103,246-248` | ☐ Open |

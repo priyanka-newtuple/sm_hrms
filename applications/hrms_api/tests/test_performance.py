@@ -30,6 +30,7 @@ class Platform:
     def __init__(self):
         self.rows = {}
         self.fail_trigger = None
+        self.fail_status = 503
         self.completed = set()
 
     def add(self, kind, data, state=None, entity_id=None):
@@ -40,6 +41,9 @@ class Platform:
 
     def records(self, kind, fields):
         return deepcopy([r for r in self.rows.values() if r['kind'] == kind])
+
+    def users(self):
+        return [dict(id='admin', full_name='Admin User', status='active', email='admin@example.com')]
 
     def states(self, machine):
         return {r['entity_id']: r['state'] for r in self.rows.values() if pack_by_type(r['kind']).machine_name == machine}
@@ -62,7 +66,7 @@ class Platform:
             return
         if data['trigger'] == self.fail_trigger:
             self.fail_trigger = None
-            raise AppError(503, 'Injected platform failure')
+            raise AppError(self.fail_status, 'Injected platform failure')
         row = self.rows[data['entity_id']]
         transitions = [t for t in pack_by_type(row['kind']).transitions if t[0] == row['state'] and t[1] == data['trigger']]
         assert len(transitions) == 1, (row['state'], data['trigger'])
@@ -92,8 +96,10 @@ class Journal:
         return op
 
     def execute(self, sql, params):
-        return SimpleNamespace(fetchone=lambda: next(((key,) for key, op in self.ops.items()
-            if key != params[1] and op.result is None and 'performance_plan' in op.progress), None))
+        plan = 'cockpit_plan' if 'cockpit_plan' in sql else 'performance_plan'
+        pending = [(key, op) for key, op in self.ops.items() if key != params[1] and op.result is None and plan in op.progress]
+        return SimpleNamespace(fetchone=lambda: (pending[0][0],) if pending else None,
+                               fetchall=lambda: [(op.actor, op.progress) for _, op in pending])
 
     def audit(self, db, who, action, target, operation_key=None):
         self.audits.append((who.user_id, action, target))
@@ -191,12 +197,35 @@ def test_partial_failure_resumes_without_duplicate_review_and_blocks_interleavin
     with pytest.raises(AppError, match='Injected'):
         act(service, actor('admin', 'admin'), 'cycle', 'approve')
     assert len(service.records(REVIEW)) == 1
-    with pytest.raises(AppError, match='recovery'):
+    with pytest.raises(AppError, match="needs recovery: Admin User's interrupted approve"):
         act(service, actor('hr', 'hrms_hr_full'), 'cycle', 'start_reviews')
     act(service, actor('admin', 'admin'), 'cycle', 'approve')
     act(service, actor('admin', 'admin'), 'cycle', 'approve')
     assert len(service.records(REVIEW)) == 1
     assert platform.rows['cycle']['state'] == 'open'
+
+
+def test_an_interrupted_action_only_holds_up_the_records_it_changes(system):
+    service, platform, journal = system
+    cycle = platform.rows['cycle']['data']
+    platform.add(CYCLE, {**cycle, 'name': 'Probation review'}, 'draft', 'cycle-2')
+    platform.fail_trigger = 'submit'
+    with pytest.raises(AppError, match='Injected'):
+        act(service, actor('hr', 'hrms_hr_full'), 'cycle', 'submit')   # outcome unknown: kept for recovery
+    act(service, actor('hr', 'hrms_hr_full'), 'cycle-2', 'submit', key='other-cycle')
+    assert platform.rows['cycle-2']['state'] != 'draft'
+    with pytest.raises(AppError, match='needs recovery'):
+        act(service, actor('hr', 'hrms_hr_full'), 'cycle', 'edit_cycle', key='edit-blocked')
+
+
+def test_a_refused_first_step_leaves_nothing_to_recover(system):
+    service, platform, journal = system
+    platform.fail_trigger, platform.fail_status = 'submit', 409
+    with pytest.raises(AppError, match='Injected'):
+        act(service, actor('hr', 'hrms_hr_full'), 'cycle', 'submit')
+    assert not any('performance_plan' in op.progress for op in journal.ops.values() if op.result is None)
+    act(service, actor('hr', 'hrms_hr_full'), 'cycle', 'submit')       # the same request can simply be retried
+    assert platform.rows['cycle']['state'] != 'draft'
 
 
 def test_idempotency_conflict_cross_tenant_and_unrelated_read_denied(system):

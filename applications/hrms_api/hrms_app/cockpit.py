@@ -358,13 +358,18 @@ class CockpitService:
             )
             if op.result:
                 return op.result
+            # An interrupted operation holds up only its own item (and, for creates, other creates,
+            # so a retried create cannot duplicate a requisition code).
             pending = db.execute(
-                "SELECT operation_key FROM operations WHERE organization_id=%s AND operation_key<>%s AND result IS NULL AND progress ? 'cockpit_plan' LIMIT 1",
+                "SELECT actor_id, progress FROM operations WHERE organization_id=%s AND operation_key<>%s AND result IS NULL AND progress ? 'cockpit_plan'",
                 (actor.organization_id, key),
-            ).fetchone()
+            ).fetchall()
             check(
-                not pending,
-                "A publishing operation needs recovery; retry its original request",
+                not any(
+                    target in {progress.get("target"), progress.get("entity_id")}
+                    for _, progress in pending
+                ),
+                "This item needs recovery: an interrupted publishing step must be retried with its original request",
                 409,
             )
             if "cockpit_plan" not in op.progress:
@@ -529,16 +534,24 @@ class CockpitService:
                         json={"data": step["data"]},
                     )
                 else:
-                    self.platform.call(
-                        "POST",
-                        f"/entities/{entity_id}/transitions",
-                        json={
-                            "entity_id": entity_id,
-                            "trigger": step["trigger"],
-                            "idempotency_key": key,
-                            "inputs": {"hrms_actor_id": actor.user_id},
-                        },
-                    )
+                    try:
+                        self.platform.call(
+                            "POST",
+                            f"/entities/{entity_id}/transitions",
+                            json={
+                                "entity_id": entity_id,
+                                "trigger": step["trigger"],
+                                "idempotency_key": key,
+                                "inputs": {"hrms_actor_id": actor.user_id},
+                            },
+                        )
+                    except AppError as error:
+                        if error.status < 500 and i == 0:
+                            # The platform refused the first change, so nothing was applied: leave no recovery behind.
+                            for field in ("cockpit_plan", "kind", "target", "required_caps", "step"):
+                                op.progress.pop(field, None)
+                            op.checkpoint()
+                        raise
                 op.checkpoint(step=i + 1, entity_id=entity_id)
             result = {"entity_id": entity_id}
             self.journal.audit(db, actor, "cockpit:" + cmd.action, entity_id, key)

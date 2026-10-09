@@ -41,10 +41,12 @@ function ActionForm({ item, action, done }: { item?: Item; action: string; done:
     mutationFn: (body: NonNullable<typeof pending>) => request(action === 'create_cycle' ? '/hrms/performance/cycles' : `/hrms/performance/${item?.id}/actions`, { method: 'POST', body: JSON.stringify(body) }),
     onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: ['hrms'] }); done(); },
     onError: (error) => {
-      // Validation/authorization failures occur before a plan is persisted. Ambiguous network
-      // failures retain the exact request and key so Retry resumes the existing operation.
+      // Validation, authorization and conflict failures leave nothing to retry here (an interrupted
+      // operation stays listed under "Resume action"). Ambiguous network failures retain the exact
+      // request and key so Retry resumes the existing operation.
       const status = (error as Error & { status?: number }).status;
-      if (status === 422 || status === 403 || status === 404) setPending(null);
+      if (status === 422 || status === 403 || status === 404 || status === 409) setPending(null);
+      void queryClient.invalidateQueries({ queryKey: ['hrms', 'performance-pending'] });
     },
   });
   function field(key: string, type = 'text', required = true, min?: number, max?: number) {

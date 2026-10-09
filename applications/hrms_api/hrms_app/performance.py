@@ -30,6 +30,11 @@ def parse(model, data):
         raise AppError(422, '; '.join(e['msg'] for e in exc.errors())) from exc
 
 
+def plan_scope(plan, refs):
+    """The existing records a plan changes, plus any it has created so far."""
+    return {step['target'] for step in plan if step['op'] != 'create'} | set(refs.values())
+
+
 class PerformanceService:
     def __init__(self, hrms):
         self.hrms, self.platform, self.journal = hrms, hrms.platform, hrms.journal
@@ -340,40 +345,62 @@ class PerformanceService:
             operation = self.journal.operation(db, actor, key, {'target': target, **payload})
             if operation.result is not None:
                 return operation.result
-            # Never let another action interleave with an incompletely applied multi-record plan.
-            pending = db.execute("SELECT operation_key FROM operations WHERE organization_id=%s AND operation_key<>%s AND result IS NULL AND progress ? 'performance_plan' LIMIT 1",
-                                 (actor.organization_id, key)).fetchone()
-            check(not pending, 'A performance action needs recovery. Retry its original request before continuing.', 409)
             if 'performance_plan' not in operation.progress:
+                self.check_not_interleaved(db, actor, key, {target})
                 plan = self.plan(actor, target, request.action, request.data, self.snapshot())
+                self.check_not_interleaved(db, actor, key, plan_scope(plan, {}))
                 operation.checkpoint(performance_plan=plan, performance_request={'target': target, 'action': request.action, 'data': request.data}, step=0, refs={})
             plan = operation.progress['performance_plan']
             refs = operation.progress['refs']
             for index in range(operation.progress['step'], len(plan)):
                 step = plan[index]
-                marker = hashlib.sha256(f'{actor.organization_id}:{key}:{index}'.encode()).hexdigest()
-                if step['op'] == 'create':
-                    rows = self.platform.records(step['kind'], ['hrms_operation_key'])
-                    matches = [r for r in rows if r['data'].get('hrms_operation_key') == marker]
-                    check(len(matches) <= 1, 'Duplicate operation records need reconciliation')
-                    if matches:
-                        entity_id = matches[0]['entity_id']
-                    else:
-                        check(operation.progress.get('creating') != index, 'Creation result is uncertain; an administrator must reconcile before retrying')
-                        operation.checkpoint(creating=index)
-                        record = self.platform.create_record(step['kind'], {**step['data'], 'hrms_operation_key': marker}, step['owner'])
-                        entity_id = record['entity_id']
-                    self.platform.enroll(entity_id, pack_by_type(step['kind']).machine_name)
-                    refs[step['target']] = entity_id
-                elif step['op'] == 'patch':
-                    record = self.platform.record(step['target'])
-                    self.platform.call('PUT', f"/entity-records/{step['target']}", json={'data': {**record['data'], **step['data']}})
-                else:
-                    self.platform.call('POST', f"/entities/{step['target']}/transitions", json={
-                        'entity_id': step['target'], 'trigger': step['trigger'], 'idempotency_key': marker,
-                        'inputs': {'hrms_actor_id': actor.user_id, 'hrms_operation_key': key}})
+                try:
+                    self.apply(actor, key, operation, plan, index, refs)
+                except AppError as error:
+                    if error.status < 500 and index == 0 and step['op'] != 'create':
+                        # The platform refused the first change, so nothing was applied: leave no recovery behind.
+                        for field in ('performance_plan', 'performance_request', 'step', 'refs', 'creating'):
+                            operation.progress.pop(field, None)
+                        operation.checkpoint()
+                    raise
                 operation.checkpoint(step=index + 1, refs=refs, creating=None)
             result = {'entity_id': refs.get('created', target), 'action': request.action}
             self.journal.audit(db, actor, f'performance:{request.action}', result['entity_id'], operation_key=key)
             operation.finish(result)
             return result
+
+    def check_not_interleaved(self, db, actor, key, scope):
+        """Never let an action touch records that an incompletely applied plan is still changing.
+        Plans on other records (other employees' reviews, say) carry on."""
+        rows = db.execute("SELECT actor_id, progress FROM operations WHERE organization_id=%s AND operation_key<>%s AND result IS NULL AND progress ? 'performance_plan'",
+                          (actor.organization_id, key)).fetchall()
+        for owner, progress in rows:
+            if scope & plan_scope(progress['performance_plan'], progress.get('refs') or {}):
+                action = progress.get('performance_request', {}).get('action', 'performance action')
+                who = 'your' if owner == actor.user_id else next(
+                    (f"{u['full_name']}'s" for u in self.platform.users() if u['id'] == owner), "another user's")
+                raise AppError(409, f"This record needs recovery: {who} interrupted {action.replace('_', ' ')} must be resumed from Performance first.")
+
+    def apply(self, actor, key, operation, plan, index, refs):
+        step = plan[index]
+        marker = hashlib.sha256(f'{actor.organization_id}:{key}:{index}'.encode()).hexdigest()
+        if step['op'] == 'create':
+            rows = self.platform.records(step['kind'], ['hrms_operation_key'])
+            matches = [r for r in rows if r['data'].get('hrms_operation_key') == marker]
+            check(len(matches) <= 1, 'Duplicate operation records need reconciliation')
+            if matches:
+                entity_id = matches[0]['entity_id']
+            else:
+                check(operation.progress.get('creating') != index, 'Creation result is uncertain; an administrator must reconcile before retrying')
+                operation.checkpoint(creating=index)
+                record = self.platform.create_record(step['kind'], {**step['data'], 'hrms_operation_key': marker}, step['owner'])
+                entity_id = record['entity_id']
+            self.platform.enroll(entity_id, pack_by_type(step['kind']).machine_name)
+            refs[step['target']] = entity_id
+        elif step['op'] == 'patch':
+            record = self.platform.record(step['target'])
+            self.platform.call('PUT', f"/entity-records/{step['target']}", json={'data': {**record['data'], **step['data']}})
+        else:
+            self.platform.call('POST', f"/entities/{step['target']}/transitions", json={
+                'entity_id': step['target'], 'trigger': step['trigger'], 'idempotency_key': marker,
+                'inputs': {'hrms_actor_id': actor.user_id, 'hrms_operation_key': key}})

@@ -265,3 +265,31 @@ def test_openings_are_checked_on_the_server(opening, change, status, message):
 def test_a_revision_keeps_its_openings_requisition_code(opening):
     s, live, data = opening
     assert s.validate(HR, "HRMS.JobOpening", {**data, "requisition_code": "R-1"}, current=live)
+
+
+def submit(s, id, key):
+    return s.execute(actor("author", "hrms_hr_full"), id,
+                     Command(action="submit", expected_revision=0, idempotency_key=key))
+
+
+def test_an_interrupted_step_only_holds_up_its_own_item(system):
+    s, p, _j = system
+    stuck, other = draft(s), draft(s, title="Other policy")
+    p.fail_trigger = "submit"  # outcome unknown (503): kept for recovery
+    with pytest.raises(AppError):
+        submit(s, stuck, "stuck-submit")
+    submit(s, other, "other-submit")
+    assert p.rows[other]["state"] == "pending_approval"
+    with pytest.raises(AppError, match="needs recovery"):
+        submit(s, stuck, "second-try-with-new-key")
+
+
+def test_a_refused_first_step_leaves_nothing_to_recover(system):
+    s, p, j = system
+    id = draft(s)
+    p.fail_trigger, p.fail_status = "submit", 409
+    with pytest.raises(AppError):
+        submit(s, id, "refused-submit")
+    assert not any("cockpit_plan" in op.progress for op in j.ops.values() if op.result is None)
+    submit(s, id, "fresh-submit")
+    assert p.rows[id]["state"] == "pending_approval"
