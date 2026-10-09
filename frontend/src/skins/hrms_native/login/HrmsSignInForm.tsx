@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { AnimIcon, ArrowRightIcon, EyeIcon, EyeOffIcon, LoaderCircleIcon } from '../animated-icons';
 import { useAuth } from '../../../core/auth';
 import { PendingApprovalError, RegistrationPendingError } from '../../../core/auth/api';
+import { MyHubWordmark } from '../components/MyHubWordmark';
 import { Magnet } from './reactbits';
 
 /** HRMS sign-in presentation; employee accounts are provisioned by administrators. */
@@ -75,7 +76,7 @@ export function HrmsSignInForm({ magnetic }: { magnetic: boolean }) {
   return <div className="hrms-signin-form" data-mode="signin">
     <header className="hrms-signin-head">
       <p className="hrms-index-label">Employee access</p>
-      <h2>Welcome back</h2>
+      <h2 className="hrms-myhub-title"><MyHubWordmark /></h2>
       <p>Sign in to your Newtuple workspace.</p>
     </header>
     <form onSubmit={handleSubmit}>

@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { BookOpen, BriefcaseBusiness, CalendarDays, FileText, Menu, X } from 'lucide-react';
 import { MotionConfig } from 'motion/react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
+import { MyHubWordmark } from './MyHubWordmark';
 import { BrandWave } from './BrandWave';
 import { AnimIcon, ArrowUpRightIcon, BookTextIcon, BriefcaseBusinessIcon, CalendarDaysIcon, CookingPotIcon, FileTextIcon, FolderOpenIcon } from '../animated-icons';
 
@@ -82,7 +83,7 @@ function PublicHeader() {
     <div className="hrms-pub-bar">
       <div className="hrms-pub-brand">
         <Link to="/login" className="hrms-pub-home" aria-label="Newtuple HRMS home"><BrandLogo /></Link>
-        <span className="hrms-pub-tag">People &amp; workplace</span>
+        <span className="hrms-pub-myhub"><MyHubWordmark /></span>
       </div>
       <nav ref={nav} className="hrms-pub-links" aria-label="Public information" onMouseLeave={restIndicator} onBlur={restIndicator}>
         <span ref={indicator} className="hrms-nav-indicator" aria-hidden="true" />

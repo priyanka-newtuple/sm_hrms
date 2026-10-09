@@ -150,7 +150,6 @@ services:
   hrms-app-db:
     image: postgres:16-alpine
     environment:
-      GOOGLE_REDIRECT_URI: ${HRMS_PUBLIC_URL:?required}/auth/google/callback
       POSTGRES_USER: hrms_application
       POSTGRES_PASSWORD: ${HRMS_APP_DB_PASSWORD:?Run the HRMS setup script}
       POSTGRES_DB: hrms_application
@@ -173,6 +172,7 @@ services:
   hrms-app:
     image: sm-hrms-application:${IMAGE_TAG:?Release SHA required}
     environment:
+      GOOGLE_REDIRECT_URI: ${HRMS_PUBLIC_URL:?required}/auth/google/callback
       PLATFORM_API_URL: http://platform-api:8000/v1/api
       HRMS_ORGANIZATION_ID: ${HRMS_ORGANIZATION_ID:?required}
       HRMS_SERVICE_EMAIL: ${HRMS_SERVICE_EMAIL:?required}

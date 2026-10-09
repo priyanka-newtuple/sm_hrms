@@ -51,3 +51,9 @@ permission-aware actions; the component never decides authorization.
 Quick actions is implemented in `pages/MyWorkPage.tsx`. Its inboxes reuse the
 existing cockpit and project APIs and review flows. Future HRMS screens should
 follow these patterns and the branded login's typography, spacing and palette.
+
+
+The portal name is **MyHub**. Reuse `MyHubWordmark` beside the unchanged Newtuple
+logo in the public header and as the login heading. Its system-font lettering
+pairs a light navy My with a bold cobalt Hub; scale the same wordmark rather
+than creating separate treatments. The sign-in form no longer offers self-registration.

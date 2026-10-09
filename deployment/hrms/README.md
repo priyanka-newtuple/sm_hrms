@@ -151,3 +151,41 @@ Activation:
 Google callback credentials cannot be tested end-to-end until the OAuth client
 and HTTPS hostname are configured. Reference:
 https://developers.google.com/identity/openid-connect/openid-connect
+
+
+## Temporary MyHub HTTPS hostname (2026-10-09)
+
+Live origin: `https://myhub.62-238-103-67.sslip.io`.
+The existing `https://62-238-103-67.sslip.io` belongs to the legacy HRMS and
+`https://repsolute.com` belongs to the workout app. Do not replace either route.
+
+The shared `workout-app-frontend-1` Nginx owns ports 80/443. MyHub has its own
+`/etc/nginx/conf.d/myhub.conf`, proxying through the Docker host gateway to port
+8082. The source template and maintainer are stored in
+`/opt/newtuple-hrms/proxy/`. `myhub-proxy-maintain.timer` restores only this route
+after shared-edge container recreation (within approximately 35 seconds), tests
+Nginx configuration, and reloads only when the route changes. It does not restart
+or modify the other applications. This temporary integration depends on the
+existing edge container name, workout-app_default network, and port 8082 binding.
+
+Certificate: `myhub.62-238-103-67.sslip.io`, in the shared
+`workout-app_letsencrypt` volume. Issued with the shared
+`workout-app_certbot_webroot` HTTP challenge webroot. The existing
+`repsolute-certbot` cron and HRMS renewal maintainer renew certificates from that
+volume and reload the proxy. The new route serves HTTP challenges and redirects
+other HTTP requests to HTTPS.
+
+The private `production.env` now sets HRMS_PUBLIC_URL to the new HTTPS origin.
+A mode-600 backup was saved on the server before editing. The active release's
+Compose file was also corrected to pass GOOGLE_REDIRECT_URI to **hrms-app**,
+not hrms-app-db; the same correction is in this repository. Both platform-api
+and hrms-app use the new callback origin. OAuth client secrets are still required.
+
+Google client configuration:
+- JavaScript origin: `https://myhub.62-238-103-67.sslip.io`
+- Redirect URI: `https://myhub.62-238-103-67.sslip.io/auth/google/callback`
+
+To bootstrap again, install myhub-http.conf as the shared edge's myhub.conf,
+validate/reload Nginx, obtain the certificate via the existing ACME volumes,
+then install the template, maintainer and systemd units in their paths above.
+Do not replace shared-edge configuration or stop its existing apps.

@@ -1,0 +1,8 @@
+[Unit]
+Description=Restore MyHub hostname on the shared HTTPS proxy
+After=docker.service network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/newtuple-hrms/proxy/myhub-proxy-maintain.sh
