@@ -65,11 +65,11 @@ Started 2026-10-09. Reviewed against `main` at `6a7c474` on the local stack (`lo
 |---|---|---|---|---|---|
 | EM-1 | High | An employee can't be edited after creation: no manager change, transfer, designation change or correction. | Code | `main.py:182-196`, `service.py` (add an update command) | ☐ Open |
 | EM-2 | High | An employee can't be deactivated or marked as left. Leavers stay "active" in the directory, still count as active managers, and the same email can never be re-hired. | Code | `service.py:209`, `catalog.py:93-96` | ☐ Open |
-| EM-3 | Med | HR can't create Office Admin or Finance staff, so onboarding steps 1, 2 and 6 (ID, payroll, laptop) always fall back to HR or the creator. | Code | `requests.py:33`, `service.py:85-89` | ☐ Open |
-| EM-4 | Med | The directory and onboarding routing use a stale copy of the role. Changing a user's role in Settings → Roles/Users isn't reflected. | Code | `service.py:59,261` | ☐ Open |
-| EM-5 | Med | The "viewer" role can see the whole directory (emails, everyone's access role, account status) and all onboarding cases. | Code | `role_capabilities.json:127-132`, `service.py:104` | ☐ Open |
-| EM-6 | Low | The tenant "admin" role can create employees but can't activate their accounts. | Code | `role_capabilities.json:76-90` | ☐ Open |
-| EM-7 | Low | Small UI bugs: the "On leave"/"Offboarded" filters can never match (so "Other status" is always 0), the "Requesting…" text shows a broken character, and the Access role label doesn't follow Settings (key `role` vs `hrms_role`). | Code | `frontend/.../EmployeeDirectoryPage.tsx:80,133,149,169` | ☐ Open |
+| EM-3 | Med | HR can't create Office Admin or Finance staff, so onboarding steps 1, 2 and 6 (ID, payroll, laptop) always fall back to HR or the creator. | Code | `requests.py:33`, `service.py:85-89` | ☑ Fixed (branch `fix/hrms-bugs-batch-1`) |
+| EM-4 | Med | The directory and onboarding routing use a stale copy of the role. Changing a user's role in Settings → Roles/Users isn't reflected. | Code | `service.py:59,261` | ☑ Fixed (branch `fix/hrms-bugs-batch-1`) |
+| EM-5 | Med | The "viewer" role can see the whole directory (emails, everyone's access role, account status) and all onboarding cases. | Code | `role_capabilities.json:127-132`, `service.py:104` | ◐ Partly (branch `fix/hrms-bugs-batch-1`): onboarding cases now need onboarding:view, so viewer no longer sees them; whether viewer should see the directory is an open HR decision |
+| EM-6 | Low | The tenant "admin" role can create employees but can't activate their accounts. | Code | `role_capabilities.json:76-90` | ☑ Fixed (branch `fix/hrms-bugs-batch-1`) |
+| EM-7 | Low | Small UI bugs: the "On leave"/"Offboarded" filters can never match (so "Other status" is always 0), the "Requesting…" text shows a broken character, and the Access role label doesn't follow Settings (key `role` vs `hrms_role`). | Code | `frontend/.../EmployeeDirectoryPage.tsx:80,133,149,169` | ◐ Partly (branch `fix/hrms-bugs-batch-1`): broken "Requesting…" character and Access role label key fixed; the On leave/Offboarded filters stay until EM-2 adds those statuses |
 
 ## Onboarding
 

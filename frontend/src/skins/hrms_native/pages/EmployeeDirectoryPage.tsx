@@ -36,6 +36,7 @@ const labelForRole = (role: string) => ({
   hrms_employee: 'Employee', hrms_manager: 'Manager',
   hrms_project_manager: 'Project Manager', hrms_delivery_manager: 'Delivery Manager',
   hrms_hr_basic: 'HR - Basic', hrms_hr_full: 'HR - Full',
+  hrms_office_admin: 'Office Admin', hrms_finance: 'Finance',
 }[role] ?? role);
 
 export default function EmployeeDirectoryPage() {
@@ -141,7 +142,7 @@ function EmployeeDirectory() {
         <td className="p-3"><span>{(employee.account_status ?? 'not_linked').replaceAll('_', ' ')}</span>
           {employee.can_setup_access && <button type="button" className="hrms-text-link" disabled={setupAccess.isPending}
             onClick={() => { setAccessMessage(''); setupAccess.mutate(employee); }}>
-            {setupAccess.isPending && setupAccess.variables?.entity_id === employee.entity_id ? 'Requesting�' : employee.uses_google_sign_in ? 'Enable Google sign-in' : employee.account_status === 'pending' ? 'Activate & send setup email' : 'Request setup email'}
+            {setupAccess.isPending && setupAccess.variables?.entity_id === employee.entity_id ? 'Requesting…' : employee.uses_google_sign_in ? 'Enable Google sign-in' : employee.account_status === 'pending' ? 'Activate & send setup email' : 'Request setup email'}
           </button>}</td>
         <td className="p-3">{(employee.onboarding_state ?? 'not_started').replaceAll('_', ' ')}</td>
       </tr>)}{visible.length === 0 && <tr><td colSpan={9} className="hrms-empty-message">No employees match your filters.</td></tr>}</tbody></table></div>
@@ -161,7 +162,7 @@ function EmployeeDirectory() {
             <ConfiguredField field="department" label="Department" className="text-sm font-medium"><select required value={form.department} onChange={(e) => set('department')(e.target.value)} className={input}><option value="">Select department…</option>{options.data?.departments.map((item) => <option key={item} value={item}>{item}</option>)}</select></ConfiguredField>
             <ConfiguredField field="designation" label="Designation" className="text-sm font-medium"><select required value={form.designation} onChange={(e) => set('designation')(e.target.value)} className={input}><option value="">Select designation…</option>{options.data?.designations.map((item) => <option key={item} value={item}>{item}</option>)}</select></ConfiguredField>
           </div>
-          <ConfiguredField field="role" label="Access role" className="block text-sm font-medium"><select required value={form.role} onChange={(e) => set('role')(e.target.value)} className={input}>{options.data?.roles.map((role) => <option key={role} value={role}>{labelForRole(role)}</option>)}</select></ConfiguredField>
+          <ConfiguredField field="hrms_role" label="Access role" className="block text-sm font-medium"><select required value={form.role} onChange={(e) => set('role')(e.target.value)} className={input}>{options.data?.roles.map((role) => <option key={role} value={role}>{labelForRole(role)}</option>)}</select></ConfiguredField>
           <ConfiguredField field="reports_to_employee_code" label="Reporting manager" className="block text-sm font-medium"><select value={form.reports_to_entity_id} onChange={(e) => set('reports_to_entity_id')(e.target.value)} className={input}><option value="">None</option>{employees.data?.filter((item) => item.employment_status === 'active').map((item) => <option key={item.entity_id} value={item.entity_id}>{item.full_name} · {item.designation}</option>)}</select></ConfiguredField>
           <div className="grid gap-3 sm:grid-cols-3">
             <ConfiguredField field="employment_type" label="Employment type" className="text-sm font-medium"><select value={form.employment_type} onChange={(e) => set('employment_type')(e.target.value)} className={input}><option value="full_time">Full time</option><option value="contract">Contract</option><option value="intern">Intern</option></select></ConfiguredField>

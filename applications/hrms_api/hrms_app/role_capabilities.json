@@ -76,6 +76,7 @@
   "admin": [
     "employee:read",
     "employee:create",
+    "employee:activate",
     "employee:assign_hr_role",
     "onboarding:manage",
     "performance:manage",

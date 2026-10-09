@@ -108,6 +108,8 @@ class HrmsService:
         for row in rows:
             item = self.employee_item(row, rows)
             user = users.get(row['data'].get('platform_user_id'))
+            if user and user.get('role'):
+                item['role'] = user['role']  # Current role; the employee record keeps the role it was created with.
             item['account_status'] = user['status'] if user else 'not_linked'
             item['uses_google_sign_in'] = bool(user and user.get('auth_type') == 'google')
             item['can_setup_access'] = bool(user and user.get('organization_id') == actor.organization_id
@@ -124,7 +126,8 @@ class HrmsService:
         rows = self.employees()
         roles = ['hrms_employee']
         if 'employee:assign_hr_role' in capabilities(actor):
-            roles += ['hrms_manager', 'hrms_hr_basic']
+            # Office Admin and Finance own onboarding steps (ID, payroll, laptop), so HR must be able to add them.
+            roles += ['hrms_manager', 'hrms_hr_basic', 'hrms_office_admin', 'hrms_finance']
         if 'employee:assign_hr_full' in capabilities(actor):
             roles += ['hrms_hr_full', 'hrms_project_manager', 'hrms_delivery_manager']
         return dict(departments=sorted(set(REFERENCE_OPTIONS['departments']) | {r['data']['department'] for r in rows if r['data'].get('department')}),
@@ -141,7 +144,7 @@ class HrmsService:
         caps, result = capabilities(actor), []
         for case in cases:
             tasks = steps_by_case.get(case['entity_id'], [])
-            if 'employee:read' not in caps and not any(t.get('assigned_to') == actor.user_id for t in tasks):
+            if 'onboarding:view' not in caps and not any(t.get('assigned_to') == actor.user_id for t in tasks):
                 continue
             if case['data'].get('template_version') != 1 or case['data'].get('template_key') != 'default_onboarding':
                 raise AppError(409, 'This onboarding template version is not supported')
@@ -289,6 +292,11 @@ class HrmsService:
             state = self.platform.enroll(case_id, 'hrms_onboardingcase')
             tasks = self.platform.tasks(case_id)
             active_ids = {u['id'] for u in users if u['status'] == 'active'}
+            current_role = {u['id']: u.get('role') for u in users}
+
+            def holds(row, role):
+                user_id = row['data'].get('platform_user_id')
+                return user_id in active_ids and (current_role.get(user_id) or row['data'].get('hrms_role')) == role
             for step in DEFAULT_ONBOARDING_STEPS:
                 if (existing_step := task_for_step(tasks, step)):
                     if existing_step['status'] == 'NOT_STARTED':
@@ -299,11 +307,9 @@ class HrmsService:
                     raise AppError(409, 'Task creation needs reconciliation before retrying')
                 owner = identity['id']
                 if step.assignee_role:
-                    candidates = [r for r in rows if r['data'].get('hrms_role') == step.assignee_role
-                                  and r['data'].get('platform_user_id') in active_ids]
+                    candidates = [r for r in rows if holds(r, step.assignee_role)]
                     if not candidates:
-                        candidates = [r for r in rows if r['data'].get('hrms_role') == 'hrms_hr_full'
-                                      and r['data'].get('platform_user_id') in active_ids]
+                        candidates = [r for r in rows if holds(r, 'hrms_hr_full')]
                     owner = candidates[0]['data']['platform_user_id'] if candidates else actor.user_id
                 op.checkpoint(**{key: True})
                 step_row = self.platform.create_record('HRMS.OnboardingStep', {
