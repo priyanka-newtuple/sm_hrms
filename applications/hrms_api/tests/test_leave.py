@@ -260,3 +260,21 @@ def test_leave_lists_are_newest_first_and_filter_by_state(monkeypatch):
     assert [r['entity_id'] for r in service.leave(who, 'mine', 100, 0)] == ['new', 'mid', 'old']
     assert [r['entity_id'] for r in service.leave(who, 'mine', 100, 0, 'pending')] == ['new', 'mid']
     assert [r['entity_id'] for r in service.leave(who, 'mine', 1, 0, 'pending')] == ['new']
+
+
+@pytest.mark.parametrize(('days_ago', 'leave_type', 'allowed'), [
+    (0, 'annual', True),
+    (1, 'annual', False),     # planned leave cannot be backdated
+    (3, 'sick', True),        # sick leave is recorded after it began...
+    (7, 'sick', True),
+    (8, 'sick', False),       # ...within a week
+])
+def test_only_sick_leave_can_be_backdated_and_only_within_a_week(monkeypatch, days_ago, leave_type, allowed):
+    from datetime import timedelta
+    start = date.today() - timedelta(days=days_ago)
+    end = max(start, date.today())
+    # A lone employee makes an allowed request stop later, at "nobody can approve".
+    error = create(Platform(people=[person('dev', 'D1')]), start.isoformat(), end.isoformat(), monkeypatch,
+                   leave_type=leave_type)
+    assert ('Nobody can approve' in error.detail) is allowed
+    assert ('must start today or later' in error.detail) is not allowed

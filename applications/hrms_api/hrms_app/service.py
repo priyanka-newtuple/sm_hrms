@@ -27,6 +27,7 @@ LEAVE_FIELDS = ['identifier', 'employee_id', 'manager_id', 'start_date', 'end_da
 ROLE_NAMES = {'hrms_office_admin': 'Office Admin', 'hrms_finance': 'Finance',
               'hrms_hr_full': 'HR Full', 'hrms_hr_basic': 'HR Basic',
               'hrms_delivery_manager': 'Delivery Manager'}
+SICK_LEAVE_BACKDATE_DAYS = 7
 INVITE_STEP = next(s for s in DEFAULT_ONBOARDING_STEPS if s.key == 'hrms_invitation')
 REFERENCE_OPTIONS = json.loads(Path(__file__).with_name('reference_options.json').read_text())
 
@@ -417,6 +418,11 @@ class HrmsService:
             employees = self.employees()
             own = self.own_employee(actor, employees)
             self._check_leave_form(actor, request.model_dump(mode='json', exclude={'idempotency_key'}))
+            started = (datetime.now(UTC).date() - request.start_date).days
+            if started > 0 and (request.leave_type != 'sick' or started > SICK_LEAVE_BACKDATE_DAYS):
+                # Leave is planned ahead; only sick leave is recorded after it began, within a week.
+                raise AppError(422, f'Leave must start today or later; sick leave can be recorded up to '
+                                    f'{SICK_LEAVE_BACKDATE_DAYS} days after it began')
             start, end = request.start_date.isoformat(), request.end_date.isoformat()
             if not LeaveApprovers(self.platform, employees)(own, start, end):
                 raise AppError(400, 'Nobody can approve this leave: you have no project manager for these dates '
