@@ -68,6 +68,9 @@ export function LeaveRow({ item, view, onChange }: { item: LeaveItem; view: View
   );
 }
 
+// The leave types the leave API accepts; Settings may narrow them, not extend them.
+const LEAVE_TYPES = ['annual', 'sick', 'casual', 'unpaid', 'other'];
+
 export default function LeaveRequestsPage() {
   const [view, setView] = useState<View>('mine');
   const [startDate, setStartDate] = useState('');
@@ -84,10 +87,19 @@ export default function LeaveRequestsPage() {
     queryFn: () => request<LeaveItem[]>(`/hrms/leave-requests?view=${view}&limit=100`),
     enabled: caps.isFetched && !noProfile,
   });
+  // Settings can narrow the leave types; never submit one that was removed (the old default was 'annual').
+  const leaveForm = useQuery({
+    queryKey: ['hrms', 'form-config', 'HRMS.LeaveRequest'],
+    queryFn: () => request<{ fields: { field: string; enum_values?: string[] | null }[] }>('/hrms/forms/HRMS.LeaveRequest'),
+    enabled: caps.isFetched && !noProfile,
+  });
+  const configuredTypes = leaveForm.data?.fields.find(field => field.field === 'leave_type')?.enum_values;
+  const leaveTypes = LEAVE_TYPES.filter(type => !configuredTypes?.length || configuredTypes.includes(type));
+  const selectedType = leaveTypes.includes(leaveType) ? leaveType : leaveTypes[0] ?? leaveType;
   const create = useMutation({
     mutationFn: () => request('/hrms/leave-requests', {
       method: 'POST',
-      body: JSON.stringify({ start_date: startDate, end_date: endDate, leave_type: leaveType, reason, idempotency_key: createRequestId() }),
+      body: JSON.stringify({ start_date: startDate, end_date: endDate, leave_type: selectedType, reason, idempotency_key: createRequestId() }),
     }),
     onSuccess: () => {
       setError(''); setStartDate(''); setEndDate(''); setReason('');
@@ -121,8 +133,8 @@ export default function LeaveRequestsPage() {
       <div className="grid gap-4 sm:grid-cols-2">
         <ConfiguredField field="start_date" label="Start date" className="text-sm font-medium"><input required type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} className="hrms-field-input" /></ConfiguredField>
         <ConfiguredField field="end_date" label="End date" className="text-sm font-medium"><input required type="date" value={endDate} min={startDate} onChange={(event) => setEndDate(event.target.value)} className="hrms-field-input" /></ConfiguredField>
-        <ConfiguredField field="leave_type" label="Leave type" className="text-sm font-medium"><select value={leaveType} onChange={(event) => setLeaveType(event.target.value)} className="hrms-field-input">
-          {['annual', 'sick', 'casual', 'unpaid', 'other'].map((type) => <option key={type} value={type}>{type}</option>)}
+        <ConfiguredField field="leave_type" label="Leave type" className="text-sm font-medium"><select value={selectedType} onChange={(event) => setLeaveType(event.target.value)} className="hrms-field-input">
+          {leaveTypes.map((type) => <option key={type} value={type}>{type}</option>)}
         </select></ConfiguredField>
         <ConfiguredField field="reason" label="Reason" className="text-sm font-medium"><textarea value={reason} onChange={(event) => setReason(event.target.value)} maxLength={5000} rows={2} className="hrms-field-input" /></ConfiguredField>
       </div>

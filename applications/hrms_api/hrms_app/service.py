@@ -376,6 +376,7 @@ class HrmsService:
                 return {**op.result, 'idempotent': True}
             employees = self.employees()
             own = self.own_employee(actor, employees)
+            self._check_leave_form(actor, request.model_dump(mode='json', exclude={'idempotency_key'}))
             start, end = request.start_date.isoformat(), request.end_date.isoformat()
             if not LeaveApprovers(self.platform, employees)(own, start, end):
                 raise AppError(400, 'Nobody can approve this leave: you have no project manager for these dates '
@@ -405,6 +406,21 @@ class HrmsService:
             self.journal.audit(db, actor, 'leave.created', row['entity_id'])
             op.finish(result)
             return result
+
+    def _check_leave_form(self, actor, data):
+        """The tenant's leave form, enforced on the server: required fields and configured leave types.
+        Only fields the employee submits are checked; HRMS fills in employee_id and manager_id."""
+        from .form_config import form_configuration
+        for field in form_configuration(self.platform, actor, LEAVE)['fields']:
+            key = field['field']
+            if key not in data:
+                continue
+            label = field.get('description') or key.replace('_', ' ').capitalize()
+            if field.get('required') and data[key] in (None, ''):
+                raise AppError(422, f'{label} is required')
+            options = field.get('enum_values')
+            if options and data[key] not in (None, '') and data[key] not in options:
+                raise AppError(422, f'{label} must be one of the configured options')
 
     def leave_actions(self, actor, entity_id):
         row = self.platform.record(entity_id)

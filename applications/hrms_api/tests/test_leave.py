@@ -10,6 +10,7 @@ from hrms_app.platform import Actor
 from hrms_app.requests import LeaveCreateRequest
 from hrms_app.service import HrmsService, leave_days
 from hrms_app.wfh import WfhService
+from test_performance import UNMIGRATED_TENANT
 
 LEAVE_START, LEAVE_END = '2044-03-07', '2044-03-08'
 
@@ -28,6 +29,8 @@ class Platform:
 
     def __init__(self, state='pending', allocations=(), people=None, start=LEAVE_START, old_workflow=False):
         self.state, self.start, self.old_workflow = state, start, old_workflow
+        self.form_fields = [{'field': 'leave_type', 'type': 'enum', 'enum_values': ['annual', 'sick', 'casual', 'unpaid', 'other']},
+                            {'field': 'reason', 'type': 'text'}]
         self.people = people or [person('boss', 'B1'), person('lead', 'L1', 'B1'), person('dev', 'D1', 'L1'),
                                  person('pm1', 'P1'), person('pm2', 'P2')]
         self.allocations = list(allocations)  # (employee, project, start, end, state)
@@ -51,6 +54,11 @@ class Platform:
 
     def call(self, method, path, **kwargs):
         assert method == 'GET'
+        if path in UNMIGRATED_TENANT:  # the leave form is read from the legacy Form below
+            return UNMIGRATED_TENANT[path]
+        if path == '/forms/config':
+            return {'items': [{'schema_key': pack_by_type('HRMS.LeaveRequest').schema_key, 'name': 'Leave',
+                               'fields': self.form_fields}]}
         if path.endswith('/transitions/available'):
             steps = [] if self.old_workflow else [{'trigger': 'cancel', 'to_state': 'cancelled'}]
             return {'available_transitions': steps if self.state == 'approved' else []}
@@ -181,9 +189,10 @@ class Journal:
         return self.ops.setdefault(key, SimpleNamespace(result=None))
 
 
-def create(platform, start, end, monkeypatch, holidays=frozenset()):
+def create(platform, start, end, monkeypatch, holidays=frozenset(), leave_type='annual', reason=None):
     monkeypatch.setattr(WfhService, 'holiday_dates', lambda self: set(holidays))
-    request = LeaveCreateRequest(start_date=start, end_date=end, leave_type='annual', idempotency_key='create-0001')
+    request = LeaveCreateRequest(start_date=start, end_date=end, leave_type=leave_type, reason=reason,
+                                 idempotency_key='create-0001')
     with pytest.raises(AppError) as error:
         HrmsService(platform, Journal(), 'example.com').create_leave(actor('dev-user', 'hrms_employee'), request)
     return error.value
@@ -215,3 +224,25 @@ def test_self_service_needs_exactly_one_linked_employee_profile():
     assert not linked.has_employee_profile(actor('bootstrap-admin', 'superadmin'))
     twice = Platform(people=[person('dev', 'D1'), {**person('dev', 'D2'), 'entity_id': 'dev-copy'}])
     assert not HrmsService(twice, None, 'example.com').has_employee_profile(actor('dev-user', 'hrms_employee'))
+
+
+def test_a_reason_required_in_settings_is_required_by_the_server(monkeypatch):
+    platform = Platform()
+    platform.form_fields[1]['required'] = True
+    error = create(platform, LEAVE_START, LEAVE_END, monkeypatch)
+    assert error.status == 422 and 'Reason is required' in error.detail
+
+
+def test_a_leave_type_removed_in_settings_is_refused(monkeypatch):
+    platform = Platform()
+    platform.form_fields[0]['enum_values'] = ['sick', 'casual']
+    error = create(platform, LEAVE_START, LEAVE_END, monkeypatch, leave_type='annual')
+    assert error.status == 422 and 'configured options' in error.detail
+
+
+def test_a_configured_leave_type_and_reason_pass_the_form_check(monkeypatch):
+    platform = Platform(people=[person('dev', 'D1')])  # stops at "nobody can approve", after the form check
+    platform.form_fields[0]['enum_values'] = ['sick']
+    platform.form_fields[1]['required'] = True
+    error = create(platform, LEAVE_START, LEAVE_END, monkeypatch, leave_type='sick', reason='Fever')
+    assert 'Nobody can approve' in error.detail
