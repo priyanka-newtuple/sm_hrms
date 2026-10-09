@@ -1,9 +1,14 @@
 """End-to-end local performance test. Keeps one explicitly named review cycle."""
+import json
 import os
+from pathlib import Path
 
 import httpx
 
 from hrms_app.platform import PlatformClient
+
+# Demo accounts get random passwords from seed_demo_users.py; the smoke run mounts that file at /demo.
+DEMO = {a['email']: a['password'] for a in json.loads(Path('/demo/users.json').read_text())['accounts']}
 
 
 def main():
@@ -16,14 +21,14 @@ def main():
         return {'Authorization': 'Bearer ' + response.json()['access_token']}
 
     admin = login(os.environ['HRMS_INSTALL_EMAIL'], os.environ['HRMS_INSTALL_PASSWORD'])
-    hr = login('kavya.menon@newtuple.com', os.environ['HRMS_DEMO_EMPLOYEE_PASSWORD'])
+    hr = login('demo.hr-full@newtuple.com', DEMO['demo.hr-full@newtuple.com'])
     employee = login('hrms.boundary.employee@newtuple.com', os.environ['HRMS_DEMO_EMPLOYEE_PASSWORD'])
     api = PlatformClient(os.environ['PLATFORM_API_URL'], os.environ['HRMS_ORGANIZATION_ID'],
                          os.environ['HRMS_INSTALL_EMAIL'], os.environ['HRMS_INSTALL_PASSWORD'])
     rows = api.records('HRMS.Employee', ['work_email', 'platform_user_id', 'employee_code', 'reports_to_employee_code'])
     person = next(r for r in rows if r['data'].get('work_email') == 'hrms.boundary.employee@newtuple.com')
     manager_record = next(r for r in rows if r['data'].get('employee_code') == person['data']['reports_to_employee_code'])
-    manager = login(manager_record['data']['work_email'], os.environ['HRMS_DEMO_MANAGER_PASSWORD'])
+    manager = login(manager_record['data']['work_email'], DEMO[manager_record['data']['work_email']])
     hr_id = app.get('/auth/me', headers=hr).json()['id']
     admin_id = app.get('/auth/me', headers=admin).json()['id']
 

@@ -1,9 +1,14 @@
 """Local-only integration verification. Creates a named fixture hire and request."""
+import json
 import os
+from pathlib import Path
 
 import httpx
 
 from hrms_app.platform import PlatformClient
+
+# Demo accounts get random passwords from seed_demo_users.py; the smoke run mounts that file at /demo.
+DEMO = {a['email']: a['password'] for a in json.loads(Path('/demo/users.json').read_text())['accounts']}
 
 
 def main():
@@ -49,7 +54,7 @@ def main():
     platform = PlatformClient(os.environ['PLATFORM_API_URL'], os.environ['HRMS_ORGANIZATION_ID'],
                               os.environ['HRMS_INSTALL_EMAIL'], os.environ['HRMS_INSTALL_PASSWORD'])
     rows = platform.records('HRMS.Employee', ['employee_code','work_email','platform_user_id','reports_to_employee_code'])
-    employee = next(r for r in rows if r['data'].get('work_email') == 'kavya.menon@newtuple.com')
+    employee = next(r for r in rows if r['data'].get('work_email') == 'demo.employee@newtuple.com')
     manager = next(r for r in rows if r['data'].get('employee_code') == employee['data']['reports_to_employee_code'])
     # The existing demo login may have HR roles granted during user review. Use an isolated
     # employee-only fixture instead of altering any existing user's permissions.
@@ -77,7 +82,7 @@ def main():
     assert app.get('/hrms/employees', headers=user_headers).status_code == 403
     assert app.post('/hrms/employees', headers=user_headers, json=payload).status_code == 403
     assert app.get('/hrms/onboarding', headers=user_headers).status_code == 200
-    manager_login = app.post('/auth/login', json={'email': manager['data']['work_email'], 'password': os.environ['HRMS_DEMO_MANAGER_PASSWORD']})
+    manager_login = app.post('/auth/login', json={'email': manager['data']['work_email'], 'password': DEMO[manager['data']['work_email']]})
     assert manager_login.status_code == 200, manager_login.text
     manager_headers = {'Authorization': 'Bearer ' + manager_login.json()['access_token']}
     leave = app.post('/hrms/leave-requests', headers=user_headers, json=dict(

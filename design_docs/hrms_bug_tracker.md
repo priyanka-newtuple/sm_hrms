@@ -102,7 +102,7 @@ Started 2026-10-09. Reviewed against `main` at `6a7c474` on the local stack (`lo
 
 | ID | Sev | Bug | Fix | Where | Status |
 |---|---|---|---|---|---|
-| TL-1 | Med | `smoke_local.py` and `smoke_performance.py` fail before testing anything. They use `kavya.menon@newtuple.com`, who doesn't exist after the demo seed. With `demo.employee` / `demo.hr-full` swapped in, both pass. *(reproduced)* | Code | `applications/hrms_api/tools/smoke_local.py:52`, `smoke_performance.py:19` | ☐ Open |
+| TL-1 | Med | `smoke_local.py` and `smoke_performance.py` fail before testing anything. They use `kavya.menon@newtuple.com`, who doesn't exist after the demo seed. With `demo.employee` / `demo.hr-full` swapped in, both pass. *(reproduced)* | Code | `applications/hrms_api/tools/smoke_local.py:52`, `smoke_performance.py:19` | ☑ Fixed (branch `fix/hrms-bugs-batch-1`) |
 | TL-2 | Low | Every production deploy ends "failure" at the email configuration step, even though the app is updated and healthy. *(reproduced)* | Settings (GitHub) | Repository secrets: `EMAIL_*` / `SMTP_*` used by `.github/workflows/hrms-production.yml` | ☐ Open |
 
 ---
