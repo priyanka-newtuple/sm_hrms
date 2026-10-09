@@ -96,7 +96,7 @@ Started 2026-10-09. Reviewed against `main` at `6a7c474` on the local stack (`lo
 | PF-8 | Med | A manager change during the cycle isn't picked up, and employees with no reporting manager (or a manager without an active login) can't be added. | Code | `performance.py:73-80,209-225,284-286` | ☐ Open |
 | PF-9 | Med | A published rating can't be corrected; reviews and cycles can't be reopened. | Code | `performance_catalog.py:17-21,29,39` | ☐ Open |
 | PF-10 | Med | Only the HR user who created a draft cycle can edit or submit it, and the approver can't be changed while the cycle waits for approval. If either person leaves, the cycle is stuck. | Code | `performance.py:102-106` | ☐ Open |
-| PF-11 | Low | "Edit cycle" opens a blank form, so every field and participant must be re-entered. | Code | `frontend/.../PerformancePage.tsx:25-27,55-57` | ☐ Open |
+| PF-11 | Low | "Edit cycle" opens a blank form, so every field and participant must be re-entered. | Code | `frontend/.../PerformancePage.tsx:25-27,55-57` | ☑ Fixed (branch `fix/hrms-bugs-batch-1`) |
 
 ## Tooling and deploy
 

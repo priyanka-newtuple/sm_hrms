@@ -19,14 +19,19 @@ interface Options { users: Person[]; employees: (Person & { manager_name: string
 const label = (value: string) => value.replaceAll('_', ' ').replace(/^./, c => c.toUpperCase());
 const value = (data: Data, key: string) => String(data[key] ?? '');
 const inputClass = 'hrms-field-input';
+const CYCLE_DATES = ['start_date', 'goal_due_date', 'self_review_due_date', 'manager_review_due_date', 'end_date'];
 export const usePerformance = () => useQuery({ queryKey: ['hrms', 'performance'], queryFn: () => request<Board>('/hrms/performance') });
 
 function ActionForm({ item, action, done }: { item?: Item; action: string; done: () => void }) {
   const initial = item?.data ?? {};
+  // Editing starts from what was saved: goals from the goal, a draft cycle from its details and participants.
+  const savedParticipants = action === 'edit_cycle' && Array.isArray(initial.participants) ? initial.participants as Data[] : [];
   const [data, setData] = useState<Data>(action === 'edit_goal' ? Object.fromEntries(
-    ['title', 'description', 'category', 'measurement', 'weight', 'target_date', 'progress', 'evidence'].map(k => [k, initial[k]])) : {});
-  const [participants, setParticipants] = useState<string[]>([]);
-  const [calibrator, setCalibrator] = useState('');
+    ['title', 'description', 'category', 'measurement', 'weight', 'target_date', 'progress', 'evidence'].map(k => [k, initial[k]]))
+    : action === 'edit_cycle' ? Object.fromEntries(['name', 'description', 'approver_id', ...CYCLE_DATES].map(k =>
+      [k, CYCLE_DATES.includes(k) ? String(initial[k] ?? '').slice(0, 10) : initial[k]])) : {});
+  const [participants, setParticipants] = useState<string[]>(savedParticipants.map(p => String(p.employee_id)));
+  const [calibrator, setCalibrator] = useState(String(savedParticipants[0]?.calibrator_user_id ?? ''));
   const [pending, setPending] = useState<{ idempotency_key: string; action: string; data: Data } | null>(null);
   const queryClient = useQueryClient();
   const cycle = action === 'create_cycle' || action === 'edit_cycle';
@@ -70,9 +75,8 @@ function ActionForm({ item, action, done }: { item?: Item; action: string; done:
     <h3 className="hrms-section-heading">{label(action)}</h3>
     <fieldset disabled={Boolean(pending) || mutation.isPending} className="hrms-performance-fields disabled:opacity-70">
       {cycle && <>
-        {action === 'edit_cycle' && <p className="text-sm text-muted-foreground">Enter the revised cycle details and participant list. Existing draft details are shown above.</p>}
         {field('name')}{field('description', 'textarea', false)}
-        <div className="grid gap-3 sm:grid-cols-2">{['start_date', 'goal_due_date', 'self_review_due_date', 'manager_review_due_date', 'end_date'].map(key => field(key, 'date'))}</div>
+        <div className="grid gap-3 sm:grid-cols-2">{CYCLE_DATES.map(key => field(key, 'date'))}</div>
         {select('approver_id', options.data?.approvers ?? [])}
         <ConfiguredField field="calibrator_user_id" label="HR calibrator"><select className={inputClass} required value={calibrator} onChange={e => setCalibrator(e.target.value)}><option value="">Select…</option>{options.data?.calibrators.map(p => <option key={p.id} value={p.id}>{p.name}{p.email ? ` · ${p.email}` : ""}</option>)}</select></ConfiguredField>
         <p className="text-sm text-muted-foreground">Select employees with active accounts and reporting managers. The employee cannot calibrate their own review.</p>
