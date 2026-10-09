@@ -88,7 +88,7 @@ class WfhService:
     def holiday_dates(self):
         # Reuse publication selection (including replacement versions and effective windows).
         from .cockpit import CockpitService
-        feed = CockpitService(self.platform, self.journal).feed(employee=True)
+        feed = CockpitService(self.platform, self.journal).feed(employee=True, kinds=('HRMS.HolidayCalendar',))
         result = set()
         for item in feed:
             if item.get('entity_type') == 'HRMS.HolidayCalendar':

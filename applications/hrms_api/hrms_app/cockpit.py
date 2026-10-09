@@ -64,9 +64,9 @@ class CockpitService:
     def __init__(self, platform, journal):
         self.platform, self.journal = platform, journal
 
-    def snapshot(self):
+    def snapshot(self, kinds=TYPES):
         result = []
-        for kind in TYPES:
+        for kind in kinds:
             pack = pack_by_type(kind)
             states = self.platform.states(pack.machine_name)
             for row in self.platform.records(
@@ -171,9 +171,9 @@ class CockpitService:
             ],
         }
 
-    def feed(self, employee=False):
+    def feed(self, employee=False, kinds=TYPES):
         latest = {}
-        for row in self.snapshot():
+        for row in self.snapshot(kinds):
             d = row["data"]
             if not d.get("published_at"):
                 continue
