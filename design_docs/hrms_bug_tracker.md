@@ -23,15 +23,15 @@ Started 2026-10-09. Reviewed against `main` at `6a7c474` on the local stack (`lo
 | ID | Sev | Bug | Fix | Where | Status |
 |---|---|---|---|---|---|
 | HC-1 | High | An open position is tied to one *version* of a JD. Once that JD is revised or closed, the opening can no longer be submitted or revised ("Choose a published job description"). | Code | `cockpit.py:293-303` | ☐ Open |
-| HC-2 | High | Making year, event date or openings optional in Settings causes server errors (500). The code reads those fields directly. | Code | `cockpit.py:214-218,249-251,267-273,294` | ☐ Open |
+| HC-2 | High | Making year, event date or openings optional in Settings causes server errors (500). The code reads those fields directly. | Code | `cockpit.py:214-218,249-251,267-273,294` | ☑ Fixed (branch `fix/hrms-bugs-batch-1`): Settings can make fields required but not relax the ones a content type depends on; missing ones get a clear 422 |
 | HC-3 | Med | A pending item can't be withdrawn and its approver can't be changed, so it's stuck if the approver is away. | Code | `cockpit.py:106-134` | ☐ Open |
 | HC-4 | Med | "New revision" copies the old approver. It fails if you are that approver or the approver has left, and the screen gives no way to change it. | Code | `cockpit.py:288-292,368-374` | ☐ Open |
 | HC-5 | Med | Everyone with cockpit view sees every draft of all five types (recruiters see unpublished policy drafts, HR Basic sees job drafts). | Code | `cockpit.py:136-172` | ☐ Open |
-| HC-6 | Med | Holidays: one blank line in the holiday list rejects the whole calendar. | Code | `cockpit.py:272-287` | ☐ Open |
+| HC-6 | Med | Holidays: one blank line in the holiday list rejects the whole calendar. | Code | `cockpit.py:272-287` | ☑ Fixed (branch `fix/hrms-bugs-batch-1`) |
 | HC-7 | Med | Holidays: the calendar's location is ignored. Any published holiday blocks WFH for everyone, and two calendars for the same year and location can both be published. | Code | `wfh.py:88-106`, `cockpit.py` | ☐ Open |
 | HC-8 | Low | After a new revision is published, the old version stays "Published". The board counts it twice, and its Pause/Close buttons don't affect the live page. Items whose "publish until" has passed also still show as Published. | Code | `cockpit.py:174-210,427-428` | ☐ Open |
 | HC-9 | Low | L&D calendar, Holidays, Job descriptions and Open positions are pinned to form version 1, so edits in Settings → Forms don't reach them. Policy is pinned to the latest version. | Settings | Funnels → each of the 4 workflows → pin form to latest → publish | ☐ Open |
-| HC-10 | Low | The server doesn't check that the hiring manager is an active user, that the application deadline is in the future, or that requisition codes are unique. | Code | `cockpit.py:252-257,293-303` | ☐ Open |
+| HC-10 | Low | The server doesn't check that the hiring manager is an active user, that the application deadline is in the future, or that requisition codes are unique. | Code | `cockpit.py:252-257,293-303` | ☑ Fixed (branch `fix/hrms-bugs-batch-1`) |
 | HC-11 | Med | The HR Cockpit board takes about 8 seconds to load. Building the approver list calls the roles API once per user. *(reproduced)* | Code | `cockpit.py:83-104` (`people()`) | ☐ Open |
 
 ## Leave requests

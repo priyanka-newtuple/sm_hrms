@@ -212,3 +212,56 @@ def test_migrated_content_types_are_validated(system):
     opening = {**policy, "job_description_id": "jd", "requisition_code": "R1", "hiring_manager_id": "approver"}
     with pytest.raises(AppError, match="openings must be an integer"):
         s.validate(who, "HRMS.JobOpening", {**opening, "openings": "2"})
+
+
+HR = actor("author", "hrms_hr_full")
+BASE = {"title": "T", "body": "B", "audience": "employees", "approver_id": "approver"}
+CALENDAR = {**BASE, "year": 2027, "holidays": "2027-01-01 | New year\n\n2027-01-26 | Republic day\n   \n"}
+
+
+def test_a_holiday_calendar_ignores_blank_lines(system):
+    s, _, _ = system
+    assert s.validate(HR, "HRMS.HolidayCalendar", CALENDAR)["holidays"] == CALENDAR["holidays"]
+
+
+def test_settings_cannot_relax_fields_the_content_type_depends_on(system, monkeypatch):
+    s, _, _ = system
+    import hrms_app.cockpit as cockpit
+    monkeypatch.setattr(cockpit, "configured_form", lambda platform, kind: {"fields": [
+        {"field": "year", "type": "int", "required": False}, {"field": "holidays", "type": "text", "required": False}]})
+    for missing in ("year", "holidays"):
+        with pytest.raises(AppError) as error:
+            s.validate(HR, "HRMS.HolidayCalendar", {k: v for k, v in CALENDAR.items() if k != missing})
+        assert error.value.status == 422 and missing in error.value.detail
+
+
+@pytest.fixture
+def opening(system):
+    s, p, _ = system
+    jd = p.add("HRMS.JobDescription", {**BASE, "title": "Engineer"}, state="published")["entity_id"]
+    live = p.add("HRMS.JobOpening", {**BASE, "job_description_id": jd, "requisition_code": "R-1",
+                                     "hiring_manager_id": "approver", "openings": 1, "publication_id": "pub-1"},
+                 state="published")
+    return s, live, {**BASE, "job_description_id": jd, "requisition_code": "R-2", "hiring_manager_id": "approver", "openings": 2}
+
+
+def test_a_valid_opening_passes(opening):
+    s, _, data = opening
+    assert s.validate(HR, "HRMS.JobOpening", data)["requisition_code"] == "R-2"
+
+
+@pytest.mark.parametrize(("change", "status", "message"), [
+    ({"hiring_manager_id": "ghost"}, 422, "active hiring manager"),
+    ({"application_deadline": "2020-01-31"}, 422, "deadline has already passed"),
+    ({"requisition_code": "R-1"}, 409, "already used"),
+])
+def test_openings_are_checked_on_the_server(opening, change, status, message):
+    s, _, data = opening
+    with pytest.raises(AppError) as error:
+        s.validate(HR, "HRMS.JobOpening", {**data, **change})
+    assert error.value.status == status and message in error.value.detail
+
+
+def test_a_revision_keeps_its_openings_requisition_code(opening):
+    s, live, data = opening
+    assert s.validate(HR, "HRMS.JobOpening", {**data, "requisition_code": "R-1"}, current=live)

@@ -209,13 +209,17 @@ class CockpitService:
             )
         ]
 
-    def validate(self, actor, kind, data):
+    def validate(self, actor, kind, data, current=None):
+        """`current` is the record being edited, revised or submitted; None when creating."""
         check(kind in TYPES, "Unsupported content type")
         pack = pack_by_type(kind)
         fields = {f["field"]: f for f in pack.fields}
         for f in configured_form(self.platform, kind)["fields"]:
             if f["field"] not in INTERNAL:
-                fields[f["field"]] = {**fields.get(f["field"], {}), **f}
+                core = fields.get(f["field"], {})
+                # Settings may make a field required, but not relax one the content type depends on
+                # (year, holidays, event date, openings...), which the checks below read directly.
+                fields[f["field"]] = {**core, **f, "required": bool(core.get("required") or f.get("required"))}
         allowed = set(fields) - INTERNAL | {"approver_id"}
         check(not set(data) - allowed, "Unrecognized or protected content fields")
         check(len(str(data)) < 100000, "Content is too large")
@@ -273,6 +277,8 @@ class CockpitService:
             check(2000 <= data["year"] <= 2200, "Invalid calendar year")
             days = set()
             for line in data["holidays"].splitlines():
+                if not line.strip():
+                    continue  # Blank lines between holidays are just spacing.
                 try:
                     day, title = line.split("|", 1)
                     day = date.fromisoformat(day.strip())
@@ -292,14 +298,36 @@ class CockpitService:
         )
         if kind == TYPES[4]:
             check(data.get("openings", 0) > 0, "Openings must be positive")
+            snapshot = self.snapshot()
             descriptions = {
                 r["entity_id"]
-                for r in self.snapshot()
+                for r in snapshot
                 if r["kind"] == TYPES[3] and r["state"] == "published"
             }
             check(
                 data.get("job_description_id") in descriptions,
                 "Choose a published job description",
+            )
+            active = {u["id"] for u in self.platform.users() if u.get("status") == "active"}
+            check(data.get("hiring_manager_id") in active, "Choose an active hiring manager")
+            check(
+                not data.get("application_deadline")
+                or data["application_deadline"][:10] >= datetime.now(UTC).date().isoformat(),
+                "The application deadline has already passed",
+            )
+            # Revisions of one opening share its publication and keep its requisition code.
+            publication = (current or {}).get("data", {}).get("publication_id")
+            check(
+                not any(
+                    r["kind"] == TYPES[4]
+                    and r["data"].get("requisition_code") == data.get("requisition_code")
+                    and r["entity_id"] != (current or {}).get("entity_id")
+                    and not (publication and r["data"].get("publication_id") == publication)
+                    and r["state"] != "archived"
+                    for r in snapshot
+                ),
+                "This requisition code is already used by another opening",
+                409,
             )
         return {
             **{k: v for k, v in data.items() if v not in ("", None)},
@@ -371,7 +399,7 @@ class CockpitService:
                             for k, v in row["data"].items()
                             if k not in INTERNAL or k == "approver_id"
                         }
-                    data = self.validate(actor, kind, data)
+                    data = self.validate(actor, kind, data, current=row)
                     if cmd.action == "new_revision":
                         check(
                             not any(
@@ -422,6 +450,7 @@ class CockpitService:
                                 for k, v in row["data"].items()
                                 if k not in INTERNAL or k == "approver_id"
                             },
+                            current=row,
                         )
                     values = {**row["data"], "revision": cmd.expected_revision + 1}
                     if cmd.action in {"publish", "resume"}:
