@@ -71,6 +71,8 @@ def test_project_access_settings_authorization_validation_and_revision():
         org = 'org'
         def actor(self, token):
             return Actor(token, 'org', token, frozenset({token}), frozenset())
+        def records(self, kind, fields):
+            return []  # No employees: capabilities report no employee profile.
         def request(self, method, path, token):
             assert token == 'superadmin' and path == '/roles'
             return [{'name': name} for name in ['superadmin', 'hrms_project_manager', 'hrms_application_service']]

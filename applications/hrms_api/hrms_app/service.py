@@ -335,6 +335,10 @@ class HrmsService:
                 op.checkpoint(**{f'{key}_requested': False})
             raise
 
+    def has_employee_profile(self, actor):
+        """Whether the account is linked to exactly one employee, which self-service (leave) needs."""
+        return sum(1 for r in self.employees() if r['data'].get('platform_user_id') == actor.user_id) == 1
+
     def own_employee(self, actor, rows):
         own = [r for r in rows if r['data'].get('platform_user_id') == actor.user_id]
         if len(own) != 1:

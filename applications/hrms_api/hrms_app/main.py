@@ -139,7 +139,8 @@ def create_app(platform=None, journal=None):
 
     @app.get('/v1/api/hrms/capabilities')
     def get_capabilities(current=Depends(actor)):
-        return {'capabilities': sorted(capabilities(current)), 'roles': sorted(current.roles)}
+        return {'capabilities': sorted(capabilities(current)), 'roles': sorted(current.roles),
+                'employee_profile': service.has_employee_profile(current)}
 
     @app.get('/v1/api/hrms/organization')
     def current_organization(current=Depends(actor)):

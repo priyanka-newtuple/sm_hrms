@@ -5,6 +5,7 @@ import { ConfiguredForm, ConfiguredField } from '../forms/ConfiguredForm';
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getApiErrorMessage, request } from '../../../core/services/api/client';
+import { useHrmsCapabilities } from '../capabilities';
 import { PageHero } from '../components/PageHero';
 
 export interface LeaveItem {
@@ -75,10 +76,13 @@ export default function LeaveRequestsPage() {
   const [reason, setReason] = useState('');
   const [error, setError] = useState('');
   const queryClient = useQueryClient();
+  const caps = useHrmsCapabilities();
+  const noProfile = caps.data?.employee_profile === false;
   const key = ['hrms', 'leave', view];
   const list = useQuery({
     queryKey: key,
     queryFn: () => request<LeaveItem[]>(`/hrms/leave-requests?view=${view}&limit=100`),
+    enabled: caps.isFetched && !noProfile,
   });
   const create = useMutation({
     mutationFn: () => request('/hrms/leave-requests', {
@@ -96,6 +100,11 @@ export default function LeaveRequestsPage() {
     if (endDate < startDate) { setError('End date must be on or after start date.'); return; }
     create.mutate();
   }
+
+  if (noProfile) return <main className="hrms-workspace-page hrms-leave-page">
+    <PageHero title="Leave requests" intro="Plan time away and keep your team in the loop." illustration="leave" />
+    <p role="status" className="hrms-notice">Leave isn’t available for this account because it isn’t linked to an employee profile. Ask HR to link your account to your employee record.</p>
+  </main>;
 
   return <main className="hrms-workspace-page hrms-leave-page">
     <PageHero title="Leave requests" intro="Plan time away and keep your team in the loop." illustration="leave"

@@ -50,8 +50,9 @@ export default function MyWorkPage() {
   const waiting = useWaitingActions();
   const { sources, total, onboarding, onboardingActions, leaveApprovals, pendingLeave } = waiting;
   const summaryLoading = waiting.loading;
-  const myLeave = useQuery({ queryKey: ['hrms', 'leave', 'mine'], queryFn: () => request<LeaveItem[]>('/hrms/leave-requests?view=mine&limit=100'), retry: retryUnlessForbidden });
-  const leaveUnavailable = isForbidden(myLeave.error);
+  const myLeave = useQuery({ queryKey: ['hrms', 'leave', 'mine'], queryFn: () => request<LeaveItem[]>('/hrms/leave-requests?view=mine&limit=100'), retry: retryUnlessForbidden,
+    enabled: caps.isFetched && caps.data?.employee_profile !== false });
+  const leaveUnavailable = caps.data?.employee_profile === false || isForbidden(myLeave.error);
 
   const today = todayIso();
   const nextLeave = myLeave.data?.filter(item => (item.end_date || item.start_date) >= today && !['rejected', 'cancelled'].includes(item.state))
@@ -82,7 +83,7 @@ export default function MyWorkPage() {
         </div>
         <div className="hrms-mw-leave">
           <p className="hrms-mw-label">Your next time off</p>
-          {myLeave.isLoading ? <p>Loading…</p>
+          {myLeave.isLoading || !caps.isFetched ? <p>Loading…</p>
             : leaveUnavailable ? <p>Leave isn’t linked to this account because it has no employee profile.</p>
             : myLeave.isError ? <p>Couldn’t load your leave. <button type="button" className="hrms-mw-retry" onClick={() => void myLeave.refetch()}>Try again</button></p>
             : nextLeave && nextLeaveStart ? <p><strong>{formatDate(nextLeaveStart)}</strong> · {nextLeave.leave_type} <span className="hrms-mw-state" data-state={nextLeave.state}>{nextLeave.state}</span></p>

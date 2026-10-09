@@ -207,3 +207,11 @@ def test_leave_lists_carry_their_working_days(monkeypatch):
                                                             end_date='2044-03-07', leave_type='annual'))]
     rows = HrmsService(platform, Journal(), 'example.com').leave(actor('dev-user', 'hrms_employee'), 'mine', 100, 0)
     assert [(r['entity_id'], r['days']) for r in rows] == [('dev-leave', 2)]
+
+
+def test_self_service_needs_exactly_one_linked_employee_profile():
+    linked = HrmsService(Platform(), None, 'example.com')
+    assert linked.has_employee_profile(actor('dev-user', 'hrms_employee'))
+    assert not linked.has_employee_profile(actor('bootstrap-admin', 'superadmin'))
+    twice = Platform(people=[person('dev', 'D1'), {**person('dev', 'D2'), 'entity_id': 'dev-copy'}])
+    assert not HrmsService(twice, None, 'example.com').has_employee_profile(actor('dev-user', 'hrms_employee'))

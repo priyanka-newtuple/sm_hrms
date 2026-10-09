@@ -11,7 +11,8 @@ export function useHrmsOrganization() {
 export function useHrmsCapabilities() {
   return useQuery({
     queryKey: ['hrms', 'capabilities'],
-    queryFn: () => request<{ capabilities: string[]; roles: string[] }>('/hrms/capabilities'),
+    // employee_profile: whether the account is linked to an employee, which self-service (leave) needs.
+    queryFn: () => request<{ capabilities: string[]; roles: string[]; employee_profile?: boolean }>('/hrms/capabilities'),
     staleTime: 0,
   });
 }

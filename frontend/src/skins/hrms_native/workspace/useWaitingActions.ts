@@ -23,7 +23,8 @@ export function useWaitingActions() {
   const caps = useHrmsCapabilities();
   const has = (capability: string) => caps.data?.capabilities.includes(capability) ?? false;
   const onboarding = useQuery({ queryKey: ['hrms', 'my-work'], queryFn: () => request<OnboardingCase[]>('/hrms/onboarding') });
-  const leaveApprovals = useQuery({ queryKey: ['hrms', 'leave', 'approvals'], queryFn: () => request<LeaveItem[]>('/hrms/leave-requests?view=approvals&limit=100'), retry: retryUnlessForbidden });
+  const leaveApprovals = useQuery({ queryKey: ['hrms', 'leave', 'approvals'], queryFn: () => request<LeaveItem[]>('/hrms/leave-requests?view=approvals&limit=100'), retry: retryUnlessForbidden,
+    enabled: caps.isFetched && caps.data?.employee_profile !== false });
   const cockpit = useCockpitBoard();
   const projects = useProjects();
   const wfh = useWfhInbox();

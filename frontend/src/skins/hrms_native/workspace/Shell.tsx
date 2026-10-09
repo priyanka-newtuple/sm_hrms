@@ -230,7 +230,7 @@ export function WorkspaceShell() {
       ...(allowed('employee:read') ? [{ path: '/hrms/employees', label: 'Org Directory', icon: UsersIcon, keywords: 'employees directory people staff' }] : []),
     ] },
     { label: 'Self Service', items: [
-      { path: '/hrms/leave', label: 'Leave Requests', icon: CalendarDaysIcon, keywords: 'time off vacation holiday' },
+      ...(caps.data?.employee_profile === false ? [] : [{ path: '/hrms/leave', label: 'Leave Requests', icon: CalendarDaysIcon, keywords: 'time off vacation holiday' }]),
       ...(allowed('wfh:view') ? [{ path: '/hrms/work-from-home', label: 'Work from Home', icon: CalendarDaysIcon, keywords: 'remote work location calendar' }] : []),
       { path: '/hrms/performance', label: 'Performance', icon: TrendingUpIcon, keywords: 'goals reviews feedback cycle' },
       { path: '/hrms/travel', label: 'Travel Request', icon: BriefcaseBusinessIcon, comingSoon: true },
