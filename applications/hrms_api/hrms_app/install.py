@@ -77,6 +77,12 @@ def install():
                     for transition in approvals:
                         transition['to_state'] = 'active'
                         transition['key'] = 'draft_to_active'
+                    # Planned was only reachable through approval in the old default.
+                    # Keep it only if tenant configuration supplies another entry path.
+                    if not any(t['to_state'] == 'planned' and t['from'] != 'planned'
+                               for t in definition['transitions']):
+                        definition['states'] = [state for state in definition['states'] if state['name'] != 'planned']
+                        definition['transitions'] = [t for t in definition['transitions'] if t['from'] != 'planned']
                     draft = api.call('POST', f"/workflow-state-machines/{matching[0]['machine_name']}/draft", json={'definition': definition})
                     matching = [api.call('POST', f"/workflow-state-machines/{draft['id']}/publish", json={'definition': definition})['state_machine']]
             machines[pack.machine_name] = matching[0]['machine_name']
@@ -114,8 +120,9 @@ def install():
                                 for p in runtime_packs for source, _, target in p.transitions])
     # Older project instances remain pinned to the previous published workflow.
     project_pack = next(p for p in runtime_packs if p.entity_type == 'HRMS.Project')
-    role_spec['transition_permissions'].append({'machine_name': machines[project_pack.machine_name],
-                                                'transition_key': 'draft_to_planned'})
+    role_spec['transition_permissions'].extend(
+        {'machine_name': machines[project_pack.machine_name], 'transition_key': key}
+        for key in ('draft_to_planned', 'planned_to_active', 'planned_to_completed'))
     role = by_name.get(service_name)
     if role:
         api.call('PUT', f"/roles/{role['id']}", json=role_spec)

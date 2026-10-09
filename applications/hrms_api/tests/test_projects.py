@@ -621,3 +621,17 @@ def test_creation_retry_recovers_failed_auto_submission_without_duplicates(syste
     result = perform(system, "pm", "new", "create_project", project_data(ids), key="retry-submit")
     assert platform.rows[result["entity_id"]]["state"] == "pending"
     assert len(service.snapshot()[PROJECT]) == 1
+
+
+def test_project_workflow_has_no_unreachable_states():
+    definition = pack_by_type(PROJECT).workflow_definition()
+    reachable = {definition['initial_state']}
+    while True:
+        expanded = reachable | {t['to_state'] for t in definition['transitions'] if t['from'] in reachable}
+        if expanded == reachable:
+            break
+        reachable = expanded
+    assert reachable == {state['name'] for state in definition['states']}
+    assert 'planned' not in reachable
+    assert any(t['from'] == 'draft' and t['trigger'] == 'approve' and t['to_state'] == 'active'
+               for t in definition['transitions'])
