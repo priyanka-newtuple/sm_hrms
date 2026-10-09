@@ -37,7 +37,6 @@ export function BrandFooter({ compact = false }: { compact?: boolean }) {
 function PublicHeader() {
   const { pathname, search } = useLocation();
   const active = pathname === '/public' ? new URLSearchParams(search).get('category') ?? 'policies' : null;
-  const onLogin = pathname === '/login';
   const [scrolled, setScrolled] = useState(false);
   const [hidden, setHidden] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -77,7 +76,7 @@ function PublicHeader() {
   const restIndicator = () => moveIndicator(nav.current?.querySelector<HTMLElement>('[aria-current="page"]') ?? null);
   useLayoutEffect(restIndicator, [active]);
 
-  const cta = { to: onLogin ? '/public' : '/login', label: onLogin ? 'Explore Newtuple' : 'Employee sign in' };
+  const cta = { href: 'https://www.newtuple.com', label: 'Explore Newtuple' };
 
   return <header className="hrms-pub-header" data-scrolled={scrolled} data-hidden={hidden && !menuOpen}>
     <div className="hrms-pub-bar">
@@ -98,7 +97,7 @@ function PublicHeader() {
       </nav>
       </div>
       <div className="hrms-pub-actions">
-        <Link className="hrms-pub-cta" to={cta.to}><span>{cta.label}</span><AnimIcon icon={ArrowUpRightIcon} size={15} /></Link>
+        <a className="hrms-pub-cta" href={cta.href} target="_blank" rel="noopener noreferrer"><span>{cta.label}</span><AnimIcon icon={ArrowUpRightIcon} size={15} /><span className="sr-only"> (opens in a new tab)</span></a>
         <button type="button" className="hrms-menu-toggle" aria-expanded={menuOpen} aria-controls="hrms-public-menu" aria-label={menuOpen ? 'Close menu' : 'Open menu'} onClick={() => setMenuOpen(open => !open)}>
           {menuOpen ? <X size={18} aria-hidden="true" /> : <Menu size={18} aria-hidden="true" />}
         </button>
@@ -110,7 +109,7 @@ function PublicHeader() {
         {externalResources.map(({ id, title, href }) => <a key={id} href={href} target="_blank" rel="noopener noreferrer" onClick={() => setMenuOpen(false)}>{title}<AnimIcon icon={ArrowUpRightIcon} size={16} /><span className="sr-only"> (opens in a new tab)</span></a>)}
         <span className="hrms-survey-placeholder">Create survey / poll <small>Coming soon</small></span>
       </nav>
-      <Link className="hrms-pub-cta" to={cta.to} onClick={() => setMenuOpen(false)}><span>{cta.label}</span><AnimIcon icon={ArrowUpRightIcon} size={15} /></Link>
+      <a className="hrms-pub-cta" href={cta.href} target="_blank" rel="noopener noreferrer" onClick={() => setMenuOpen(false)}><span>{cta.label}</span><AnimIcon icon={ArrowUpRightIcon} size={15} /><span className="sr-only"> (opens in a new tab)</span></a>
     </div>}
   </header>;
 }

@@ -14,8 +14,8 @@ export function SocialDiscovery() {
     {channels.map(channel => {
       const content = <>
         <div className="hrms-social-top"><span className="hrms-social-logo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d={channel.path} /></svg></span><span className="hrms-social-name">{channel.name}</span>{channel.href && <ArrowUpRight className="hrms-social-arrow" size={18} aria-hidden="true" />}</div>
-        <h3>{channel.label}</h3><p>{channel.description}</p>
-        <span className="hrms-social-action">{channel.href ? channel.action : 'Link coming soon'}</span>
+        <h3>{channel.label}</h3>
+        {!channel.href && <span className="hrms-social-action">Link coming soon</span>}
       </>;
       return channel.href ? <a key={channel.id} className={`hrms-social-card hrms-social-${channel.id}`} href={channel.href} target="_blank" rel="noopener noreferrer" aria-label={`Newtuple on ${channel.name} (opens in a new tab)`}>{content}</a>
         : <div key={channel.id} className={`hrms-social-card hrms-social-${channel.id}`} aria-label={`Newtuple on ${channel.name}: link coming soon`}>{content}</div>;
