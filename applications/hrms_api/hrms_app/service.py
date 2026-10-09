@@ -27,6 +27,7 @@ LEAVE_FIELDS = ['identifier', 'employee_id', 'manager_id', 'start_date', 'end_da
 ROLE_NAMES = {'hrms_office_admin': 'Office Admin', 'hrms_finance': 'Finance',
               'hrms_hr_full': 'HR Full', 'hrms_hr_basic': 'HR Basic',
               'hrms_delivery_manager': 'Delivery Manager'}
+INVITE_STEP = next(s for s in DEFAULT_ONBOARDING_STEPS if s.key == 'hrms_invitation')
 REFERENCE_OPTIONS = json.loads(Path(__file__).with_name('reference_options.json').read_text())
 
 
@@ -204,6 +205,30 @@ class HrmsService:
                 self.journal.audit(db, actor, 'onboarding.step.completed', step['task_id'])
             return self.onboarding(actor, case_id)[0]
 
+    def complete_invite_step(self, employee_id):
+        """After HR activates a hire's account, mark "Invite employee to HRMS" done, once the work
+        account it depends on exists. Best effort: activation has already succeeded, and the step
+        can still be completed by hand now that the account is active."""
+        cases = [c for c in self.platform.records(CASE, CASE_FIELDS) if c['data'].get('employee_id') == employee_id]
+        if not cases:
+            return
+        states = self.platform.states('hrms_onboardingcase')
+        for case in cases:
+            if states.get(case['entity_id']) != 'in_progress':
+                continue
+            try:
+                tasks = self.platform.tasks(case['entity_id'])
+                invite = task_for_step(tasks, INVITE_STEP)
+                if not invite or invite['status'] in {'COMPLETED', 'CANCELLED'}:
+                    continue
+                if any((t := task_for_step(tasks, s)) is None or t['status'] != 'COMPLETED'
+                       for s in DEFAULT_ONBOARDING_STEPS if s.sequence in INVITE_STEP.depends_on):
+                    continue
+                self.platform.call('POST', f"/entities/{invite['id']}/transitions", json={
+                    'entity_id': invite['id'], 'trigger': 'complete', 'idempotency_key': f"hrms:invite:{invite['id']}"})
+            except AppError:
+                continue
+
     def complete_case(self, actor, case_id):
         require(actor, 'onboarding:manage')
         with self.journal.lock(actor.organization_id) as db:
@@ -320,7 +345,7 @@ class HrmsService:
                 step_row = self.platform.create_record('HRMS.OnboardingStep', {
                     'case_id': case_id, 'sequence': step.sequence,
                     'title': step.title, 'description': f'HRMS onboarding step {step.sequence}; template v1; created by {actor.user_id}.',
-                    'assigned_to': owner, 'due_date': (datetime.now(UTC) + timedelta(days=step.due_days)).isoformat(),
+                    'assigned_to': owner, 'due_date': step.due_date(request.date_joined, datetime.now(UTC).date()).isoformat(),
                     'hrms_operation_key': f'{marker}:{step.sequence}'}, actor.user_id)
                 self.platform.enroll(step_row['entity_id'], 'hrms_onboardingstep')
                 tasks = self.platform.tasks(case_id)

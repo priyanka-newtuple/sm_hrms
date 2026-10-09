@@ -143,3 +143,17 @@ def test_one_unreadable_case_does_not_hide_the_others(broken):
     with pytest.raises(AppError) as error:
         service.onboarding(actor('hr', 'hrms_hr_full'), 'bad')
     assert error.value.status == 409
+
+
+def test_step_due_dates_follow_the_joining_date():
+    from datetime import date
+    by_key = {s.key: s for s in DEFAULT_ONBOARDING_STEPS}
+    today, joining = date(2026, 10, 9), date(2026, 11, 2)
+    due = lambda key, joined=joining: by_key[key].due_date(joined, today).date().isoformat()
+    # Pre-boarding is ready by day one; first-week work counts from the joining date.
+    assert [due(k) for k in ('newtuple_id', 'razorpay_account', 'hrms_invitation', 'asset_allocation')] == ['2026-11-02'] * 4
+    assert [due(k) for k in ('employee_profile', 'documents', 'hr_orientation', 'pm_allocation')] == \
+        ['2026-11-05', '2026-11-05', '2026-11-07', '2026-11-09']
+    # A hire added after they joined counts from today instead of from a date already past.
+    assert due('newtuple_id', date(2026, 9, 1)) == '2026-10-09' and due('hr_orientation', date(2026, 9, 1)) == '2026-10-14'
+    assert by_key['newtuple_id'].due_date(joining, today).hour == 12

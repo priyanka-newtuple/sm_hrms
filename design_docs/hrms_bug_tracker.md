@@ -75,11 +75,11 @@ Started 2026-10-09. Reviewed against `main` at `6a7c474` on the local stack (`lo
 
 | ID | Sev | Bug | Fix | Where | Status |
 |---|---|---|---|---|---|
-| ON-1 | High | A new hire's account can't be activated without an email provider, even though the org signs in with Google. HR creates a local account, and setup-access then needs SMTP/SES (409). | Code (workaround: Settings) | `service.py:224-226`, `employee_access.py:45-51`; workaround: Settings → Integrations → configure email | ☐ Open |
-| ON-2 | High | Steps 4–5 (personal details, documents) are assigned to the new hire while their account is still pending, so they can't do them. "Invite employee to HRMS" is just a checkbox, not the real activation. | Code | `service.py:259`, link step 3 to `employee_access.py` | ☐ Open |
+| ON-1 | High | A new hire's account can't be activated without an email provider, even though the org signs in with Google. HR creates a local account, and setup-access then needs SMTP/SES (409). | Code (workaround: Settings) | `service.py:224-226`, `employee_access.py:45-51`; workaround: Settings → Integrations → configure email | ◐ Code fixed (branch `fix/hrms-bugs-batch-1`): when Google sign-in is configured over HTTPS and the email is on the company domain, activation needs no email provider. Production still needs config: it runs on plain HTTP, so Google sign-in is off; configure an email provider in Settings → Integrations (this also fixes TL-2) |
+| ON-2 | High | Steps 4–5 (personal details, documents) are assigned to the new hire while their account is still pending, so they can't do them. "Invite employee to HRMS" is just a checkbox, not the real activation. | Code | `service.py:259`, link step 3 to `employee_access.py` | ◐ Partly (branch `fix/hrms-bugs-batch-1`): "Invite employee to HRMS" now completes itself when HR activates the account (once the Newtuple ID step is done); manual ticking stays allowed so onboarding is never blocked where activation is not yet possible |
 | ON-3 | Med | Steps go to the first person who matches the role, not the right person. In local data, 6 of 8 steps belong to a Super Admin with no employee profile, and the hire's own manager never gets a step. | Code | `service.py:259-266`, `onboarding_template.py:31-38` | ☐ Open |
 | ON-4 | Med | A step or case can't be reassigned, re-dated or cancelled (no-show, withdrawn offer). | Code | `main.py:262-268`, `catalog.py:107-110` | ☐ Open |
-| ON-5 | Med | Due dates count from the moment HR creates the case, not from the joining date, and nothing flags overdue steps. | Code | `service.py:271`, `frontend/.../OnboardingPage.tsx:116` | ☐ Open |
+| ON-5 | Med | Due dates count from the moment HR creates the case, not from the joining date, and nothing flags overdue steps. | Code | `service.py:271`, `frontend/.../OnboardingPage.tsx:116` | ☑ Fixed (branch `fix/hrms-bugs-batch-1`): see HR decisions below |
 | ON-6 | Med | One bad case (unknown template, deleted employee, duplicate step) breaks the whole Onboarding page, My Work and Workflows for everyone. | Code | `service.py:39,106-110` | ☑ Fixed (branch `fix/hrms-bugs-batch-1`) |
 
 ## Performance
@@ -106,6 +106,20 @@ Started 2026-10-09. Reviewed against `main` at `6a7c474` on the local stack (`lo
 | TL-2 | Low | Every production deploy ends "failure" at the email configuration step, even though the app is updated and healthy. *(reproduced)* | Settings (GitHub) | Repository secrets: `EMAIL_*` / `SMTP_*` used by `.github/workflows/hrms-production.yml` | ☐ Open |
 
 ---
+
+## HR decisions
+
+Where a fix needed an HR rule, these standard-practice choices were made. Change any of them here first, then in code.
+
+| Area | Decision |
+|---|---|
+| Leave approver | The Project Manager of any project the employee is allocated to over the leave dates decides; any one of them is enough. Without such a project, the reporting manager decides. Approvers decide whatever their role. Nobody approves their own leave. |
+| Leave days | Leave counts working days: weekdays that are not published holidays. A request with no working day is refused. |
+| Cancelling leave | The employee can cancel pending leave any time, and approved leave until the day it starts. |
+| Onboarding due dates | Pre-boarding (Newtuple ID, payroll account, HRMS invite, laptop and badge) is due by day one. Personal and bank details and documents are due 3 days after joining, HR orientation 5 days after, project allocation 7 days after. A hire added after their joining date counts from the day they are added. |
+| HRMS invite step | Completes itself when HR activates the hire's account, once the Newtuple ID exists. HR can still tick it by hand. |
+| Account activation | Accounts on the company domain sign in with Google when Google sign-in is configured over HTTPS; otherwise activation sends a password-setup email, which needs an email provider. |
+| Settings vs code | Settings controls fields, labels, options and extra workflow steps. Business rules (who approves, date rules, limits) stay in code with tests. Settings can make a field required but cannot relax one a screen depends on. |
 
 ## Already fixed
 
