@@ -66,6 +66,20 @@ def install():
                         'label': 'Withdraw', 'from': 'pending', 'to_state': 'draft'})
                     draft = api.call('POST', f"/workflow-state-machines/{matching[0]['machine_name']}/draft", json={'definition': definition})
                     matching = [api.call('POST', f"/workflow-state-machines/{draft['id']}/publish", json={'definition': definition})['state_machine']]
+            elif pack.entity_type == 'HRMS.LeaveRequest':
+                current = api.call('GET', f"/workflow-state-machines/{matching[0]['id']}")
+                definition = current['definition']
+                if not any(t.get('from', t.get('from_state')) == 'approved' and t['trigger'] == 'cancel'
+                           for t in definition['transitions']):
+                    # Approved leave can be cancelled before it starts, so approved stops being terminal.
+                    # Preserve configured guards, forms and transitions; publish an additive version.
+                    for state in definition['states']:
+                        if state['name'] == 'approved':
+                            state['tags'] = [tag for tag in state.get('tags', []) if tag != 'terminal']
+                    definition['transitions'].append({'key': 'approved_to_cancelled', 'trigger': 'cancel',
+                        'label': 'Cancel', 'from': 'approved', 'to_state': 'cancelled'})
+                    draft = api.call('POST', f"/workflow-state-machines/{matching[0]['machine_name']}/draft", json={'definition': definition})
+                    matching = [api.call('POST', f"/workflow-state-machines/{draft['id']}/publish", json={'definition': definition})['state_machine']]
             machines[pack.machine_name] = matching[0]['machine_name']
 
     install_project_role_picklist(api)

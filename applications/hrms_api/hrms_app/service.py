@@ -419,9 +419,21 @@ class HrmsService:
         state = self.platform.states('hrms_leaverequest').get(entity_id)
         # Approvers decide whatever their role: a project or reporting manager who is also an
         # admin or HR would otherwise leave the request undecidable.
-        allowed = (['cancel'] if own else ['approve', 'reject']) if state == 'pending' else []
+        if state == 'pending':
+            allowed = ['cancel'] if own else ['approve', 'reject']
+        elif (state == 'approved' and own and row['data']['start_date'] > date.today().isoformat()
+              and self._has_transition(entity_id, 'cancel')):
+            # Approved leave can be cancelled until the day it starts, on a workflow version that
+            # has that step: leave enrolled before the step existed keeps its original rules.
+            allowed = ['cancel']
+        else:
+            allowed = []
         return dict(entity_id=entity_id, current_state=state, available_transitions=[
             dict(trigger=t, label=t.title(), allowed=True) for t in allowed])
+
+    def _has_transition(self, entity_id, trigger):
+        available = self.platform.call('GET', f'/entities/{entity_id}/transitions/available')
+        return any(t['trigger'] == trigger for t in available.get('available_transitions', []))
 
     def decide_leave(self, actor, entity_id, trigger, key):
         with self.journal.lock(actor.organization_id) as db:

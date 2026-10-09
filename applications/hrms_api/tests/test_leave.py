@@ -1,8 +1,10 @@
 from contextlib import contextmanager
+from datetime import date
 from types import SimpleNamespace
 
 import pytest
 
+from hrms_app.catalog import pack_by_type
 from hrms_app.errors import AppError
 from hrms_app.platform import Actor
 from hrms_app.requests import LeaveCreateRequest
@@ -24,8 +26,8 @@ def person(key, code, manager=None):
 class Platform:
     """`boss` manages `lead`, who manages `dev`. Projects P1 and P2 are run by `pm1` and `pm2`."""
 
-    def __init__(self, state='pending', allocations=(), people=None):
-        self.state = state
+    def __init__(self, state='pending', allocations=(), people=None, start=LEAVE_START, old_workflow=False):
+        self.state, self.start, self.old_workflow = state, start, old_workflow
         self.people = people or [person('boss', 'B1'), person('lead', 'L1', 'B1'), person('dev', 'D1', 'L1'),
                                  person('pm1', 'P1'), person('pm2', 'P2')]
         self.allocations = list(allocations)  # (employee, project, start, end, state)
@@ -45,10 +47,14 @@ class Platform:
     def record(self, entity_id):
         employee = entity_id.removesuffix('-leave')
         return dict(entity_id=entity_id, entity_type_id='leave-type',
-                    data=dict(employee_id=employee, start_date=LEAVE_START, end_date=LEAVE_END))
+                    data=dict(employee_id=employee, start_date=self.start, end_date=LEAVE_END))
 
     def call(self, method, path, **kwargs):
-        assert (method, path) == ('GET', '/entity-types/HRMS.LeaveRequest')
+        assert method == 'GET'
+        if path.endswith('/transitions/available'):
+            steps = [] if self.old_workflow else [{'trigger': 'cancel', 'to_state': 'cancelled'}]
+            return {'available_transitions': steps if self.state == 'approved' else []}
+        assert path == '/entity-types/HRMS.LeaveRequest'
         return {'entity_type_id': 'leave-type'}
 
     def states(self, machine):
@@ -114,8 +120,31 @@ def test_the_managers_manager_cannot_see_or_decide():
 
 
 @pytest.mark.parametrize('state', ['approved', 'rejected', 'cancelled'])
-def test_decided_leave_offers_no_actions(state):
+def test_decided_leave_offers_the_approver_no_actions(state):
     assert triggers(Platform(state), 'lead-user', 'dev') == []
+
+
+def test_the_employee_can_cancel_approved_leave_until_it_starts():
+    assert triggers(Platform('approved'), 'dev-user', 'dev') == ['cancel']
+    today = date.today().isoformat()
+    assert triggers(Platform('approved', start=today), 'dev-user', 'dev') == []
+    assert triggers(Platform('approved', start='2020-01-06'), 'dev-user', 'dev') == []
+
+
+def test_leave_approved_on_a_workflow_without_the_cancel_step_is_not_offered_cancel():
+    # Enrollments keep the workflow version they started on; a broken button is worse than none.
+    assert triggers(Platform('approved', old_workflow=True), 'dev-user', 'dev') == []
+
+
+@pytest.mark.parametrize('state', ['rejected', 'cancelled'])
+def test_finished_leave_cannot_be_cancelled(state):
+    assert triggers(Platform(state), 'dev-user', 'dev') == []
+
+
+def test_the_leave_workflow_lets_approved_leave_be_cancelled():
+    pack = pack_by_type('HRMS.LeaveRequest')
+    assert ('approved', 'cancel', 'cancelled') in pack.transitions
+    assert 'approved' not in pack.terminal_states
 
 
 def test_approvals_list_follows_the_approver(monkeypatch):

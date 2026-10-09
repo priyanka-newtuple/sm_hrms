@@ -27,7 +27,8 @@ export function LeaveRow({ item, view, onChange }: { item: LeaveItem; view: View
   const available = useQuery({
     queryKey: ['hrms', 'leave', 'available', item.entity_id, item.state],
     queryFn: () => request<{ available_transitions: { trigger: string; label: string; allowed: boolean }[] }>(`/hrms/leave-requests/${item.entity_id}/actions`),
-    enabled: item.state === 'pending',
+    // The employee may also cancel their approved leave until it starts; the server decides.
+    enabled: item.state === 'pending' || (view === 'mine' && item.state === 'approved'),
   });
   const decision = useMutation({
     mutationFn: (trigger: string) => request(`/hrms/leave-requests/${item.entity_id}/actions`, {

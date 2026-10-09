@@ -129,11 +129,13 @@ PACKS = (
         ),
         initial_state="pending",
         states=("pending", "approved", "rejected", "cancelled"),
-        terminal_states=frozenset({"approved", "rejected", "cancelled"}),
+        # Approved is not final: the employee may cancel approved leave before it starts.
+        terminal_states=frozenset({"rejected", "cancelled"}),
         transitions=(
             ("pending", "approve", "approved"),
             ("pending", "reject", "rejected"),
             ("pending", "cancel", "cancelled"),
+            ("approved", "cancel", "cancelled"),
         ),
     ),
     HrmsEntityPack(
