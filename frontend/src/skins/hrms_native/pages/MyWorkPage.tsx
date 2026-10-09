@@ -66,7 +66,8 @@ export default function MyWorkPage() {
     <section className="hrms-mw-hero" aria-labelledby="hrms-mw-title">
       <div className="hrms-mw-greet">
         <LocalTime />
-        <h1 id="hrms-mw-title">{greeting(new Date().getHours())}, <ShinyText text={firstName} disabled={!motion} /></h1>
+        <h1 id="hrms-mw-title">My Tasks</h1>
+        <p>{greeting(new Date().getHours())}, <ShinyText text={firstName} disabled={!motion} /></p>
         <p>Here’s what needs your attention today.</p>
         {roles.length > 0 && <ul className="hrms-mw-roles" aria-label="Your roles">{roles.map(role => <li key={role}>{role}</li>)}</ul>}
       </div>

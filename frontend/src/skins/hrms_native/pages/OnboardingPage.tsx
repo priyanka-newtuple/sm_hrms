@@ -69,7 +69,8 @@ export default function OnboardingPage({ caseId, embedded = false }: { caseId?: 
     onError: (error) => setActionError(getApiErrorMessage(error)),
   });
 
-  return <main className={`hrms-brand hrms-people-page ${embedded ? 'hrms-onboarding-embedded' : 'hrms-workspace-page'}`}>
+  const Container = embedded ? 'section' : 'main';
+  return <Container className={`hrms-brand hrms-people-page ${embedded ? 'hrms-onboarding-embedded' : 'hrms-workspace-page'}`}>
     {!embedded && <PageHero title="Onboarding" intro="Every step, every owner. Help your new colleagues settle in." illustration="onboarding"
       stats={cases.data ? [
         { label: 'Open cases', value: cases.data.filter(item => item.completed_steps < item.total_steps).length },
@@ -121,5 +122,5 @@ export default function OnboardingPage({ caseId, embedded = false }: { caseId?: 
         </div>
       </section>}
     </div>}
-  </main>;
+  </Container>;
 }

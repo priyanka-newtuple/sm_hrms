@@ -1,6 +1,6 @@
 import { createRequestId } from '../requestId';
 import { ConfiguredForm, ConfiguredField } from '../forms/ConfiguredForm';
-import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, Users, Search, ArrowRight } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -8,7 +8,6 @@ import { Link } from 'react-router-dom';
 import { useHrmsCapabilities } from '../capabilities';
 import { getApiErrorMessage, request } from '../../../core/services/api/client';
 import { PageHero } from '../components/PageHero';
-import { WorkFromHome } from './WorkFromHome';
 
 interface Employee {
   entity_id: string;
@@ -41,17 +40,13 @@ const labelForRole = (role: string) => ({
 
 export default function EmployeeDirectoryPage() {
   const caps = useHrmsCapabilities();
-  const [view, setView] = useState('directory');
-  const canRead = caps.data?.capabilities.includes('employee:read');
-  if (caps.isLoading) return <p role="status">Loading employee access…</p>;
+  if (caps.isLoading) return <p role="status">Loading directory access...</p>;
   if (caps.isError) return <div role="alert">Could not load access. <button onClick={() => void caps.refetch()}>Try again</button></div>;
-  const tabs = <nav className="hrms-view-tabs" aria-label="Employee views">{canRead && <button type="button" aria-pressed={view === 'directory'} onClick={() => setView('directory')}>Directory</button>}<button type="button" aria-pressed={!canRead || view === 'calendar'} onClick={() => setView('calendar')}>Work location calendar</button></nav>;
-  return canRead && view === 'directory'
-    ? <EmployeeDirectory tabs={tabs} />
-    : <main className="hrms-workspace-page"><PageHero title="Employees" intro="See who is working from home and plan your own days." illustration="employees" tabs={tabs} /><WorkFromHome /></main>;
+  if (!caps.data?.capabilities.includes('employee:read')) return <p className="p-6">Org Directory is not available to your role.</p>;
+  return <EmployeeDirectory />;
 }
 
-function EmployeeDirectory({ tabs }: { tabs: ReactNode }) {
+function EmployeeDirectory() {
   const { data: capabilities } = useHrmsCapabilities();
   const canCreate = capabilities?.capabilities.includes('employee:create') ?? false;
   const queryClient = useQueryClient();
@@ -113,7 +108,7 @@ function EmployeeDirectory({ tabs }: { tabs: ReactNode }) {
   const input = 'hrms-field-input';
 
   return <main className="hrms-workspace-page hrms-people-page">
-    <PageHero title="Employees" intro="Get to know the people behind our work." illustration="employees" tabs={tabs}
+    <PageHero title="Org Directory" intro="Get to know the people behind our work." illustration="employees"
       actions={canCreate && <button type="button" onClick={() => { setCreated(null); setShowForm(true); }} className="hrms-primary-button"><Plus size={16} /> Add Employee</button>}
       stats={employees.isSuccess ? [
         { label: 'People', value: employees.data.length },

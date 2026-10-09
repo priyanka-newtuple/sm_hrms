@@ -380,3 +380,8 @@
 @media(max-width:1000px) { .hrms-header-navigation { display:none; } .hrms-pub-bar { grid-template-columns:1fr auto; } .hrms-menu-toggle { display:grid; } }
 
 .hrms-public-menu { background:#fff; }
+
+.hrms-side-coming { cursor:default; color:#64748b; }
+.hrms-side-coming small { display:block; font-size:10px; font-weight:400; line-height:1.4; color:#64748b; }
+
+.hrms-side-group-toggle { display:flex; align-items:center; justify-content:space-between; width:100%; border:0; background:none; color:inherit; font:inherit; letter-spacing:inherit; text-transform:inherit; cursor:pointer; padding:0; }

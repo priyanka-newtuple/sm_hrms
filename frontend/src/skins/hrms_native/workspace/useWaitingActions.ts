@@ -38,7 +38,7 @@ export function useWaitingActions() {
     { key: 'leave' as const, label: 'Leave approvals', path: '/hrms/leave', count: pendingLeave.length, loading: leaveApprovals.isLoading, show: (leaveApprovals.data?.length ?? 0) > 0 },
     { key: 'cockpit' as const, label: 'HR content', path: '/hrms/cockpit', count: cockpitActions.length, loading: cockpit.isLoading, show: has('cockpit:view') },
     { key: 'projects' as const, label: 'Projects', path: '/hrms/projects', count: projectActions.length, loading: projects.isLoading, show: has('project:view') },
-    { key: 'onboarding' as const, label: 'Onboarding', path: '/hrms/onboarding', count: onboardingActions.length, loading: onboarding.isLoading, show: true },
+    { key: 'onboarding' as const, label: 'Onboarding', path: has('onboarding:view') ? '/hrms/cockpit?area=onboarding' : '/hrms/my-work', count: onboardingActions.length, loading: onboarding.isLoading, show: true },
   ].flatMap(({ show, ...source }) => (show ? [source] : []));
 
   return {

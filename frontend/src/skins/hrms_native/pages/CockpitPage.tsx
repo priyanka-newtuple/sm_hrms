@@ -1,3 +1,4 @@
+import OnboardingPage from './OnboardingPage';
 import { createRequestId } from '../requestId';
 import { FileCheck2, FileText, BookOpen, CalendarDays, BriefcaseBusiness, Users, Plus, ArrowUpRight } from 'lucide-react';
 import { WorkPanel } from '../components/WorkPanel';
@@ -81,13 +82,16 @@ function Editor({kind,item,board,done}:{kind:string;item?:Item;board:Board;done:
 export default function CockpitPage({entityId}:{entityId?:string}) {
  const [params,setParams]=useSearchParams();
  const caps=useHrmsCapabilities();
- const wfh=params.get('area')==='wfh';
  if(entityId)return <ContentCockpit entityId={entityId}/>;
- const canWfh=caps.data?.capabilities.includes('wfh:approve')??false;
- const tabs=canWfh?<nav className="hrms-view-tabs" aria-label="HR Cockpit areas"><button type="button" aria-pressed={!wfh} onClick={()=>setParams({})}>Content & publishing</button><button type="button" aria-pressed={wfh} onClick={()=>setParams({area:'wfh'})}>Work from home</button></nav>:undefined;
- return wfh&&canWfh
-  ?<main className="hrms-workspace-page"><PageHero title="HR Cockpit" intro="Review work-from-home requests and set the yearly policy." illustration="cockpit" tabs={tabs}/><WorkFromHome cockpit/></main>
-  :<ContentCockpit tabs={tabs}/>;
+ if(caps.isLoading)return <p role="status">Loading HR access...</p>;
+ if(caps.isError)return <p role="alert">Could not load HR access. <button onClick={()=>void caps.refetch()}>Try again</button></p>;
+ const allowed=(cap:string)=>caps.data?.capabilities.includes(cap)??false;
+ const areas=[...(allowed('cockpit:view')?[{id:'publishing',label:'Content & publishing'}]:[]),...(allowed('onboarding:view')?[{id:'onboarding',label:'Onboarding'}]:[]),...(allowed('wfh:approve')?[{id:'wfh',label:'Work from home'}]:[])];
+ if(!areas.length)return <p className="p-6">HR Cockpit is not available to your role.</p>;
+ const area=areas.find(a=>a.id===params.get('area'))?.id??areas[0].id;
+ const tabs=<nav className="hrms-view-tabs" aria-label="HR Cockpit areas">{areas.map(a=><button key={a.id} type="button" aria-pressed={area===a.id} onClick={()=>setParams({area:a.id})}>{a.label}</button>)}</nav>;
+ if(area==='publishing')return <ContentCockpit tabs={tabs}/>;
+ return <main className="hrms-workspace-page"><PageHero title="HR Cockpit" intro={area==='onboarding'?'Coordinate onboarding and help new colleagues settle in.':'Review work-from-home requests and set the yearly policy.'} illustration="cockpit" tabs={tabs}/>{area==='onboarding'?<OnboardingPage embedded/>:<WorkFromHome cockpit/>}</main>;
 }
 
 function ContentCockpit({entityId,tabs}:{entityId?:string;tabs?:React.ReactNode}) {

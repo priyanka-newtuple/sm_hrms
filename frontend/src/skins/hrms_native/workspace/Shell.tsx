@@ -8,13 +8,13 @@ import { Illustration } from '../components/Illustration';
 import { usePrefersReducedMotion } from '../components/useReducedMotion';
 import {
   AnimIcon, BellIcon, BookTextIcon, BriefcaseBusinessIcon, CalendarDaysIcon, LayoutGridIcon, MenuIcon, PanelLeftCloseIcon,
-  PanelLeftOpenIcon, SearchIcon, SettingsIcon, SlidersHorizontalIcon, TrendingUpIcon, UserRoundPlusIcon, UsersIcon,
-  WorkflowIcon, XIcon, ZapIcon, type AnimatedIcon,
+  PanelLeftOpenIcon, SearchIcon, SettingsIcon, SlidersHorizontalIcon, TrendingUpIcon, UsersIcon,
+  XIcon, ZapIcon, type AnimatedIcon,
 } from '../animated-icons';
 import { useWaitingActions, type WaitingSource } from './useWaitingActions';
 
-interface NavItem { path: string; label: string; icon: AnimatedIcon; badge?: number; keywords?: string }
-interface NavGroup { label: string; items: NavItem[] }
+interface NavItem { path: string; label: string; icon: AnimatedIcon; badge?: number; keywords?: string; comingSoon?: boolean }
+interface NavGroup { label: string; standalone?: boolean; items: NavItem[] }
 
 const COLLAPSE_KEY = 'hrms.sidebar.collapsed';
 const readCollapsed = () => { try { return localStorage.getItem(COLLAPSE_KEY) === '1'; } catch { return false; } };
@@ -37,6 +37,7 @@ function Sidebar({ groups, settings, collapsed, onToggle, waiting, motion }: {
   groups: NavGroup[]; settings: NavItem | null; collapsed: boolean; onToggle: () => void;
   waiting: ReturnType<typeof useWaitingActions>; motion: boolean;
 }) {
+  const [folded, setFolded] = useState<Record<string, boolean>>({});
   const nav = useRef<HTMLElement>(null);
   const pill = useRef<HTMLSpanElement>(null);
   const { pathname } = useLocation();
@@ -53,7 +54,7 @@ function Sidebar({ groups, settings, collapsed, onToggle, waiting, motion }: {
     node.style.height = `${target.offsetHeight}px`;
   }, []);
   const rest = useCallback(() => moveTo(nav.current?.querySelector<HTMLElement>('a[aria-current="page"]') ?? null), [moveTo]);
-  useLayoutEffect(rest, [rest, pathname, collapsed, groups]);
+  useLayoutEffect(rest, [rest, pathname, collapsed, groups, folded]);
 
   const toggleLabel = collapsed ? 'Expand sidebar' : 'Collapse sidebar';
   return <aside className="hrms-ws-sidebar" aria-label="Workspace">
@@ -67,8 +68,8 @@ function Sidebar({ groups, settings, collapsed, onToggle, waiting, motion }: {
     <nav ref={nav} aria-label="Main navigation" className="hrms-side-nav" onMouseLeave={rest} onBlur={rest}>
       <span ref={pill} className="hrms-side-pill" aria-hidden="true" />
       {groups.map(group => <section key={group.label} className="hrms-side-group" aria-label={group.label}>
-        <h2>{group.label}</h2>
-        {group.items.map(item => <NavLink key={item.path} to={item.path} className="hrms-side-link" data-label={item.label}
+        {!group.standalone && <h2><button type="button" className="hrms-side-group-toggle" aria-expanded={!folded[group.label]} onClick={() => setFolded(previous => ({ ...previous, [group.label]: !previous[group.label] }))}>{group.label}<ChevronDown size={14} style={{ transform: folded[group.label] ? "rotate(-90deg)" : undefined }} /></button></h2>}
+        {(collapsed || !folded[group.label]) && group.items.map(item => item.comingSoon ? <div key={item.path} className="hrms-side-link hrms-side-coming" data-label={`${item.label} — Coming soon`} aria-disabled="true"><AnimIcon icon={item.icon} size={19} /><span className="hrms-side-label">{item.label}<small>Coming soon</small></span></div> : <NavLink key={item.path} to={item.path} className="hrms-side-link" data-label={item.label}
           onMouseEnter={event => moveTo(event.currentTarget)} onFocus={event => moveTo(event.currentTarget)}>
           <AnimIcon icon={item.icon} size={19} />
           <span className="hrms-side-label">{item.label}</span>
@@ -82,7 +83,7 @@ function Sidebar({ groups, settings, collapsed, onToggle, waiting, motion }: {
         <Illustration name="all-clear" animate={motion} className="hrms-side-card-art" />
         <span>
           <strong>{waiting.loading ? 'Checking your work…' : waiting.total > 0 ? `${waiting.total} ${waiting.total === 1 ? 'action' : 'actions'} waiting` : 'You’re all caught up'}</strong>
-          <small>{waiting.total > 0 ? 'Open My work to review them' : 'New tasks and approvals appear here'}</small>
+          <small>{waiting.total > 0 ? 'Open My Tasks to review them' : 'New tasks and approvals appear here'}</small>
         </span>
       </Link>}
       {settings && <NavLink to={settings.path} className="hrms-side-link hrms-side-settings" data-label={settings.label}>
@@ -183,7 +184,7 @@ function NotificationBell({ waiting, motion }: { waiting: ReturnType<typeof useW
         : <ul className="hrms-pop-list">{waiting.sources.map((source: WaitingSource) => <li key={source.key}>
             <Link to={source.path} onClick={close} data-active={source.count > 0}><span>{source.label}</span><b>{source.count}</b></Link>
           </li>)}</ul>}
-      <Link to="/hrms/my-work" className="hrms-pop-foot" onClick={close}>Open My work</Link>
+      <Link to="/hrms/my-work" className="hrms-pop-foot" onClick={close}>Open My Tasks</Link>
     </>}
   </Popover>;
 }
@@ -199,7 +200,7 @@ function UserMenu({ name, email, roles, initials, canConfigure, onSignOut }: { n
       <div className="hrms-user-card"><span className="hrms-ws-avatar" aria-hidden="true">{initials}</span><span><b>{name}</b><small>{email}</small></span></div>
       {roles.length > 0 && <ul className="hrms-user-roles" aria-label="Your roles">{roles.map(role => <li key={role}>{role}</li>)}</ul>}
       <nav className="hrms-user-links" aria-label="Account">
-        <Link to="/hrms/my-work" onClick={close}><AnimIcon icon={ZapIcon} size={16} />My work</Link>
+        <Link to="/hrms/my-work" onClick={close}><AnimIcon icon={ZapIcon} size={16} />My Tasks</Link>
         {canConfigure && <Link to="/settings" onClick={close}><AnimIcon icon={SettingsIcon} size={16} />Settings</Link>}
         <button type="button" onClick={() => { close(); onSignOut(); }}><LogOut size={16} aria-hidden="true" />Sign out</button>
       </nav>
@@ -224,26 +225,30 @@ export function WorkspaceShell() {
   if (drawerPath !== location.pathname) { setDrawerPath(location.pathname); if (drawerOpen) setDrawerOpen(false); }
 
   const groups: NavGroup[] = [
-    { label: 'My work', items: [
-      { path: '/hrms/my-work', label: 'My work', icon: ZapIcon, badge: waiting.total, keywords: 'home dashboard tasks approvals' },
-      { path: '/hrms/leave', label: 'Leave requests', icon: CalendarDaysIcon, badge: waiting.countFor('leave'), keywords: 'time off vacation holiday' },
-      { path: '/hrms/performance', label: 'Performance', icon: TrendingUpIcon, keywords: 'goals reviews feedback cycle' },
+    { label: 'Workspace', standalone: true, items: [
+      { path: '/hrms/my-work', label: 'My Tasks', icon: ZapIcon, badge: waiting.total, keywords: 'home assigned tasks approvals completion' },
+      ...(allowed('employee:read') ? [{ path: '/hrms/employees', label: 'Org Directory', icon: UsersIcon, keywords: 'employees directory people staff' }] : []),
     ] },
-    { label: 'People', items: [
-      ...((allowed('employee:read') || allowed('wfh:view')) ? [{ path: '/hrms/employees', label: 'Employees', icon: UsersIcon, keywords: 'directory people staff' }] : []),
-      ...(allowed('onboarding:view') ? [{ path: '/hrms/onboarding', label: 'Onboarding', icon: UserRoundPlusIcon, badge: waiting.countFor('onboarding'), keywords: 'new hire joiner steps' }] : []),
+    { label: 'Self Service', items: [
+      { path: '/hrms/leave', label: 'Leave Requests', icon: CalendarDaysIcon, keywords: 'time off vacation holiday' },
+      ...(allowed('wfh:view') ? [{ path: '/hrms/work-from-home', label: 'Work from Home', icon: CalendarDaysIcon, keywords: 'remote work location calendar' }] : []),
+      { path: '/hrms/performance', label: 'Performance', icon: TrendingUpIcon, keywords: 'goals reviews feedback cycle' },
+      { path: '/hrms/travel', label: 'Travel Request', icon: BriefcaseBusinessIcon, comingSoon: true },
+      { path: '/hrms/helpdesk', label: 'Helpdesk', icon: BookTextIcon, comingSoon: true, keywords: 'reimbursements assets workplace documents letters' },
     ] },
     { label: 'Delivery', items: allowed('project:view') ? [
-      { path: '/hrms/projects', label: 'Projects', icon: BriefcaseBusinessIcon, badge: waiting.countFor('projects'), keywords: 'customers delivery' },
+      { path: '/hrms/projects', label: 'Projects', icon: BriefcaseBusinessIcon, keywords: 'customers delivery' },
       { path: '/hrms/allocations', label: 'Allocations', icon: LayoutGridIcon, keywords: 'capacity staffing' },
     ] : [] },
-    { label: 'HR publishing', items: allowed('cockpit:view') ? [{ path: '/hrms/cockpit', label: 'HR Cockpit', icon: SlidersHorizontalIcon, badge: waiting.countFor('cockpit'), keywords: 'policies holidays careers publish' }] : [] },
-    { label: 'Tracking', items: [{ path: '/hrms/workflows', label: 'Workflows', icon: WorkflowIcon, keywords: 'status pipeline' }] },
+    { label: 'Management', standalone: true, items: [
+      ...((allowed('cockpit:view') || allowed('onboarding:view') || allowed('wfh:approve')) ? [{ path: '/hrms/cockpit', label: 'HR Cockpit', icon: SlidersHorizontalIcon, keywords: 'onboarding policies holidays careers publish HR' }] : []),
+      { path: '/hrms/assets', label: 'Asset Management', icon: LayoutGridIcon, comingSoon: true },
+    ] },
   ].filter(group => group.items.length);
   const settings: NavItem | null = allowed('platform:configure') ? { path: '/settings', label: 'Settings', icon: SettingsIcon, keywords: 'configuration roles forms' } : null;
-  const paletteItems = [...groups.flatMap(group => group.items), { path: '/hrms/content', label: 'Company resources', icon: BookTextIcon, keywords: 'policies learning holidays careers published' }, ...(settings ? [settings] : [])];
+  const paletteItems = [...groups.flatMap(group => group.items).filter(item => !item.comingSoon), { path: '/hrms/content', label: 'Company resources', icon: BookTextIcon, keywords: 'policies learning holidays careers published' }, ...(settings ? [settings] : [])];
 
-  const current = groups.flatMap(group => group.items.map(item => ({ ...item, group: group.label }))).find(item => location.pathname.startsWith(item.path))
+  const current = groups.flatMap(group => group.items.map(item => ({ ...item, group: group.standalone ? item.label : group.label }))).find(item => location.pathname.startsWith(item.path))
     ?? (location.pathname.startsWith('/settings') && settings ? { ...settings, group: 'Configuration' } : location.pathname.startsWith('/hrms/content') ? { ...paletteItems.find(i => i.path === '/hrms/content')!, group: 'Resources' } : null);
   const roles = caps.data?.roles.map(roleName) ?? [];
   const initials = (user?.fullName ?? '').split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]?.toUpperCase()).join('') || '·';

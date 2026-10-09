@@ -16,7 +16,7 @@ it('renders the employee directory on HTTP when randomUUID is unavailable', asyn
   vi.stubGlobal('crypto', { getRandomValues });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
   render(<QueryClientProvider client={client}><MemoryRouter><EmployeeDirectoryPage /></MemoryRouter></QueryClientProvider>);
-  expect(await screen.findByRole('heading', { name: 'Employees' })).toBeTruthy();
+  expect(await screen.findByRole('heading', { name: 'Org Directory' })).toBeTruthy();
   expect(screen.getByRole('button', { name: 'Add Employee' })).toBeTruthy();
   client.clear();
 });

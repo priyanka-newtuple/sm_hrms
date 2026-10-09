@@ -1,3 +1,4 @@
+import WorkFromHomePage from './pages/WorkFromHomePage';
 import { PublicLayout } from './components/Brand';
 import './brand.css';
 import './workspace/workspace.css';
@@ -7,7 +8,7 @@ import { lazy, Suspense, useEffect, useMemo, type ReactNode } from 'react';
 
 import { WorkspaceShell } from './workspace/Shell';
 
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, useSearchParams } from 'react-router-dom';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -21,7 +22,7 @@ import { useHrmsCapabilities } from './capabilities';
 
 import EmployeeDirectoryPage from './pages/EmployeeDirectoryPage';
 
-import OnboardingPage from './pages/OnboardingPage';
+
 
 import LeaveRequestsPage from './pages/LeaveRequestsPage';
 
@@ -78,6 +79,9 @@ function Layout() {
 
 
 function OnboardingManagement() {
+  const [params] = useSearchParams();
+  const destination = new URLSearchParams(params);
+  destination.set("area", "onboarding");
 
   const caps = useHrmsCapabilities();
 
@@ -85,7 +89,7 @@ function OnboardingManagement() {
 
   if (!caps.data?.capabilities.includes('onboarding:view')) return <Navigate to="/hrms/my-work" replace />;
 
-  return <OnboardingPage />;
+  return <Navigate to={`/hrms/cockpit?${destination}`} replace />;
 
 }
 
@@ -117,6 +121,7 @@ export default function App() {
       <Route path="/funnel/create" element={<ConfigurationGuard><FunnelEditor /></ConfigurationGuard>} />
       <Route path="/funnel/:stateMachineId/edit" element={<ConfigurationGuard><FunnelEditor /></ConfigurationGuard>} />
       <Route path="/funnel/create/wizard" element={<Navigate to="/funnel/create?view=wizard" replace />} />
+      <Route path="/hrms/work-from-home" element={<WorkFromHomePage />} />
       <Route path="/hrms/employees" element={<EmployeeDirectoryPage />} />
 
       <Route path="/hrms/onboarding" element={<OnboardingManagement />} />
