@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { request, getApiErrorMessage } from '@/core/services/api/client';
 import { Button } from '@/components/ui/button';
 type Policy={revision:number;capabilities:string[];roles:Record<string,string[]>};
-const names:Record<string,string>={'project:view':'Access Projects and Allocations','project:read_all':'View all projects','project:create':'Create projects','project:manage_assigned':'Manage assigned projects','project:manage_all':'Manage all projects / designated DM allocation approval','project:commercial_assigned':'View commercial data on assigned projects','project:commercial_all':'View all commercial data','project:approve':'Approve when designated (independent approver)','customer:create':'Create customers','allocation:request':'Request, amend and release allocations'};
+const names:Record<string,string>={'project:view':'Access Projects and Allocations','project:read_all':'View all projects','project:create':'Create projects','project:manage_assigned':'Manage assigned projects / designated PM allocation approval','project:manage_all':'Manage all projects','project:commercial_assigned':'View commercial data on assigned projects','project:commercial_all':'View all commercial data','project:approve':'Approve when designated (independent approver)','customer:create':'Create customers','allocation:request':'Request, amend and release allocations'};
 function Editor({policy}:{policy:Policy}) {
  const [roles,setRoles]=useState(policy.roles);
  const client=useQueryClient();

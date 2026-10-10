@@ -16,7 +16,7 @@ type Data = Record<string, unknown>;
 export type Item = { id: string; kind: string; state: string; data: Data; actions: string[]; project_name: string };
 type Board = { projects: Item[]; allocations: Item[]; requests: Item[]; can_create: boolean; can_create_customer: boolean };
 type Choice = { id: string; name: string };
-type Options = { customers: Choice[]; pms: Choice[]; dms: Choice[]; approvers: Choice[]; employees: Choice[]; project_roles: Choice[] };
+type Options = { current_user_id?: string; customers: Choice[]; pms: Choice[]; dms: Choice[]; approvers: Choice[]; employees: Choice[]; project_roles: Choice[] };
 type Body = { action: string; data: Data; expected_revision: number; idempotency_key: string };
 type Pending = Body & { target: string };
 const label = (s: string) => s.replaceAll('_', ' ').replace(/^./, c => c.toUpperCase());
@@ -34,6 +34,8 @@ export function ProjectAction({ item, action, done, onCreated }: { item?: Item; 
   const proposed = (item?.data.proposed ?? item?.data ?? {}) as Data;
   const projectForm = ['create_project','propose_amendment'].includes(action) || (action === 'edit_request' && item?.kind === 'HRMS.ProjectChange');
   const allocationForm = ['request_allocation','amend_allocation'].includes(action) || (action === 'edit_request' && item?.kind === 'HRMS.AllocationChange');
+  const projects = useProjects();
+  const allocationProject = item?.kind === 'HRMS.Project' ? item : projects.data?.projects.find(p => p.id === item?.data.project_id);
   const [data, setData] = useState<Data>(() => ({ ...Object.fromEntries((projectForm ? projectKeys : allocationForm ? allocationKeys : []).filter(k => proposed[k] !== undefined).map(k => [k, proposed[k]])),
     ...(action === 'edit_request' ? { approver_id: item?.data.approver_id, note: item?.data.note } : {}) }));
   const [pending, setPending] = useState<Body | null>(null);
@@ -70,6 +72,14 @@ export function ProjectAction({ item, action, done, onCreated }: { item?: Item; 
   function select(key: string, choices: Choice[], required=true) {
     return <ConfiguredField field={key} label={label(key.replace(/_id$/, ""))} action={key === 'customer_id' && action === 'create_project' && caps.data?.capabilities.includes('customer:create') ? <button type="button" className="hrms-text-link inline-flex items-center gap-1" onClick={()=>setCreatingCustomer(true)}><Plus size={14} aria-hidden="true" />Create customer</button> : undefined}><select required={required} className={input} value={val(data,key)} onChange={e=>{setData({...data,[key]:e.target.value || null});setPreview(null);}}><option value="">Select…</option>{choices.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></ConfiguredField>;
   }
+  function allocationApprover() {
+    const pmId = val(allocationProject?.data ?? {}, 'pm_id');
+    const pmName = val(allocationProject?.data ?? {}, 'pm_name');
+    if (pmId && options.data?.current_user_id && pmId !== options.data.current_user_id && action !== 'edit_request') {
+      return <ConfiguredField field="approver_id" label="Approver"><input className={input} value={pmName || 'Project Manager'} readOnly /></ConfiguredField>;
+    }
+    return select('approver_id', options.data?.approvers ?? [], true);
+  }
   function enumeration(key:string, values:string[]) {return select(key,values.map(v=>({id:v,name:label(v)})),false);}
   function submit(e:FormEvent) {e.preventDefault();const body=pending ?? {action,data,expected_revision:Number(item?.data.revision ?? 0),idempotency_key:createRequestId()};setPending(body);mutation.mutate(body);}
   const entityType = projectForm ? 'HRMS.Project' : allocationForm ? 'HRMS.Allocation' : action === 'create_customer' ? 'HRMS.Customer' : item?.kind ?? 'HRMS.Project';
@@ -83,8 +93,8 @@ export function ProjectAction({ item, action, done, onCreated }: { item?: Item; 
     <fieldset disabled={Boolean(pending)||mutation.isPending} className="grid gap-5 disabled:opacity-60 sm:grid-cols-2">
       {action==='create_customer' && <>{field('name')}{field('contact_name','text',false)}{field('contact_email','email',false)}{field('currency','text',false)}{field('contract_value','number',false)}</>}
       {projectForm && <>{field('name')}{field('description','text',false)}{select('customer_id',customerChoices)}{select('pm_id',options.data?.pms??[])}{select('dm_id',options.data?.dms??[])}{select('approver_id',options.data?.approvers??[])}{field('start_date','date')}{field('end_date','date')}{enumeration('engagement_type',['time_material','fixed_price','internal'])}{field('practice','text',false)}{enumeration('health',['green','amber','red'])}{field('currency','text',false)}{field('budget_amount','number',false)}{field('billing_rate','number',false)}{field('planned_hours','number',false)}{field('note','text',false)}</>}
-      {allocationForm && <>{select('employee_id',options.data?.employees??[])}{select('project_role_id',options.data?.project_roles??[])}{options.isSuccess && options.data.project_roles.length === 0 && <p role="status" className="text-sm text-muted-foreground">No project roles are configured. Ask a tenant administrator to update the Project role picklist in Settings.</p>}{field('start_date','date')}{field('end_date','date')}{field('percentage','number')}{enumeration('billable',['yes','no'])}{field('billing_rate','number',false)}{select('approver_id',options.data?.approvers??[],false)}{field('note','text',false)}<p className="text-sm text-muted-foreground sm:col-span-2">The project Delivery Manager approves. If you are that DM, choose an independent approver. A capacity exception requires a reason. Pending requests do not book capacity.</p></>}
-      {action==='release_allocation' && <>{select('approver_id',options.data?.approvers??[],false)}{field('note')}<p className="text-sm sm:col-span-2">After approval, this allocation is cancelled and its capacity is released. Its history is retained.</p></>}
+      {allocationForm && <>{select('employee_id',options.data?.employees??[])}{select('project_role_id',options.data?.project_roles??[])}{options.isSuccess && options.data.project_roles.length === 0 && <p role="status" className="text-sm text-muted-foreground">No project roles are configured. Ask a tenant administrator to update the Project role picklist in Settings.</p>}{field('start_date','date')}{field('end_date','date')}{field('percentage','number')}{enumeration('billable',['yes','no'])}{field('billing_rate','number',false)}{allocationApprover()}{field('note','text',false)}<p className="text-sm text-muted-foreground sm:col-span-2">The project Project Manager approves. If you are that Project Manager, choose an independent approver. A capacity exception requires a reason. Pending requests do not book capacity.</p></>}
+      {action==='release_allocation' && <>{allocationApprover()}{field('note')}<p className="text-sm sm:col-span-2">After approval, this allocation is cancelled and its capacity is released. Its history is retained.</p></>}
       {['reject','request_changes'].includes(action) && field('comment')}
       {action==='approve' && <p className="sm:col-span-2 text-sm">Approve this version and apply its proposed values. Capacity and project dates are checked again before committing.</p>}
     </fieldset>
@@ -219,7 +229,7 @@ export default function ProjectsPage() {
             {!editing&&edit&&<Button className="hrms-primary-button" variant="primary" onClick={()=>{setEditing(true);setAllocating(false);}}>Edit project</Button>}
           </div>
           {selected.actions.includes('request_allocation') && <Button className="hrms-primary-button" variant="primary" onClick={()=>{setAllocating(true);setEditing(false);}}>Add allocation</Button>}
-          {allocating && selected.actions.includes('request_allocation') && <><p className="text-sm text-muted-foreground">Choose an employee, project role, dates and capacity. The request goes to the project's Delivery Manager; self-approval is not permitted. Submit and track approval in Workflows.</p><ProjectAction key={`${selected.id}:allocation`} item={selected} action="request_allocation" done={()=>setAllocating(false)} /></>}
+          {allocating && selected.actions.includes('request_allocation') && <><p className="text-sm text-muted-foreground">Choose an employee, project role, dates and capacity. The request goes to the project's Project Manager; self-approval is not permitted. Submit and track approval in Workflows.</p><ProjectAction key={`${selected.id}:allocation`} item={selected} action="request_allocation" done={()=>setAllocating(false)} /></>}
           {editing&&edit?<><p className="text-sm text-muted-foreground">Changes are saved as an approval request. Review and approve them in Workflows before they update the project.</p><ProjectAction key={`${edit.item.id}:${edit.action}`} item={edit.item} action={edit.action} done={()=>setEditing(false)} /></>:
             <ConfiguredForm entityType="HRMS.Project"><dl className="hrms-surface hrms-detail-grid">{Object.entries(selected.data).filter(([k,v])=>v!=null&&v!==''&&!k.endsWith('_id')&&!['created_by','revision','hrms_operation_key'].includes(k)).map(([key,v])=><div key={key}><ConfiguredField field={key} label={label(key)}><p className="whitespace-pre-wrap break-words font-medium">{String(v)}</p></ConfiguredField></div>)}</dl></ConfiguredForm>}
           <section className="hrms-surface hrms-project-team"><div className="hrms-panel-title"><span className="hrms-work-icon"><Users size={23} strokeWidth={1.25} /></span><h3 className="hrms-section-heading">Assigned team</h3><Link className="hrms-text-link" to={`/hrms/allocations?project=${selected.id}`}>View allocations</Link></div>

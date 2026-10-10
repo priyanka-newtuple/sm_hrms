@@ -159,6 +159,7 @@ def open_project(system):
 
 
 def allocation_data(ids, **extra):
+    extra.setdefault("approver_id", ids["sa"])
     return dict(
         employee_id=ids["employee_record"],
         project_role_id=ids["role"],
@@ -206,9 +207,9 @@ def test_allocations_commit_only_after_approval_and_release(system):
         "entity_id"
     ]
     assert not service.snapshot()[ALLOCATION]
-    assert platform.rows[change]["data"]["approver_id"] == ids["dm"]
+    assert platform.rows[change]["data"]["approver_id"] == ids["sa"]
     perform(system, "pm", change, "submit")
-    perform(system, "dm", change, "approve")
+    perform(system, "sa", change, "approve")
     allocation = service.snapshot()[ALLOCATION][0]
     own = service.dashboard(actor(ids["employee"], "hrms_employee"))
     assert len(own["projects"]) == 1 and len(own["allocations"]) == 1
@@ -220,10 +221,10 @@ def test_allocations_commit_only_after_approval_and_release(system):
         "pm",
         allocation["entity_id"],
         "release_allocation",
-        {"note": "Moved to another project"},
+        {"note": "Moved to another project", "approver_id": ids["sa"]},
     )["entity_id"]
     perform(system, "pm", release, "submit")
-    perform(system, "dm", release, "approve")
+    perform(system, "sa", release, "approve")
     assert platform.rows[allocation["entity_id"]]["state"] == "cancelled"
 
 
@@ -242,29 +243,37 @@ def test_stale_version_and_recheck_at_approval(system):
         state="active",
     )
     with pytest.raises(AppError, match="100%"):
-        perform(system, "dm", change, "approve")
+        perform(system, "sa", change, "approve")
     assert platform.rows[change]["state"] == "pending"
     perform(system, "pm", change, "withdraw")
     updated = allocation_data(ids)
     updated["note"] = "Approved staffing exception requested"
     perform(system, "pm", change, "edit_request", updated)
     perform(system, "pm", change, "submit")
-    perform(system, "dm", change, "approve")
+    perform(system, "sa", change, "approve")
 
 
-def test_dm_request_routes_to_independent_business_approver(system):
+def test_pm_request_routes_to_independent_business_approver(system):
     _, platform, _, ids = system
     project = open_project(system)
     with pytest.raises(AppError, match="independent"):
-        perform(system, "dm", project, "request_allocation", allocation_data(ids))
-    change = perform(
-        system,
-        "dm",
-        project,
-        "request_allocation",
-        allocation_data(ids, approver_id=ids["sa"]),
-    )["entity_id"]
+        perform(system, "pm", project, "request_allocation", allocation_data(ids, approver_id=None))
+    change = perform(system, "pm", project, "request_allocation", allocation_data(ids, approver_id=ids["sa"]))["entity_id"]
     assert platform.rows[change]["data"]["approver_id"] == ids["sa"]
+
+
+def test_allocation_defaults_to_project_manager_and_prevents_override(system):
+    service, platform, _, ids = system
+    project = open_project(system)
+    change = perform(system, "dm", project, "request_allocation", allocation_data(ids, approver_id=ids["sa"]))["entity_id"]
+    assert platform.rows[change]["data"]["approver_id"] == ids["pm"]
+    perform(system, "dm", change, "submit")
+    board = service.dashboard(actor(ids["pm"], "hrms_project_manager"))
+    assert any(r["id"] == change and "approve" in r["actions"] for r in board["requests"])
+    with pytest.raises(AppError):
+        perform(system, "dm", change, "approve")
+    perform(system, "pm", change, "approve")
+    assert len(service.snapshot()[ALLOCATION]) == 1
 
 
 def test_partial_approval_recovery_blocks_other_mutations(system):
@@ -335,7 +344,7 @@ def test_project_lifecycle_and_committed_date_bounds(system):
         "entity_id"
     ]
     perform(system, "pm", change, "submit")
-    perform(system, "dm", change, "approve")
+    perform(system, "sa", change, "approve")
     allocation = service.snapshot()[ALLOCATION][0]["entity_id"]
     perform(system, "pm", allocation, "start")
     perform(system, "pm", project, "hold")
@@ -413,7 +422,7 @@ def test_allocation_approval_completes_only_ready_authorized_onboarding_step(sys
                 {
                     "sequence": 8,
                     "task_id": step,
-                    "can_complete": who.user_id == ids["dm"],
+                    "can_complete": who.user_id == ids["sa"],
                 }
             ],
         }
@@ -422,7 +431,7 @@ def test_allocation_approval_completes_only_ready_authorized_onboarding_step(sys
         "entity_id"
     ]
     perform(system, "pm", change, "submit")
-    perform(system, "dm", change, "approve")
+    perform(system, "sa", change, "approve")
     assert platform.rows[step]["state"] == "completed"
     assert len(service.snapshot()[ALLOCATION]) == 1
 
@@ -515,7 +524,7 @@ def test_allocation_accepts_static_picklist_value_without_role_record(system):
     change = perform(system, 'pm', project, 'request_allocation', data)['entity_id']
     assert platform.rows[change]['data']['proposed']['project_role_name'] == 'Solution Architect'
     perform(system, 'pm', change, 'submit')
-    perform(system, 'dm', change, 'approve')
+    perform(system, 'sa', change, 'approve')
 
 
 def test_removed_picklist_role_is_rejected_at_request_and_approval(system):
@@ -526,7 +535,7 @@ def test_removed_picklist_role_is_rejected_at_request_and_approval(system):
     platform.role_options = []
     assert service.options(actor(ids['pm'], 'hrms_project_manager'))['project_roles'] == []
     with pytest.raises(AppError, match='current configured picklist'):
-        perform(system, 'dm', change, 'approve')
+        perform(system, 'sa', change, 'approve')
     with pytest.raises(AppError, match='current configured picklist'):
         perform(system, 'pm', project, 'request_allocation', allocation_data(ids))
     assert platform.rows[change]['state'] == 'pending'

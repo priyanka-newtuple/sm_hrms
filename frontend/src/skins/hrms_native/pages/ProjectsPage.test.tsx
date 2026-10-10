@@ -9,7 +9,7 @@ vi.mock('@/core/services/api/client', () => ({
   getApiErrorMessage:(error:Error)=>error.message,
   request:vi.fn(async (path:string, options?:{body:string})=>{
     if (path.includes('/forms/')) return {fields:state.readonly && path.endsWith('HRMS.Project') ? [{field:'customer_name', read_only:true}] : []};
-    if (path.endsWith('/options')) return {customers:[],pms:[],dms:[],approvers:[],employees:[],project_roles:state.roleOptions};
+    if (path.endsWith('/options')) return {current_user_id:"requester",customers:[],pms:[],dms:[],approvers:[],employees:[],project_roles:state.roleOptions};
     if (options?.body) {
       state.posts.push(JSON.parse(options.body));
       if (state.fail) throw new Error('Network unavailable');
@@ -86,4 +86,13 @@ describe('Configured project role choices',()=>{
     expect(await screen.findByText(/No project roles are configured/)).toBeTruthy();
     expect((screen.getByLabelText('Project role') as HTMLSelectElement).options).toHaveLength(1);
   });
+});
+
+
+it('shows the project manager as the fixed allocation approver by default', async () => {
+  const client = new QueryClient({defaultOptions:{queries:{retry:false}}});
+  render(<QueryClientProvider client={client}><ProjectAction action="request_allocation" done={vi.fn()}
+    item={{id:'project-1',kind:'HRMS.Project',state:'active',actions:[],project_name:'Example',data:{pm_id:'pm-1',pm_name:'Shikha Hossein'}}} /></QueryClientProvider>);
+  await waitFor(() => expect((screen.getByLabelText('Approver') as HTMLInputElement).value).toBe('Shikha Hossein'));
+  expect((screen.getByLabelText('Approver') as HTMLInputElement).readOnly).toBe(true);
 });
