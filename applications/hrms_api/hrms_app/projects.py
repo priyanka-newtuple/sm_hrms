@@ -204,8 +204,8 @@ class ProjectsService:
                 actions.remove("edit_request")
         approver_cap = (
             "project:approve" in capabilities(actor)
-            if row["kind"] == CHANGE or d["approver_id"] != project["data"]["dm_id"]
-            else "project:manage_all" in capabilities(actor)
+            if row["kind"] == CHANGE or d["approver_id"] != project["data"]["pm_id"]
+            else bool({"project:manage_assigned", "project:manage_all"} & capabilities(actor))
         )
         if (
             state == "pending"
@@ -285,6 +285,7 @@ class ProjectsService:
                 for u in people
                 if "project:approve" in u["capabilities"] and u["id"] != actor.user_id
             ],
+            "current_user_id": actor.user_id,
             "can_create": can_create,
             "can_create_customer": "customer:create" in capabilities(actor),
         }
@@ -388,8 +389,8 @@ class ProjectsService:
         )
         people = self.people(actor)
         approver_id = (
-            project["data"]["dm_id"]
-            if actor.user_id != project["data"]["dm_id"]
+            project["data"]["pm_id"]
+            if actor.user_id != project["data"]["pm_id"]
             else values["approver_id"]
         )
         approver = next(
@@ -400,8 +401,8 @@ class ProjectsService:
                 and u["id"] != actor.user_id
                 and (
                     "project:approve" in u["capabilities"]
-                    if actor.user_id == project["data"]["dm_id"]
-                    else "project:manage_all" in u["capabilities"]
+                    if actor.user_id == project["data"]["pm_id"]
+                    else bool({"project:manage_assigned", "project:manage_all"} & set(u["capabilities"]))
                 )
             ),
             None,
@@ -634,6 +635,7 @@ class ProjectsService:
                 "project",
             )
             proposal(CHANGE, "$project", values, approver, approver_name, note, 0)
+            transition({"entity_id": "$created"}, "submit")
             return ops
         row = next(
             (
@@ -803,13 +805,13 @@ class ProjectsService:
                 (u for u in self.people(actor) if u["id"] == d["approver_id"]), None
             )
             needed = (
-                "project:approve"
-                if row["kind"] == CHANGE or d["approver_id"] != project["data"]["dm_id"]
-                else "project:manage_all"
+                {"project:approve"}
+                if row["kind"] == CHANGE or d["approver_id"] != project["data"]["pm_id"]
+                else {"project:manage_assigned", "project:manage_all"}
             )
             check(
                 approver
-                and needed in approver["capabilities"]
+                and needed.intersection(approver["capabilities"])
                 and d["approver_id"] != d["requested_by_id"],
                 "Assigned approver is no longer eligible",
                 422,
@@ -986,7 +988,9 @@ class ProjectsService:
             for index in range(
                 operation.progress["step"], len(operation.progress["project_plan"])
             ):
-                step = operation.progress["project_plan"][index]
+                step = dict(operation.progress["project_plan"][index])
+                if step["op"] != "create" and step["target"].startswith("$"):
+                    step["target"] = refs[step["target"][1:]]
                 marker = hashlib.sha256(
                     f"{actor.organization_id}:{key}:{index}".encode()
                 ).hexdigest()

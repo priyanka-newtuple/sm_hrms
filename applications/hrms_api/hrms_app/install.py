@@ -81,6 +81,25 @@ def install():
                         'label': 'Cancel', 'from': 'approved', 'to_state': 'cancelled'})
                     draft = api.call('POST', f"/workflow-state-machines/{matching[0]['machine_name']}/draft", json={'definition': definition})
                     matching = [api.call('POST', f"/workflow-state-machines/{draft['id']}/publish", json={'definition': definition})['state_machine']]
+            if pack.entity_type == 'HRMS.Project':
+                current = api.call('GET', f"/workflow-state-machines/{matching[0]['id']}")
+                definition = current['definition']
+                approvals = [t for t in definition['transitions']
+                             if t['from'] == 'draft' and t['trigger'] == 'approve'
+                             and t['to_state'] == 'planned']
+                if approvals:
+                    # Upgrade the old default without replacing tenant guards or other transitions.
+                    for transition in approvals:
+                        transition['to_state'] = 'active'
+                        transition['key'] = 'draft_to_active'
+                    # Planned was only reachable through approval in the old default.
+                    # Keep it only if tenant configuration supplies another entry path.
+                    if not any(t['to_state'] == 'planned' and t['from'] != 'planned'
+                               for t in definition['transitions']):
+                        definition['states'] = [state for state in definition['states'] if state['name'] != 'planned']
+                        definition['transitions'] = [t for t in definition['transitions'] if t['from'] != 'planned']
+                    draft = api.call('POST', f"/workflow-state-machines/{matching[0]['machine_name']}/draft", json={'definition': definition})
+                    matching = [api.call('POST', f"/workflow-state-machines/{draft['id']}/publish", json={'definition': definition})['state_machine']]
             machines[pack.machine_name] = matching[0]['machine_name']
 
     install_project_role_picklist(api)
@@ -115,6 +134,13 @@ def install():
         transition_permissions=[{'machine_name': machine, 'transition_key': key} for machine, key in dict.fromkeys([
             *((machines[p.machine_name], f'{source}_to_{target}') for p in runtime_packs for source, _, target in p.transitions),
             *(step for p in runtime_packs if p.states for step in configured_transitions(api, p.entity_type))])])
+    # Older project instances remain pinned to the previous published workflow.
+    project_pack = next(p for p in runtime_packs if p.entity_type == 'HRMS.Project')
+    granted = {(t['machine_name'], t['transition_key']) for t in role_spec['transition_permissions']}
+    role_spec['transition_permissions'].extend(
+        {'machine_name': machines[project_pack.machine_name], 'transition_key': key}
+        for key in ('draft_to_planned', 'planned_to_active', 'planned_to_completed')
+        if (machines[project_pack.machine_name], key) not in granted)
     role = by_name.get(service_name)
     if role:
         api.call('PUT', f"/roles/{role['id']}", json=role_spec)
