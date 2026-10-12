@@ -208,6 +208,10 @@ def create_app(platform=None, journal=None):
     def project_dashboard(current=Depends(actor)):
         return projects.dashboard(current)
 
+    @app.get('/v1/api/hrms/customers')
+    def customer_directory(current=Depends(actor)):
+        return projects.customers(current)
+
     @app.get('/v1/api/hrms/projects/options')
     def project_options(current=Depends(actor)):
         return projects.options(current)

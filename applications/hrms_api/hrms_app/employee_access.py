@@ -1,4 +1,6 @@
 """Narrow HR account onboarding actions over public platform APIs."""
+import os
+
 from .errors import AppError
 from .policy import capabilities, require
 
@@ -17,6 +19,9 @@ def may_manage(actor, roles):
 
 def setup_access(service, actor, employee_id, operation_key):
     require(actor, 'employee:activate')
+    local_email_disabled = (os.getenv('HRMS_LOCAL_DISABLE_EMAIL', '').lower() == 'true'
+                            and os.getenv('HRMS_ORGANIZATION_ID') == '11111111-1111-1111-1111-111111111111'
+                            and os.getenv('PLATFORM_API_URL') == 'http://platform-api:8000/v1/api')
     with service.journal.lock(actor.organization_id) as db:
         rows = service.employees()
         employee = next((r for r in rows if r['entity_id'] == employee_id), None)
@@ -42,7 +47,7 @@ def setup_access(service, actor, employee_id, operation_key):
         if op.result:
             return {**op.result, 'idempotent': True}
         # Check configuration before granting access. Never return secrets to the browser.
-        if identity.get('auth_type') != 'google':
+        if identity.get('auth_type') != 'google' and not local_email_disabled:
             integrations = service.platform.call('GET', f'/integrations/organizations/{actor.organization_id}')
             if integrations.get('organization_id') != actor.organization_id:
                 raise AppError(403, 'Email configuration belongs to another organization')
@@ -59,7 +64,10 @@ def setup_access(service, actor, employee_id, operation_key):
             for role in assigned:
                 if role['role_name'] == 'viewer' and 'viewer' not in roles:
                     service.platform.call('DELETE', f"/roles/users/{user_id}/roles/{role['role_id']}")
-        if identity.get('auth_type') == 'google':
+        if local_email_disabled:
+            message = 'Account active. Setup email is disabled for local testing; no password setup link was sent.'
+            email_status = 'disabled_local'
+        elif identity.get('auth_type') == 'google':
             message = 'Account active. The employee can sign in using Google.'
             email_status = 'not_required'
         else:

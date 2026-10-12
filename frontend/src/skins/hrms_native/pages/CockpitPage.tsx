@@ -1,3 +1,4 @@
+import AddEmployee from './AddEmployee';
 import OnboardingPage from './OnboardingPage';
 import { createRequestId } from '../requestId';
 import { FileCheck2, FileText, BookOpen, CalendarDays, BriefcaseBusiness, Users, Plus, ArrowUpRight } from 'lucide-react';
@@ -86,12 +87,12 @@ export default function CockpitPage({entityId}:{entityId?:string}) {
  if(caps.isLoading)return <p role="status">Loading HR access...</p>;
  if(caps.isError)return <p role="alert">Could not load HR access. <button onClick={()=>void caps.refetch()}>Try again</button></p>;
  const allowed=(cap:string)=>caps.data?.capabilities.includes(cap)??false;
- const areas=[...(allowed('cockpit:view')?[{id:'publishing',label:'Content & publishing'}]:[]),...(allowed('onboarding:view')?[{id:'onboarding',label:'Onboarding'}]:[]),...(allowed('wfh:approve')?[{id:'wfh',label:'Work from home'}]:[])];
+ const areas=[...(allowed('cockpit:view')?[{id:'publishing',label:'Content & publishing'}]:[]),...(allowed('onboarding:view')?[{id:'onboarding',label:'Onboarding'},{id:'offboarding',label:'Offboarding'}]:[]),...(allowed('wfh:approve')?[{id:'wfh',label:'Work from home'}]:[])];
  if(!areas.length)return <p className="p-6">HR Cockpit is not available to your role.</p>;
  const area=areas.find(a=>a.id===params.get('area'))?.id??areas[0].id;
- const tabs=<nav className="hrms-view-tabs" aria-label="HR Cockpit areas">{areas.map(a=><button key={a.id} type="button" aria-pressed={area===a.id} onClick={()=>setParams({area:a.id})}>{a.label}</button>)}</nav>;
+ const tabs=<nav className="hrms-view-tabs" aria-label="HR Cockpit areas">{areas.map(a=><button key={a.id} type="button" aria-pressed={area===a.id} onClick={()=>setParams({area:a.id})}>{a.label}{a.id==='offboarding' && <small className="block text-xs font-normal">Coming soon</small>}</button>)}</nav>;
  if(area==='publishing')return <ContentCockpit tabs={tabs}/>;
- return <main className="hrms-workspace-page"><PageHero title="HR Cockpit" intro={area==='onboarding'?'Coordinate onboarding and help new colleagues settle in.':'Review work-from-home requests and set the yearly policy.'} illustration="cockpit" tabs={tabs}/>{area==='onboarding'?<OnboardingPage embedded/>:<WorkFromHome cockpit/>}</main>;
+ return <main className="hrms-workspace-page"><PageHero title="HR Cockpit" intro={area==='offboarding'?'Employee offboarding is coming soon.':area==='onboarding'?'Coordinate onboarding and help new colleagues settle in.':'Review work-from-home requests and set the yearly policy.'} illustration="cockpit" tabs={tabs}/>{area==='onboarding'?<><AddEmployee/><OnboardingPage embedded showNavigation/></>:area==='offboarding'?<section className="hrms-surface p-6"><h2 className="hrms-section-heading">Offboarding</h2><p className="text-sm text-muted-foreground">Coming soon</p><p className="mt-3">Employee exit workflows will be available here.</p></section>:<WorkFromHome cockpit/>}</main>;
 }
 
 function ContentCockpit({entityId,tabs}:{entityId?:string;tabs?:React.ReactNode}) {

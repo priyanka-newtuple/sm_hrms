@@ -141,6 +141,7 @@ services:
     profiles: ["native"]
     image: postgres:16-alpine
     environment:
+      HRMS_LOCAL_DISABLE_EMAIL: "true"
       POSTGRES_USER: hrms_application
       POSTGRES_PASSWORD: ${HRMS_APP_DB_PASSWORD:?Run the HRMS setup script}
       POSTGRES_DB: hrms_application

@@ -1,3 +1,4 @@
+import CustomersPage from './pages/CustomersPage';
 import WorkFromHomePage from './pages/WorkFromHomePage';
 import { PublicLayout } from './components/Brand';
 import './brand.css';
@@ -134,6 +135,7 @@ export default function App() {
 
       <Route path="/hrms/cockpit" element={<CockpitPage />} />
       <Route path="/hrms/content" element={<PublishedContent />} />
+      <Route path="/hrms/customers" element={<CustomersPage />} />
       <Route path="/hrms/projects" element={<ProjectsPage />} />
       <Route path="/hrms/allocations" element={<AllocationsPage />} />
 

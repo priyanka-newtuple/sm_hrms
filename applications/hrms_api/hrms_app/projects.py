@@ -445,6 +445,18 @@ class ProjectsService:
             )
         return self.allocation_values(actor, project, data, snap, allocation_id)[4]
 
+    def customers(self, actor):
+        require(actor, "project:view")
+        snap = self.snapshot()
+        caps = capabilities(actor)
+        full_directory = bool({"customer:create", "project:create", "project:read_all"} & caps)
+        linked = {p["data"].get("customer_id") for p in snap[PROJECT] if self.visible(actor, p, snap)}
+        fields = ("name", "contact_name", "contact_email", "currency") if full_directory else ("name",)
+        return {"items": sorted([
+            {"id": row["entity_id"], **{key: row["data"].get(key, "") for key in fields}}
+            for row in snap[CUSTOMER] if full_directory or row["entity_id"] in linked
+        ], key=lambda row: row["name"].casefold()), "can_create": "customer:create" in caps}
+
     def dashboard(self, actor):
         require(actor, "project:view")
         snap = self.snapshot()

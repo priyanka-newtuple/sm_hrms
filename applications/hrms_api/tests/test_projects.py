@@ -644,3 +644,16 @@ def test_project_workflow_has_no_unreachable_states():
     assert 'planned' not in reachable
     assert any(t['from'] == 'draft' and t['trigger'] == 'approve' and t['to_state'] == 'active'
                for t in definition['transitions'])
+
+
+def test_customer_directory_respects_access_and_omits_contract_values(system):
+    service, platform, _, ids = system
+    platform.rows[ids['customer']]['data'].update(contact_name='Contact', contact_email='contact@example.com', contract_value=999)
+    board = service.customers(actor(ids['pm'], 'hrms_project_manager'))
+    assert board['items'][0]['contact_name'] == 'Contact'
+    assert 'contract_value' not in board['items'][0]
+    from dataclasses import replace
+    limited = replace(actor(ids['outsider'], 'hrms_project_manager'), project_policy={'hrms_project_manager': ['project:view']})
+    assert service.customers(limited)['items'] == []
+    with pytest.raises(AppError):
+        service.customers(actor(ids['employee'], 'unknown_role'))

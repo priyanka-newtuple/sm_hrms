@@ -229,3 +229,24 @@ def test_setup_route_accepts_operation_key_and_authenticates_before_writes():
     response = client.post(path, headers={'Authorization': 'Bearer human'}, json={'idempotency_key': 'operation-1'})
     assert response.status_code == 200, response.text
     assert response.json()['email_status'] == 'requested'
+
+
+def test_local_activation_skips_setup_email(monkeypatch):
+    monkeypatch.setenv('HRMS_LOCAL_DISABLE_EMAIL', 'true')
+    monkeypatch.setenv('HRMS_ORGANIZATION_ID', '11111111-1111-1111-1111-111111111111')
+    monkeypatch.setenv('PLATFORM_API_URL', 'http://platform-api:8000/v1/api')
+    p, s = system()
+    p.configured = False
+    result = setup_access(s, actor('hr', 'hrms_hr_basic'), 'employee', 'local-test')
+    assert result['account_status'] == 'active'
+    assert result['email_status'] == 'disabled_local'
+    assert '/auth/forgot-password' not in p.writes
+
+
+def test_local_email_switch_does_not_disable_other_tenants(monkeypatch):
+    monkeypatch.setenv('HRMS_LOCAL_DISABLE_EMAIL', 'true')
+    monkeypatch.setenv('HRMS_ORGANIZATION_ID', 'production-tenant')
+    p, s = system()
+    result = setup_access(s, actor('hr', 'hrms_hr_basic'), 'employee', 'production-test')
+    assert result['email_status'] == 'requested'
+    assert '/auth/forgot-password' in p.writes

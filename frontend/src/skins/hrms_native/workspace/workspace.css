@@ -139,6 +139,7 @@
 .hrms-mw-hero::before { content:''; position:absolute; z-index:-1; left:38%; top:50%; width:440px; height:440px; border-radius:50%; background:radial-gradient(circle, rgba(111,156,240,.32), transparent 68%); transform:translate(-30%,-50%); pointer-events:none; }
 .hrms-mw-greet { display:flex; flex-direction:column; justify-content:center; }
 .hrms-mw-greet .hrms-login-time { align-self:flex-start; padding:6px 12px; border:1px solid #d5e2f7; border-radius:999px; background:white; color:var(--cobalt); }
+.hrms-mw-greet .hrms-login-time i { display:none; }
 .hrms-mw-greet h1 { margin:10px 0 4px; color:var(--ink); font-size:clamp(24px,2.5vw,34px); font-weight:250; line-height:1.1; letter-spacing:-.04em; }
 .hrms-mw-greet > p { color:#5b6475; font-size:14px; font-weight:300; }
 /* The login ShinyText is tuned for dark backgrounds; on this light banner it shines cobalt. */

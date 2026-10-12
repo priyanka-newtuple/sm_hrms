@@ -39,7 +39,7 @@ function stepLabel(step: Step) {
   return step.status === 'in_progress' ? 'In progress' : 'Ready';
 }
 
-export default function OnboardingPage({ caseId, embedded = false }: { caseId?: string; embedded?: boolean } = {}) {
+export default function OnboardingPage({ caseId, embedded = false, showNavigation = !embedded }: { caseId?: string; embedded?: boolean; showNavigation?: boolean } = {}) {
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -82,8 +82,8 @@ export default function OnboardingPage({ caseId, embedded = false }: { caseId?: 
     {cases.isError && <div role="alert" className="hrms-notice hrms-notice--error"><p>{getApiErrorMessage(cases.error)}</p><button className="hrms-outline-button" onClick={() => void cases.refetch()}>Try again</button></div>}
     {actionError && <p role="alert" className="hrms-notice hrms-notice--error">{actionError}</p>}
     {caseId && cases.data && !selected && <p role="alert">This onboarding case is no longer available to you.</p>}
-    {cases.data && <div className={embedded ? '' : 'hrms-onboarding-layout'}>
-      {!embedded && <aside className="hrms-case-navigation" aria-label="Onboarding employees">
+    {cases.data && <div className={showNavigation ? 'hrms-onboarding-layout' : ''}>
+      {showNavigation && <aside className="hrms-case-navigation" aria-label="Onboarding employees">
         <label className="hrms-search"><Search size={18} aria-hidden="true" /><input aria-label="Search onboarding employees" placeholder="Search employee or code…" value={search} onChange={(event) => setSearch(event.target.value)} className="hrms-field-input" /></label>
         <div className="hrms-surface hrms-case-list">
           {visible.length === 0 && <p className="p-4 text-slate-600">No onboarding cases found.</p>}

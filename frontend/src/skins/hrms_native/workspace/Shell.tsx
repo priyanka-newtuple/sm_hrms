@@ -237,6 +237,7 @@ export function WorkspaceShell() {
       { path: '/hrms/helpdesk', label: 'Helpdesk', icon: BookTextIcon, comingSoon: true, keywords: 'reimbursements assets workplace documents letters' },
     ] },
     { label: 'Delivery', items: allowed('project:view') ? [
+      { path: '/hrms/customers', label: 'Customers', icon: UsersIcon, keywords: 'clients contacts accounts' },
       { path: '/hrms/projects', label: 'Projects', icon: BriefcaseBusinessIcon, keywords: 'customers delivery' },
       { path: '/hrms/allocations', label: 'Allocations', icon: LayoutGridIcon, keywords: 'capacity staffing' },
     ] : [] },
