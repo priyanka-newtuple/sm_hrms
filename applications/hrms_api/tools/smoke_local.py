@@ -1,9 +1,14 @@
 """Local-only integration verification. Creates a named fixture hire and request."""
+import json
 import os
+from pathlib import Path
 
 import httpx
 
 from hrms_app.platform import PlatformClient
+
+# Demo accounts get random passwords from seed_demo_users.py; the smoke run mounts that file at /demo.
+DEMO = {a['email']: a['password'] for a in json.loads(Path('/demo/users.json').read_text())['accounts']}
 
 
 def main():
@@ -25,7 +30,8 @@ def main():
     created = app.post('/hrms/employees', headers=admin, json=payload)
     assert created.status_code == 201, created.text
     case_id = created.json()['onboarding_entity_id']
-    assert created.json()['onboarding_task_count'] == 8, created.text
+    steps = created.json()['onboarding_task_count']  # 8 for hires before template v2, 9 after
+    assert steps in (8, 9), created.text
     repeat = app.post('/hrms/employees', headers=admin, json=payload)
     assert repeat.status_code == 201 and repeat.json()['idempotent'], repeat.text
     assert repeat.json()['employee']['entity_id'] == created.json()['employee']['entity_id']
@@ -39,7 +45,7 @@ def main():
         assert denied.status_code == 409, denied.text
         denied = app.post(f'/hrms/onboarding/{case_id}/complete', headers=admin)
         assert denied.status_code == 409, denied.text
-    for sequence in range(1, 9):
+    for sequence in range(1, steps + 1):
         result = app.post(f'/hrms/onboarding/{case_id}/steps/{sequence}/complete', headers=admin)
         assert result.status_code == 200, result.text
     result = app.post(f'/hrms/onboarding/{case_id}/complete', headers=admin)
@@ -49,7 +55,7 @@ def main():
     platform = PlatformClient(os.environ['PLATFORM_API_URL'], os.environ['HRMS_ORGANIZATION_ID'],
                               os.environ['HRMS_INSTALL_EMAIL'], os.environ['HRMS_INSTALL_PASSWORD'])
     rows = platform.records('HRMS.Employee', ['employee_code','work_email','platform_user_id','reports_to_employee_code'])
-    employee = next(r for r in rows if r['data'].get('work_email') == 'kavya.menon@newtuple.com')
+    employee = next(r for r in rows if r['data'].get('work_email') == 'demo.employee@newtuple.com')
     manager = next(r for r in rows if r['data'].get('employee_code') == employee['data']['reports_to_employee_code'])
     # The existing demo login may have HR roles granted during user review. Use an isolated
     # employee-only fixture instead of altering any existing user's permissions.
@@ -77,19 +83,19 @@ def main():
     assert app.get('/hrms/employees', headers=user_headers).status_code == 403
     assert app.post('/hrms/employees', headers=user_headers, json=payload).status_code == 403
     assert app.get('/hrms/onboarding', headers=user_headers).status_code == 200
-    manager_login = app.post('/auth/login', json={'email': manager['data']['work_email'], 'password': os.environ['HRMS_DEMO_MANAGER_PASSWORD']})
+    manager_login = app.post('/auth/login', json={'email': manager['data']['work_email'], 'password': DEMO[manager['data']['work_email']]})
     assert manager_login.status_code == 200, manager_login.text
     manager_headers = {'Authorization': 'Bearer ' + manager_login.json()['access_token']}
     leave = app.post('/hrms/leave-requests', headers=user_headers, json=dict(
-        start_date='2041-09-21', end_date='2041-09-22', leave_type='annual', reason='Local boundary verification',
-        idempotency_key='boundary-smoke-leave-v1'))
+        start_date='2041-09-23', end_date='2041-09-24', leave_type='annual', reason='Local boundary verification',
+        idempotency_key='boundary-smoke-leave-v2'))
     assert leave.status_code == 201, leave.text
     entity_id = leave.json()['entity_id']
     denied = app.post(f'/hrms/leave-requests/{entity_id}/actions', headers=user_headers,
-                      json={'trigger':'approve', 'idempotency_key':'boundary-smoke-decision-self'})
+                      json={'trigger':'approve', 'idempotency_key':'boundary-smoke-decision-self-v2'})
     assert denied.status_code == 403, denied.text
     approved = app.post(f'/hrms/leave-requests/{entity_id}/actions', headers=manager_headers,
-                        json={'trigger':'approve','idempotency_key':'boundary-smoke-decision-v1'})
+                        json={'trigger':'approve','idempotency_key':'boundary-smoke-decision-v2'})
     assert approved.status_code == 200, approved.text
     assert platform.states('hrms_leaverequest')[entity_id] == 'approved'
     assert platform.states('hrms_onboardingcase')[case_id] == 'completed'

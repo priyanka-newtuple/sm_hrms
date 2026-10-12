@@ -43,8 +43,10 @@ def test_native_configuration_writes_preserve_user_and_body(surface):
     payload = {'name':'HRMS.Test', 'organization_id':'org'}
     response = client.post('/v1/api/entity-types', headers={'Authorization':'Bearer superadmin'}, json=payload)
     assert response.status_code == 200
-    assert calls[-1].headers['authorization'] == 'Bearer superadmin'
-    assert calls[-1].read() == b'{"name":"HRMS.Test","organization_id":"org"}'
+    write = next(c for c in calls if c.method == 'POST')  # then HRMS tops up its own field access, as this admin
+    assert write.headers['authorization'] == 'Bearer superadmin'
+    assert write.read() == b'{"name":"HRMS.Test","organization_id":"org"}'
+    assert all(c.headers['authorization'] == 'Bearer superadmin' for c in calls)
 
 
 @pytest.mark.parametrize('path', ['entity-records', 'entities/123/transitions', 'workflow-state-machines/foo/enrollments', 'agent/runs', 'schedules/123/run-now', 'bulk/transitions'])
@@ -71,6 +73,8 @@ def test_project_access_settings_authorization_validation_and_revision():
         org = 'org'
         def actor(self, token):
             return Actor(token, 'org', token, frozenset({token}), frozenset())
+        def records(self, kind, fields):
+            return []  # No employees: capabilities report no employee profile.
         def request(self, method, path, token):
             assert token == 'superadmin' and path == '/roles'
             return [{'name': name} for name in ['superadmin', 'hrms_project_manager', 'hrms_application_service']]

@@ -1,9 +1,14 @@
 """End-to-end local performance test. Keeps one explicitly named review cycle."""
+import json
 import os
+from pathlib import Path
 
 import httpx
 
 from hrms_app.platform import PlatformClient
+
+# Demo accounts get random passwords from seed_demo_users.py; the smoke run mounts that file at /demo.
+DEMO = {a['email']: a['password'] for a in json.loads(Path('/demo/users.json').read_text())['accounts']}
 
 
 def main():
@@ -16,19 +21,19 @@ def main():
         return {'Authorization': 'Bearer ' + response.json()['access_token']}
 
     admin = login(os.environ['HRMS_INSTALL_EMAIL'], os.environ['HRMS_INSTALL_PASSWORD'])
-    hr = login('kavya.menon@newtuple.com', os.environ['HRMS_DEMO_EMPLOYEE_PASSWORD'])
+    hr = login('demo.hr-full@newtuple.com', DEMO['demo.hr-full@newtuple.com'])
     employee = login('hrms.boundary.employee@newtuple.com', os.environ['HRMS_DEMO_EMPLOYEE_PASSWORD'])
     api = PlatformClient(os.environ['PLATFORM_API_URL'], os.environ['HRMS_ORGANIZATION_ID'],
                          os.environ['HRMS_INSTALL_EMAIL'], os.environ['HRMS_INSTALL_PASSWORD'])
     rows = api.records('HRMS.Employee', ['work_email', 'platform_user_id', 'employee_code', 'reports_to_employee_code'])
     person = next(r for r in rows if r['data'].get('work_email') == 'hrms.boundary.employee@newtuple.com')
     manager_record = next(r for r in rows if r['data'].get('employee_code') == person['data']['reports_to_employee_code'])
-    manager = login(manager_record['data']['work_email'], os.environ['HRMS_DEMO_MANAGER_PASSWORD'])
+    manager = login(manager_record['data']['work_email'], DEMO[manager_record['data']['work_email']])
     hr_id = app.get('/auth/me', headers=hr).json()['id']
     admin_id = app.get('/auth/me', headers=admin).json()['id']
 
     def action(headers, target, trigger, data=None, suffix=''):
-        body = dict(action=trigger, data=data or {}, idempotency_key=f'performance-smoke-v1-{trigger}{suffix}')
+        body = dict(action=trigger, data=data or {}, idempotency_key=f'performance-smoke-v2-{trigger}{suffix}')
         path = '/hrms/performance/cycles' if target == 'new' else f'/hrms/performance/{target}/actions'
         response = app.post(path, headers=headers, json=body)
         assert response.status_code == 200, f'{trigger}: {response.status_code} {response.text}'
@@ -41,7 +46,7 @@ def main():
     assert any(e['id'] == person['entity_id'] for e in options.json()['employees'])
     cycle = action(hr, 'new', 'create_cycle', dict(name='Local performance verification',
         description='Named integration-test fixture; not a real employee assessment.',
-        start_date='2042-01-01', goal_due_date='2042-02-01', self_review_due_date='2042-10-01',
+        start_date='2026-01-01', goal_due_date='2042-02-01', self_review_due_date='2042-10-01',
         manager_review_due_date='2042-11-01', end_date='2042-12-31', approver_id=admin_id,
         participants=[dict(employee_id=person['entity_id'], calibrator_user_id=hr_id)]))
     action(hr, cycle, 'submit')
@@ -53,7 +58,7 @@ def main():
                                             weight=100, target_date='2042-10-01'))
     action(employee, review, 'submit_goals')
     denied = app.post(f'/hrms/performance/{review}/actions', headers=employee, json=dict(
-        action='approve_goals', data={}, idempotency_key='performance-smoke-self-approval-denied'))
+        action='approve_goals', data={}, idempotency_key='performance-smoke-v2-self-approval-denied'))
     assert denied.status_code == 403, denied.text
     action(manager, review, 'approve_goals')
     action(hr, cycle, 'start_reviews')

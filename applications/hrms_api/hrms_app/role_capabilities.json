@@ -43,7 +43,8 @@
     "wfh:request",
     "wfh:configure",
     "wfh:approve",
-    "employee:activate"
+    "employee:activate",
+    "employee:exit"
   ],
   "hrms_office_admin": [
     "leave:create",
@@ -76,6 +77,8 @@
   "admin": [
     "employee:read",
     "employee:create",
+    "employee:activate",
+    "employee:exit",
     "employee:assign_hr_role",
     "onboarding:manage",
     "performance:manage",
@@ -115,7 +118,8 @@
     "wfh:request",
     "wfh:configure",
     "wfh:approve",
-    "employee:activate"
+    "employee:activate",
+    "employee:exit"
   ],
   "hrms_performance_approver": [
     "performance:approve_cycle",

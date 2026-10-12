@@ -28,8 +28,16 @@ try {
             if ($LASTEXITCODE -ne 0) { throw 'Native platform startup failed' }
         }
         'native-migrate-steps' { & docker @composeArgs --profile native --profile migration run --rm --no-deps platform-step-migrate }
-        'native-test' { & docker @composeArgs --profile native --profile test run --rm --no-deps hrms-smoke }
-        'native-performance-test' { & docker @composeArgs --profile native --profile test run --rm --no-deps hrms-smoke python /tools/smoke_performance.py }
+        'native-test' {
+            $demoDirectory = Join-Path $repoRoot '.hrms-demo-local'
+            if (-not (Test-Path -LiteralPath (Join-Path $demoDirectory 'users.json'))) { throw 'Run native-demo-users first' }
+            & docker @composeArgs --profile native --profile test run --rm --no-deps -v "${demoDirectory}:/demo" hrms-smoke
+        }
+        'native-performance-test' {
+            $demoDirectory = Join-Path $repoRoot '.hrms-demo-local'
+            if (-not (Test-Path -LiteralPath (Join-Path $demoDirectory 'users.json'))) { throw 'Run native-demo-users first' }
+            & docker @composeArgs --profile native --profile test run --rm --no-deps -v "${demoDirectory}:/demo" hrms-smoke python /tools/smoke_performance.py
+        }
         'native-project-test' {
             $demoDirectory = Join-Path $repoRoot '.hrms-demo-local'
             if (-not (Test-Path -LiteralPath (Join-Path $demoDirectory 'users.json'))) { throw 'Run native-demo-users first' }

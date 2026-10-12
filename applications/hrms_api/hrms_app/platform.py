@@ -1,6 +1,7 @@
 """The only runtime adapter to the platform: public HTTP contracts, no core imports."""
 from __future__ import annotations
 
+import re
 import threading
 import time
 from dataclasses import dataclass
@@ -8,6 +9,10 @@ from dataclasses import dataclass
 import httpx
 
 from .errors import AppError
+
+TRANSITION_PATH = re.compile(r'^/entities/([^/]+)/transitions$')
+
+MACHINE_NAME_TTL_SECONDS = 60
 
 
 @dataclass(frozen=True)
@@ -32,6 +37,8 @@ class PlatformClient:
         self._token = ''
         self._expires = 0.0
         self._login_lock = threading.Lock()
+        self._machines: dict[str, list[str]] = {}
+        self._machines_at = float('-inf')
 
     def close(self):
         self.http.close()
@@ -71,6 +78,33 @@ class PlatformClient:
             return self._token
 
     def call(self, method, path, **kwargs):
+        try:
+            return self._send(method, path, **kwargs)
+        except AppError as exc:
+            match = TRANSITION_PATH.match(path)
+            trigger = (kwargs.get('json') or {}).get('trigger')
+            if method != 'POST' or not match or not trigger or exc.status not in {400, 404, 409, 422}:
+                raise
+            renamed = self.renamed_trigger(match.group(1), trigger)
+            if not renamed:
+                raise
+            return self._send(method, path, **{**kwargs, 'json': {**kwargs['json'], 'trigger': renamed}})
+
+    def renamed_trigger(self, entity_id, trigger):
+        """The trigger an HRMS step has after it was renamed in Settings → Funnels: the one transition
+        from the current state to the state the step leads to. None when it was not renamed, or
+        when the step cannot be told apart, so the platform's own refusal stands."""
+        from .catalog import PACKS
+        available = self._send('GET', f'/entities/{entity_id}/transitions/available')
+        options = available.get('available_transitions', [])
+        if any(t['trigger'] == trigger for t in options):
+            return None
+        targets = {target for pack in PACKS for source, name, target in pack.transitions
+                   if name == trigger and source == available.get('current_state')}
+        matches = [t['trigger'] for t in options if t['to_state'] in targets]
+        return matches[0] if len(matches) == 1 else None
+
+    def _send(self, method, path, **kwargs):
         # A platform restart or token expiry can invalidate a cached service session.
         # Keep service authentication failures separate from the browser session.
         for attempt in range(2):
@@ -187,8 +221,17 @@ class PlatformClient:
         pack = next((p for p in PACKS if p.machine_name == name), None)
         if not pack:
             return name
-        workflows = self.call('GET', '/workflow-state-machines', params={'scope': 'published'})['published_items']
-        matches = [w for w in workflows if w['entity_type'] == pack.entity_type and w['is_active']]
+        # A workflow keeps its machine name across republishes; it changes only when a workflow is
+        # replaced. So resolve every type from one published listing and reuse it briefly, instead
+        # of downloading every definition on each lookup.
+        if time.monotonic() - self._machines_at > MACHINE_NAME_TTL_SECONDS:
+            active = {}
+            for w in self.call('GET', '/workflow-state-machines', params={'scope': 'published'})['published_items']:
+                if w['is_active']:
+                    active.setdefault(w['entity_type'], []).append(w['machine_name'])
+            self._machines, self._machines_at = active, time.monotonic()
+        matches = self._machines.get(pack.entity_type, [])
         if len(matches) != 1:
+            self._machines_at = float('-inf')  # Do not keep serving a listing that needs fixing.
             raise AppError(409, f'{pack.label} needs exactly one active workflow')
-        return matches[0]['machine_name']
+        return matches[0]
