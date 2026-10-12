@@ -2,6 +2,7 @@ import { createRequestId } from '../requestId';
 import { CalendarDays, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { ConfiguredForm, ConfiguredField } from '../forms/ConfiguredForm';
+import { CustomFields, CustomFieldValues, type CustomValues } from '../forms/CustomFields';
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getApiErrorMessage, request } from '../../../core/services/api/client';
@@ -19,6 +20,7 @@ export interface LeaveItem {
   leave_type: string;
   reason: string | null;
   state: string;
+  custom?: CustomValues;
 }
 
 type View = 'mine' | 'approvals';
@@ -51,6 +53,7 @@ export function LeaveRow({ item, view, onChange }: { item: LeaveItem; view: View
           <p className="hrms-section-heading">{item.identifier || 'Leave Request'} · {item.employee_name}</p>
           <p className="mt-1 text-sm text-slate-600">{item.start_date} to {item.end_date} · {item.leave_type}</p>
           {item.reason && <p className="mt-2 text-sm text-slate-700">{item.reason}</p>}
+          <CustomFieldValues entityType="HRMS.LeaveRequest" values={item.custom} />
         </div>
         <span className="hrms-status" data-state={item.state}>{item.state.replaceAll('_', ' ')}</span>
       </div>
@@ -80,6 +83,7 @@ export default function LeaveRequestsPage() {
   const [endDate, setEndDate] = useState('');
   const [leaveType, setLeaveType] = useState('annual');
   const [reason, setReason] = useState('');
+  const [custom, setCustom] = useState<CustomValues>({});
   const [error, setError] = useState('');
   const queryClient = useQueryClient();
   const caps = useHrmsCapabilities();
@@ -104,10 +108,10 @@ export default function LeaveRequestsPage() {
   const create = useMutation({
     mutationFn: () => request('/hrms/leave-requests', {
       method: 'POST',
-      body: JSON.stringify({ start_date: startDate, end_date: endDate, leave_type: selectedType, reason, idempotency_key: createRequestId() }),
+      body: JSON.stringify({ start_date: startDate, end_date: endDate, leave_type: selectedType, reason, custom, idempotency_key: createRequestId() }),
     }),
     onSuccess: () => {
-      setError(''); setStartDate(''); setEndDate(''); setReason('');
+      setError(''); setStartDate(''); setEndDate(''); setReason(''); setCustom({});
       void queryClient.invalidateQueries({ queryKey: ['hrms', 'leave'] });
     },
     onError: (cause) => setError(getApiErrorMessage(cause)),
@@ -143,6 +147,7 @@ export default function LeaveRequestsPage() {
         </select></ConfiguredField>
         <ConfiguredField field="reason" label="Reason" className="text-sm font-medium"><textarea value={reason} onChange={(event) => setReason(event.target.value)} maxLength={5000} rows={2} className="hrms-field-input" /></ConfiguredField>
       </div>
+      <CustomFields entityType="HRMS.LeaveRequest" values={custom} onChange={setCustom} />
       {error && <p role="alert" className="mt-3 text-sm text-red-700">{error}</p>}
       <button type="submit" disabled={create.isPending} className="hrms-primary-button">{create.isPending ? 'Submitting…' : 'Submit request'}</button>
     </form></ConfiguredForm></section>

@@ -4,6 +4,7 @@ import os
 from .catalog import PACKS
 from .cockpit_catalog import TYPES as COCKPIT_TYPES
 from .errors import AppError
+from .field_access import RUNTIME_TYPES, configured_fields, grant
 from .form_config import has_method_blocks
 from .install_project_roles import install_project_role_picklist
 from .platform import PlatformClient
@@ -97,9 +98,7 @@ def install():
         # Existing tenant role customizations are left intact. The gateway is the only browser API surface.
 
     service_name = 'hrms_application_service'
-    runtime_packs = [p for p in PACKS if p.entity_type in {*PROJECT_TYPES, *COCKPIT_TYPES, *WFH_TYPES,
-        'HRMS.Employee', 'HRMS.OnboardingCase', 'HRMS.OnboardingStep', 'HRMS.LeaveRequest',
-        'HRMS.PerformanceCycle', 'HRMS.PerformanceReview', 'HRMS.PerformanceGoal', 'HRMS.ProjectFeedback'}]
+    runtime_packs = [p for p in PACKS if p.entity_type in RUNTIME_TYPES]
     role_spec = dict(name=service_name, display_name='HRMS Application Service',
         description='Internal API client for HRMS; never assign to a human user',
         permissions=[{'permission_key': key} for key in ['entity_record:write', 'workflow:read', 'workflow:write',
@@ -107,9 +106,10 @@ def install():
             'field_library:read', 'method_library:read']],
         entity_permissions=[{'entity_type': p.entity_type, 'action': action}
                             for p in runtime_packs for action in ['view', 'create', 'edit']],
-        field_permissions=[{'entity_type': p.entity_type, 'field_name': field['field'],
-                            'can_view': True, 'can_edit': True, 'mask_value': False}
-                           for p in runtime_packs for field in [*p.fields, marker]],
+        # Fields added to the forms in Settings too, so a redeploy never takes their access away.
+        field_permissions=[grant(p.entity_type, name) for p in runtime_packs
+                           for name in dict.fromkeys([*(f['field'] for f in (*p.fields, marker)),
+                                                      *configured_fields(api, p.entity_type)])],
         workflow_permissions=[{'machine_name': machines[p.machine_name]} for p in runtime_packs if p.states],
         transition_permissions=[{'machine_name': machines[p.machine_name], 'transition_key': f'{source}_to_{target}'}
                                 for p in runtime_packs for source, _, target in p.transitions])

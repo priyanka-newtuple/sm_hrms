@@ -16,6 +16,8 @@ from .journal import Journal
 from .platform import PlatformClient
 from .policy import capabilities
 from .settings_gateway import configuration_route, authorize_configuration
+from .field_access import changes_forms, sync_service_field_access
+from . import custom_fields
 from .requests import (EmployeeCreateRequest, EmployeeExitRequest, EmployeeOperationRequest, EmployeeUpdateRequest,
                        LeaveCreateRequest, OnboardingReasonRequest, OnboardingStepUpdateRequest)
 from .responses import EmployeeCreateResponse, EmployeeListItem, LeaveCreateResponse, LeaveListItem, OnboardingCaseItem
@@ -376,12 +378,30 @@ def create_app(platform=None, journal=None):
             if isinstance(exc, AppError):
                 raise
             raise AppError(503, 'The platform is unavailable') from exc
+        if response.status_code < 300 and changes_forms(request.method, path):
+            from starlette.concurrency import run_in_threadpool
+            await run_in_threadpool(follow_form_change, token)
         if request.method == 'GET' and path == 'workflow-state-machines' and response.status_code == 403:
             # The shared skin loader lists workflows for every signed-in user, but only people with
             # platform workflow access may read them; give everyone else the empty list it falls back on.
             return JSONResponse({'scope': request.query_params.get('scope', 'all'),
                                  'published_items': [], 'draft_items': []})
         return response
+
+    def follow_form_change(token):
+        """An administrator changed a form: let the HRMS service save any field they added, using
+        their own access. Best effort; the change itself has already been saved."""
+        custom_fields._keys.clear()
+
+        def as_admin(method, path, json=None):
+            response = platform.http.request(method, path, json=json, headers={'authorization': f'Bearer {token}'})
+            if response.status_code >= 300:
+                raise AppError(response.status_code, f'{method} {path} was refused')
+            return response.json()
+        try:
+            sync_service_field_access(platform, as_admin)
+        except Exception:  # noqa: BLE001 - never fail the administrator's saved change
+            logging.getLogger(__name__).exception('HRMS service field access was not updated')
 
     return app
 

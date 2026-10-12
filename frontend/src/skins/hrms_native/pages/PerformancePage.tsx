@@ -2,6 +2,7 @@ import { createRequestId } from '../requestId';
 import { ArrowRight, Plus, Layers, Target, MessageSquare, CheckCircle2 } from 'lucide-react';
 import { WorkflowStages, useWorkflowConfiguration, transitionLabel } from '../workflows/WorkflowConfiguration';
 import { ConfiguredForm, ConfiguredField } from '../forms/ConfiguredForm';
+import { CustomFields } from '../forms/CustomFields';
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -128,6 +129,8 @@ function ActionForm({ item, action, done }: { item?: Item; action: string; done:
       {action === 'acknowledge' && field('comment', 'textarea', false)}
       {action === 'request_feedback' && <>{field('project_reference')}{select('reviewer_user_id', reviewers.data ?? [])}<p className="text-sm text-muted-foreground">Choose a project reviewer. Feedback must be submitted before the manager review is completed.</p>{reviewers.isError && <p role="alert">{getApiErrorMessage(reviewers.error)}</p>}</>}
       {action === 'submit_feedback' && <>{field('rating', 'number', true, 1, 5)}{field('contribution', 'textarea')}{field('collaboration', 'textarea', false)}</>}
+      {(cycle || goal || action === 'submit_feedback') && <CustomFields entityType={entityType} values={data} onChange={setData}
+        saved={['edit_cycle', 'edit_goal', 'submit_feedback'].includes(action) ? initial : undefined} />}
       {action === 'publish' && <p>Publish all calibrated reviews in this cycle. Employees will be able to see their final rating and acknowledge it.</p>}
     </fieldset>
     {mutation.isError && <p role="alert" className="text-sm text-destructive">{getApiErrorMessage(mutation.error)}{pending && ' Retry uses the same request. Keep this form open until recovery finishes.'}</p>}

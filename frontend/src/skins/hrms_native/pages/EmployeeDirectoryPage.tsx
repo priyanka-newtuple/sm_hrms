@@ -9,6 +9,7 @@ import { useHrmsCapabilities } from '../capabilities';
 import { getApiErrorMessage, request } from '../../../core/services/api/client';
 import { PageHero } from '../components/PageHero';
 import { EditEmployeeSheet, ExitEmployeeSheet, type EditableEmployee } from './EmployeeChangeSheets';
+import { CustomFields, type CustomValues } from '../forms/CustomFields';
 
 interface Employee extends EditableEmployee {
   work_email: string;
@@ -71,6 +72,7 @@ function EmployeeDirectory() {
   const [editing, setEditing] = useState<Employee | null>(null);
   const [exiting, setExiting] = useState<Employee | null>(null);
   const [key, setKey] = useState(() => createRequestId());
+  const [custom, setCustom] = useState<CustomValues>({});
   const [form, setForm] = useState({
     first_name: '', last_name: '', work_email: '', department: '', designation: '',
     role: 'hrms_employee', reports_to_entity_id: '', date_joined: new Date().toISOString().slice(0, 10),
@@ -99,11 +101,12 @@ function EmployeeDirectory() {
         notice_period_days: form.notice_period_days ? Number(form.notice_period_days) : null,
         phone: form.phone || null,
         work_location: form.work_location || null,
+        custom,
         idempotency_key: key,
       }),
     }),
     onSuccess: (result) => {
-      setError(''); setShowForm(false); setKey(createRequestId());
+      setError(''); setShowForm(false); setKey(createRequestId()); setCustom({});
       setCreated(result);
       void queryClient.invalidateQueries({ queryKey: ['hrms'] });
     },
@@ -205,6 +208,7 @@ function EmployeeDirectory() {
             <ConfiguredField field="phone" label="Phone" className="text-sm font-medium"><input maxLength={30} value={form.phone} onChange={(e) => set('phone')(e.target.value)} className={input} /></ConfiguredField>
             <ConfiguredField field="work_location" label="Work location" className="text-sm font-medium"><input maxLength={100} value={form.work_location} onChange={(e) => set('work_location')(e.target.value)} className={input} /></ConfiguredField>
           </div>
+          <CustomFields entityType="HRMS.Employee" values={custom} onChange={setCustom} />
           {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
           <div className="hrms-form-actions"><button type="button" onClick={() => setShowForm(false)} className="hrms-outline-button">Cancel</button><button type="submit" disabled={create.isPending || !options.data} className="hrms-primary-button">{create.isPending ? 'Creating…' : 'Create employee & start onboarding'}</button></div>
         </form></ConfiguredForm>

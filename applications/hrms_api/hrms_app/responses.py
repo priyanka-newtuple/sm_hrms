@@ -1,6 +1,7 @@
 """Native HRMS route responses."""
 
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -13,6 +14,7 @@ class LeaveCreateResponse(BaseModel):
 
 
 class LeaveListItem(BaseModel):
+    custom: dict[str, Any] = {}  # fields the organization added in Settings
     entity_id: str
     identifier: str
     employee_name: str
@@ -25,6 +27,7 @@ class LeaveListItem(BaseModel):
 
 
 class EmployeeListItem(BaseModel):
+    custom: dict[str, Any] = {}  # fields the organization added in Settings
     entity_id: str
     employee_code: str
     full_name: str

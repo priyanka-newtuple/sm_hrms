@@ -4,6 +4,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { getApiErrorMessage, request } from '../../../core/services/api/client';
 import { ConfiguredField, ConfiguredForm } from '../forms/ConfiguredForm';
 import { createRequestId } from '../requestId';
+import { CustomFields, type CustomValues } from '../forms/CustomFields';
 
 export interface EditableEmployee {
   entity_id: string;
@@ -20,6 +21,7 @@ export interface EditableEmployee {
   phone?: string | null;
   last_working_day?: string | null;
   exit_reason?: string | null;
+  custom?: CustomValues;
 }
 interface Options { departments: string[]; designations: string[] }
 
@@ -41,13 +43,14 @@ export function EditEmployeeSheet({ employee, employees, options, onClose, onSav
     notice_period_days: employee.notice_period_days == null ? '' : String(employee.notice_period_days), phone: employee.phone ?? '',
   });
   const [key] = useState(() => createRequestId());
+  const [custom, setCustom] = useState<CustomValues>(employee.custom ?? {});
   const save = useMutation({
     mutationFn: () => request(`/hrms/employees/${employee.entity_id}`, {
       method: 'PUT',
       body: JSON.stringify({
         ...form, reports_to_entity_id: form.reports_to_entity_id || null,
         notice_period_days: form.notice_period_days ? Number(form.notice_period_days) : null,
-        phone: form.phone || null, work_location: form.work_location || null, idempotency_key: key,
+        phone: form.phone || null, work_location: form.work_location || null, custom, idempotency_key: key,
       }),
     }),
     onSuccess: () => onSaved(`${form.first_name} ${form.last_name}'s details were updated.`),
@@ -80,6 +83,7 @@ export function EditEmployeeSheet({ employee, employees, options, onClose, onSav
             <ConfiguredField field="phone" label="Phone" className="text-sm font-medium"><input maxLength={30} value={form.phone} onChange={e => set('phone')(e.target.value)} className={input} /></ConfiguredField>
             <ConfiguredField field="work_location" label="Work location" className="text-sm font-medium"><input maxLength={100} value={form.work_location} onChange={e => set('work_location')(e.target.value)} className={input} /></ConfiguredField>
           </div>
+          <CustomFields entityType="HRMS.Employee" values={custom} onChange={setCustom} />
         </fieldset>
         {save.isError && <p role="alert" className="text-sm text-red-700">{getApiErrorMessage(save.error)}</p>}
         <div className="hrms-form-actions"><button type="button" onClick={onClose} className="hrms-outline-button">Cancel</button><button type="submit" disabled={save.isPending || !options} className="hrms-primary-button">{save.isPending ? 'Saving…' : 'Save changes'}</button></div>

@@ -8,6 +8,7 @@ from uuid import uuid4
 from pydantic import BaseModel, ConfigDict, Field
 
 from .catalog import pack_by_type
+from .custom_fields import custom_keys
 from .cockpit_catalog import INTERNAL, TYPES
 from .errors import AppError
 from .form_config import configured_form
@@ -101,8 +102,9 @@ class CockpitService:
         for kind in kinds:
             pack = pack_by_type(kind)
             states = self.platform.states(pack.machine_name)
+            # Fields added in Settings are read too, so editing a draft keeps them.
             for row in self.platform.records(
-                kind, [f["field"] for f in pack.fields] + ["hrms_operation_key"]
+                kind, [f["field"] for f in pack.fields] + ["hrms_operation_key"] + custom_keys(self.platform, kind)
             ):
                 check(
                     row.get("organization_id", self.platform.org) == self.platform.org,

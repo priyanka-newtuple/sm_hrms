@@ -5,6 +5,7 @@ import hashlib
 from pydantic import ValidationError
 
 from .catalog import pack_by_type
+from .custom_fields import check_custom, custom_keys
 from .errors import AppError
 from .performance_contracts import (ApproverChange, Assessment, Calibration, Comment, CycleInput,
                                     FeedbackInput, FeedbackReassignment, FeedbackRequest, GoalInput,
@@ -51,7 +52,12 @@ class PerformanceService:
         states = self.platform.states(pack.machine_name)
         return [{**r, 'kind': kind, 'state': states.get(r['entity_id'], 'not_enrolled')}
                 for r in self.platform.records(kind, ['identifier', 'hrms_operation_key',
-                                                      *[f['field'] for f in pack.fields]])]
+                                                      *[f['field'] for f in pack.fields], *custom_keys(self.platform, kind)])]
+
+    def parse_with_custom(self, model, kind, data, current=None):
+        """The screen's own fields through its contract; any others are fields added in Settings."""
+        own = {k: v for k, v in data.items() if k in model.model_fields}
+        return {**parse(model, own), **check_custom(self.platform, kind, {k: v for k, v in data.items() if k not in own}, current)}
 
     def snapshot(self):
         return {kind: self.records(kind) for kind in TYPES}
@@ -288,7 +294,7 @@ class PerformanceService:
 
     def cycle_data(self, actor, data, row=None):
         require(actor, 'performance:manage')
-        parsed = parse(CycleInput, data)
+        parsed = self.parse_with_custom(CycleInput, CYCLE, data, row['data'] if row else None)
         check(parsed['end_date'] >= today(), 'The cycle end date has already passed', 422)
         options = self.options(actor)
         approver = next((u for u in options['approvers'] if u['id'] == parsed['approver_id']), None)
@@ -364,7 +370,7 @@ class PerformanceService:
         elif action in {'add_goal', 'edit_goal'}:
             review = row if row['kind'] == REVIEW else self.find(snap, d['review_id'])
             cycle = self.find(snap, review['data']['cycle_id'])
-            goal = parse(GoalInput, data)
+            goal = self.parse_with_custom(GoalInput, GOAL, data, d if row['kind'] == GOAL else None)
             check(cycle['data']['start_date'] <= goal['target_date'] <= cycle['data']['end_date'], 'Goal target must be inside cycle dates', 422)
             if action == 'add_goal':
                 create(GOAL, {**goal, 'review_id': target}, actor.user_id, 'created')
@@ -383,7 +389,7 @@ class PerformanceService:
                               for f in self.open_feedback(snap, d['review_id'])), 'Feedback was already requested')
                 patch(row, {'reviewer_user_id': reviewer['id'], 'reviewer_name': reviewer['name']})
             else:
-                patch(row, parse(FeedbackInput, data))
+                patch(row, self.parse_with_custom(FeedbackInput, FEEDBACK, data, d))
                 transition(row, 'submit')
         else:
             goals = self.goals_of(snap, target)

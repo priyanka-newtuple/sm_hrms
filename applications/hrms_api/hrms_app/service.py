@@ -8,6 +8,7 @@ import secrets
 import json
 from pathlib import Path
 
+from .custom_fields import check_custom, custom_keys, custom_values
 from .errors import AppError
 from .employee_access import identity_roles, may_manage
 from .onboarding_template import CURRENT_TEMPLATE_VERSION, DEFAULT_ONBOARDING_STEPS, REPORTING_MANAGER, TEMPLATES
@@ -35,6 +36,15 @@ DONE = {'COMPLETED', 'CANCELLED'}  # a skipped step no longer holds anything up
 SICK_LEAVE_BACKDATE_DAYS = 7
 INVITE_STEP = next(s for s in DEFAULT_ONBOARDING_STEPS if s.key == 'hrms_invitation')
 REFERENCE_OPTIONS = json.loads(Path(__file__).with_name('reference_options.json').read_text())
+
+
+def fingerprint(request):
+    """A request as its idempotency record sees it. No custom fields means the same request as before
+    custom fields existed, so a retry sent across that deploy still matches."""
+    payload = request.model_dump(mode='json')
+    if not payload.get('custom'):
+        payload.pop('custom', None)
+    return payload
 
 
 def name(row):
@@ -104,7 +114,8 @@ class HrmsService:
         return self.platform.records(EMPLOYEE, EMPLOYEE_FIELDS)
 
     @staticmethod
-    def employee_item(row, rows):
+    def employee_item(row, rows, keys=()):
+        """`keys`: custom fields (added in Settings) to include."""
         data = row['data']
         manager = next((m for m in rows if m['data'].get('employee_code') ==
                         data.get('reports_to_employee_code') and data.get('reports_to_employee_code')), None)
@@ -117,19 +128,20 @@ class HrmsService:
                     date_joined=data.get('date_joined'), employment_type=data.get('employment_type'),
                     work_location=data.get('work_location'), notice_period_days=data.get('notice_period_days'),
                     phone=data.get('phone'), last_working_day=data.get('last_working_day'),
-                    exit_reason=data.get('exit_reason'),
+                    exit_reason=data.get('exit_reason'), custom=custom_values(data, keys),
                     on_notice=bool(data.get('employment_status') == 'active' and data.get('last_working_day')
                                    and data['last_working_day'] > datetime.now(UTC).date().isoformat()))
 
     def directory(self, actor):
         require(actor, 'employee:read')
-        rows = self.employees()
+        keys = custom_keys(self.platform, EMPLOYEE)
+        rows = self.platform.records(EMPLOYEE, EMPLOYEE_FIELDS + keys)
         users = {u['id']: u for u in self.platform.users()}
         states = self.platform.states('hrms_onboardingcase')
         cases = {c['data'].get('employee_id'): c for c in self.platform.records(CASE, CASE_FIELDS)}
         result = []
         for row in rows:
-            item = self.employee_item(row, rows)
+            item = self.employee_item(row, rows, keys)
             user = users.get(row['data'].get('platform_user_id'))
             if user and user.get('role'):
                 item['role'] = user['role']  # Current role; the employee record keeps the role it was created with.
@@ -272,11 +284,12 @@ class HrmsService:
                     raise AppError(400, 'Select an active department and designation')
             manager = self._check_reporting_manager(rows, employee, request.reports_to_entity_id)
             record = self.platform.record(employee_id)
-            data = {**record['data'], **{k: v for k, v in payload.items() if k not in {'idempotency_key', 'reports_to_entity_id'}},
-                    'reports_to_employee_code': manager['data'].get('employee_code') if manager else None}
+            custom = check_custom(self.platform, EMPLOYEE, request.custom, record['data'])
+            data = {**record['data'], **{k: v for k, v in payload.items() if k not in {'idempotency_key', 'reports_to_entity_id', 'custom'}},
+                    **custom, 'reports_to_employee_code': manager['data'].get('employee_code') if manager else None}
             self.platform.call('PUT', f'/entity-records/{employee_id}', json={'data': data})
             self.journal.audit(db, actor, 'employee.updated', employee_id)
-            result = self.employee_item({**employee, 'data': data}, rows)
+            result = self.employee_item({**employee, 'data': data}, rows, list(custom))
             op.finish(result)
             return result
 
@@ -461,7 +474,7 @@ class HrmsService:
 
     def create_employee(self, actor, request):
         require(actor, 'employee:create')
-        payload = request.model_dump(mode='json')
+        payload = fingerprint(request)
         if request.role not in self.form_options(actor)['roles']:
             raise AppError(403, 'You cannot assign the requested employee role')
         email = str(request.work_email).lower().strip()
@@ -495,7 +508,8 @@ class HrmsService:
                 if not op.progress.get('identity_requested') and (request.role not in assigned or
                         (assigned - {'hrms_employee'} and 'platform:configure' not in capabilities(actor))):
                     raise AppError(403, 'Existing account access must be reviewed by Super Admin; select its current role')
-            data = {k: v for k, v in payload.items() if k not in {'idempotency_key', 'reports_to_entity_id', 'role'}}
+            data = {k: v for k, v in payload.items() if k not in {'idempotency_key', 'reports_to_entity_id', 'role', 'custom'}}
+            data.update(check_custom(self.platform, EMPLOYEE, request.custom))
             data.update(work_email=email, employment_status='active', hrms_role=request.role,
                         reports_to_employee_code=manager['data'].get('employee_code') if manager else None,
                         hrms_operation_key=marker)
@@ -618,7 +632,8 @@ class HrmsService:
         by_id = {e['entity_id']: e for e in employees}
         names = {key: name(e) for key, e in by_id.items()}
         states = self.platform.states('hrms_leaverequest')
-        rows = [r for r in self.platform.records(LEAVE, LEAVE_FIELDS) if r['data'].get('employee_id') in by_id]
+        keys = custom_keys(self.platform, LEAVE)
+        rows = [r for r in self.platform.records(LEAVE, LEAVE_FIELDS + keys) if r['data'].get('employee_id') in by_id]
         if view == 'mine':
             rows = [r for r in rows if r['data']['employee_id'] == own['entity_id']]
         else:
@@ -635,18 +650,20 @@ class HrmsService:
         return [dict(entity_id=r['entity_id'], identifier=r['data'].get('identifier') or '',
                      employee_name=names[r['data']['employee_id']], start_date=r['data']['start_date'],
                      end_date=r['data']['end_date'], leave_type=r['data']['leave_type'], reason=r['data'].get('reason'),
+                     custom=custom_values(r['data'], keys),
                      days=leave_days(r['data']['start_date'], r['data']['end_date'], holidays(r)),
                      state=states.get(r['entity_id'], 'not_enrolled')) for r in rows[offset:offset + limit]]
 
     def create_leave(self, actor, request):
         require(actor, 'leave:create')
         with self.journal.lock(actor.organization_id) as db:
-            op = self.journal.operation(db, actor, f'leave:{request.idempotency_key}', request.model_dump(mode='json'))
+            op = self.journal.operation(db, actor, f'leave:{request.idempotency_key}', fingerprint(request))
             if op.result:
                 return {**op.result, 'idempotent': True}
             employees = self.employees()
             own = self.own_employee(actor, employees)
-            self._check_leave_form(actor, request.model_dump(mode='json', exclude={'idempotency_key'}))
+            self._check_leave_form(actor, request.model_dump(mode='json', exclude={'idempotency_key', 'custom'}))
+            custom = check_custom(self.platform, LEAVE, request.custom)
             started = (datetime.now(UTC).date() - request.start_date).days
             if started > 0 and (request.leave_type != 'sick' or started > SICK_LEAVE_BACKDATE_DAYS):
                 # Leave is planned ahead; only sick leave is recorded after it began, within a week.
@@ -672,7 +689,7 @@ class HrmsService:
                 if (d.get('employee_id') == own['entity_id'] and states.get(row['entity_id'], 'pending') in {'pending', 'approved'}
                     and d['start_date'] <= request.end_date.isoformat() and d['end_date'] >= request.start_date.isoformat()):
                     raise AppError(409, 'A pending or approved leave request overlaps these dates')
-            data = request.model_dump(mode='json', exclude={'idempotency_key'})
+            data = {**request.model_dump(mode='json', exclude={'idempotency_key', 'custom'}), **custom}
             data.update(employee_id=own['entity_id'], manager_id=manager['entity_id'] if manager else None,
                         hrms_operation_key=marker)
             row = self._create_once(op, 'leave', LEAVE, data, actor.user_id, rows, marker)

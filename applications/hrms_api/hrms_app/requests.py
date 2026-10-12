@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import date
-from typing import Literal, Self
+from typing import Any, Literal, Self
 
 from pydantic import BaseModel, EmailStr, Field, model_validator
 
@@ -13,6 +13,7 @@ class LeaveCreateRequest(BaseModel):
     end_date: date
     leave_type: Literal["annual", "sick", "casual", "unpaid", "other"]
     reason: str | None = Field(default=None, max_length=5000)
+    custom: dict[str, Any] = Field(default_factory=dict)  # fields the organization added in Settings
     idempotency_key: str = Field(min_length=8, max_length=128)
 
     @model_validator(mode="after")
@@ -40,6 +41,7 @@ class EmployeeCreateRequest(BaseModel):
     work_location: str | None = Field(default=None, max_length=100)
     notice_period_days: int | None = Field(default=None, ge=0, le=365)
     phone: str | None = Field(default=None, max_length=30)
+    custom: dict[str, Any] = Field(default_factory=dict)  # fields the organization added in Settings
     idempotency_key: str = Field(min_length=8, max_length=128)
 
     @model_validator(mode="after")
@@ -65,6 +67,7 @@ class EmployeeUpdateRequest(BaseModel):
     work_location: str | None = Field(default=None, max_length=100)
     notice_period_days: int | None = Field(default=None, ge=0, le=365)
     phone: str | None = Field(default=None, max_length=30)
+    custom: dict[str, Any] = Field(default_factory=dict)  # fields the organization added in Settings
     idempotency_key: str = Field(min_length=8, max_length=128)
 
     @model_validator(mode="after")
