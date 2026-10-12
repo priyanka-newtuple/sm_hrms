@@ -72,6 +72,7 @@ class OnboardingStepItem(BaseModel):
     depends_on: list[int]
     can_complete: bool = False
     assigned_to_me: bool = False  # Owned by the reader; HR may complete others' steps too.
+    can_manage: bool = False  # HR may reassign, re-date or skip it.
 
 
 class OnboardingCaseItem(BaseModel):
@@ -86,4 +87,6 @@ class OnboardingCaseItem(BaseModel):
     completed_steps: int
     total_steps: int
     can_complete_case: bool = False
+    can_cancel: bool = False
+    cancel_reason: str | None = None
     steps: list[OnboardingStepItem]

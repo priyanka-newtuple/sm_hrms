@@ -30,7 +30,8 @@ def main():
     created = app.post('/hrms/employees', headers=admin, json=payload)
     assert created.status_code == 201, created.text
     case_id = created.json()['onboarding_entity_id']
-    assert created.json()['onboarding_task_count'] == 8, created.text
+    steps = created.json()['onboarding_task_count']  # 8 for hires before template v2, 9 after
+    assert steps in (8, 9), created.text
     repeat = app.post('/hrms/employees', headers=admin, json=payload)
     assert repeat.status_code == 201 and repeat.json()['idempotent'], repeat.text
     assert repeat.json()['employee']['entity_id'] == created.json()['employee']['entity_id']
@@ -44,7 +45,7 @@ def main():
         assert denied.status_code == 409, denied.text
         denied = app.post(f'/hrms/onboarding/{case_id}/complete', headers=admin)
         assert denied.status_code == 409, denied.text
-    for sequence in range(1, 9):
+    for sequence in range(1, steps + 1):
         result = app.post(f'/hrms/onboarding/{case_id}/steps/{sequence}/complete', headers=admin)
         assert result.status_code == 200, result.text
     result = app.post(f'/hrms/onboarding/{case_id}/complete', headers=admin)

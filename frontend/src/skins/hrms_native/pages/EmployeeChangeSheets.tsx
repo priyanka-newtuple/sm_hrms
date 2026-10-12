@@ -88,14 +88,14 @@ export function EditEmployeeSheet({ employee, employees, options, onClose, onSav
   </Sheet>;
 }
 
-const REASONS = [['resignation', 'Resignation'], ['termination', 'Termination'], ['contract_end', 'Contract ended'], ['retirement', 'Retirement'], ['other', 'Other']] as const;
+const REASONS = [['resignation', 'Resignation'], ['termination', 'Termination'], ['contract_end', 'Contract ended'], ['retirement', 'Retirement'], ['did_not_join', 'Did not join (no-show or offer withdrawn)'], ['other', 'Other']] as const;
 
 /** Record that an employee is leaving. A future last day means notice; today or earlier offboards and signs them out. */
 export function ExitEmployeeSheet({ employee, onClose, onSaved }: { employee: EditableEmployee; onClose: () => void; onSaved: (message: string) => void }) {
   // Completing a notice period starts from the day and reason already recorded.
   const [form, setForm] = useState({ last_working_day: (employee.last_working_day ?? today()).slice(0, 10), reason: employee.exit_reason ?? 'resignation', note: '' });
   const [key] = useState(() => createRequestId());
-  const leavingNow = form.last_working_day <= today();
+  const leavingNow = form.reason === 'did_not_join' || form.last_working_day <= today();
   const save = useMutation({
     mutationFn: () => request(`/hrms/employees/${employee.entity_id}/exit`, {
       method: 'POST', body: JSON.stringify({ ...form, note: form.note || null, idempotency_key: key }),
@@ -110,7 +110,7 @@ export function ExitEmployeeSheet({ employee, onClose, onSaved }: { employee: Ed
         <p className="hrms-form-intro">Set the last working day. A future date keeps them working while on notice; on or after it, they are offboarded and their sign-in is suspended. The record is kept.</p></SheetHeader>
       <form onSubmit={submit} className="hrms-people-form">
         <fieldset disabled={save.isPending} className="space-y-3">
-          <label className="block space-y-1 text-sm font-medium"><span>Last working day</span><input required type="date" min={(employee.date_joined ?? '').slice(0, 10) || undefined} value={form.last_working_day} onChange={e => setForm({ ...form, last_working_day: e.target.value })} className={input} /></label>
+          <label className="block space-y-1 text-sm font-medium"><span>Last working day</span><input required type="date" min={form.reason === 'did_not_join' ? undefined : (employee.date_joined ?? '').slice(0, 10) || undefined} value={form.last_working_day} onChange={e => setForm({ ...form, last_working_day: e.target.value })} className={input} /></label>
           <label className="block space-y-1 text-sm font-medium"><span>Reason</span><select required value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })} className={input}>{REASONS.map(([value, text]) => <option key={value} value={value}>{text}</option>)}</select></label>
           <label className="block space-y-1 text-sm font-medium"><span>Note</span><textarea maxLength={2000} rows={3} value={form.note} onChange={e => setForm({ ...form, note: e.target.value })} className={input} /></label>
         </fieldset>

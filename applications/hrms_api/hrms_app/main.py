@@ -16,7 +16,8 @@ from .journal import Journal
 from .platform import PlatformClient
 from .policy import capabilities
 from .settings_gateway import configuration_route, authorize_configuration
-from .requests import EmployeeCreateRequest, EmployeeExitRequest, EmployeeOperationRequest, EmployeeUpdateRequest, LeaveCreateRequest
+from .requests import (EmployeeCreateRequest, EmployeeExitRequest, EmployeeOperationRequest, EmployeeUpdateRequest,
+                       LeaveCreateRequest, OnboardingReasonRequest, OnboardingStepUpdateRequest)
 from .responses import EmployeeCreateResponse, EmployeeListItem, LeaveCreateResponse, LeaveListItem, OnboardingCaseItem
 from .service import HrmsService
 from .employee_access import setup_access
@@ -189,12 +190,14 @@ def create_app(platform=None, journal=None):
     def directory(current=Depends(actor)):
         return service.directory(current)
 
-    def follow_directory(current, employee_id):
-        # Reviews follow a manager change or a leaver; the directory change itself is already saved.
-        try:
-            performance.sync_employee(current, employee_id)
-        except AppError:
-            logging.getLogger(__name__).exception('performance reviews not updated for employee %s', employee_id)
+    def follow_directory(current, employee_id, left=False):
+        # Reviews follow a manager change or a leaver, and a leaver's open onboarding ends; the
+        # directory change itself is already saved.
+        for follow in (performance.sync_employee, *([service.end_onboarding_of_leaver] if left else [])):
+            try:
+                follow(current, employee_id)
+            except AppError:
+                logging.getLogger(__name__).exception('%s failed for employee %s', follow.__name__, employee_id)
 
     @app.put('/v1/api/hrms/employees/{employee_id}', response_model=EmployeeListItem)
     def update_employee(employee_id: str, payload: EmployeeUpdateRequest, current=Depends(actor)):
@@ -206,7 +209,7 @@ def create_app(platform=None, journal=None):
     def exit_employee(employee_id: str, payload: EmployeeExitRequest, current=Depends(actor)):
         result = service.exit_employee(current, employee_id, payload)
         if result['employment_status'] == 'offboarded':
-            follow_directory(current, employee_id)
+            follow_directory(current, employee_id, left=True)
         return result
 
     @app.post('/v1/api/hrms/employees/{employee_id}/exit/withdraw', response_model=EmployeeListItem)
@@ -292,6 +295,22 @@ def create_app(platform=None, journal=None):
     @app.post('/v1/api/hrms/onboarding/{case_id}/steps/{sequence}/complete', response_model=OnboardingCaseItem)
     def complete_step(case_id: UUID, sequence: int, current=Depends(actor)):
         return service.complete_step(current, str(case_id), sequence)
+
+    @app.get('/v1/api/hrms/onboarding/assignees')
+    def onboarding_assignees(current=Depends(actor)):
+        return service.onboarding_assignees(current)
+
+    @app.patch('/v1/api/hrms/onboarding/{case_id}/steps/{sequence}', response_model=OnboardingCaseItem)
+    def update_step(case_id: UUID, sequence: int, payload: OnboardingStepUpdateRequest, current=Depends(actor)):
+        return service.update_step(current, str(case_id), sequence, payload.assigned_to, payload.due_date)
+
+    @app.post('/v1/api/hrms/onboarding/{case_id}/steps/{sequence}/skip', response_model=OnboardingCaseItem)
+    def skip_step(case_id: UUID, sequence: int, payload: OnboardingReasonRequest, current=Depends(actor)):
+        return service.skip_step(current, str(case_id), sequence, payload.reason)
+
+    @app.post('/v1/api/hrms/onboarding/{case_id}/cancel', response_model=OnboardingCaseItem)
+    def cancel_onboarding(case_id: UUID, payload: OnboardingReasonRequest, current=Depends(actor)):
+        return service.cancel_onboarding(current, str(case_id), payload.reason)
 
     @app.post('/v1/api/hrms/onboarding/{case_id}/complete', response_model=OnboardingCaseItem)
     def complete_case(case_id: UUID, current=Depends(actor)):

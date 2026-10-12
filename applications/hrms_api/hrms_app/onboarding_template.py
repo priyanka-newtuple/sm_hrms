@@ -1,7 +1,7 @@
-"""Version-one task template copied from the legacy default onboarding flow.
+"""Onboarding task templates. Version one was copied from the legacy default flow.
 
-The case pins this version. Future edits should add a new version rather than
-change these steps for in-flight hires.
+Each case pins the version it started on. Edits add a new version rather than
+change the steps of in-flight hires.
 """
 
 from dataclasses import dataclass
@@ -13,7 +13,7 @@ class OnboardingStep:
     sequence: int
     key: str
     title: str
-    assignee_role: str | None
+    assignee_role: str | None  # None: the new hire; REPORTING_MANAGER: the hire's own manager
     # Days after the joining date the step is due; 0 means ready by day one (pre-boarding).
     due_after_joining: int
     depends_on: tuple[int, ...] = ()
@@ -23,6 +23,8 @@ class OnboardingStep:
         Midday UTC keeps the calendar day the same across Newtuple's time zones."""
         return datetime.combine(max(joining, today) + timedelta(days=self.due_after_joining), time(12), tzinfo=UTC)
 
+
+REPORTING_MANAGER = "reporting_manager"
 
 DEFAULT_ONBOARDING_STEPS = (
     OnboardingStep(
@@ -45,3 +47,10 @@ DEFAULT_ONBOARDING_STEPS = (
         (4,),
     ),
 )
+
+# Version two adds the step every hire's own manager owns.
+MANAGER_WELCOME = OnboardingStep(
+    9, "manager_welcome", "Manager welcome and first-week plan", REPORTING_MANAGER, 0, (3,)
+)
+TEMPLATES = {1: DEFAULT_ONBOARDING_STEPS, 2: (*DEFAULT_ONBOARDING_STEPS, MANAGER_WELCOME)}
+CURRENT_TEMPLATE_VERSION = 2

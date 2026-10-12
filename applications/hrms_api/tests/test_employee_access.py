@@ -147,8 +147,16 @@ class ProvisioningPlatform(Platform):
         return 'in_progress'
 
     def tasks(self, case):
-        return [dict(id=r['entity_id'], stage=f"onboarding-step-{r['data']['sequence']}", status='OPEN')
-                for r in self.rows.values() if r['kind'] == 'HRMS.OnboardingStep']
+        return self.steps_by_case().get(case, [])
+
+    def steps_by_case(self):
+        grouped = {}
+        for r in self.rows.values():
+            if r['kind'] == 'HRMS.OnboardingStep':
+                grouped.setdefault(r['data'].get('case_id'), []).append(dict(
+                    id=r['entity_id'], stage=f"onboarding-step-{r['data']['sequence']}", status='OPEN',
+                    assigned_to=r['data'].get('assigned_to')))
+        return grouped
 
     def request(self, method, path, **kwargs):
         assert path == '/auth/register'

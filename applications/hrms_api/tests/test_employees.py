@@ -262,3 +262,10 @@ def test_an_interrupted_offboarding_can_be_retried():
         hrms.exit_employee(hr(), 'dev', exit_request(0))
     platform.call = original
     assert hrms.exit_employee(hr(), 'dev', exit_request(0))['employment_status'] == 'offboarded'
+
+
+def test_a_hire_who_never_joined_is_offboarded_straight_away():
+    platform = StaffPlatform()
+    platform.rows['dev']['data']['date_joined'] = (TODAY + timedelta(days=14)).isoformat()  # due to join in two weeks
+    result = service(platform).exit_employee(hr(), 'dev', exit_request(0, reason='did_not_join'))
+    assert result['employment_status'] == 'offboarded' and platform.status['dev-user'] == 'suspended'
