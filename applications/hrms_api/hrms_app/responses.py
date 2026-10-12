@@ -1,6 +1,7 @@
 """Native HRMS route responses."""
 
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -13,6 +14,7 @@ class LeaveCreateResponse(BaseModel):
 
 
 class LeaveListItem(BaseModel):
+    custom: dict[str, Any] = {}  # fields the organization added in Settings
     entity_id: str
     identifier: str
     employee_name: str
@@ -20,10 +22,12 @@ class LeaveListItem(BaseModel):
     end_date: str
     leave_type: str
     reason: str | None = None
+    days: int = 0  # Working days: weekdays that are not published holidays.
     state: str
 
 
 class EmployeeListItem(BaseModel):
+    custom: dict[str, Any] = {}  # fields the organization added in Settings
     entity_id: str
     employee_code: str
     full_name: str
@@ -37,6 +41,17 @@ class EmployeeListItem(BaseModel):
     onboarding_state: str = "not_started"
     can_setup_access: bool = False
     uses_google_sign_in: bool = False
+    # Editable details, so the edit form starts from what is saved.
+    reports_to_entity_id: str | None = None
+    date_joined: str | None = None
+    employment_type: str | None = None
+    work_location: str | None = None
+    notice_period_days: int | None = None
+    phone: str | None = None
+    # Exit: an active employee with a future last working day is serving notice.
+    last_working_day: str | None = None
+    exit_reason: str | None = None
+    on_notice: bool = False
 
 
 class EmployeeCreateResponse(BaseModel):
@@ -59,6 +74,8 @@ class OnboardingStepItem(BaseModel):
     due_date: datetime | None = None
     depends_on: list[int]
     can_complete: bool = False
+    assigned_to_me: bool = False  # Owned by the reader; HR may complete others' steps too.
+    can_manage: bool = False  # HR may reassign, re-date or skip it.
 
 
 class OnboardingCaseItem(BaseModel):
@@ -73,4 +90,6 @@ class OnboardingCaseItem(BaseModel):
     completed_steps: int
     total_steps: int
     can_complete_case: bool = False
+    can_cancel: bool = False
+    cancel_reason: str | None = None
     steps: list[OnboardingStepItem]

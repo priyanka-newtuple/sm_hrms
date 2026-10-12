@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { ArrowRight, CalendarCheck2, CheckCircle2, UserRoundPlus } from 'lucide-react';
+import { ArrowRight, CalendarCheck2, CheckCircle2, TrendingUp, UserRoundPlus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { request, getApiErrorMessage } from '@/core/services/api/client';
 import { useAuth } from '../../../core/auth';
@@ -43,15 +43,27 @@ function LeaveInbox({ items, loading, error, retry }: { items: LeaveItem[]; load
   </WorkPanel>;
 }
 
+/** Due dates arrive as ISO timestamps; show the calendar day. */
+const dueLabel = (iso: string) => { const day = toDate(iso.slice(0, 10)); return day ? formatDate(day) : iso; };
+const humanize = (value: string) => value.replaceAll('_', ' ').replace(/^./, c => c.toUpperCase());
+type PerformanceTask = { kind: string; data: Record<string, unknown>; cycle_name?: string; employee_name?: string };
+const performanceTitle = (item: PerformanceTask) =>
+  item.kind === 'HRMS.PerformanceCycle' ? String(item.data.name ?? 'Performance cycle')
+    : item.kind === 'HRMS.ProjectFeedback' ? `Feedback for ${item.employee_name ?? 'a colleague'}`
+      : item.employee_name ?? 'Performance review';
+const performanceContext = (item: PerformanceTask) =>
+  item.kind === 'HRMS.PerformanceCycle' ? 'Review cycle' : item.cycle_name ?? 'Performance';
+
 export default function MyWorkPage() {
   const { user } = useAuth();
   const caps = useHrmsCapabilities();
   const motion = !usePrefersReducedMotion();
   const waiting = useWaitingActions();
-  const { sources, total, onboarding, onboardingActions, leaveApprovals, pendingLeave } = waiting;
+  const { sources, total, onboarding, onboardingActions, leaveApprovals, pendingLeave, performance, performanceActions } = waiting;
   const summaryLoading = waiting.loading;
-  const myLeave = useQuery({ queryKey: ['hrms', 'leave', 'mine'], queryFn: () => request<LeaveItem[]>('/hrms/leave-requests?view=mine&limit=100'), retry: retryUnlessForbidden });
-  const leaveUnavailable = isForbidden(myLeave.error);
+  const myLeave = useQuery({ queryKey: ['hrms', 'leave', 'mine'], queryFn: () => request<LeaveItem[]>('/hrms/leave-requests?view=mine&limit=100'), retry: retryUnlessForbidden,
+    enabled: caps.isFetched && caps.data?.employee_profile !== false });
+  const leaveUnavailable = caps.data?.employee_profile === false || isForbidden(myLeave.error);
 
   const today = todayIso();
   const nextLeave = myLeave.data?.filter(item => (item.end_date || item.start_date) >= today && !['rejected', 'cancelled'].includes(item.state))
@@ -82,7 +94,7 @@ export default function MyWorkPage() {
         </div>
         <div className="hrms-mw-leave">
           <p className="hrms-mw-label">Your next time off</p>
-          {myLeave.isLoading ? <p>Loading…</p>
+          {myLeave.isLoading || !caps.isFetched ? <p>Loading…</p>
             : leaveUnavailable ? <p>Leave isn’t linked to this account because it has no employee profile.</p>
             : myLeave.isError ? <p>Couldn’t load your leave. <button type="button" className="hrms-mw-retry" onClick={() => void myLeave.refetch()}>Try again</button></p>
             : nextLeave && nextLeaveStart ? <p><strong>{formatDate(nextLeaveStart)}</strong> · {nextLeave.leave_type} <span className="hrms-mw-state" data-state={nextLeave.state}>{nextLeave.state}</span></p>
@@ -104,8 +116,11 @@ export default function MyWorkPage() {
       <CockpitInbox />
       <ProjectInbox />
       <WfhInbox />
+      {performance.isSuccess && <WorkPanel title="Performance" description="Goals, reviews and feedback waiting for you." icon={TrendingUp} count={performanceActions.length} loading={performance.isLoading} error={undefined} retry={() => void performance.refetch()} empty="No performance tasks are waiting for you.">
+        <ul>{performanceActions.map(item => <li className="hrms-work-item" key={item.id}><p className="hrms-work-item-context">{performanceContext(item)}</p><h3>{performanceTitle(item)}</h3><p>Next: {item.actions.filter(action => action !== 'reassign').map(humanize).join(', ')}</p><Link className="hrms-outline-button" to="/hrms/performance">Open performance <ArrowRight size={15} aria-hidden="true" /></Link></li>)}</ul>
+      </WorkPanel>}
       <WorkPanel title="Onboarding tasks" description="Help new colleagues get started." icon={UserRoundPlus} count={onboardingActions.length} loading={onboarding.isLoading} error={onboarding.isError ? getApiErrorMessage(onboarding.error) : undefined} retry={() => void onboarding.refetch()} empty="No onboarding tasks are waiting for you.">
-        <ul>{onboardingActions.map(a => <li className="hrms-work-item" key={`${a.caseId}-${a.sequence}`}><p className="hrms-work-item-context">{a.employee}</p><h3>{a.title}</h3><p>Assigned to {a.owner_name}{a.due_date ? ` · Due ${a.due_date}` : ''}</p><Link className="hrms-outline-button" to={`/hrms/workflows?case=${a.caseId}`}>Open task <ArrowRight size={15} aria-hidden="true" /></Link></li>)}</ul>
+        <ul>{onboardingActions.map(a => <li className="hrms-work-item" key={`${a.caseId}-${a.sequence}`}><p className="hrms-work-item-context">{a.employee}</p><h3>{a.title}</h3><p>Assigned to {a.owner_name}{a.due_date ? ` · Due ${dueLabel(a.due_date)}` : ''}</p><Link className="hrms-outline-button" to={`/hrms/workflows?case=${a.caseId}`}>Open task <ArrowRight size={15} aria-hidden="true" /></Link></li>)}</ul>
       </WorkPanel>
     </div>
   </main>;

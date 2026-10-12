@@ -1,5 +1,6 @@
 """Narrow HR account onboarding actions over public platform APIs."""
 import os
+from urllib.parse import urlsplit
 
 from .errors import AppError
 from .policy import capabilities, require
@@ -46,8 +47,9 @@ def setup_access(service, actor, employee_id, operation_key):
             raise AppError(409, 'Suspended or rejected accounts require administrator review')
         if op.result:
             return {**op.result, 'idempotent': True}
+        google = identity.get('auth_type') == 'google' or google_sign_in_ready(service, identity['email'])
         # Check configuration before granting access. Never return secrets to the browser.
-        if identity.get('auth_type') != 'google' and not local_email_disabled:
+        if not google and not local_email_disabled:
             integrations = service.platform.call('GET', f'/integrations/organizations/{actor.organization_id}')
             if integrations.get('organization_id') != actor.organization_id:
                 raise AppError(403, 'Email configuration belongs to another organization')
@@ -67,7 +69,7 @@ def setup_access(service, actor, employee_id, operation_key):
         if local_email_disabled:
             message = 'Account active. Setup email is disabled for local testing; no password setup link was sent.'
             email_status = 'disabled_local'
-        elif identity.get('auth_type') == 'google':
+        elif google:
             message = 'Account active. The employee can sign in using Google.'
             email_status = 'not_required'
         else:
@@ -82,4 +84,21 @@ def setup_access(service, actor, employee_id, operation_key):
         result = {'account_status': 'active', 'email_status': email_status, 'message': message}
         service.journal.audit(db, actor, 'employee.access.setup_requested', employee_id)
         op.finish(result)
+        service.complete_invite_step(employee_id)
         return result
+
+
+def google_sign_in_ready(service, email):
+    """Whether this work email can sign in with Google here, so no password-setup email is needed.
+
+    Google sign-in links an existing account by email on first use. It is ready only when the HRMS
+    callback is HTTPS (the browser flow refuses anything else), the platform has Google configured,
+    and the address is on the organization's work domain.
+    """
+    redirect = urlsplit(os.environ.get('GOOGLE_REDIRECT_URI', ''))
+    if redirect.scheme != 'https' or not redirect.hostname:
+        return False
+    if not email.casefold().endswith('@' + service.domain.casefold()):
+        return False
+    response = service.platform.http.get('auth/google/url', params={'redirect_uri': redirect.geturl()})
+    return response.status_code == 200

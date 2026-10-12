@@ -37,7 +37,10 @@ def form_configuration(platform, actor, entity_type):
     caps = capabilities(actor)
     if (required and not required.intersection(caps)) or (not required and not caps):
         raise AppError(403, 'You cannot access this HRMS form')
-    return configured_form(platform, entity_type)
+    form = configured_form(platform, entity_type)
+    # Fields added in Settings, which HRMS screens render alongside their own (see custom_fields).
+    built_in = {f['field'] for f in pack_by_type(entity_type).fields} | {'hrms_operation_key', 'identifier'}
+    return {**form, 'fields': [{**f, 'custom': f['field'] not in built_in} for f in form['fields']]}
 
 
 def configured_form(platform, entity_type):

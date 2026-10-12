@@ -72,6 +72,7 @@ PACKS = (
             {"field": "due_date", "type": "string"},
             {"field": "legacy_task_id", "type": "string"},
             {"field": "legacy_completed_at", "type": "string"},
+            {"field": "skip_reason", "type": "text"},
         ),
         initial_state="open", states=("open", "completed", "cancelled"),
         terminal_states=frozenset({"completed", "cancelled"}),
@@ -89,6 +90,10 @@ PACKS = (
             {"field": "notice_period_days", "type": "integer"},
             {"field": "phone", "type": "string"},
             {"field": "hrms_role", "type": "string"},
+            # Exit: a future last working day means on notice; on or after it, offboarded.
+            {"field": "last_working_day", "type": "date"},
+            {"field": "exit_reason", "type": "string"},
+            {"field": "exit_note", "type": "text"},
         ),
         initial_state="",
         states=(),
@@ -103,6 +108,9 @@ PACKS = (
             {"field": "employee_id", "type": "string", "required": True},
             {"field": "template_key", "type": "string", "required": True},
             {"field": "template_version", "type": "integer", "required": True},
+            {"field": "cancelled_at", "type": "string"},
+            {"field": "cancelled_by", "type": "string"},
+            {"field": "cancel_reason", "type": "text"},
         ),
         initial_state="in_progress",
         states=("in_progress", "completed"),
@@ -129,11 +137,13 @@ PACKS = (
         ),
         initial_state="pending",
         states=("pending", "approved", "rejected", "cancelled"),
-        terminal_states=frozenset({"approved", "rejected", "cancelled"}),
+        # Approved is not final: the employee may cancel approved leave before it starts.
+        terminal_states=frozenset({"rejected", "cancelled"}),
         transitions=(
             ("pending", "approve", "approved"),
             ("pending", "reject", "rejected"),
             ("pending", "cancel", "cancelled"),
+            ("approved", "cancel", "cancelled"),
         ),
     ),
     HrmsEntityPack(

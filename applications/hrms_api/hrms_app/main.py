@@ -2,6 +2,7 @@
 from contextlib import asynccontextmanager
 from dataclasses import replace
 from json import JSONDecodeError
+import logging
 import os
 from uuid import UUID
 
@@ -15,7 +16,11 @@ from .journal import Journal
 from .platform import PlatformClient
 from .policy import capabilities
 from .settings_gateway import configuration_route, authorize_configuration
-from .requests import EmployeeCreateRequest, LeaveCreateRequest
+from .field_access import changes_forms, sync_service_access
+from .extra_steps import ExtraSteps
+from . import custom_fields
+from .requests import (EmployeeCreateRequest, EmployeeExitRequest, EmployeeOperationRequest, EmployeeUpdateRequest,
+                       LeaveCreateRequest, OnboardingReasonRequest, OnboardingStepUpdateRequest)
 from .responses import EmployeeCreateResponse, EmployeeListItem, LeaveCreateResponse, LeaveListItem, OnboardingCaseItem
 from .service import HrmsService
 from .employee_access import setup_access
@@ -35,6 +40,11 @@ class EmployeeAccessRequest(BaseModel):
 
 class Decision(BaseModel):
     trigger: str
+    idempotency_key: str = Field(min_length=8, max_length=128)
+
+
+class StepRequest(BaseModel):
+    trigger: str = Field(min_length=1, max_length=100)
     idempotency_key: str = Field(min_length=8, max_length=128)
 
 
@@ -139,7 +149,8 @@ def create_app(platform=None, journal=None):
 
     @app.get('/v1/api/hrms/capabilities')
     def get_capabilities(current=Depends(actor)):
-        return {'capabilities': sorted(capabilities(current)), 'roles': sorted(current.roles)}
+        return {'capabilities': sorted(capabilities(current)), 'roles': sorted(current.roles),
+                'employee_profile': service.has_employee_profile(current)}
 
     @app.get('/v1/api/hrms/organization')
     def current_organization(current=Depends(actor)):
@@ -187,6 +198,32 @@ def create_app(platform=None, journal=None):
     def directory(current=Depends(actor)):
         return service.directory(current)
 
+    def follow_directory(current, employee_id, left=False):
+        # Reviews follow a manager change or a leaver, and a leaver's open onboarding ends; the
+        # directory change itself is already saved.
+        for follow in (performance.sync_employee, *([service.end_onboarding_of_leaver] if left else [])):
+            try:
+                follow(current, employee_id)
+            except AppError:
+                logging.getLogger(__name__).exception('%s failed for employee %s', follow.__name__, employee_id)
+
+    @app.put('/v1/api/hrms/employees/{employee_id}', response_model=EmployeeListItem)
+    def update_employee(employee_id: str, payload: EmployeeUpdateRequest, current=Depends(actor)):
+        result = service.update_employee(current, employee_id, payload)
+        follow_directory(current, employee_id)
+        return result
+
+    @app.post('/v1/api/hrms/employees/{employee_id}/exit', response_model=EmployeeListItem)
+    def exit_employee(employee_id: str, payload: EmployeeExitRequest, current=Depends(actor)):
+        result = service.exit_employee(current, employee_id, payload)
+        if result['employment_status'] == 'offboarded':
+            follow_directory(current, employee_id, left=True)
+        return result
+
+    @app.post('/v1/api/hrms/employees/{employee_id}/exit/withdraw', response_model=EmployeeListItem)
+    def withdraw_employee_exit(employee_id: str, payload: EmployeeOperationRequest, current=Depends(actor)):
+        return service.withdraw_exit(current, employee_id, payload.idempotency_key)
+
     @app.post('/v1/api/hrms/employees/{employee_id}/setup-access')
     def employee_setup_access(employee_id: str, payload: EmployeeAccessRequest, current=Depends(actor)):
         return setup_access(service, current, employee_id, payload.idempotency_key)
@@ -202,7 +239,9 @@ def create_app(platform=None, journal=None):
     @app.get('/v1/api/hrms/workflows')
     def workflows(current=Depends(actor)):
         from .workflow_config import configured_workflow_rows
-        return configured_workflow_rows(platform, workflow_rows(service, current) + performance.workflows(current) + projects.workflows(current) + cockpit.workflows(current) + wfh.workflows(current))
+        # One record without a usable enrollment must not hide everyone's other work.
+        return configured_workflow_rows(platform, workflow_rows(service, current) + performance.workflows(current) + projects.workflows(current) + cockpit.workflows(current) + wfh.workflows(current),
+                                        skip_unenrolled=True)
 
     @app.get('/v1/api/hrms/projects')
     def project_dashboard(current=Depends(actor)):
@@ -249,9 +288,11 @@ def create_app(platform=None, journal=None):
         from .performance import check
         snap = performance.snapshot()
         row = performance.find(snap, str(entity_id))
-        check('request_feedback' in performance.allowed(current, row, snap), 'Only the assigned manager can request feedback', 403)
+        allowed = performance.allowed(current, row, snap)
+        check('request_feedback' in allowed or 'reassign_feedback' in allowed, 'Only the assigned manager or HR can choose a reviewer', 403)
+        review = performance.find(snap, row['data']['review_id']) if 'reassign_feedback' in allowed else row
         return [{'id': u['id'], 'name': u['name']} for u in performance.user_options()
-                if u['id'] != row['data']['employee_user_id']]
+                if u['id'] not in {review['data']['employee_user_id'], row['data'].get('reviewer_user_id')}]
 
     @app.post('/v1/api/hrms/performance/cycles')
     def performance_create(payload: PerformanceAction, current=Depends(actor)):
@@ -267,13 +308,40 @@ def create_app(platform=None, journal=None):
     def complete_step(case_id: UUID, sequence: int, current=Depends(actor)):
         return service.complete_step(current, str(case_id), sequence)
 
+    extra_steps = ExtraSteps(service)
+
+    @app.get('/v1/api/hrms/workflow-steps/{entity_id}')
+    def added_steps(entity_id: UUID, current=Depends(actor)):
+        return extra_steps.available(current, str(entity_id))
+
+    @app.post('/v1/api/hrms/workflow-steps/{entity_id}')
+    def run_added_step(entity_id: UUID, payload: StepRequest, current=Depends(actor)):
+        return extra_steps.run(current, str(entity_id), payload.trigger, payload.idempotency_key)
+
+    @app.get('/v1/api/hrms/onboarding/assignees')
+    def onboarding_assignees(current=Depends(actor)):
+        return service.onboarding_assignees(current)
+
+    @app.patch('/v1/api/hrms/onboarding/{case_id}/steps/{sequence}', response_model=OnboardingCaseItem)
+    def update_step(case_id: UUID, sequence: int, payload: OnboardingStepUpdateRequest, current=Depends(actor)):
+        return service.update_step(current, str(case_id), sequence, payload.assigned_to, payload.due_date)
+
+    @app.post('/v1/api/hrms/onboarding/{case_id}/steps/{sequence}/skip', response_model=OnboardingCaseItem)
+    def skip_step(case_id: UUID, sequence: int, payload: OnboardingReasonRequest, current=Depends(actor)):
+        return service.skip_step(current, str(case_id), sequence, payload.reason)
+
+    @app.post('/v1/api/hrms/onboarding/{case_id}/cancel', response_model=OnboardingCaseItem)
+    def cancel_onboarding(case_id: UUID, payload: OnboardingReasonRequest, current=Depends(actor)):
+        return service.cancel_onboarding(current, str(case_id), payload.reason)
+
     @app.post('/v1/api/hrms/onboarding/{case_id}/complete', response_model=OnboardingCaseItem)
     def complete_case(case_id: UUID, current=Depends(actor)):
         return service.complete_case(current, str(case_id))
 
     @app.get('/v1/api/hrms/leave-requests', response_model=list[LeaveListItem])
-    def leave(view: str = 'mine', limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0), current=Depends(actor)):
-        return service.leave(current, view, limit, offset)
+    def leave(view: str = 'mine', limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0),
+              state: str | None = None, current=Depends(actor)):
+        return service.leave(current, view, limit, offset, state)
 
     @app.post('/v1/api/hrms/leave-requests', response_model=LeaveCreateResponse, status_code=201)
     def create_leave(payload: LeaveCreateRequest, current=Depends(actor)):
@@ -330,7 +398,30 @@ def create_app(platform=None, journal=None):
             if isinstance(exc, AppError):
                 raise
             raise AppError(503, 'The platform is unavailable') from exc
+        if response.status_code < 300 and changes_forms(request.method, path):
+            from starlette.concurrency import run_in_threadpool
+            await run_in_threadpool(follow_form_change, token)
+        if request.method == 'GET' and path == 'workflow-state-machines' and response.status_code == 403:
+            # The shared skin loader lists workflows for every signed-in user, but only people with
+            # platform workflow access may read them; give everyone else the empty list it falls back on.
+            return JSONResponse({'scope': request.query_params.get('scope', 'all'),
+                                 'published_items': [], 'draft_items': []})
         return response
+
+    def follow_form_change(token):
+        """An administrator changed a form or workflow: let the HRMS service use any field or step
+        they added, with their own access. Best effort; the change itself has already been saved."""
+        custom_fields._keys.clear()
+
+        def as_admin(method, path, json=None):
+            response = platform.http.request(method, path, json=json, headers={'authorization': f'Bearer {token}'})
+            if response.status_code >= 300:
+                raise AppError(response.status_code, f'{method} {path} was refused')
+            return response.json()
+        try:
+            sync_service_access(platform, as_admin)
+        except Exception:  # noqa: BLE001 - never fail the administrator's saved change
+            logging.getLogger(__name__).exception('HRMS service access was not updated')
 
     return app
 

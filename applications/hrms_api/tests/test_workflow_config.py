@@ -33,3 +33,35 @@ def test_rejects_cross_tenant_enrollments(org):
     with pytest.raises(AppError) as error:
         configured_workflow_rows(platform,[{'entity_id':'record'}])
     assert error.value.status==502
+
+
+def _platform(enrollments):
+    definition = {'name': 'Leave', 'states': [{'name': 'pending'}], 'transitions': []}
+
+    def call(method, path, **kw):
+        if path == '/workflow-enrollments':
+            return {'items': [dict(e, organization_id='org', machine_name='leave', machine_version=1) for e in enrollments],
+                    'has_more': False}
+        return {'organization_id': 'org', 'definition': definition}
+    return SimpleNamespace(org='org', call=call)
+
+
+BROKEN = [
+    [{'entity_id': 'ok', 'current_state': 'pending'}],                                  # 'lost' has no enrollment
+    [{'entity_id': 'ok', 'current_state': 'pending'}, {'entity_id': 'lost', 'current_state': 'pending'},
+     {'entity_id': 'lost', 'current_state': 'pending'}],                                # 'lost' enrolled twice
+    [{'entity_id': 'ok', 'current_state': 'pending'}, {'entity_id': 'lost', 'current_state': 'gone'}],  # unknown state
+]
+
+
+@pytest.mark.parametrize('enrollments', BROKEN)
+def test_the_workflows_board_skips_only_the_broken_record(enrollments):
+    rows = configured_workflow_rows(_platform(enrollments), [{'entity_id': 'ok'}, {'entity_id': 'lost'}], skip_unenrolled=True)
+    assert [r['entity_id'] for r in rows] == ['ok']
+
+
+@pytest.mark.parametrize('enrollments', BROKEN)
+def test_other_callers_still_refuse_a_broken_record(enrollments):
+    with pytest.raises(AppError) as error:
+        configured_workflow_rows(_platform(enrollments), [{'entity_id': 'ok'}, {'entity_id': 'lost'}])
+    assert error.value.status == 409

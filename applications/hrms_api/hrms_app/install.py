@@ -4,6 +4,7 @@ import os
 from .catalog import PACKS
 from .cockpit_catalog import TYPES as COCKPIT_TYPES
 from .errors import AppError
+from .field_access import RUNTIME_TYPES, configured_fields, configured_transitions, grant
 from .form_config import has_method_blocks
 from .install_project_roles import install_project_role_picklist
 from .platform import PlatformClient
@@ -66,6 +67,20 @@ def install():
                         'label': 'Withdraw', 'from': 'pending', 'to_state': 'draft'})
                     draft = api.call('POST', f"/workflow-state-machines/{matching[0]['machine_name']}/draft", json={'definition': definition})
                     matching = [api.call('POST', f"/workflow-state-machines/{draft['id']}/publish", json={'definition': definition})['state_machine']]
+            elif pack.entity_type == 'HRMS.LeaveRequest':
+                current = api.call('GET', f"/workflow-state-machines/{matching[0]['id']}")
+                definition = current['definition']
+                if not any(t.get('from', t.get('from_state')) == 'approved' and t['trigger'] == 'cancel'
+                           for t in definition['transitions']):
+                    # Approved leave can be cancelled before it starts, so approved stops being terminal.
+                    # Preserve configured guards, forms and transitions; publish an additive version.
+                    for state in definition['states']:
+                        if state['name'] == 'approved':
+                            state['tags'] = [tag for tag in state.get('tags', []) if tag != 'terminal']
+                    definition['transitions'].append({'key': 'approved_to_cancelled', 'trigger': 'cancel',
+                        'label': 'Cancel', 'from': 'approved', 'to_state': 'cancelled'})
+                    draft = api.call('POST', f"/workflow-state-machines/{matching[0]['machine_name']}/draft", json={'definition': definition})
+                    matching = [api.call('POST', f"/workflow-state-machines/{draft['id']}/publish", json={'definition': definition})['state_machine']]
             if pack.entity_type == 'HRMS.Project':
                 current = api.call('GET', f"/workflow-state-machines/{matching[0]['id']}")
                 definition = current['definition']
@@ -102,9 +117,7 @@ def install():
         # Existing tenant role customizations are left intact. The gateway is the only browser API surface.
 
     service_name = 'hrms_application_service'
-    runtime_packs = [p for p in PACKS if p.entity_type in {*PROJECT_TYPES, *COCKPIT_TYPES, *WFH_TYPES,
-        'HRMS.Employee', 'HRMS.OnboardingCase', 'HRMS.OnboardingStep', 'HRMS.LeaveRequest',
-        'HRMS.PerformanceCycle', 'HRMS.PerformanceReview', 'HRMS.PerformanceGoal', 'HRMS.ProjectFeedback'}]
+    runtime_packs = [p for p in PACKS if p.entity_type in RUNTIME_TYPES]
     role_spec = dict(name=service_name, display_name='HRMS Application Service',
         description='Internal API client for HRMS; never assign to a human user',
         permissions=[{'permission_key': key} for key in ['entity_record:write', 'workflow:read', 'workflow:write',
@@ -112,17 +125,22 @@ def install():
             'field_library:read', 'method_library:read']],
         entity_permissions=[{'entity_type': p.entity_type, 'action': action}
                             for p in runtime_packs for action in ['view', 'create', 'edit']],
-        field_permissions=[{'entity_type': p.entity_type, 'field_name': field['field'],
-                            'can_view': True, 'can_edit': True, 'mask_value': False}
-                           for p in runtime_packs for field in [*p.fields, marker]],
+        # Fields added to the forms in Settings too, so a redeploy never takes their access away.
+        field_permissions=[grant(p.entity_type, name) for p in runtime_packs
+                           for name in dict.fromkeys([*(f['field'] for f in (*p.fields, marker)),
+                                                      *configured_fields(api, p.entity_type)])],
         workflow_permissions=[{'machine_name': machines[p.machine_name]} for p in runtime_packs if p.states],
-        transition_permissions=[{'machine_name': machines[p.machine_name], 'transition_key': f'{source}_to_{target}'}
-                                for p in runtime_packs for source, _, target in p.transitions])
+        # Steps added to the workflows in Settings too, so a redeploy never takes their access away.
+        transition_permissions=[{'machine_name': machine, 'transition_key': key} for machine, key in dict.fromkeys([
+            *((machines[p.machine_name], f'{source}_to_{target}') for p in runtime_packs for source, _, target in p.transitions),
+            *(step for p in runtime_packs if p.states for step in configured_transitions(api, p.entity_type))])])
     # Older project instances remain pinned to the previous published workflow.
     project_pack = next(p for p in runtime_packs if p.entity_type == 'HRMS.Project')
+    granted = {(t['machine_name'], t['transition_key']) for t in role_spec['transition_permissions']}
     role_spec['transition_permissions'].extend(
         {'machine_name': machines[project_pack.machine_name], 'transition_key': key}
-        for key in ('draft_to_planned', 'planned_to_active', 'planned_to_completed'))
+        for key in ('draft_to_planned', 'planned_to_active', 'planned_to_completed')
+        if (machines[project_pack.machine_name], key) not in granted)
     role = by_name.get(service_name)
     if role:
         api.call('PUT', f"/roles/{role['id']}", json=role_spec)

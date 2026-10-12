@@ -45,7 +45,7 @@ def system(monkeypatch):
     for user in ('employee', 'other', 'hr'):
         p.add('HRMS.Employee', {'platform_user_id': user, 'first_name': user, 'last_name': 'Person', 'employment_status': 'active'}, entity_id=user)
     s = WfhService(HrmsService(p, j, 'example.com'))
-    monkeypatch.setattr(s, 'holiday_dates', lambda: {'2026-10-14'})
+    monkeypatch.setattr(s, 'holiday_dates', lambda *args: {'2026-10-14'})
     def labels(platform, rows):
         definition = pack_by_type(REQUEST).workflow_definition()
         return [{**r, 'current_state': r['state'], 'state_label': r['state'].title(),

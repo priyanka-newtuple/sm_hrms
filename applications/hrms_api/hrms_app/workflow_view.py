@@ -1,6 +1,6 @@
 """Permission-scoped HRMS projection for the platform's reusable workflow table."""
 from .errors import AppError
-from .service import LEAVE, LEAVE_FIELDS, name
+from .service import LEAVE, LEAVE_FIELDS, LeaveApprovers, name
 
 
 def workflow_rows(service, actor):
@@ -27,18 +27,18 @@ def workflow_rows(service, actor):
     if len(own) != 1:
         raise AppError(409, 'Your account has multiple employee profiles; reconciliation is required')
     own = own[0]
-    code = own['data'].get('employee_code')
-    visible = {e['entity_id']: e for e in employees if e['entity_id'] == own['entity_id'] or (
-        code and e['data'].get('reports_to_employee_code') == code)}
+    by_id = {e['entity_id']: e for e in employees}
+    names = {e['data']['platform_user_id']: name(e) for e in employees if e['data'].get('platform_user_id')}
+    approvers = LeaveApprovers(service.platform, employees)
     states = service.platform.states('hrms_leaverequest')
     for record in service.platform.records(LEAVE, LEAVE_FIELDS):
-        employee = visible.get(record['data'].get('employee_id'))
+        employee = by_id.get(record['data'].get('employee_id'))
         if not employee:
             continue
         data = record['data']
-        manager = next((e for e in employees if e['data'].get('employee_code') ==
-                        employee['data'].get('reports_to_employee_code') and
-                        employee['data'].get('reports_to_employee_code')), None)
+        deciders = approvers(employee, data['start_date'], data['end_date'])
+        if employee['entity_id'] != own['entity_id'] and actor.user_id not in deciders:
+            continue
         state = states.get(record['entity_id'], 'not_enrolled')
         leave = dict(entity_id=record['entity_id'], identifier=data.get('identifier') or '',
                      employee_name=name(employee), start_date=data['start_date'],
@@ -47,7 +47,7 @@ def workflow_rows(service, actor):
         rows.append(dict(
             entity_id=record['entity_id'], entity_type=LEAVE, title=name(employee),
             identifier=leave['identifier'], current_state=state, workflow_label='Leave request',
-            owner_name=name(manager) if manager and state == 'pending' else '',
+            owner_name=', '.join(sorted(names[u] for u in deciders if u in names)) if state == 'pending' else '',
             next_action='Manager approval' if state == 'pending' else '',
             progress=f"{data['start_date']} to {data['end_date']}", due_date=None,
             leave=leave, leave_view='mine' if employee['entity_id'] == own['entity_id'] else 'approvals'))

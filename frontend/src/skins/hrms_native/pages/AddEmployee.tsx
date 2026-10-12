@@ -1,3 +1,4 @@
+import { CustomFields, type CustomValues } from '../forms/CustomFields';
 import { createRequestId } from '../requestId';
 import { ConfiguredForm, ConfiguredField } from '../forms/ConfiguredForm';
 import { useState, type FormEvent } from 'react';
@@ -35,6 +36,7 @@ const labelForRole = (role: string) => ({
   hrms_employee: 'Employee', hrms_manager: 'Manager',
   hrms_project_manager: 'Project Manager', hrms_delivery_manager: 'Delivery Manager',
   hrms_hr_basic: 'HR - Basic', hrms_hr_full: 'HR - Full',
+  hrms_office_admin: 'Office Admin', hrms_finance: 'Finance',
 }[role] ?? role);
 
 export default function AddEmployee() {
@@ -44,6 +46,7 @@ export default function AddEmployee() {
   const [showForm, setShowForm] = useState(false);
   const [created, setCreated] = useState<CreatedEmployee | null>(null);
   const [error, setError] = useState('');
+  const [custom, setCustom] = useState<CustomValues>({});
   const [key, setKey] = useState(() => createRequestId());
   const [form, setForm] = useState({
     first_name: '', last_name: '', work_email: '', department: '', designation: '',
@@ -65,6 +68,7 @@ export default function AddEmployee() {
       method: 'POST',
       body: JSON.stringify({
         ...form,
+        custom,
         reports_to_entity_id: form.reports_to_entity_id || null,
         notice_period_days: form.notice_period_days ? Number(form.notice_period_days) : null,
         phone: form.phone || null,
@@ -74,7 +78,7 @@ export default function AddEmployee() {
     }),
     onSuccess: (result) => {
       setError(''); setShowForm(false); setKey(createRequestId());
-      setCreated(result);
+      setCreated(result); setCustom({});
       void queryClient.invalidateQueries({ queryKey: ['hrms'] });
     },
     onError: (cause) => setError(getApiErrorMessage(cause)),
@@ -118,6 +122,7 @@ export default function AddEmployee() {
             <ConfiguredField field="phone" label="Phone" className="text-sm font-medium"><input maxLength={30} value={form.phone} onChange={(e) => set('phone')(e.target.value)} className={input} /></ConfiguredField>
             <ConfiguredField field="work_location" label="Work location" className="text-sm font-medium"><input maxLength={100} value={form.work_location} onChange={(e) => set('work_location')(e.target.value)} className={input} /></ConfiguredField>
           </div>
+          <CustomFields entityType="HRMS.Employee" values={custom} onChange={setCustom} />
           {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
           <div className="hrms-form-actions"><button type="button" onClick={() => setShowForm(false)} className="hrms-outline-button">Cancel</button><button type="submit" disabled={create.isPending || !options.data} className="hrms-primary-button">{create.isPending ? 'Creating…' : 'Create employee & start onboarding'}</button></div>
         </form></ConfiguredForm>

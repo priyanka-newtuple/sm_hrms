@@ -127,19 +127,22 @@ def main():
     payload = {
         "employee_id": employee_id,
         "project_role_id": options["project_roles"][0]["id"],
-        "start_date": "2043-02-01",
-        "end_date": "2043-04-30",
+        "start_date": "2043-05-01",
+        "end_date": "2043-07-31",
         "percentage": 50,
         "billing_rate": 900,
+        # The project's own PM requests it, so someone with project approval must decide.
+        "approver_id": users["superadmin"]["user_id"],
     }
     allocation_change = action(
-        "project-manager", project, "request_allocation", payload
+        "project-manager", project, "request_allocation", payload, suffix="-v2"
     )
-    action("project-manager", allocation_change, "submit", suffix="-allocation")
-    action("delivery-manager", allocation_change, "approve", suffix="-allocation")
+    action("project-manager", allocation_change, "submit", suffix="-allocation-v2")
+    action("superadmin", allocation_change, "approve", suffix="-allocation-v2")
     own = board("employee")
     allocation = next(
-        a for a in own["allocations"] if a["data"]["project_id"] == project
+        a for a in own["allocations"]
+        if a["data"]["project_id"] == project and a["data"]["start_date"][:10] == payload["start_date"]
     )
     assert "billing_rate" not in allocation["data"]
     denied = app.post(
@@ -180,7 +183,7 @@ def main():
         == "Verified versioned amendment"
     )
     action("project-manager", project, "start", suffix="-project")
-    action("project-manager", allocation["id"], "start", suffix="-allocation")
+    action("project-manager", allocation["id"], "start", suffix="-allocation-v2")
     pending = app.get(
         "/hrms/projects/pending-actions", headers=headers["delivery-manager"]
     )
