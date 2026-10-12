@@ -219,7 +219,7 @@ def test_a_leaver_no_longer_approves_anyones_leave():
     platform = StaffPlatform()
     platform.rows['lead']['data']['employment_status'] = 'offboarded'
     employees = platform.records('HRMS.Employee', [])
-    approvers = LeaveApprovers(SimpleNamespace(states=lambda m: {}, records=lambda k, f: []), employees)
+    approvers = LeaveApprovers(SimpleNamespace(states=lambda m: {}, records=lambda k, f: [], users=lambda: []), employees)
     assert approvers(platform.rows['dev'], '2044-03-07', '2044-03-08') == set()
 
 

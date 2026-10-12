@@ -19,6 +19,9 @@ class Service:
     def employees(self):
         return self.people
 
+    def users(self):
+        return []
+
     def onboarding(self, actor):
         # Real service owns authorization; projection must not broaden its result.
         return [dict(entity_id='allowed-case', identifier='ONB-1', employee_name='Allowed Employee',

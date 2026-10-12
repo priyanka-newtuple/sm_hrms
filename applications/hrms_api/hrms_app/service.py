@@ -64,11 +64,11 @@ def reporting_manager(employee, employees):
 
 class LeaveApprovers:
     """Who may decide a leave request: the project manager of every project the employee is
-    allocated to over the leave dates (any one of them decides), else the reporting manager.
-    An employee never approves their own leave."""
+    allocated to over the leave dates (any one of them decides), else the reporting manager,
+    else (someone nobody manages, such as the CEO) HR Full. Nobody approves their own leave."""
 
     def __init__(self, platform, employees):
-        self.employees = employees
+        self.platform, self.employees, self._hr = platform, employees, None
         states = platform.states('hrms_allocation')
         self.allocations = [r for r in platform.records('HRMS.Allocation', ALLOCATION_FIELDS)
                             if states.get(r['entity_id']) in LIVE_ALLOCATION]
@@ -83,7 +83,14 @@ class LeaveApprovers:
         if pms:
             return pms
         manager = reporting_manager(employee, self.employees)
-        return {manager['data']['platform_user_id']} if manager else set()
+        if manager:
+            return {manager['data']['platform_user_id']}
+        return self.hr_full() - {employee['data'].get('platform_user_id')}
+
+    def hr_full(self):
+        if self._hr is None:
+            self._hr = {u['id'] for u in self.platform.users() if u.get('role') == 'hrms_hr_full' and u.get('status') == 'active'}
+        return self._hr
 
 
 class HrmsService:
@@ -526,11 +533,13 @@ class HrmsService:
             rows = [r for r in rows if states.get(r['entity_id'], 'not_enrolled') == state]
         rows.sort(key=lambda r: r['data']['start_date'], reverse=True)  # Newest first, so limits keep the current ones.
         from .wfh import WfhService
-        holidays = WfhService(self).holiday_dates()
+        wfh = WfhService(self)
+        calendars = wfh.holiday_calendars()
+        holidays = lambda r: wfh.holiday_dates(by_id[r['data']['employee_id']]['data'].get('work_location'), calendars)
         return [dict(entity_id=r['entity_id'], identifier=r['data'].get('identifier') or '',
                      employee_name=names[r['data']['employee_id']], start_date=r['data']['start_date'],
                      end_date=r['data']['end_date'], leave_type=r['data']['leave_type'], reason=r['data'].get('reason'),
-                     days=leave_days(r['data']['start_date'], r['data']['end_date'], holidays),
+                     days=leave_days(r['data']['start_date'], r['data']['end_date'], holidays(r)),
                      state=states.get(r['entity_id'], 'not_enrolled')) for r in rows[offset:offset + limit]]
 
     def create_leave(self, actor, request):
@@ -549,14 +558,14 @@ class HrmsService:
                                     f'{SICK_LEAVE_BACKDATE_DAYS} days after it began')
             start, end = request.start_date.isoformat(), request.end_date.isoformat()
             if not LeaveApprovers(self.platform, employees)(own, start, end):
-                raise AppError(400, 'Nobody can approve this leave: you have no project manager for these dates '
-                                    'and no linked reporting manager')
+                raise AppError(400, 'Nobody can approve this leave: you have no project manager for these dates, '
+                                    'no linked reporting manager, and no HR Full account is active')
             manager = reporting_manager(own, employees)
             marker = hashlib.sha256(f'{actor.organization_id}:{actor.user_id}:leave:{request.idempotency_key}'.encode()).hexdigest()
             rows = self.platform.records(LEAVE, LEAVE_FIELDS)
             from .wfh import WfhService
             wfh = WfhService(self)
-            if not leave_days(request.start_date.isoformat(), request.end_date.isoformat(), wfh.holiday_dates()):
+            if not leave_days(request.start_date.isoformat(), request.end_date.isoformat(), wfh.holiday_dates(own['data'].get('work_location'))):
                 raise AppError(422, 'These dates are only weekends or published holidays; choose at least one working day')
             wfh.check_leave_conflict(db, actor, own['entity_id'], request.start_date, request.end_date)
             states = self.platform.states('hrms_leaverequest')

@@ -85,16 +85,19 @@ class WfhService:
         return self.platform.call('POST', f'/entities/{entity_id}/transitions', json={
             'entity_id': entity_id, 'trigger': trigger, 'idempotency_key': key})
 
-    def holiday_dates(self):
+    def holiday_calendars(self):
         # Reuse publication selection (including replacement versions and effective windows).
         from .cockpit import CockpitService
-        feed = CockpitService(self.platform, self.journal).feed(employee=True, kinds=('HRMS.HolidayCalendar',))
-        result = set()
-        for item in feed:
-            if item.get('entity_type') == 'HRMS.HolidayCalendar':
-                for line in item.get('holidays', '').splitlines():
-                    result.add(line.split('|', 1)[0].strip())
-        return result
+        return CockpitService(self.platform, self.journal).feed(employee=True, kinds=('HRMS.HolidayCalendar',))
+
+    def holiday_dates(self, location=None, calendars=None):
+        """Published holidays that apply to someone working at `location`."""
+        from .cockpit import applicable_holidays
+        return applicable_holidays(self.holiday_calendars() if calendars is None else calendars, location)
+
+    def employee_location(self, employee_id):
+        employee = next((e for e in self.service.employees() if e['entity_id'] == employee_id), None)
+        return employee['data'].get('work_location') if employee else None
 
     def conflicts(self, employee_id, dates):
         states = self.platform.states('hrms_leaverequest')
@@ -103,7 +106,7 @@ class WfhService:
             if d.get('employee_id') == employee_id and states.get(row['entity_id']) in {'pending', 'approved'}:
                 check(not any(d['start_date'] <= day <= d['end_date'] for day in dates),
                       'These dates overlap a pending or approved leave request', 409)
-        check(not dates.intersection(self.holiday_dates()), 'A selected date is a published holiday', 409)
+        check(not dates.intersection(self.holiday_dates(self.employee_location(employee_id))), 'A selected date is a published holiday', 409)
 
     def reserved(self, employee_id, year, excluding=None):
         states = self.states(REQUEST)

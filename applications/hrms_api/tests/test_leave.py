@@ -8,7 +8,7 @@ from hrms_app.catalog import pack_by_type
 from hrms_app.errors import AppError
 from hrms_app.platform import Actor
 from hrms_app.requests import LeaveCreateRequest
-from hrms_app.service import HrmsService, leave_days
+from hrms_app.service import HrmsService, LeaveApprovers, leave_days
 from hrms_app.wfh import WfhService
 from test_performance import UNMIGRATED_TENANT
 
@@ -35,6 +35,10 @@ class Platform:
                                  person('pm1', 'P1'), person('pm2', 'P2')]
         self.allocations = list(allocations)  # (employee, project, start, end, state)
         self.leave = []
+        self.accounts = []
+
+    def users(self):
+        return self.accounts
 
     def records(self, kind, fields):
         if kind == 'HRMS.Allocation':
@@ -156,7 +160,8 @@ def test_the_leave_workflow_lets_approved_leave_be_cancelled():
 
 
 def test_approvals_list_follows_the_approver(monkeypatch):
-    monkeypatch.setattr(WfhService, 'holiday_dates', lambda self: set())
+    monkeypatch.setattr(WfhService, 'holiday_dates', lambda self, *args: set())
+    monkeypatch.setattr(WfhService, 'holiday_calendars', lambda self: [])
     platform = Platform(allocations=[on('P1')])
     platform.leave = [dict(entity_id='dev-leave', data=dict(employee_id='dev', start_date=LEAVE_START,
                                                             end_date=LEAVE_END, leave_type='annual'))]
@@ -190,7 +195,8 @@ class Journal:
 
 
 def create(platform, start, end, monkeypatch, holidays=frozenset(), leave_type='annual', reason=None):
-    monkeypatch.setattr(WfhService, 'holiday_dates', lambda self: set(holidays))
+    monkeypatch.setattr(WfhService, 'holiday_dates', lambda self, *args: set(holidays))
+    monkeypatch.setattr(WfhService, 'holiday_calendars', lambda self: [])
     request = LeaveCreateRequest(start_date=start, end_date=end, leave_type=leave_type, reason=reason,
                                  idempotency_key='create-0001')
     with pytest.raises(AppError) as error:
@@ -209,8 +215,19 @@ def test_leave_nobody_can_approve_is_refused(monkeypatch):
     assert error.status == 400 and 'Nobody can approve' in error.detail
 
 
+def test_hr_full_decides_leave_for_someone_nobody_manages():
+    platform = Platform(people=[person('ceo', 'C1'), person('hr', 'H1')])
+    platform.accounts = [dict(id='hr-user', role='hrms_hr_full', status='active'),
+                         dict(id='ceo-user', role='hrms_hr_full', status='active'),   # not their own leave
+                         dict(id='old-hr', role='hrms_hr_full', status='suspended')]
+    employees = platform.records('HRMS.Employee', [])
+    ceo = next(e for e in employees if e['entity_id'] == 'ceo')
+    assert LeaveApprovers(platform, employees)(ceo, LEAVE_START, LEAVE_END) == {'hr-user'}
+
+
 def test_leave_lists_carry_their_working_days(monkeypatch):
-    monkeypatch.setattr(WfhService, 'holiday_dates', lambda self: set())
+    monkeypatch.setattr(WfhService, 'holiday_dates', lambda self, *args: set())
+    monkeypatch.setattr(WfhService, 'holiday_calendars', lambda self: [])
     platform = Platform()
     platform.leave = [dict(entity_id='dev-leave', data=dict(employee_id='dev', start_date='2044-03-04',
                                                             end_date='2044-03-07', leave_type='annual'))]
@@ -249,7 +266,8 @@ def test_a_configured_leave_type_and_reason_pass_the_form_check(monkeypatch):
 
 
 def test_leave_lists_are_newest_first_and_filter_by_state(monkeypatch):
-    monkeypatch.setattr(WfhService, 'holiday_dates', lambda self: set())
+    monkeypatch.setattr(WfhService, 'holiday_dates', lambda self, *args: set())
+    monkeypatch.setattr(WfhService, 'holiday_calendars', lambda self: [])
     platform = Platform()
     states = {'old': 'approved', 'new': 'pending', 'mid': 'pending'}
     platform.leave = [dict(entity_id=key, data=dict(employee_id='dev', start_date=start, end_date=start, leave_type='annual'))
