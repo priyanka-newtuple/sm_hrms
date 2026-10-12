@@ -1,3 +1,4 @@
+from native_permissions import grants
 from contextlib import contextmanager
 from copy import deepcopy
 from types import SimpleNamespace
@@ -12,7 +13,7 @@ from hrms_app.platform import Actor
 
 
 def actor(user, *roles):
-    return Actor(user, 'org', '', frozenset(roles), frozenset())
+    return Actor(user, 'org', '', frozenset(roles), grants(roles))
 
 
 # Native configuration reads for a tenant whose forms are not on method blocks yet.
@@ -238,7 +239,7 @@ def test_idempotency_conflict_cross_tenant_and_unrelated_read_denied(system):
     with pytest.raises(AppError, match='Idempotency'):
         goal(service, review, 90)
     with pytest.raises(AppError, match='organization'):
-        act(service, Actor('hr', 'other', '', frozenset({'admin'}), frozenset()), 'cycle', 'start_reviews')
+        act(service, Actor('hr', 'other', '', frozenset({'admin'}), grants({'admin'})), 'cycle', 'start_reviews')
 
 
 def test_pending_feedback_blocks_manager_and_only_assignee_can_submit(system):

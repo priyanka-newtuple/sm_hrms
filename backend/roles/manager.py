@@ -263,13 +263,13 @@ class RolesServiceManager:
     def _schema_has_field(fields: list[dict], field_name: str) -> bool:
         return any((f.get("id") or f.get("field") or f.get("name")) == field_name for f in fields)
 
-    def _validate_permission_keys(self, db: Session, keys: list[str]) -> None:
+    def _validate_permission_keys(self, db: Session, keys: list[str], organization_id: str) -> None:
         if not keys:
             return
         if self.db_model_service._permissions_svc is None:
             return
         for key in keys:
-            if not self.db_model_service._permissions_svc.get_by_key(db, key):
+            if not self.db_model_service._permissions_svc.get_by_key(db, key, organization_id):
                 raise ValidationError(f"Unknown permission key '{key}'")
 
     def _validate_transition_permissions(
@@ -453,7 +453,7 @@ class RolesServiceManager:
         existing = self.db_model_service.get_role_by_name(db, organization_id, payload.name)
         if existing:
             raise ValidationError(f"Role with name '{payload.name}' already exists")
-        self._validate_permission_keys(db, [p.permission_key for p in payload.permissions])
+        self._validate_permission_keys(db, [p.permission_key for p in payload.permissions], organization_id)
         self._validate_entity_permissions(db, organization_id, payload.entity_permissions)
         self._validate_field_permissions(db, organization_id, payload.field_permissions)
         self._validate_transition_permissions(db, organization_id, payload.transition_permissions)
@@ -498,7 +498,7 @@ class RolesServiceManager:
             if payload.workflow_permissions is not None:
                 raise ValidationError("Cannot change workflow permissions of system roles")
         if payload.permissions is not None:
-            self._validate_permission_keys(db, [p.permission_key for p in payload.permissions])
+            self._validate_permission_keys(db, [p.permission_key for p in payload.permissions], organization_id)
         if payload.entity_permissions is not None:
             self._validate_entity_permissions(db, organization_id, payload.entity_permissions)
         if payload.field_permissions is not None:
@@ -1052,10 +1052,9 @@ class RolesServiceManager:
                 if self.db_model_service._permissions_svc is not None:
                     catalog = self.db_model_service._permissions_svc.list_permissions(db)
                     permission_keys.update(p.key for p in catalog)
-            else:
-                for perm in role.permissions:
-                    if perm.allowed and perm.permission_key:
-                        permission_keys.add(perm.permission_key)
+            for perm in role.permissions:
+                if perm.allowed and perm.permission_key:
+                    permission_keys.add(perm.permission_key)
         return permission_keys
 
     def _aggregate_entity_permissions(

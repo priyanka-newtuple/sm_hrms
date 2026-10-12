@@ -28,6 +28,7 @@ export function usePermissions(): UsePermissionsResult {
 
   const hasPermission = useCallback(
     (key: string): boolean => {
+      if (key.startsWith('tenant.')) return permissions?.permissions.includes(key) ?? false;
       if (!permissions) return true;
       if (isSuperAdmin) return true;
       if (permissions.roles.length === 0) return true;

@@ -1,7 +1,7 @@
 # HRMS production deployment
 
 This deployment is separate from the workout and legacy HRMS Compose projects.
-It packages unchanged native platform code, the HRMS application service, and
+It packages the native platform with the explicitly approved tenant permission extension, the HRMS application service, and
 the HRMS frontend. No demo users or local development databases are copied.
 
 ## Target and isolation
@@ -189,3 +189,5 @@ To bootstrap again, install myhub-http.conf as the shared edge's myhub.conf,
 validate/reload Nginx, obtain the certificate via the existing ACME volumes,
 then install the template, maintainer and systemd units in their paths above.
 Do not replace shared-edge configuration or stop its existing apps.
+
+Native permission and Employee picklist installation are checkpointed/idempotent. Existing native forms and workflow pins are preserved. A read-only native configuration and administrator-access check must pass before the release pointer advances. Production data and configuration are never replaced by local data.

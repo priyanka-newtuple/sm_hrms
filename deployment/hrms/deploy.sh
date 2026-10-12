@@ -33,6 +33,7 @@ trap 'echo "Deployment failed. Previous release pointer retained. Inspect HRMS o
 "${compose[@]}" up -d --no-deps --wait --wait-timeout 180 hrms-app platform-web
 "${compose[@]}" exec -T platform-web wget -q -O /dev/null http://127.0.0.1/health
 "${compose[@]}" exec -T platform-web wget -q -O /dev/null http://127.0.0.1/login
+"${compose[@]}" run --rm --no-deps platform-install python -m hrms_app.verify_native_setup
 if [[ -L "$base/current" ]]; then
   readlink "$base/current" > "$base/previous-release"
 fi

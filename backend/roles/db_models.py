@@ -242,7 +242,7 @@ class RolesModelService:
 
     def _role_grants_permission(self, role: Role, permission_key: str) -> bool:
         """Return True if the role grants the given permission key."""
-        if role.is_system:
+        if role.is_system and not permission_key.startswith('tenant.'):
             return True
         return any(
             perm.allowed and perm.permission_key == permission_key
@@ -256,7 +256,7 @@ class RolesModelService:
         try:
             if self._permissions_svc is None:
                 return PermissionCheckResult.deny(permission_key, "permissions service not configured")
-            if not self._permissions_svc.get_by_key(db, permission_key):
+            if not self._permissions_svc.get_by_key(db, permission_key, organization_id):
                 return PermissionCheckResult.deny(permission_key, "unknown permission key")
 
             roles = self._get_user_roles_for_org(db, user_id, organization_id)
@@ -706,7 +706,7 @@ class RolesModelService:
                 role = assignment.role
                 if role is None:
                     continue
-                if role.is_system:
+                if role.is_system and not permission_key.startswith('tenant.'):
                     user_ids.append(str(assignment.user_id))
                     continue
                 for perm in role.permissions:

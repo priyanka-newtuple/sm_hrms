@@ -1,3 +1,5 @@
+from employee_form_fixture import ROUTES as EMPLOYEE_FORM_ROUTES
+from native_permissions import grants
 from contextlib import contextmanager
 from copy import deepcopy
 from datetime import date, timedelta
@@ -17,7 +19,7 @@ TODAY = date.today()
 
 
 def actor(user_id, role):
-    return Actor(user_id, 'org', 'human', frozenset({role}), frozenset())
+    return Actor(user_id, 'org', 'human', frozenset({role}), grants({role}))
 
 
 class DirectoryPlatform:
@@ -38,6 +40,10 @@ class DirectoryPlatform:
         return {}
 
     def call(self, method, path, **kwargs):
+        if method == 'GET' and path in EMPLOYEE_FORM_ROUTES:
+            return deepcopy(EMPLOYEE_FORM_ROUTES[path])
+        if path == '/roles':
+            return [dict(name=r, display_name=r) for r in ['hrms_employee', 'hrms_office_admin', 'hrms_finance']]
         assert path == '/roles/users/u1/roles'
         return [dict(role_name='hrms_finance', organization_id='org')]
 
@@ -45,7 +51,7 @@ class DirectoryPlatform:
 def test_hr_who_assigns_roles_can_add_office_admin_and_finance_staff():
     service = HrmsService(DirectoryPlatform(), None, 'newtuple.com')
     assert {'hrms_office_admin', 'hrms_finance'} <= set(service.form_options(actor('hr', 'hrms_hr_full'))['roles'])
-    assert service.form_options(actor('hr', 'hrms_hr_basic'))['roles'] == ['hrms_employee']
+    assert service.form_options(actor('hr', 'hrms_hr_basic'))['roles'] == ['hrms_employee', 'hrms_office_admin', 'hrms_finance']
 
 
 def test_the_directory_shows_the_accounts_current_role():
@@ -60,9 +66,11 @@ def test_onboarding_cases_need_onboarding_view_not_directory_read():
     assert len(service.onboarding(actor('owner', 'hrms_employee'))) == 1   # a step owner still sees their case
 
 
-def test_the_tenant_admin_can_activate_the_employees_it_creates():
+def test_only_superadmin_has_account_activation():
     caps = capabilities(actor('admin-user', 'admin'))
-    assert {'employee:create', 'employee:activate'} <= caps
+    assert 'employee:create' in caps
+    assert 'employee:activate' not in caps
+    assert 'employee:activate' in capabilities(actor('super', 'superadmin'))
 
 
 
@@ -111,6 +119,10 @@ class StaffPlatform:
         return {}
 
     def call(self, method, path, **kwargs):
+        if method == 'GET' and path in EMPLOYEE_FORM_ROUTES:
+            return deepcopy(EMPLOYEE_FORM_ROUTES[path])
+        if path == '/roles':
+            return [dict(name='hrms_employee', display_name='Employee')]
         if path.startswith('/roles/users/'):
             return [dict(role_name=r, organization_id='org') for r in self.dev_roles]
         self.writes.append((method, path))

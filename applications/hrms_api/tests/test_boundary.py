@@ -1,3 +1,4 @@
+from native_permissions import grants
 from pathlib import Path
 import ast
 
@@ -57,7 +58,7 @@ def test_gateway_blocks_native_mutation_bypasses_even_for_administrator():
     class Platform:
         org = 'org'
         def actor(self, token):
-            return Actor('admin', 'org', token, frozenset({'admin'}), frozenset())
+            return Actor('admin', 'org', token, frozenset({'admin'}), grants({'admin'}))
     client = TestClient(create_app(Platform(), object()))
     for path in ['/entity-records', '/tasks/task-id', '/entities/entity-id/transitions',
                  '/workflow-state-machines/hrms_onboardingcase/enrollments', '/roles', '/auth/register', '/agent/chat']:
@@ -68,7 +69,7 @@ def test_gateway_blocks_native_mutation_bypasses_even_for_administrator():
 def test_employee_creation_requires_permission_before_upstream_writes():
     class Platform:
         def actor(self, token):
-            return Actor('employee', 'org', token, frozenset({'hrms_employee'}), frozenset())
+            return Actor('employee', 'org', token, frozenset({'hrms_employee'}), grants({'hrms_employee'}))
     client = TestClient(create_app(Platform(), object()))
     response = client.post('/v1/api/hrms/employees', headers={'Authorization': 'Bearer employee'}, json={
         'first_name': 'Test', 'last_name': 'Employee', 'work_email': 'test@newtuple.com',
@@ -89,7 +90,7 @@ def test_workflow_list_is_empty_not_forbidden_for_people_without_workflow_access
         org = 'org'
         http = httpx.Client(base_url='http://platform.test/', transport=httpx.MockTransport(platform_response))
         def actor(self, token):
-            return Actor(token, 'org', token, frozenset({token}), frozenset())
+            return Actor(token, 'org', token, frozenset({token}), grants({token}))
     client = TestClient(create_app(Platform(), object()))
     for role in ('hrms_employee', 'hrms_manager'):
         response = client.get('/v1/api/workflow-state-machines?scope=all', headers={'Authorization': f'Bearer {role}'})

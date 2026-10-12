@@ -1,3 +1,4 @@
+from employee_form_fixture import ROUTES as EMPLOYEE_FORM_ROUTES
 from copy import deepcopy
 
 import pytest
@@ -24,6 +25,8 @@ class Platform:
         return [deepcopy(self.identity)]
 
     def call(self, method, path, **kwargs):
+        if method == 'GET' and path in EMPLOYEE_FORM_ROUTES:
+            return deepcopy(EMPLOYEE_FORM_ROUTES[path])
         if path.endswith('/roles'):
             return [dict(organization_id='org', role_name=r, role_id=r) for r in self.roles]
         if path.startswith('/integrations/'):
@@ -38,6 +41,9 @@ class Platform:
             raise AssertionError(path)
 
     def request(self, method, path, **kwargs):
+        if path.endswith('/approve'):
+            assert 'token' in kwargs
+            return self.call(method, path)
         assert kwargs['json'] == {'email': self.identity['email']}
         self.writes.append(path)
         if self.fail_email:
@@ -50,9 +56,9 @@ def system():
     return p, HrmsService(p, Journal(), 'newtuple.com')
 
 
-def test_hr_can_activate_standard_employee_without_settings_and_retries_do_not_send_again():
+def test_superadmin_approves_using_human_token_and_retries_do_not_send_again():
     p, s = system()
-    who = actor('hr', 'hrms_hr_basic')
+    who = actor('admin', 'superadmin')
     result = setup_access(s, who, 'employee', 'operation-1')
     assert result['account_status'] == 'active'
     assert result['email_status'] == 'requested'
@@ -62,7 +68,7 @@ def test_hr_can_activate_standard_employee_without_settings_and_retries_do_not_s
     assert p.writes.count('/auth/forgot-password') == 1
 
 
-@pytest.mark.parametrize('roles', [{'superadmin'}, {'hrms_employee', 'hrms_hr_full'}, {'hrms_project_manager'}, set()])
+@pytest.mark.parametrize('roles', [{'hrms_employee'}, {'superadmin'}, {'hrms_employee', 'hrms_hr_full'}, {'hrms_project_manager'}, set()])
 def test_hr_cannot_activate_privileged_accounts_even_if_employee_role_claims_standard(roles):
     p, s = system()
     p.roles = roles
@@ -87,7 +93,7 @@ def test_missing_email_configuration_does_not_activate_account():
     p, s = system()
     p.configured = False
     with pytest.raises(AppError) as exc:
-        setup_access(s, actor('hr', 'hrms_hr_basic'), 'employee', 'operation-1')
+        setup_access(s, actor('admin', 'superadmin'), 'employee', 'operation-1')
     assert exc.value.status == 409
     assert not p.writes
 
@@ -95,7 +101,7 @@ def test_missing_email_configuration_does_not_activate_account():
 def test_email_timeout_keeps_activation_and_retry_does_not_duplicate_email():
     p, s = system()
     p.fail_email = True
-    who = actor('hr', 'hrms_hr_basic')
+    who = actor('admin', 'superadmin')
     with pytest.raises(AppError):
         setup_access(s, who, 'employee', 'operation-1')
     with pytest.raises(AppError) as exc:
@@ -109,7 +115,7 @@ def test_google_account_uses_sso_without_password_email():
     p, s = system()
     p.identity['auth_type'] = 'google'
     p.configured = False
-    assert setup_access(s, actor('hr', 'hrms_hr_basic'), 'employee', 'operation-1')['email_status'] == 'not_required'
+    assert setup_access(s, actor('admin', 'superadmin'), 'employee', 'operation-1')['email_status'] == 'not_required'
     assert '/auth/forgot-password' not in p.writes
 
 
@@ -165,10 +171,12 @@ class ProvisioningPlatform(Platform):
         return dict(organization_id='org', approval_type='pending_org_admin', user_id='user')
 
     def call(self, method, path, **kwargs):
+        if method == 'GET' and path in EMPLOYEE_FORM_ROUTES:
+            return deepcopy(EMPLOYEE_FORM_ROUTES[path])
         if path == '/organizations/current':
             return {'domain': 'newtuple.com'}
         if path == '/roles':
-            return [dict(id=r, name=r) for r in ['hrms_employee', 'hrms_project_manager']]
+            return [dict(id=r, name=r, display_name=r) for r in ['hrms_employee', 'hrms_project_manager']]
         if path.endswith('/role'):
             self.writes.append(path)
             self.roles = {kwargs['json']['role_id']}
@@ -189,7 +197,7 @@ def employee_request(**values):
 def test_creation_links_or_provisions_once_and_starts_onboarding(existing):
     p = ProvisioningPlatform(existing)
     s = HrmsService(p, Journal(), 'newtuple.com')
-    who = actor('hr', 'hrms_hr_basic')
+    who = actor('admin', 'superadmin')
     result = s.create_employee(who, employee_request())
     assert result['account_status'] == 'pending'
     assert result['onboarding_task_count'] > 0
@@ -215,21 +223,40 @@ def test_creation_preserves_active_account_and_rejects_privileged_link_before_em
     assert not p.writes
 
 
-def test_project_role_requires_superadmin_and_designation_does_not_grant_it():
+def test_hr_can_propose_native_role_but_account_stays_pending():
     p = ProvisioningPlatform(False)
     s = HrmsService(p, Journal(), 'newtuple.com')
-    with pytest.raises(AppError):
-        s.create_employee(actor('hr', 'hrms_hr_full'), employee_request(role='hrms_project_manager'))
-    assert not p.rows
-    s.create_employee(actor('admin', 'superadmin'), employee_request(role='hrms_project_manager'))
+    s.create_employee(actor('hr', 'hrms_hr_full'), employee_request(role='hrms_project_manager'))
     assert p.roles == {'hrms_project_manager'}
+    assert p.identity['status'] == 'pending'
+    assert not any(path.endswith('/approve') for path in p.writes)
+
+
+def test_roles_come_from_native_catalog_and_unknown_or_service_role_is_rejected():
+    p = ProvisioningPlatform(False)
+    original = p.call
+    def call(method, path, **kwargs):
+        if path == '/roles':
+            return [{'id': 'custom', 'name': 'delivery_lead', 'display_name': 'Delivery Lead'},
+                    {'id': 'svc', 'name': 'hrms_application_service', 'display_name': 'Internal service'}]
+        return original(method, path, **kwargs)
+    p.call = call
+    s = HrmsService(p, Journal(), 'newtuple.com')
+    options = s.form_options(actor('hr', 'hrms_hr_basic'))
+    assert options['roles'] == ['delivery_lead']
+    assert options['role_labels'] == {'delivery_lead': 'Delivery Lead'}
+    for role in ['hrms_application_service', 'deleted_role']:
+        with pytest.raises(AppError) as exc:
+            s.create_employee(actor('hr', 'hrms_hr_basic'), employee_request(role=role))
+        assert exc.value.status == 403
+    assert not p.rows
 
 
 def test_setup_route_accepts_operation_key_and_authenticates_before_writes():
     from fastapi.testclient import TestClient
     from hrms_app.main import create_app
     p = Platform()
-    p.actor = lambda token: actor('hr', 'hrms_hr_basic')
+    p.actor = lambda token: actor('admin', 'superadmin')
     client = TestClient(create_app(p, Journal()))
     path = '/v1/api/hrms/employees/employee/setup-access'
     assert client.post(path, json={'idempotency_key': 'operation-1'}).status_code == 401
@@ -245,7 +272,7 @@ def test_local_activation_skips_setup_email(monkeypatch):
     monkeypatch.setenv('PLATFORM_API_URL', 'http://platform-api:8000/v1/api')
     p, s = system()
     p.configured = False
-    result = setup_access(s, actor('hr', 'hrms_hr_basic'), 'employee', 'local-test')
+    result = setup_access(s, actor('admin', 'superadmin'), 'employee', 'local-test')
     assert result['account_status'] == 'active'
     assert result['email_status'] == 'disabled_local'
     assert '/auth/forgot-password' not in p.writes
@@ -255,6 +282,34 @@ def test_local_email_switch_does_not_disable_other_tenants(monkeypatch):
     monkeypatch.setenv('HRMS_LOCAL_DISABLE_EMAIL', 'true')
     monkeypatch.setenv('HRMS_ORGANIZATION_ID', 'production-tenant')
     p, s = system()
-    result = setup_access(s, actor('hr', 'hrms_hr_basic'), 'employee', 'production-test')
+    result = setup_access(s, actor('admin', 'superadmin'), 'employee', 'production-test')
     assert result['email_status'] == 'requested'
     assert '/auth/forgot-password' in p.writes
+
+
+def test_pending_user_inbox_is_superadmin_only_and_uses_native_human_session():
+    from fastapi.testclient import TestClient
+    from hrms_app.main import create_app
+    p = Platform()
+    p.actor = lambda token: actor('hr', 'hrms_hr_full')
+    calls = []
+    def request(method, path, **kwargs):
+        calls.append((method, path, kwargs))
+        return [dict(id='pending', full_name='New Hire', email='new@newtuple.com',
+                     organization_id='org', status='pending'),
+                dict(id='other', full_name='Other Tenant', email='other@example.com',
+                     organization_id='other', status='pending'),
+                dict(id='active', full_name='Active User', email='active@newtuple.com',
+                     organization_id='org', status='active')]
+    p.request = request
+    client = TestClient(create_app(p, Journal()))
+    url = '/v1/api/hrms/user-approvals'
+    assert client.get(url).status_code == 401
+    assert client.get(url, headers={'Authorization': 'Bearer human'}).status_code == 403
+    assert not calls
+    from dataclasses import replace
+    p.actor = lambda token: replace(actor('admin', 'superadmin'), token=token)
+    response = client.get(url, headers={'Authorization': 'Bearer human'})
+    assert response.status_code == 200
+    assert response.json() == [{'id': 'pending', 'full_name': 'New Hire', 'email': 'new@newtuple.com'}]
+    assert calls == [('GET', '/users/pending', {'token': 'human'})]

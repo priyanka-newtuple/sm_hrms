@@ -22,8 +22,6 @@ class Actor:
     token: str
     roles: frozenset[str]
     permissions: frozenset[str]
-    project_policy: dict | None = None
-    cockpit_policy: dict | None = None
 
 
 class PlatformClient:
@@ -136,6 +134,21 @@ class PlatformClient:
         return Actor(user['id'], org, token,
                      frozenset(r['name'] for r in permissions['roles']),
                      frozenset(permissions['permissions']))
+
+    def user_capabilities(self, user_id):
+        """Native role grants for candidate approvers, without granting the service role admin."""
+        from .policy import capabilities
+        memberships = self.call('GET', f'/roles/users/{user_id}/roles')
+        roles, grants = set(), set()
+        for membership in memberships:
+            if membership['organization_id'] != self.org:
+                raise AppError(403, 'Role belongs to another organization')
+            role = self.call('GET', f"/roles/{membership['role_id']}")
+            if role['organization_id'] != self.org:
+                raise AppError(403, 'Role belongs to another organization')
+            roles.add(role['name'])
+            grants.update(p['permission_key'] for p in role['permissions'])
+        return capabilities(Actor(user_id, self.org, '', frozenset(roles), frozenset(grants)))
 
     def records(self, entity_type: str, fields: list[str]) -> list[dict]:
         """Use the platform cursor API; never silently truncate an aggregation."""

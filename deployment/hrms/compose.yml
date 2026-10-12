@@ -111,6 +111,7 @@ services:
   platform-install:
     image: sm-hrms-application:${IMAGE_TAG:?Release SHA required}
     environment:
+      HRMS_APP_DATABASE_URL: postgresql://hrms_application:${HRMS_APP_DB_PASSWORD}@hrms-app-db:5432/hrms_application
       PLATFORM_API_URL: http://platform-api:8000/v1/api
       HRMS_ORGANIZATION_ID: ${HRMS_ORGANIZATION_ID:?required}
       HRMS_INSTALL_EMAIL: ${HRMS_ADMIN_EMAIL:?required}
@@ -125,6 +126,8 @@ services:
     - -m
     - hrms_app.install
     depends_on:
+      hrms-app-db:
+        condition: service_healthy
       platform-api:
         condition: service_healthy
     logging:

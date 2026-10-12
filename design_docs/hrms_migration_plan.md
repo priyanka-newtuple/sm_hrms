@@ -231,3 +231,40 @@ See [hrms_performance_management.md](hrms_performance_management.md) for archite
 Projects and allocations now use native entities and workflow transitions through the separate HRMS API. The local UI reuses the core pipeline table with project details, customer creation, named approvers, staged amendments, capacity previews, release requests and My Work approvals. PM, DM and independent Super Admin scope is enforced separately from commercial-field access. Tenant locking, record revisions and resumable journal operations protect approval/application sequences. Eligible allocation approvals complete the ready onboarding allocation step.
 
 See [hrms_projects_local.md](hrms_projects_local.md) for the local walkthrough and exact policy. Legacy project/allocation imports, timesheet eligibility integration, automatic performance reviewer selection, exports and full customer-management remain follow-on work. No original core platform files were changed.
+
+
+### Native permission consolidation (2026-10-12)
+
+The user explicitly authorized a generic core extension for tenant-scoped permission registration.
+POST /permissions registers a namespaced tenant permission under native role:write authorization;
+the authenticated organization determines scope. Native role grants are the sole runtime source
+for HRMS business capabilities. The native role editor preserves canonical permission keys and
+allows explicit application grants on system roles while global system grants remain implicit.
+The approved core files are pinned in scripts/platform-approved-extensions.json; the boundary
+verifier checks their hashes and retains the original baseline for every other tracked core file.
+
+The installer transfers initial defaults and any existing app policy overrides once through public
+platform APIs. Its checkpoints live only in the HRMS application database. Legacy policy tables
+remain archival migration inputs; no runtime authorization reads them. Completed roles are not
+reapplied on retries, and a completion marker prevents redeploys from restoring revoked grants.
+The extra HRMS permission panels and save endpoints have been removed.
+
+HR selects a native role during onboarding. New accounts remain pending; only Super Admin can
+activate them through the HRMS surface, using the human token. Pending accounts appear in My Tasks
+with a link to native Users. Approval preserves preassigned roles instead of adding Viewer.
+Business relationship checks (assigned project, designated approver, no self-approval) remain in
+the HRMS orchestration layer; they do not constitute a second role-to-permission grant store.
+
+
+### Local native Forms cutover (2026-10-12)
+
+The local tenant now has 134 native library fields and 24 native forms tagged to entities.
+All states on its 19 active workflows reference version-pinned forms. The migration used
+the existing platform forms_migration.py wrapper, with a pre-migration pg_dump retained
+at /tmp/hrms-before-native-forms.dump in the local platform-db container.
+Employee Department/Designation bindings were verified on native fields after migration;
+Project budget_amount, billing_rate and planned_hours were explicitly pinned to Decimal
+and the Project workflow republished. Legacy configuration was retained, not deleted.
+Production was not changed: the supplied screenshot already shows native forms, fields
+and an HRMS.WorkFromHomeRequest entity association. Production workflow pins were not
+independently inspected in this session.

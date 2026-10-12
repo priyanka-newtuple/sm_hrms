@@ -1,3 +1,4 @@
+from native_permissions import grants
 from copy import deepcopy
 from types import SimpleNamespace
 from uuid import uuid4
@@ -5,7 +6,7 @@ from uuid import uuid4
 import pytest
 from hrms_app.catalog import pack_by_type
 from hrms_app.errors import AppError
-from hrms_app.policy import ROLE_CAPABILITIES
+from hrms_app.permission_migration import INITIAL_ROLE_GRANTS as ROLE_CAPABILITIES
 from hrms_app.project_catalog import (
     ALLOCATION,
     CUSTOMER,
@@ -447,7 +448,7 @@ def test_tenant_and_draft_visibility(system):
     ]
     foreign = actor(ids["pm"], "hrms_project_manager")
     foreign = type(foreign)(
-        foreign.user_id, "other-org", "", foreign.roles, frozenset()
+        foreign.user_id, "other-org", "", foreign.roles, grants(foreign.roles, "other-org")
     )
     with pytest.raises(AppError, match="Organization"):
         service.execute(
@@ -467,33 +468,18 @@ def test_configured_allocation_access_is_enforced(system):
     service, platform, _, ids = system
     project = open_project(system)
     pm = actor(ids['pm'], 'hrms_project_manager')
-    restricted = replace(pm, project_policy={'hrms_project_manager': ['project:view', 'project:manage_assigned']})
+    restricted = replace(pm, permissions=frozenset({'tenant.org.hrms.project:view', 'tenant.org.hrms.project:manage_assigned'}))
     assert 'request_allocation' in service.allowed(pm, platform.rows[project], service.snapshot())
     assert 'request_allocation' not in service.allowed(restricted, platform.rows[project], service.snapshot())
     with pytest.raises(AppError) as error:
         service.execute(restricted, project, Action(action='request_allocation', data=allocation_data(ids), expected_revision=platform.rows[project]['data'].get('revision',0), idempotency_key=str(uuid4())))
     assert error.value.status == 403
     assert 'allocation:request' in capabilities(pm)  # Other tenants retain defaults.
-    disabled = replace(pm, project_policy={'hrms_project_manager': []})
+    disabled = replace(pm, permissions=frozenset())
     assert service.workflows(disabled) == []
     with pytest.raises(AppError):
         service.dashboard(disabled)
 
-
-def test_project_policy_cannot_grant_core_or_hr_permissions():
-    from dataclasses import replace
-
-    from hrms_app.policy import capabilities
-    from hrms_app.project_access import validate_project_access
-    for grants in [['platform:configure'], ['employee:create'], ['allocation:request'], ['project:view', 'allocation:request']]:
-        with pytest.raises(AppError):
-            validate_project_access({'hrms_project_manager': grants}, {'hrms_project_manager'})
-    with pytest.raises(AppError):
-        validate_project_access({'hrms_application_service': []}, {'hrms_project_manager'})
-    validate_project_access({'custom': ['project:view', 'project:manage_assigned', 'allocation:request']}, {'custom'})
-    sa = replace(actor('admin', 'superadmin'), project_policy={'superadmin': []})
-    assert 'platform:configure' in capabilities(sa)
-    assert 'project:view' not in capabilities(sa)
 
 
 def test_project_role_options_follow_all_native_picklist_values_and_labels(system):
@@ -653,7 +639,7 @@ def test_customer_directory_respects_access_and_omits_contract_values(system):
     assert board['items'][0]['contact_name'] == 'Contact'
     assert 'contract_value' not in board['items'][0]
     from dataclasses import replace
-    limited = replace(actor(ids['outsider'], 'hrms_project_manager'), project_policy={'hrms_project_manager': ['project:view']})
+    limited = replace(actor(ids['outsider'], 'hrms_project_manager'), permissions=frozenset({'tenant.org.hrms.project:view'}))
     assert service.customers(limited)['items'] == []
     with pytest.raises(AppError):
         service.customers(actor(ids['employee'], 'unknown_role'))

@@ -1,3 +1,4 @@
+from native_permissions import grants
 from contextlib import contextmanager
 from datetime import date
 from types import SimpleNamespace
@@ -16,7 +17,7 @@ LEAVE_START, LEAVE_END = '2044-03-07', '2044-03-08'
 
 
 def actor(user_id, role):
-    return Actor(user_id, 'org', 'human', frozenset({role}), frozenset())
+    return Actor(user_id, 'org', 'human', frozenset({role}), grants({role}))
 
 
 def person(key, code, manager=None):

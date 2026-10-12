@@ -61,6 +61,7 @@ export default function MyWorkPage() {
   const waiting = useWaitingActions();
   const { sources, total, onboarding, onboardingActions, leaveApprovals, pendingLeave, performance, performanceActions } = waiting;
   const summaryLoading = waiting.loading;
+  const { userApprovals, isSuperAdmin } = waiting;
   const myLeave = useQuery({ queryKey: ['hrms', 'leave', 'mine'], queryFn: () => request<LeaveItem[]>('/hrms/leave-requests?view=mine&limit=100'), retry: retryUnlessForbidden,
     enabled: caps.isFetched && caps.data?.employee_profile !== false });
   const leaveUnavailable = caps.data?.employee_profile === false || isForbidden(myLeave.error);
@@ -87,7 +88,7 @@ export default function MyWorkPage() {
       <aside className="hrms-mw-summary" aria-label="Summary">
         <div>
           <p className="hrms-mw-label">Waiting on you</p>
-          {summaryLoading ? <p className="hrms-mw-total" aria-busy="true">…</p>
+          {isSuperAdmin && userApprovals.isError ? <p role="alert">Couldn’t load user approvals. <button className="hrms-mw-retry" onClick={() => void userApprovals.refetch()}>Try again</button></p> : summaryLoading ? <p className="hrms-mw-total" aria-busy="true">…</p>
             : total > 0 ? <ActionDonut slices={sources.map(({ label, count }) => ({ label, count }))} />
             : <><p className="hrms-mw-clear"><CheckCircle2 size={20} aria-hidden="true" />You’re all caught up</p>
               <ul className="hrms-mw-breakdown">{sources.map(source => <li key={source.label}><span>{source.label}</span><b>{source.count}</b></li>)}</ul></>}
@@ -112,6 +113,9 @@ export default function MyWorkPage() {
     </header>
     {caps.isError && <div role="alert" className="hrms-work-feedback"><p>Some work areas couldn’t be loaded.</p><button className="hrms-outline-button" onClick={() => void caps.refetch()}>Retry permissions</button></div>}
     <div className="hrms-work-panels">
+      {isSuperAdmin && <WorkPanel title="New user approvals" description="Review new accounts before they can sign in." icon={UserRoundPlus} count={userApprovals.data?.length ?? 0} loading={userApprovals.isLoading} error={userApprovals.isError ? getApiErrorMessage(userApprovals.error) : undefined} retry={() => void userApprovals.refetch()} empty="No new accounts are waiting for approval.">
+        <ul>{userApprovals.data?.map(person => <li className="hrms-work-item" key={person.id}><h3>{person.full_name}</h3><p>{person.email}</p><Link className="hrms-outline-button" to="/settings?tab=users">Review in Users <ArrowRight size={15} aria-hidden="true" /></Link></li>)}</ul>
+      </WorkPanel>}
       {(leaveApprovals.data?.length ?? 0) > 0 && <LeaveInbox items={pendingLeave} loading={leaveApprovals.isLoading} error={leaveApprovals.isError ? getApiErrorMessage(leaveApprovals.error) : undefined} retry={() => void leaveApprovals.refetch()} />}
       <CockpitInbox />
       <ProjectInbox />

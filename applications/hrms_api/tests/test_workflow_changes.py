@@ -1,3 +1,4 @@
+from native_permissions import grants
 """HRMS keeps working when an organization renames or adds workflow steps in Settings → Funnels."""
 from contextlib import contextmanager
 from types import SimpleNamespace
@@ -95,11 +96,11 @@ def steps(platform=None):
 
 def test_added_steps_are_offered_to_the_people_who_manage_the_record():
     service, platform = steps()
-    hr = Actor('hr', 'org', '', frozenset({'hrms_hr_full'}), frozenset())
+    hr = Actor('hr', 'org', '', frozenset({'hrms_hr_full'}), grants({'hrms_hr_full'}))
     assert service.available(hr, 'review-1')['steps'] == [{'trigger': 'skip_level_review', 'label': 'Skip-level review', 'to_state': 'skip_level'}]
     service.run(hr, 'review-1', 'skip_level_review', 'step-key-1')
     assert platform.sent == ['skip_level_review']
-    employee = Actor('emp', 'org', '', frozenset({'hrms_employee'}), frozenset())
+    employee = Actor('emp', 'org', '', frozenset({'hrms_employee'}), grants({'hrms_employee'}))
     assert service.available(employee, 'review-1')['steps'] == []
     with pytest.raises(AppError):
         service.run(employee, 'review-1', 'skip_level_review', 'step-key-2')

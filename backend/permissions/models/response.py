@@ -12,3 +12,4 @@ class PermissionRead(PydanticBaseModel):
     action: str
     description: str | None = None
     is_system: bool
+    organization_id: str | None = None

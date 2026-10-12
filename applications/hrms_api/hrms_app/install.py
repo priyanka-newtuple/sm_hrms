@@ -6,9 +6,10 @@ from .cockpit_catalog import TYPES as COCKPIT_TYPES
 from .errors import AppError
 from .field_access import RUNTIME_TYPES, configured_fields, configured_transitions, grant
 from .form_config import has_method_blocks
+from .install_employee_picklists import install_employee_picklists
 from .install_project_roles import install_project_role_picklist
 from .platform import PlatformClient
-from .policy import ROLE_CAPABILITIES
+from .permission_migration import INITIAL_ROLE_GRANTS, migrate_native_permissions, migration_complete
 from .project_catalog import TYPES as PROJECT_TYPES
 from .provisioning import ensure_tenant_administrator
 from .wfh_catalog import TYPES as WFH_TYPES
@@ -103,18 +104,22 @@ def install():
             machines[pack.machine_name] = matching[0]['machine_name']
 
     install_project_role_picklist(api)
+    install_employee_picklists(api)
 
     roles = api.call('GET', '/roles')
     by_name = {r['name']: r for r in roles}
-    for name in ROLE_CAPABILITIES:
+    migrated = migration_complete(os.environ['HRMS_APP_DATABASE_URL'], org)
+    for name in ([] if migrated else INITIAL_ROLE_GRANTS):
         if not name.startswith('hrms_'):
             continue
         if name not in by_name:
             by_name[name] = api.call('POST', '/roles', json={
                 'name': name, 'display_name': name.removeprefix('hrms_').replace('_', ' ').title(),
-                'description': 'HRMS product role; capabilities are enforced by the HRMS application',
+                'description': 'HRMS role; permissions are configured in native Roles & Permissions',
                 'permissions': [], 'entity_permissions': [], 'workflow_permissions': [], 'transition_permissions': []})
         # Existing tenant role customizations are left intact. The gateway is the only browser API surface.
+
+    migrate_native_permissions(api, os.environ['HRMS_APP_DATABASE_URL'])
 
     service_name = 'hrms_application_service'
     runtime_packs = [p for p in PACKS if p.entity_type in RUNTIME_TYPES]

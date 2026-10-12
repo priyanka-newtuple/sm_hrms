@@ -7,7 +7,7 @@ import secrets
 import httpx
 
 from hrms_app.platform import PlatformClient
-from hrms_app.policy import ROLE_CAPABILITIES
+from hrms_app.permission_migration import INITIAL_ROLE_GRANTS as ROLE_CAPABILITIES
 
 
 ROLES = [

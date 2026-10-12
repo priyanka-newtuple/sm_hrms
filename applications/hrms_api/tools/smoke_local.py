@@ -77,6 +77,13 @@ def main():
             work_email=fixture_email, employee_code='BOUNDARY-EMP', department=payload['department'],
             designation=payload['designation'], employment_status='active', hrms_role='hrms_employee',
             platform_user_id=fixture['id'], reports_to_employee_code=manager['data']['employee_code']), fixture['id'])
+    else:
+        # This dedicated fixture may survive earlier manual local testing. Keep its
+        # reporting line consistent with the manager this test signs in as.
+        row = next(r for r in rows if r['data'].get('work_email') == fixture_email)
+        current = platform.record(row['entity_id'])
+        platform.call('PUT', f"/entity-records/{row['entity_id']}", json={
+            'data': {**current['data'], 'reports_to_employee_code': manager['data']['employee_code']}})
     user_login = app.post('/auth/login', json={'email': fixture_email, 'password': os.environ['HRMS_DEMO_EMPLOYEE_PASSWORD']})
     assert user_login.status_code == 200, user_login.text
     user_headers = {'Authorization': 'Bearer ' + user_login.json()['access_token']}

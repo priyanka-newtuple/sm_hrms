@@ -10,7 +10,7 @@ from .errors import AppError
 from .performance_contracts import (ApproverChange, Assessment, Calibration, Comment, CycleInput,
                                     FeedbackInput, FeedbackReassignment, FeedbackRequest, GoalInput,
                                     Participants, Reassignment)
-from .policy import role_capabilities, capabilities, require
+from .policy import capabilities, require
 from .service import name
 
 CYCLE = 'HRMS.PerformanceCycle'
@@ -68,16 +68,13 @@ class PerformanceService:
                               (actor.organization_id, actor.user_id)).fetchall()
             return [dict(idempotency_key=key, **progress['performance_request']) for key, progress in rows]
 
-    def user_options(self, project_policy=None):
+    def user_options(self):
         users = []
         for user in self.platform.users():
             if user.get('status') != 'active' or user.get('email') == self.platform.email:
                 continue
-            roles = self.platform.call('GET', f"/roles/users/{user['id']}/roles")
-            caps = set().union(*(role_capabilities(r['role_name'], project_policy) for r in roles
-                                if r['organization_id'] == self.platform.org))
-            if any(r['organization_id'] == self.platform.org for r in roles):
-                users.append({'id': user['id'], 'name': user['full_name'], 'email': user['email'], 'capabilities': sorted(caps)})
+            caps = self.platform.user_capabilities(user['id'])
+            users.append({'id': user['id'], 'name': user['full_name'], 'email': user['email'], 'capabilities': sorted(caps)})
         return users
 
     def options(self, actor):

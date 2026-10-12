@@ -14,7 +14,7 @@ export interface PermissionDefinition {
 }
 
 function formatLabel(resource: string): string {
-  return resource.split('_').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
+  return resource.replaceAll('.', '_').split('_').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')
 }
 
 const RESOURCE_PRESENTATION_OVERRIDES: Record<
@@ -29,6 +29,7 @@ const RESOURCE_PRESENTATION_OVERRIDES: Record<
 
 export interface PermissionsConfig {
   RESOURCE_META:      Record<string, { label: string; blurb: string }>
+  PERMISSION_KEYS: Record<string, string>
   RESOURCE_ACTIONS:   Record<string, string[]>
   RESOURCES:          string[]
   ALL_ACTIONS:        string[]
@@ -44,9 +45,11 @@ export interface PermissionsConfig {
 export function buildPermissionsConfig(defs: PermissionDefinition[]): PermissionsConfig {
   const resourceMeta: Record<string, { label: string; blurb: string }> = {}
   const resourceActions: Record<string, string[]> = {}
+  const permissionKeys: Record<string, string> = {}
   const allActionsSet = new Set<string>()
 
   for (const def of defs) {
+    permissionKeys[`${def.resource}:${def.action}`] = def.key
     const presentationOverride = RESOURCE_PRESENTATION_OVERRIDES[def.resource]
     if (!resourceMeta[def.resource]) {
       resourceMeta[def.resource] = presentationOverride ?? {
@@ -70,12 +73,13 @@ export function buildPermissionsConfig(defs: PermissionDefinition[]): Permission
   }
 
   const resources = Object.keys(resourceActions)
-  const allKeys = resources.flatMap((r) => resourceActions[r].map((a) => `${r}:${a}`))
+  const allKeys = resources.flatMap((r) => resourceActions[r].map((a) => permissionKeys[`${r}:${a}`]))
   const allActions = Array.from(allActionsSet).sort((a, b) => rankOf(a) - rankOf(b))
   const makeSet = (keys: string[]) => new Set(keys)
 
   return {
     RESOURCE_META: resourceMeta,
+    PERMISSION_KEYS: permissionKeys,
     RESOURCE_ACTIONS: resourceActions,
     RESOURCES: resources,
     ALL_ACTIONS: allActions,

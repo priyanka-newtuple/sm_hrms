@@ -1,3 +1,4 @@
+from native_permissions import grants
 from types import SimpleNamespace
 
 import httpx
@@ -64,6 +65,7 @@ def test_cockpit_approvers_are_unchanged_by_concurrent_role_lookups():
               dict(id='svc', full_name='Service', status='active', email='svc@example.com')]
     roles = {u['id']: 'hrms_hr_full' if int(u['id'][1:]) % 3 == 0 else 'hrms_employee' for u in users[:12]}
     platform = SimpleNamespace(email='svc@example.com', users=lambda: users,
+                               user_capabilities=lambda user: {'cockpit:approve'} if roles[user] == 'hrms_hr_full' else set(),
                                call=lambda method, path, **kw: [dict(role_name=roles[path.split('/')[3]], organization_id='org')])
-    approvers = CockpitService(platform, None).people(Actor('u3', 'org', 'human', frozenset({'hrms_hr_full'}), frozenset()))
+    approvers = CockpitService(platform, None).people(Actor('u3', 'org', 'human', frozenset({'hrms_hr_full'}), grants({'hrms_hr_full'})))
     assert approvers == [{'id': f'u{i}', 'name': f'User {i}'} for i in (0, 6, 9)]  # u3 is the actor

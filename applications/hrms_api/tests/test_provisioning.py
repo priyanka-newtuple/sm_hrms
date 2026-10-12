@@ -1,3 +1,4 @@
+from native_permissions import grants
 from types import SimpleNamespace
 
 import pytest
@@ -79,7 +80,7 @@ def test_organization_details_use_human_token_and_reject_other_tenants(returned_
 
     class OrganizationPlatform:
         def actor(self, token):
-            return Actor('user', 'hrms', token, frozenset({'superadmin'}), frozenset())
+            return Actor('user', 'hrms', token, frozenset({'superadmin'}), grants({'superadmin'}))
 
         def request(self, method, path, *, token):
             assert (method, path, token) == ('GET', '/organizations/current', 'human-token')

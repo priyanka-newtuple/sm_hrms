@@ -1,3 +1,4 @@
+from native_permissions import grants
 from contextlib import contextmanager
 
 import pytest
@@ -9,7 +10,7 @@ from hrms_app.service import HrmsService, task_for_step
 
 
 def actor(user, role='hrms_employee'):
-    return Actor(user, 'org', 'token', frozenset({role}), frozenset())
+    return Actor(user, 'org', 'token', frozenset({role}), grants({role}))
 
 
 class Journal:

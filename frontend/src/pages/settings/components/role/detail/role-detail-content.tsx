@@ -52,7 +52,8 @@ export function RoleDetailContent({ roleId, onBack }: RoleDetailContentProps) {
   const isNew = !roleId
   const qc = useQueryClient()
   const baselineSnapshotRef = useRef<string | null>(null)
-  const { hasPermission } = usePermissions()
+  const { hasPermission, permissions } = usePermissions()
+  const isSuperAdmin = permissions?.roles.some(r => r.name === 'superadmin') ?? false
   const canWrite = hasPermission('role:write')
   const { entityTypes, loading: entityTypesLoading, error: entityTypesError } = useEntityTypes()
 
@@ -250,7 +251,8 @@ export function RoleDetailContent({ roleId, onBack }: RoleDetailContentProps) {
           display_name: role.display_name,
           description: role.description || undefined,
           color: role.color,
-          // system roles block priority, permissions, and field_permissions changes
+          ...(role.is_system && isSuperAdmin ? { permissions: payload.permissions } : {}),
+          // Global system grants stay implicit; only explicit extension grants are edited.
           ...(!role.is_system && {
             priority: role.priority,
             ...payload,
@@ -321,7 +323,7 @@ export function RoleDetailContent({ roleId, onBack }: RoleDetailContentProps) {
               role={role}
               granted={granted}
               setGranted={setGranted}
-              disabled={!canWrite || role.is_system}
+              disabled={!canWrite || (role.is_system && !isSuperAdmin)}
             />
           )}
           {activeTab === "entity" && (

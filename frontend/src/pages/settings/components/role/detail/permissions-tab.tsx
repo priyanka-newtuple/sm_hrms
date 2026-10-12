@@ -60,9 +60,10 @@ export function PermissionsTab({
   const allKeys = config?.ALL_PERMISSION_KEYS ?? []
   const allActions = config?.ALL_ACTIONS ?? []
   const presets = config?.PERMISSION_PRESETS
+  const implicitKeys = useMemo(() => new Set(role.is_system ? livePermissions?.filter(p => p.is_system).map(p => p.key) ?? [] : []), [role.is_system, livePermissions])
   const effectiveGranted = useMemo(
-    () => (role.is_system ? new Set(allKeys) : granted),
-    [allKeys, granted, role.is_system]
+    () => new Set([...implicitKeys, ...granted]),
+    [implicitKeys, granted]
   )
 
   const filteredResources = useMemo(() => {
@@ -84,19 +85,20 @@ export function PermissionsTab({
   const toggle = (resource: string, action: Action, forceOn?: boolean) => {
     setGranted((prev) => {
       const next = new Set(prev)
-      const key = `${resource}:${action}`
-      const acts = resActions[resource]
+      const key = config.PERMISSION_KEYS[`${resource}:${action}`]
+      if (implicitKeys.has(key)) return next
       const turnOn = forceOn != null ? forceOn : !next.has(key)
+      // Business actions are independent. Only the native read/write/access trio cascades.
       const rank = ACTION_RANK[action]
-      if (turnOn) {
-        acts.forEach((a) => {
-          if (ACTION_RANK[a] <= rank) next.add(`${resource}:${a}`)
-        })
-      } else {
-        acts.forEach((a) => {
-          if (ACTION_RANK[a] >= rank) next.delete(`${resource}:${a}`)
-        })
-      }
+      resActions[resource].forEach((a) => {
+        const candidate = config.PERMISSION_KEYS[`${resource}:${a}`]
+        const related = a === action || (rank !== undefined && ACTION_RANK[a] !== undefined &&
+          (turnOn ? ACTION_RANK[a] <= rank : ACTION_RANK[a] >= rank))
+        if (related && !implicitKeys.has(candidate)) {
+          if (turnOn) next.add(candidate)
+          else next.delete(candidate)
+        }
+      })
       return next
     })
   }
@@ -127,7 +129,7 @@ export function PermissionsTab({
       cell: ({ row }) => {
         const r = row.original
         const exists = resActions[r].includes(a)
-        const key = `${r}:${a}`
+        const key = config.PERMISSION_KEYS[`${r}:${a}`]
         return (
           <div className="flex justify-center">
             {exists ? (
@@ -135,7 +137,7 @@ export function PermissionsTab({
                 checked={effectiveGranted.has(key)}
                 onCheckedChange={() => toggle(r, a)}
                 color={color}
-                disabled={disabled}
+                disabled={disabled || implicitKeys.has(key)}
               />
             ) : (
               <span className="text-muted-foreground/50 text-lg leading-none">–</span>

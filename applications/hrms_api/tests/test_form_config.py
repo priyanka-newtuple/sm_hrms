@@ -1,3 +1,4 @@
+from native_permissions import grants
 from types import SimpleNamespace
 
 import pytest
@@ -10,7 +11,7 @@ from test_performance import UNMIGRATED_TENANT
 
 
 def actor(role):
-    return Actor('user', 'org', 'human', frozenset({role}), frozenset())
+    return Actor('user', 'org', 'human', frozenset({role}), grants({role}))
 
 
 def platform(**routes):

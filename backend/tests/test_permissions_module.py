@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, FastAPI
+from fastapi import APIRouter, FastAPI, HTTPException, Request
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -15,7 +15,7 @@ from permissions.models.response import PermissionRead
 
 
 class _StubPermissionsManager:
-    def list_permissions(self, db):  # noqa: ANN001
+    def list_permissions(self, db, organization_id=None):  # noqa: ANN001
         _ = db
         return [
             PermissionRead(id="perm-1", key="role:read",  resource="role", action="read",  description="View roles and permissions", is_system=True),
@@ -24,7 +24,7 @@ class _StubPermissionsManager:
 
 
 class _StubPermissionsManagerError:
-    def list_permissions(self, db):  # noqa: ANN001
+    def list_permissions(self, db, organization_id=None):  # noqa: ANN001
         raise ServiceError("db down")
 
 
@@ -38,6 +38,19 @@ def _build_client(manager=None) -> TestClient:  # noqa: ANN001
     def _stub_db():  # noqa: ANN001
         yield None
 
+    # Isolate controller contracts from the application's auth composition root.
+    from permissions.controller import PermissionReadActor, PermissionWriteActor
+    def read_actor(request: Request):
+        if not request.headers.get('x-user-id'):
+            raise HTTPException(401)
+        return {'user_id': request.headers['x-user-id'], 'organization_id': request.headers['x-org-id']}
+    def write_actor(request: Request):
+        actor = read_actor(request)
+        if request.headers.get('x-user-roles') != 'admin':
+            raise HTTPException(403)
+        return actor
+    app.dependency_overrides[PermissionReadActor.__metadata__[0].dependency] = read_actor
+    app.dependency_overrides[PermissionWriteActor.__metadata__[0].dependency] = write_actor
     app.dependency_overrides[get_db] = _stub_db
     return TestClient(app)
 
@@ -108,3 +121,72 @@ def test_list_permissions_service_error_maps_to_500() -> None:
     resp = client.get("/permissions", headers=headers)
 
     assert resp.status_code == 500
+
+
+def test_tenant_permission_registration_is_idempotent_and_isolated():
+    from permissions.models.request import PermissionRegistration
+    db, engine = _db_session()
+    try:
+        svc = PermissionsModelService()
+        svc.ensure_default_permissions(db)
+        payload = PermissionRegistration(namespace='example', resource='project', action='approve', description='Approve a project')
+        first = svc.register(db, 'org-a', payload)
+        first_id = first.id
+        again = svc.register(db, 'org-a', payload)
+        other = svc.register(db, 'org-b', payload)
+        assert first_id == again.id and other.id != first_id
+        assert first.key == 'tenant.org-a.example.project:approve'
+        assert not first.is_system
+        assert svc.get_by_key(db, first.key, 'org-a') is not None
+        assert svc.get_by_key(db, first.key, 'org-b') is None
+        assert svc.get_by_key(db, first.key) is None
+        assert first.key not in {p.key for p in svc.list_permissions(db, 'org-b')}
+        assert {p.key for p in svc.list_permissions(db, 'org-a')} >= {first.key, 'role:read'}
+    finally:
+        db.close()
+        engine.dispose()
+
+
+def test_roles_cannot_grant_another_tenants_permission():
+    from types import SimpleNamespace
+    import pytest
+    from exceptions import ValidationError
+    from permissions.models.request import PermissionRegistration
+    from roles.manager import RolesServiceManager
+    db, engine = _db_session()
+    try:
+        svc = PermissionsModelService()
+        registered = svc.register(db, 'org-a', PermissionRegistration(namespace='example', resource='project', action='approve', description='Approve'))
+        manager = RolesServiceManager.__new__(RolesServiceManager)
+        manager.db_model_service = SimpleNamespace(_permissions_svc=svc)
+        manager._validate_permission_keys(db, [registered.key], 'org-a')
+        with pytest.raises(ValidationError, match='Unknown permission'):
+            manager._validate_permission_keys(db, [registered.key], 'org-b')
+    finally:
+        db.close()
+        engine.dispose()
+
+
+def test_system_roles_do_not_implicitly_receive_application_permissions():
+    from types import SimpleNamespace
+    from roles.db_models import RolesModelService
+    role = SimpleNamespace(is_system=True, permissions=[])
+    svc = RolesModelService.__new__(RolesModelService)
+    assert svc._role_grants_permission(role, 'user:write')
+    assert not svc._role_grants_permission(role, 'tenant.org.example.project:approve')
+    role.permissions = [SimpleNamespace(allowed=True, permission_key='tenant.org.example.project:approve')]
+    assert svc._role_grants_permission(role, 'tenant.org.example.project:approve')
+
+
+def test_permission_registration_is_authenticated_and_uses_actor_tenant():
+    class Manager(_StubPermissionsManager):
+        def register(self, db, organization_id, payload):
+            assert organization_id == 'org1'
+            return PermissionRead(id='p', key='tenant.org1.example.project:approve', resource='example.project',
+                                  action='approve', description=payload.description, is_system=False, organization_id=organization_id)
+    client = _build_client(Manager())
+    payload = dict(namespace='example', resource='project', action='approve', description='Approve')
+    assert client.post('/permissions', json=payload).status_code == 401
+    headers = {'x-user-id': 'u1', 'x-org-id': 'org1', 'x-user-roles': 'admin'}
+    assert client.post('/permissions', headers=headers, json=payload).status_code == 200
+    assert client.post('/permissions', headers=headers, json={**payload, 'organization_id':'org2'}).status_code == 422

@@ -105,7 +105,7 @@ class ProjectsService:
         return row
 
     def people(self, actor=None):
-        return PerformanceService(self.hrms).user_options(getattr(actor, 'project_policy', None))
+        return PerformanceService(self.hrms).user_options()
 
     def manage(self, actor, project):
         caps = capabilities(actor)

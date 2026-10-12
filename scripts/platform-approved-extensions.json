@@ -1,0 +1,21 @@
+{
+  "authorization": "2026-10-12: User explicitly approved generic tenant-scoped native permission registration, native editor support and onboarding approval preservation to remove duplicate HRMS authorization. All other core files retain the original baseline.",
+  "files": {
+    "backend/alembic/versions/2026_10_12_0001_tenant_permission_catalog.py": "e276be7d03e892383fd13c94f1c001888f37572706b44bdf9416a1ffd7b7865f",
+    "backend/permissions/controller.py": "be1cf39fda891e9e5c065ad9ac3bffb90bebe484b43b6414f3ac71ec70ebe918",
+    "backend/permissions/db_models.py": "66439ec0431a60474a8321b86595ed9657de62b7f9fb8b5b0795b3d926b8f7c3",
+    "backend/permissions/manager.py": "c7cefcfcee7099f626a8e96e6ebfefccf553442da001dc49ea85aeadd63e4c6d",
+    "backend/permissions/models/request.py": "e5cb3dd016682ac198334cb93a71ca7d841c9dbab3d4c35412f7d663af56c1f2",
+    "backend/permissions/models/response.py": "d67ba2152e237ddbbce8dc32600f93b76a9d7fa1c03289ef74fdf12809d19653",
+    "backend/roles/db_models.py": "949efb2ab7a1b5b371041b870773525942657bdf9fb300d6ff6e4e1853196d3b",
+    "backend/roles/manager.py": "7a60a16893f9f98b613e9a906907c30b68d1564728dc04c24ad408d1ad807a58",
+    "backend/tests/test_org_membership_sync.py": "1f299b362bc6c9e3d301b74cb93b578d928dcdfd5d715e2cce84170e3f5b571d",
+    "backend/tests/test_permissions_module.py": "65162dc882899c6f39d159bf1fb9c76fa0c5440993f71bc235c07ec33318b3ef",
+    "backend/user/manager.py": "9ef8fb82d2d3bbddbbdbea14bbc53a16b7d92bce24122d54532213a497ef716c",
+    "frontend/src/core/hooks/usePermissions.ts": "7577bd920196831ea9679ff75a2c4bea468a42c2d190fb3a18dd1ca2e2d7a6c5",
+    "frontend/src/lib/permissions-data.test.ts": "b97f1d756892e2adece84da8ce8ffa13e3134a3268cf8bc215e34ae625706969",
+    "frontend/src/lib/permissions-data.ts": "5dc74a9024fa33b885bc844127ee95510fa7894d9ea8302ddd45595fa8e13548",
+    "frontend/src/pages/settings/components/role/detail/permissions-tab.tsx": "003e46c76f38130abc2ae67a23956cb85781d033f45637aee40c9b97ee551368",
+    "frontend/src/pages/settings/components/role/detail/role-detail-content.tsx": "b30de8ffa45e8acff13961b166fc2947ab51127b128400cf34bc689940bc4b97"
+  }
+}

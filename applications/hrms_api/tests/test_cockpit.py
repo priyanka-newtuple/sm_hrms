@@ -182,7 +182,7 @@ def test_stale_revision_and_transition_retry(system):
 
 def test_cockpit_override_preserves_other_capabilities():
     who = actor("admin", "superadmin")
-    changed = replace(who, cockpit_policy={"superadmin": []})
+    changed = replace(who, permissions=frozenset({"settings:access", "user:write"}))
     assert "cockpit:view" not in capabilities(changed)
     assert "platform:configure" in capabilities(changed)
 

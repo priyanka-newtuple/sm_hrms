@@ -22,8 +22,7 @@
     "cockpit:view",
     "cockpit:author",
     "wfh:view",
-    "wfh:request",
-    "employee:activate"
+    "wfh:request"
   ],
   "hrms_hr_full": [
     "employee:read",
@@ -43,7 +42,6 @@
     "wfh:request",
     "wfh:configure",
     "wfh:approve",
-    "employee:activate",
     "employee:exit"
   ],
   "hrms_office_admin": [
@@ -77,7 +75,6 @@
   "admin": [
     "employee:read",
     "employee:create",
-    "employee:activate",
     "employee:exit",
     "employee:assign_hr_role",
     "onboarding:manage",

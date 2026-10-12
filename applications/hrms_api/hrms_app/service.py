@@ -6,10 +6,10 @@ from datetime import UTC, date, datetime, time, timedelta
 import hashlib
 import secrets
 import json
-from pathlib import Path
 
 from .custom_fields import check_custom, custom_keys, custom_values
 from .errors import AppError
+from .form_config import configured_form
 from .employee_access import identity_roles, may_manage
 from .onboarding_template import CURRENT_TEMPLATE_VERSION, DEFAULT_ONBOARDING_STEPS, REPORTING_MANAGER, TEMPLATES
 from .policy import capabilities, require
@@ -35,7 +35,6 @@ ROLE_NAMES = {'hrms_office_admin': 'Office Admin', 'hrms_finance': 'Finance',
 DONE = {'COMPLETED', 'CANCELLED'}  # a skipped step no longer holds anything up
 SICK_LEAVE_BACKDATE_DAYS = 7
 INVITE_STEP = next(s for s in DEFAULT_ONBOARDING_STEPS if s.key == 'hrms_invitation')
-REFERENCE_OPTIONS = json.loads(Path(__file__).with_name('reference_options.json').read_text())
 
 
 def fingerprint(request):
@@ -149,7 +148,7 @@ class HrmsService:
             item['uses_google_sign_in'] = bool(user and user.get('auth_type') == 'google')
             item['can_setup_access'] = bool(user and user.get('organization_id') == actor.organization_id
                 and user['status'] in {'pending', 'active'} and item['employment_status'] == 'active'
-                and 'employee:activate' in capabilities(actor)
+                and 'superadmin' in actor.roles
                 and may_manage(actor, identity_roles(self.platform, actor, user)))
             case = cases.get(row['entity_id'])
             item['onboarding_state'] = ('not_started' if not case else 'cancelled' if case['data'].get('cancelled_at')
@@ -159,15 +158,18 @@ class HrmsService:
 
     def form_options(self, actor):
         require(actor, 'employee:create')
-        rows = self.employees()
-        roles = ['hrms_employee']
-        if 'employee:assign_hr_role' in capabilities(actor):
-            # Office Admin and Finance own onboarding steps (ID, payroll, laptop), so HR must be able to add them.
-            roles += ['hrms_manager', 'hrms_hr_basic', 'hrms_office_admin', 'hrms_finance']
-        if 'employee:assign_hr_full' in capabilities(actor):
-            roles += ['hrms_hr_full', 'hrms_project_manager', 'hrms_delivery_manager']
-        return dict(departments=sorted(set(REFERENCE_OPTIONS['departments']) | {r['data']['department'] for r in rows if r['data'].get('department')}),
-                    designations=sorted(set(REFERENCE_OPTIONS['designations']) | {r['data']['designation'] for r in rows if r['data'].get('designation')}), roles=roles)
+        fields = {f['field']: f for f in configured_form(self.platform, EMPLOYEE)['fields']}
+        # Native roles are the catalog; internal service identities are never employee roles.
+        native_roles = self.platform.call('GET', '/roles')
+        native_roles = [r for r in native_roles if r['name'] != 'hrms_application_service']
+        roles = [r['name'] for r in native_roles]
+        role_labels = {r['name']: r['display_name'] for r in native_roles}
+        return dict(departments=fields.get('department', {}).get('enum_values') or [],
+                    designations=fields.get('designation', {}).get('enum_values') or [],
+                    department_labels=fields.get('department', {}).get('enum_labels') or {},
+                    designation_labels=fields.get('designation', {}).get('enum_labels') or {},
+                    roles=roles, role_labels=role_labels)
+
 
     def onboarding(self, actor, case_id=None):
         employees = {r['entity_id']: r for r in self.employees()}
@@ -359,7 +361,7 @@ class HrmsService:
             return result
 
     def complete_invite_step(self, employee_id):
-        """After HR activates a hire's account, mark "Invite employee to HRMS" done, once the work
+        """After Super Admin approves a hire's account, mark "Invite employee to HRMS" done, once the work
         account it depends on exists. Best effort: activation has already succeeded, and the step
         can still be completed by hand now that the account is active."""
         cases = [c for c in self.platform.records(CASE, CASE_FIELDS) if c['data'].get('employee_id') == employee_id]

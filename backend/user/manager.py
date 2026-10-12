@@ -170,7 +170,7 @@ class UserServiceManager:
             try:
                 self.db_service.ensure_default_roles(db, updated.organization_id)
                 viewer_role = self.db_service.get_role_by_name(db, updated.organization_id, UserRole.VIEWER.value)
-                if viewer_role:
+                if viewer_role and not self.db_service.get_user_roles(db, user_id, updated.organization_id):
                     self.db_service.assign_role_to_user(db, user_id, updated.organization_id, viewer_role.id)
             except Exception:
                 pass

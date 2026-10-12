@@ -9,7 +9,7 @@ from __future__ import annotations
 import uuid
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Boolean, Column, DateTime, Index, String, Text, UniqueConstraint
+from sqlalchemy import or_, Boolean, Column, DateTime, Index, String, Text, UniqueConstraint
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.sql import func
 
@@ -30,6 +30,7 @@ class Permission(Base):
     __tablename__ = "permissions"
 
     id          = Column(String(36),  primary_key=True, default=lambda: str(uuid.uuid4()))
+    organization_id = Column(String(36), nullable=True, index=True)
     key         = Column(String(128), nullable=False, index=True)
     resource    = Column(String(64),  nullable=False, index=True)
     action      = Column(String(64),  nullable=False)
@@ -86,19 +87,20 @@ class PermissionsModelService:
             db.rollback()
             raise PersistenceError(f"Unable to ensure default permissions: {exc}")
 
-    def get_by_key(self, db: Session, key: str) -> Permission | None:
+    def get_by_key(self, db: Session, key: str, organization_id: str | None = None) -> Permission | None:
         """Return a single permission by its key, or None if not found."""
         try:
-            return db.query(Permission).filter(Permission.key == key).first()
+            return db.query(Permission).filter(Permission.key == key, self._scope(organization_id)).first()
         except SQLAlchemyError as exc:
             logger.exception(f"permissions.db_models.get_by_key failed (key={key}): {exc}")
             raise PersistenceError(f"Unable to get permission by key: {exc}")
 
-    def list_permissions(self, db: Session) -> list[Permission]:
+    def list_permissions(self, db: Session, organization_id: str | None = None) -> list[Permission]:
         """Return all system permissions ordered by resource and action."""
         try:
             return (
                 db.query(Permission)
+                .filter(self._scope(organization_id))
                 .order_by(Permission.resource, Permission.action, Permission.key)
                 .all()
             )
@@ -107,3 +109,29 @@ class PermissionsModelService:
         except SQLAlchemyError as exc:
             logger.exception(f"permissions.db_models.list_permissions failed: {exc}")
             raise PersistenceError(f"Unable to list permissions: {exc}")
+
+    @staticmethod
+    def _scope(organization_id):
+        return or_(Permission.organization_id.is_(None), Permission.organization_id == organization_id)
+
+    def register(self, db, organization_id, payload):
+        # Tenant in the key prevents accidental collisions or cross-tenant role grants.
+        key = f"tenant.{organization_id}.{payload.namespace}.{payload.resource}:{payload.action}"
+        # Serialize registrations with the same key; a retry keeps both identity and grants.
+        from sqlalchemy import text
+        if db.bind.dialect.name == 'postgresql':
+            db.execute(text('SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))'), {'key': key})
+        try:
+            row = self.get_by_key(db, key, organization_id)
+            if row is None:
+                row = Permission(key=key, organization_id=organization_id,
+                                 resource=f"{payload.namespace}.{payload.resource}",
+                                 action=payload.action, is_system=False)
+                db.add(row)
+            row.description = payload.description
+            db.commit()
+            db.refresh(row)
+            return row
+        except SQLAlchemyError as exc:
+            db.rollback()
+            raise PersistenceError('Unable to register tenant permission') from exc

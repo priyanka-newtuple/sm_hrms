@@ -6,12 +6,13 @@ from typing import TYPE_CHECKING, Annotated, Any
 
 from fastapi import APIRouter, Depends, Request
 
-from common.auth import require_permission
+from common.auth import actor_str, require_permission
 from common.deps import get_db
 from common.logger import logger, tracer
 from common.utils import raise_http_error
 
 from permissions.models.response import PermissionRead
+from permissions.models.request import PermissionRegistration
 
 if TYPE_CHECKING:
     from auth.manager import AuthServiceManager
@@ -20,6 +21,9 @@ if TYPE_CHECKING:
 
 
 PermissionReadActor = Annotated[dict[str, object], Depends(require_permission("role", "read"))]
+
+
+PermissionWriteActor = Annotated[dict[str, object], Depends(require_permission("role", "write"))]
 
 
 class PermissionsRestController:
@@ -61,6 +65,14 @@ class PermissionsRestController:
             with tracer.start_as_current_span("PermissionsController.list"):
                 try:
                     logger.info("permissions.list", extra={"request_id": request_id})
-                    return self.manager.list_permissions(db)
+                    return self.manager.list_permissions(db, actor_str(actor, "organization_id"))
                 except Exception as exc:
                     raise_http_error(exc, self._error_context(request_id, "list"))
+
+        @app.post("/permissions", response_model=PermissionRead, tags=["permissions"])
+        def register_permission(payload: PermissionRegistration, request: Request,
+                                actor: PermissionWriteActor, db: Any = Depends(get_db)) -> PermissionRead:
+            try:
+                return self.manager.register(db, actor_str(actor, "organization_id"), payload)
+            except Exception as exc:
+                raise_http_error(exc, self._error_context(getattr(request.state, "request_id", "unknown"), "register"))

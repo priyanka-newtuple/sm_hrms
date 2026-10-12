@@ -1,7 +1,5 @@
-import CockpitAccessSettings from './CockpitAccessSettings';
 import OrganizationSettings from './OrganizationSettings';
 import { Building2 } from 'lucide-react';
-import ProjectAccessSettings from './ProjectAccessSettings';
 import { lazy, Suspense, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useHrmsCapabilities } from '../capabilities';
@@ -9,18 +7,9 @@ import { usePermissions } from '../../../core/hooks/usePermissions';
 import SettingsSidebar from '../../../pages/settings/components/SettingsSidebar';
 import { getTabGroups, filterTabGroupsByPermission } from '../../../pages/settings/lib/constant';
 import type { SettingsTab } from '../../../pages/settings';
-import { useQuery } from '@tanstack/react-query';
-import { request } from '../../../core/services/api/client';
 import { PageHero } from '../components/PageHero';
 
-function ProductRolePolicy() {
-  const policy = useQuery({queryKey:['hrms','settings','role-policy'],queryFn:()=>request<Record<string,string[]>>('/hrms/settings/role-capabilities')});
-  return <details className="mb-5 rounded-lg border p-4"><summary className="cursor-pointer font-medium">HRMS application capabilities</summary>
-    <p className="my-3 text-sm text-muted-foreground">The native editor below configures platform permissions. Project, allocation and cockpit permissions are editable above. Other HRMS business capabilities are maintained in the application configuration.</p>
-    {policy.isLoading && <p>Loading role policy…</p>}{policy.isError && <p role="alert">Unable to load the HRMS role policy.</p>}
-    {Object.entries(policy.data??{}).map(([role,caps])=><div key={role} className="border-t py-2 text-sm"><strong>{role}</strong><p className="break-words text-muted-foreground">{caps.join(', ')}</p></div>)}
-  </details>;
-}
+
 
 export function ConfigurationGuard({children}: {children: ReactNode}) {
   const caps = useHrmsCapabilities();
@@ -72,7 +61,6 @@ export default function PlatformSettings() {
     <section className="hrms-settings-frame flex min-w-0 bg-background">
     <SettingsSidebar groups={groups} activeTab={active ?? null} onTabChange={tab => setParams({tab})} />
     <div className="min-w-0 flex-1 p-6"><Suspense fallback={<p>Loading configuration…</p>}>
-      {active === 'roles' && <><ProjectAccessSettings /><CockpitAccessSettings /><ProductRolePolicy /></>}
       {Component ? <Component /> : <p role="alert">This settings section is not available in your organization.</p>}
     </Suspense></div>
   </section></div></ConfigurationGuard>;

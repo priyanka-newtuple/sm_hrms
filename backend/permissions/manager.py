@@ -55,17 +55,24 @@ class PermissionsServiceManager:
             action=permission.action,
             description=permission.description,
             is_system=permission.is_system,
+            organization_id=permission.organization_id,
         )
 
     # ── Catalog ───────────────────────────────────────────────────────────────
 
-    def list_permissions(self, db: Session) -> list[PermissionRead]:
+    def list_permissions(self, db: Session, organization_id: str | None = None) -> list[PermissionRead]:
         """Return the seeded backend permission catalog."""
         try:
-            permissions = self.db.list_permissions(db)
+            permissions = self.db.list_permissions(db, organization_id)
             return [self._to_read(p) for p in permissions]
         except PersistenceError:
             raise
         except Exception as exc:
             logger.exception(f"permissions.manager.list_permissions failed: {exc}")
             raise ServiceError(f"Unable to list permissions: {exc}")
+
+    def register(self, db, organization_id, payload):
+        from exceptions import ValidationError
+        if not organization_id:
+            raise ValidationError('An organization is required')
+        return self._to_read(self.db.register(db, organization_id, payload))

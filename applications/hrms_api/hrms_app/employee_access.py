@@ -14,12 +14,15 @@ def identity_roles(platform, actor, identity):
 
 
 def may_manage(actor, roles):
-    return ('employee:activate' in capabilities(actor) and bool(roles)
-            and (roles <= {'hrms_employee'} or 'platform:configure' in capabilities(actor)))
+    # Offboarding can suspend ordinary accounts; approving new accounts is Super Admin only.
+    return (bool(roles) and ('superadmin' in actor.roles or
+            ('employee:exit' in capabilities(actor) and roles <= {'hrms_employee'})))
+
 
 
 def setup_access(service, actor, employee_id, operation_key):
-    require(actor, 'employee:activate')
+    if 'superadmin' not in actor.roles:
+        raise AppError(403, 'Only Super Admin can approve employee account access')
     local_email_disabled = (os.getenv('HRMS_LOCAL_DISABLE_EMAIL', '').lower() == 'true'
                             and os.getenv('HRMS_ORGANIZATION_ID') == '11111111-1111-1111-1111-111111111111'
                             and os.getenv('PLATFORM_API_URL') == 'http://platform-api:8000/v1/api')
@@ -59,7 +62,7 @@ def setup_access(service, actor, employee_id, operation_key):
         if identity['status'] == 'pending':
             op.checkpoint(activation_requested=True, original_roles=sorted(roles))
             service.journal.audit(db, actor, 'employee.access.activation_requested', employee_id)
-            service.platform.call('POST', f'/users/{user_id}/approve')
+            service.platform.request('POST', f'/users/{user_id}/approve', token=actor.token)
         if op.progress.get('activation_requested'):
             # Native approval may add viewer. Preserve the explicitly authorized roles.
             assigned = service.platform.call('GET', f'/roles/users/{user_id}/roles')

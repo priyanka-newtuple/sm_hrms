@@ -45,7 +45,7 @@ class OnboardingPlatform(Platform):
 
 
 def activate(platform):
-    return setup_access(HrmsService(platform, Journal(), 'newtuple.com'), actor('hr', 'hrms_hr_full'), 'employee', 'access-op-1')
+    return setup_access(HrmsService(platform, Journal(), 'newtuple.com'), actor('admin', 'superadmin'), 'employee', 'access-op-1')
 
 
 def test_activation_completes_the_invite_step_once_the_work_account_exists():
@@ -85,6 +85,6 @@ def test_a_google_ready_account_activates_without_an_email_provider(monkeypatch)
     platform = Platform()
     platform.configured = False  # no email provider
     platform.http = google_service().platform.http
-    result = setup_access(HrmsService(platform, Journal(), 'newtuple.com'), actor('hr', 'hrms_hr_full'), 'employee', 'access-op-2')
+    result = setup_access(HrmsService(platform, Journal(), 'newtuple.com'), actor('admin', 'superadmin'), 'employee', 'access-op-2')
     assert result['email_status'] == 'not_required' and 'Google' in result['message']
     assert '/auth/forgot-password' not in platform.writes

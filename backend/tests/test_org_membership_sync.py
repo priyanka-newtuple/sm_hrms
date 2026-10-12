@@ -761,3 +761,15 @@ def test_is_membership_active_membership_row_overrides_primary_fallback(db) -> N
     user = _user(db, "u3@x.com", org.id)
     _membership(db, user.id, org.id, status="suspended")
     assert _user_svc().is_membership_active(db, user.id, org.id) is False
+
+
+def test_approval_preserves_preassigned_native_role_without_adding_viewer(db):
+    org = _org(db, "Onboarding Org")
+    target = _user_with_status(db, "new.employee@x.com", org.id, status="pending")
+    role = Role(id=str(uuid.uuid4()), organization_id=org.id, name="people_operations", display_name="People Operations", is_system=False)
+    db.add(role)
+    db.commit()
+    _user_svc().assign_role_to_user(db, target.id, org.id, role.id)
+    result = _user_manager().approve_user(db, target.id, organization_id=org.id)
+    assert result.status == "active"
+    assert _rbac_role_names(db, target.id, org.id) == {"people_operations"}

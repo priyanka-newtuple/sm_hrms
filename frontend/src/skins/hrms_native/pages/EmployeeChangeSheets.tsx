@@ -23,7 +23,7 @@ export interface EditableEmployee {
   exit_reason?: string | null;
   custom?: CustomValues;
 }
-interface Options { departments: string[]; designations: string[] }
+interface Options { departments: string[]; designations: string[]; department_labels?: Record<string, string>; designation_labels?: Record<string, string> }
 
 const input = 'hrms-field-input';
 const today = () => new Date().toISOString().slice(0, 10);
@@ -70,8 +70,8 @@ export function EditEmployeeSheet({ employee, employees, options, onClose, onSav
             <ConfiguredField field="last_name" label="Last name" className="text-sm font-medium"><input required maxLength={100} value={form.last_name} onChange={e => set('last_name')(e.target.value)} className={input} /></ConfiguredField>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
-            <ConfiguredField field="department" label="Department" className="text-sm font-medium"><select required value={form.department} onChange={e => set('department')(e.target.value)} className={input}>{withCurrent(options?.departments, employee.department).map(item => <option key={item} value={item}>{item}</option>)}</select></ConfiguredField>
-            <ConfiguredField field="designation" label="Designation" className="text-sm font-medium"><select required value={form.designation} onChange={e => set('designation')(e.target.value)} className={input}>{withCurrent(options?.designations, employee.designation).map(item => <option key={item} value={item}>{item}</option>)}</select></ConfiguredField>
+            <ConfiguredField field="department" label="Department" className="text-sm font-medium"><select required value={form.department} onChange={e => set('department')(e.target.value)} className={input}>{withCurrent(options?.departments, employee.department).map(item => <option key={item} value={item}>{options?.department_labels?.[item] ?? item}</option>)}</select></ConfiguredField>
+            <ConfiguredField field="designation" label="Designation" className="text-sm font-medium"><select required value={form.designation} onChange={e => set('designation')(e.target.value)} className={input}>{withCurrent(options?.designations, employee.designation).map(item => <option key={item} value={item}>{options?.designation_labels?.[item] ?? item}</option>)}</select></ConfiguredField>
           </div>
           <ConfiguredField field="reports_to_employee_code" label="Reporting manager" className="block text-sm font-medium"><select value={form.reports_to_entity_id} onChange={e => set('reports_to_entity_id')(e.target.value)} className={input}><option value="">None</option>{managers.map(item => <option key={item.entity_id} value={item.entity_id}>{item.full_name} · {item.designation}</option>)}</select></ConfiguredField>
           <div className="grid gap-3 sm:grid-cols-3">
