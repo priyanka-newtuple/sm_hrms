@@ -13,7 +13,7 @@ from .cockpit_catalog import INTERNAL, TYPES
 from .errors import AppError
 from .form_config import configured_form
 from .policy import capabilities, require, role_capabilities
-from .workflow_config import configured_workflow_rows
+from .workflow_config import configured_workflow_rows, offers_step
 
 # Native field types a content value is checked against. `datetime` is where date
 # fields land in the Field Library; the cockpit still stores ISO dates in them.
@@ -226,11 +226,10 @@ class CockpitService:
         result = []
         for r in rows:
             cfg = by_id[r["entity_id"]]
-            triggers = {
-                t["trigger"]
-                for t in cfg["workflow_configuration"]["transitions"]
+            outgoing = [
+                t for t in cfg["workflow_configuration"]["transitions"]
                 if t["from_state"] == cfg["current_state"]
-            }
+            ]
             result.append(
                 {
                     **r,
@@ -238,7 +237,7 @@ class CockpitService:
                     "actions": [
                         a
                         for a in self.actions(actor, r, everything)
-                        if a in EDITS or TRIGGERS.get(a, a) in triggers
+                        if a in EDITS or offers_step(r["kind"], cfg["current_state"], TRIGGERS.get(a, a), outgoing)
                     ],
                     "superseded": self.superseded(r, everything),
                     "expired": bool(self.expired(r)),

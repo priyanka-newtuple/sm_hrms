@@ -3,6 +3,7 @@ import { ArrowRight, Plus, Layers, Target, MessageSquare, CheckCircle2 } from 'l
 import { WorkflowStages, useWorkflowConfiguration, transitionLabel } from '../workflows/WorkflowConfiguration';
 import { ConfiguredForm, ConfiguredField } from '../forms/ConfiguredForm';
 import { CustomFields } from '../forms/CustomFields';
+import { AddedSteps } from '../workflows/AddedSteps';
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -156,6 +157,7 @@ export function PerformanceDetail({ entityId }: { entityId: string }) {
     {row.goals && <div className="space-y-3"><h3 className="font-semibold">Goals · {row.goals.reduce((sum, g) => sum + Number(g.data.weight), 0)}% total weight</h3>{row.goals.map(goal => <article key={goal.id} className="hrms-surface hrms-review-card"><div className="flex justify-between gap-3"><h4 className="font-medium">{value(goal.data, 'title')} · {value(goal.data, 'weight')}%</h4><span className="text-xs">{label(goal.state)}</span></div><p className="mt-2 text-sm">{value(goal.data, 'measurement')}</p><p className="text-sm text-muted-foreground">Target: {value(goal.data, 'target_date')} · {value(goal.data, 'evidence')}</p>{Boolean(goal.data.manager_comment) && <p className="mt-2 text-sm">Manager: {value(goal.data, 'manager_comment')}</p>}{goal.actions?.map(a => <Button key={a} variant="outline" className="hrms-outline-button mt-2" onClick={() => setAction({ name: a, item: goal })}>{label(a)}</Button>)}</article>)}</div>}
     {Boolean(row.feedback?.length) && <div className="space-y-3"><h3 className="font-semibold">Project feedback</h3>{row.feedback?.map(f => <article key={f.id} className="hrms-surface hrms-review-card"><p>{value(f.data, 'project_reference')} · {value(f.data, 'reviewer_name')} · {label(f.state)}</p><p className="text-sm">{value(f.data, 'contribution')}</p><p className="text-sm">{value(f.data, 'collaboration')}</p>{Boolean(f.data.rating) && <p className="text-sm">Rating: {value(f.data, 'rating')} / 5</p>}{Boolean(f.data.cancel_reason) && <p className="text-sm text-muted-foreground">Cancelled: {value(f.data, 'cancel_reason')}</p>}{f.actions?.map(a => <Button key={a} variant="outline" className="hrms-outline-button mt-2 mr-2" onClick={() => setAction({ name: a, item: f })}>{label(a)}</Button>)}</article>)}</div>}
     {!action && <div className="flex flex-wrap gap-2">{row.actions.map(a => <Button className="hrms-primary-button" variant="primary" size="md" key={a} onClick={() => setAction({ name: a, item: row })}>{transitionLabel(configured,a)}</Button>)}{row.actions.length === 0 && <p className="text-sm text-muted-foreground">No action is assigned to you at this stage.</p>}</div>}
+    {!action && query.data?.can_manage && <AddedSteps entityId={row.id} />}
     {action && <ActionForm key={`${action.item.id}:${action.name}`} item={action.item} action={action.name} done={() => setAction(null)} />}
   </section>;
 }

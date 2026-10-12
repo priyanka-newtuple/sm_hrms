@@ -4,7 +4,7 @@ import os
 from .catalog import PACKS
 from .cockpit_catalog import TYPES as COCKPIT_TYPES
 from .errors import AppError
-from .field_access import RUNTIME_TYPES, configured_fields, grant
+from .field_access import RUNTIME_TYPES, configured_fields, configured_transitions, grant
 from .form_config import has_method_blocks
 from .install_project_roles import install_project_role_picklist
 from .platform import PlatformClient
@@ -111,8 +111,10 @@ def install():
                            for name in dict.fromkeys([*(f['field'] for f in (*p.fields, marker)),
                                                       *configured_fields(api, p.entity_type)])],
         workflow_permissions=[{'machine_name': machines[p.machine_name]} for p in runtime_packs if p.states],
-        transition_permissions=[{'machine_name': machines[p.machine_name], 'transition_key': f'{source}_to_{target}'}
-                                for p in runtime_packs for source, _, target in p.transitions])
+        # Steps added to the workflows in Settings too, so a redeploy never takes their access away.
+        transition_permissions=[{'machine_name': machine, 'transition_key': key} for machine, key in dict.fromkeys([
+            *((machines[p.machine_name], f'{source}_to_{target}') for p in runtime_packs for source, _, target in p.transitions),
+            *(step for p in runtime_packs if p.states for step in configured_transitions(api, p.entity_type))])])
     role = by_name.get(service_name)
     if role:
         api.call('PUT', f"/roles/{role['id']}", json=role_spec)

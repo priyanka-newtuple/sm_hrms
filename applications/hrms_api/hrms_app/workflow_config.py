@@ -62,3 +62,16 @@ def configured_workflow_rows(platform, rows, skip_unenrolled=False):
                        'is_terminal': metadata['terminal'], 'workflow_label': config['name'],
                        'workflow_configuration': config})
     return result
+
+
+def step_targets(entity_type, state, trigger):
+    """Where an HRMS step leads from `state`, so a step renamed in Settings → Funnels is still found."""
+    from .catalog import pack_by_type
+    return {target for source, name, target in pack_by_type(entity_type).transitions if source == state and name == trigger}
+
+
+def offers_step(entity_type, state, trigger, transitions):
+    """Whether `transitions` from `state` (each with a trigger and to_state) include the HRMS step,
+    under its own trigger or the one it was renamed to."""
+    targets = step_targets(entity_type, state, trigger)
+    return any(t['trigger'] == trigger or t.get('to_state') in targets for t in transitions)

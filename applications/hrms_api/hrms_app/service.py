@@ -686,7 +686,8 @@ class HrmsService:
                 d = row['data']
                 if d.get('hrms_operation_key') == marker:
                     continue
-                if (d.get('employee_id') == own['entity_id'] and states.get(row['entity_id'], 'pending') in {'pending', 'approved'}
+                # Any state but rejected or cancelled holds the dates, including steps added in Settings.
+                if (d.get('employee_id') == own['entity_id'] and states.get(row['entity_id'], 'pending') not in {'rejected', 'cancelled'}
                     and d['start_date'] <= request.end_date.isoformat() and d['end_date'] >= request.start_date.isoformat()):
                     raise AppError(409, 'A pending or approved leave request overlaps these dates')
             data = {**request.model_dump(mode='json', exclude={'idempotency_key', 'custom'}), **custom}
@@ -733,19 +734,28 @@ class HrmsService:
         # admin or HR would otherwise leave the request undecidable.
         if state == 'pending':
             allowed = ['cancel'] if own else ['approve', 'reject']
-        elif (state == 'approved' and own and row['data']['start_date'] > date.today().isoformat()
-              and self._has_transition(entity_id, 'cancel')):
+        elif state == 'approved' and own and row['data']['start_date'] > date.today().isoformat():
             # Approved leave can be cancelled until the day it starts, on a workflow version that
             # has that step: leave enrolled before the step existed keeps its original rules.
             allowed = ['cancel']
         else:
             allowed = []
+        # Offer each step under the name Settings → Funnels gives it, and not at all if it was removed.
+        offered = self._offered(entity_id, allowed) if allowed else {}
         return dict(entity_id=entity_id, current_state=state, available_transitions=[
-            dict(trigger=t, label=t.title(), allowed=True) for t in allowed])
+            dict(trigger=t, label=offered[t], allowed=True) for t in allowed if t in offered])
 
-    def _has_transition(self, entity_id, trigger):
+    def _offered(self, entity_id, triggers):
+        """HRMS leave steps the current state offers, each with its configured label."""
+        from .workflow_config import step_targets
         available = self.platform.call('GET', f'/entities/{entity_id}/transitions/available')
-        return any(t['trigger'] == trigger for t in available.get('available_transitions', []))
+        state, options = available.get('current_state'), available.get('available_transitions', [])
+        result = {}
+        for trigger in triggers:
+            match = next((t for t in options if t['trigger'] == trigger or t.get('to_state') in step_targets(LEAVE, state, trigger)), None)
+            if match:
+                result[trigger] = match.get('label') or trigger.title()
+        return result
 
     def decide_leave(self, actor, entity_id, trigger, key):
         with self.journal.lock(actor.organization_id) as db:

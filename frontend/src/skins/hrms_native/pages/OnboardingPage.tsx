@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import { CheckCircle2, Circle, Clock3, Search, UserRound, CalendarDays, MinusCircle } from 'lucide-react';
 import { getApiErrorMessage, request } from '../../../core/services/api/client';
 import { PageHero } from '../components/PageHero';
+import { AddedSteps } from '../workflows/AddedSteps';
 
 interface Step {
   sequence: number;
@@ -125,6 +126,7 @@ export default function OnboardingPage({ caseId, embedded = false }: { caseId?: 
             {selected.can_complete_case && <button type="button" disabled={completeCase.isPending} onClick={() => completeCase.mutate(selected.entity_id)} className="hrms-primary-button">{completeCase.isPending ? 'Completing…' : 'Complete onboarding'}</button>}
             {selected.can_cancel && managing !== 'cancel' && <button type="button" onClick={() => open('cancel')} className="hrms-outline-button">Cancel onboarding</button>}
           </div>
+          {selected.can_cancel && <AddedSteps entityId={selected.entity_id} />}
           {managing === 'cancel' && <form className="mt-3 space-y-2" onSubmit={(event) => { event.preventDefault(); manage.mutate({ path: `/hrms/onboarding/${selected.entity_id}/cancel`, method: 'POST', body: { reason: change.reason } }); }}>
             <label className="block space-y-1 text-sm font-medium"><span>Why is onboarding cancelled?</span><textarea required maxLength={2000} rows={2} value={change.reason} onChange={(event) => setChange({ ...change, reason: event.target.value })} className="hrms-field-input" placeholder="No-show, offer withdrawn…" /></label>
             <p className="text-sm text-slate-600">Open steps are cancelled. If they will not join, record their exit as “Did not join” in Org Directory.</p>

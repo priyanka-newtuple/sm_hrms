@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useHrmsCapabilities } from '../capabilities';
 import { WorkflowStages } from '../workflows/WorkflowConfiguration';
+import { AddedSteps } from '../workflows/AddedSteps';
 import { PageHero } from '../components/PageHero';
 export const CONTENT_TYPES=['HRMS.Policy','HRMS.LearningEvent','HRMS.HolidayCalendar','HRMS.JobDescription','HRMS.JobOpening'];
 export const CONTENT_LABELS=['Policies','L&D calendar','Holidays','Job descriptions','Open positions'];
@@ -139,6 +140,7 @@ function ContentCockpit({entityId,tabs}:{entityId?:string;tabs?:React.ReactNode}
     <button type="submit" className="hrms-primary-button" disabled={!newApprover||act.isPending}>Send to this approver</button><button type="button" className="hrms-outline-button" onClick={()=>setNewApprover(null)}>Cancel</button></form>}
    {item.superseded&&<p className="hrms-notice">A newer revision of this item is published. Pause, close or revise the published version instead.</p>}
    {act.isError&&<div role="alert" className="hrms-notice hrms-notice--error"><p>{getApiErrorMessage(act.error)}</p>{pending&&<button className="hrms-outline-button" onClick={()=>act.mutate(pending)}>Retry action</button>}{pending&&<button className="hrms-outline-button" onClick={()=>{setPending(null);act.reset();}}>Dismiss</button>}</div>}
+   {caps.data?.capabilities.includes('cockpit:publish')&&<AddedSteps entityId={item.entity_id}/>}
    <Link className="hrms-text-link" to={`/hrms/workflows?case=${item.entity_id}`}>View in Workflows <ArrowUpRight size={15}/></Link>
   </section>}
  </main>;

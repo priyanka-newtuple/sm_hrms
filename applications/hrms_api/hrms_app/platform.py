@@ -1,6 +1,7 @@
 """The only runtime adapter to the platform: public HTTP contracts, no core imports."""
 from __future__ import annotations
 
+import re
 import threading
 import time
 from dataclasses import dataclass
@@ -8,6 +9,8 @@ from dataclasses import dataclass
 import httpx
 
 from .errors import AppError
+
+TRANSITION_PATH = re.compile(r'^/entities/([^/]+)/transitions$')
 
 MACHINE_NAME_TTL_SECONDS = 60
 
@@ -75,6 +78,33 @@ class PlatformClient:
             return self._token
 
     def call(self, method, path, **kwargs):
+        try:
+            return self._send(method, path, **kwargs)
+        except AppError as exc:
+            match = TRANSITION_PATH.match(path)
+            trigger = (kwargs.get('json') or {}).get('trigger')
+            if method != 'POST' or not match or not trigger or exc.status not in {400, 404, 409, 422}:
+                raise
+            renamed = self.renamed_trigger(match.group(1), trigger)
+            if not renamed:
+                raise
+            return self._send(method, path, **{**kwargs, 'json': {**kwargs['json'], 'trigger': renamed}})
+
+    def renamed_trigger(self, entity_id, trigger):
+        """The trigger an HRMS step has after it was renamed in Settings → Funnels: the one transition
+        from the current state to the state the step leads to. None when it was not renamed, or
+        when the step cannot be told apart, so the platform's own refusal stands."""
+        from .catalog import PACKS
+        available = self._send('GET', f'/entities/{entity_id}/transitions/available')
+        options = available.get('available_transitions', [])
+        if any(t['trigger'] == trigger for t in options):
+            return None
+        targets = {target for pack in PACKS for source, name, target in pack.transitions
+                   if name == trigger and source == available.get('current_state')}
+        matches = [t['trigger'] for t in options if t['to_state'] in targets]
+        return matches[0] if len(matches) == 1 else None
+
+    def _send(self, method, path, **kwargs):
         # A platform restart or token expiry can invalidate a cached service session.
         # Keep service authentication failures separate from the browser session.
         for attempt in range(2):

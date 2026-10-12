@@ -16,7 +16,8 @@ from .journal import Journal
 from .platform import PlatformClient
 from .policy import capabilities
 from .settings_gateway import configuration_route, authorize_configuration
-from .field_access import changes_forms, sync_service_field_access
+from .field_access import changes_forms, sync_service_access
+from .extra_steps import ExtraSteps
 from . import custom_fields
 from .requests import (EmployeeCreateRequest, EmployeeExitRequest, EmployeeOperationRequest, EmployeeUpdateRequest,
                        LeaveCreateRequest, OnboardingReasonRequest, OnboardingStepUpdateRequest)
@@ -39,6 +40,11 @@ class EmployeeAccessRequest(BaseModel):
 
 class Decision(BaseModel):
     trigger: str
+    idempotency_key: str = Field(min_length=8, max_length=128)
+
+
+class StepRequest(BaseModel):
+    trigger: str = Field(min_length=1, max_length=100)
     idempotency_key: str = Field(min_length=8, max_length=128)
 
 
@@ -298,6 +304,16 @@ def create_app(platform=None, journal=None):
     def complete_step(case_id: UUID, sequence: int, current=Depends(actor)):
         return service.complete_step(current, str(case_id), sequence)
 
+    extra_steps = ExtraSteps(service)
+
+    @app.get('/v1/api/hrms/workflow-steps/{entity_id}')
+    def added_steps(entity_id: UUID, current=Depends(actor)):
+        return extra_steps.available(current, str(entity_id))
+
+    @app.post('/v1/api/hrms/workflow-steps/{entity_id}')
+    def run_added_step(entity_id: UUID, payload: StepRequest, current=Depends(actor)):
+        return extra_steps.run(current, str(entity_id), payload.trigger, payload.idempotency_key)
+
     @app.get('/v1/api/hrms/onboarding/assignees')
     def onboarding_assignees(current=Depends(actor)):
         return service.onboarding_assignees(current)
@@ -389,8 +405,8 @@ def create_app(platform=None, journal=None):
         return response
 
     def follow_form_change(token):
-        """An administrator changed a form: let the HRMS service save any field they added, using
-        their own access. Best effort; the change itself has already been saved."""
+        """An administrator changed a form or workflow: let the HRMS service use any field or step
+        they added, with their own access. Best effort; the change itself has already been saved."""
         custom_fields._keys.clear()
 
         def as_admin(method, path, json=None):
@@ -399,9 +415,9 @@ def create_app(platform=None, journal=None):
                 raise AppError(response.status_code, f'{method} {path} was refused')
             return response.json()
         try:
-            sync_service_field_access(platform, as_admin)
+            sync_service_access(platform, as_admin)
         except Exception:  # noqa: BLE001 - never fail the administrator's saved change
-            logging.getLogger(__name__).exception('HRMS service field access was not updated')
+            logging.getLogger(__name__).exception('HRMS service access was not updated')
 
     return app
 

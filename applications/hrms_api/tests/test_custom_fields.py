@@ -57,19 +57,25 @@ def test_a_custom_field_is_saved_with_the_employee_and_returned():
     assert result['custom'] == {'blood_group': 'A+', 'shirt_size': 'XL'}
 
 
-def test_the_service_role_is_granted_new_fields_without_losing_any(monkeypatch):
+def test_the_service_role_is_granted_new_fields_and_steps_without_losing_any(monkeypatch):
     from hrms_app import field_access
     monkeypatch.setattr(field_access, 'configured_fields',
                         lambda platform, kind: ['first_name', 'blood_group'] if kind == 'HRMS.Employee' else [])
-    role = {'field_permissions': [dict(id='1', entity_type='HRMS.Employee', field_name='first_name', can_view=True, can_edit=True, mask_value=False)]}
+    monkeypatch.setattr(field_access, 'configured_transitions',
+                        lambda platform, kind: [('leave_machine', 'pending_to_hr_review')] if kind == 'HRMS.LeaveRequest' else [])
+    role = {'field_permissions': [dict(id='1', entity_type='HRMS.Employee', field_name='first_name', can_view=True, can_edit=True, mask_value=False)],
+            'transition_permissions': [], 'workflow_permissions': [dict(id='2', machine_name='leave_machine')]}
     calls = []
 
     def call(method, path, json=None):
         calls.append((method, path, json))
         return [{'id': 'svc', 'name': 'hrms_application_service'}] if path == 'roles' else role
-    added = field_access.sync_service_field_access(None, call)
-    assert added == [field_access.grant('HRMS.Employee', 'blood_group')]
-    assert [f['field_name'] for f in calls[-1][2]['field_permissions']] == ['first_name', 'blood_group']
+    added = field_access.sync_service_access(None, call)
+    assert added == [field_access.grant('HRMS.Employee', 'blood_group'), {'machine_name': 'leave_machine', 'transition_key': 'pending_to_hr_review'}]
+    update = calls[-1][2]
+    assert [f['field_name'] for f in update['field_permissions']] == ['first_name', 'blood_group']
+    assert update['transition_permissions'] == [{'machine_name': 'leave_machine', 'transition_key': 'pending_to_hr_review'}]
+    assert 'workflow_permissions' not in update  # the machine was already allowed
     assert field_access.changes_forms('PUT', 'method-library/methods/m1/fields')
     assert not field_access.changes_forms('GET', 'method-library/methods') and not field_access.changes_forms('PUT', 'roles/r1')
 

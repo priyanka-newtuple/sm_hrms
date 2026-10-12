@@ -103,7 +103,8 @@ class WfhService:
         states = self.platform.states('hrms_leaverequest')
         for row in self.platform.records(LEAVE, LEAVE_FIELDS):
             d = row['data']
-            if d.get('employee_id') == employee_id and states.get(row['entity_id']) in {'pending', 'approved'}:
+            # Any state but rejected or cancelled holds the dates, including steps added in Settings.
+            if d.get('employee_id') == employee_id and states.get(row['entity_id'], 'cancelled') not in {'rejected', 'cancelled'}:
                 check(not any(d['start_date'] <= day <= d['end_date'] for day in dates),
                       'These dates overlap a pending or approved leave request', 409)
         check(not dates.intersection(self.holiday_dates(self.employee_location(employee_id))), 'A selected date is a published holiday', 409)
@@ -114,7 +115,7 @@ class WfhService:
         for row in self.rows(REQUEST):
             if row['entity_id'] != excluding and row['data']['employee_id'] == employee_id and row['data']['year'] == year:
                 # A record whose enrollment has not finished still reserves its dates.
-                if states.get(row['entity_id'], 'pending') in {'pending', 'approved'}:
+                if states.get(row['entity_id'], 'pending') not in {'rejected', 'cancelled'}:
                     dates.update(request_dates(row))
         return dates
 

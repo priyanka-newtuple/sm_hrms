@@ -64,8 +64,10 @@ class Platform:
             return {'items': [{'schema_key': pack_by_type('HRMS.LeaveRequest').schema_key, 'name': 'Leave',
                                'fields': self.form_fields}]}
         if path.endswith('/transitions/available'):
-            steps = [] if self.old_workflow else [{'trigger': 'cancel', 'to_state': 'cancelled'}]
-            return {'available_transitions': steps if self.state == 'approved' else []}
+            steps = {'pending': [{'trigger': 'approve', 'to_state': 'approved'}, {'trigger': 'reject', 'to_state': 'rejected'},
+                                 {'trigger': 'cancel', 'to_state': 'cancelled'}],
+                     'approved': [] if self.old_workflow else [{'trigger': 'cancel', 'to_state': 'cancelled'}]}
+            return {'current_state': self.state, 'available_transitions': steps.get(self.state, [])}
         assert path == '/entity-types/HRMS.LeaveRequest'
         return {'entity_type_id': 'leave-type'}
 
@@ -296,3 +298,17 @@ def test_only_sick_leave_can_be_backdated_and_only_within_a_week(monkeypatch, da
                    leave_type=leave_type)
     assert ('Nobody can approve' in error.detail) is allowed
     assert ('must start today or later' in error.detail) is not allowed
+
+
+def test_steps_follow_their_names_in_settings_and_disappear_when_removed():
+    platform = Platform()
+    original = platform.call
+
+    def renamed(method, path, **kwargs):
+        if path.endswith('/transitions/available'):
+            return {'current_state': 'pending', 'available_transitions': [
+                {'trigger': 'manager_approve', 'label': 'Approve leave', 'to_state': 'approved'}]}  # reject removed
+        return original(method, path, **kwargs)
+    platform.call = renamed
+    result = HrmsService(platform, None, 'example.com').leave_actions(actor('lead-user', 'hrms_manager'), 'dev-leave')
+    assert [(t['trigger'], t['label']) for t in result['available_transitions']] == [('approve', 'Approve leave')]

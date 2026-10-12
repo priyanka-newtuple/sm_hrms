@@ -3,6 +3,7 @@ import { CalendarDays, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { ConfiguredForm, ConfiguredField } from '../forms/ConfiguredForm';
 import { CustomFields, CustomFieldValues, type CustomValues } from '../forms/CustomFields';
+import { AddedSteps } from '../workflows/AddedSteps';
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getApiErrorMessage, request } from '../../../core/services/api/client';
@@ -64,6 +65,7 @@ export function LeaveRow({ item, view, onChange }: { item: LeaveItem; view: View
           {action.label || action.trigger}
         </button>)}
       </div>}
+      {view === 'approvals' && <div className="mt-3"><AddedSteps entityId={item.entity_id} onDemand /></div>}
       {available.isFetching && <p className="hrms-muted" role="status">Loading available actions…</p>}
       {available.isError && <div role="alert" className="hrms-notice hrms-notice--error">{getApiErrorMessage(available.error)} <button className="hrms-outline-button" onClick={() => void available.refetch()}>Retry actions</button></div>}
       {error && <p role="alert" className="mt-2 text-sm text-red-700">{error}</p>}
