@@ -33,7 +33,7 @@ def main():
     admin_id = app.get('/auth/me', headers=admin).json()['id']
 
     def action(headers, target, trigger, data=None, suffix=''):
-        body = dict(action=trigger, data=data or {}, idempotency_key=f'performance-smoke-v1-{trigger}{suffix}')
+        body = dict(action=trigger, data=data or {}, idempotency_key=f'performance-smoke-v2-{trigger}{suffix}')
         path = '/hrms/performance/cycles' if target == 'new' else f'/hrms/performance/{target}/actions'
         response = app.post(path, headers=headers, json=body)
         assert response.status_code == 200, f'{trigger}: {response.status_code} {response.text}'
@@ -46,7 +46,7 @@ def main():
     assert any(e['id'] == person['entity_id'] for e in options.json()['employees'])
     cycle = action(hr, 'new', 'create_cycle', dict(name='Local performance verification',
         description='Named integration-test fixture; not a real employee assessment.',
-        start_date='2042-01-01', goal_due_date='2042-02-01', self_review_due_date='2042-10-01',
+        start_date='2026-01-01', goal_due_date='2042-02-01', self_review_due_date='2042-10-01',
         manager_review_due_date='2042-11-01', end_date='2042-12-31', approver_id=admin_id,
         participants=[dict(employee_id=person['entity_id'], calibrator_user_id=hr_id)]))
     action(hr, cycle, 'submit')
@@ -58,7 +58,7 @@ def main():
                                             weight=100, target_date='2042-10-01'))
     action(employee, review, 'submit_goals')
     denied = app.post(f'/hrms/performance/{review}/actions', headers=employee, json=dict(
-        action='approve_goals', data={}, idempotency_key='performance-smoke-self-approval-denied'))
+        action='approve_goals', data={}, idempotency_key='performance-smoke-v2-self-approval-denied'))
     assert denied.status_code == 403, denied.text
     action(manager, review, 'approve_goals')
     action(hr, cycle, 'start_reviews')

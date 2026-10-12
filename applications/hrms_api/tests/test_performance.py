@@ -180,11 +180,13 @@ def test_weight_return_resubmission_and_relationship_permissions(system):
 def test_cannot_self_approve_or_skip_cycle_readiness(system):
     service, platform, _ = system
     platform.rows['cycle']['data']['approver_id'] = 'hr'
-    act(service, actor('hr', 'admin'), 'cycle', 'submit')
+    with pytest.raises(AppError, match='cannot approve a cycle you submit'):
+        act(service, actor('hr', 'admin'), 'cycle', 'submit')
+    platform.rows['cycle']['data']['approver_id'] = 'admin'
+    act(service, actor('hr', 'admin'), 'cycle', 'submit', key='submit-to-admin')
     with pytest.raises(AppError) as error:
         act(service, actor('hr', 'admin'), 'cycle', 'approve')
     assert error.value.status == 403
-    platform.rows['cycle']['data']['approver_id'] = 'admin'
     act(service, actor('admin', 'admin'), 'cycle', 'approve', key='different-approval-key')
     with pytest.raises(AppError, match='approved goals'):
         act(service, actor('hr', 'hrms_hr_full'), 'cycle', 'start_reviews')

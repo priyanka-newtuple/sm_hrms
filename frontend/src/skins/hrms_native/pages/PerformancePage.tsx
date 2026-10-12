@@ -12,14 +12,24 @@ import { PageHero } from '../components/PageHero';
 import { awaitingYou } from './performanceAwaiting';
 
 type Data = Record<string, unknown>;
-interface Item { id: string; kind: string; state: string; data: Data; actions: string[]; cycle_name?: string; employee_name?: string; goals?: Item[]; feedback?: Item[] }
+interface Item { id: string; kind: string; state: string; data: Data; actions: string[]; cycle_name?: string; employee_name?: string; goals?: Item[]; feedback?: Item[]; due_date?: string | null }
 interface Board { cycles: Item[]; reviews: Item[]; assigned_feedback: Item[]; can_manage: boolean }
 interface Person { id: string; name: string; email?: string }
-interface Options { users: Person[]; employees: (Person & { manager_name: string; employee_user_id: string })[]; approvers: Person[]; calibrators: Person[] }
+interface Options { users: Person[]; employees: (Person & { manager_name: string | null; employee_user_id: string })[]; approvers: Person[]; calibrators: Person[] }
 const label = (value: string) => value.replaceAll('_', ' ').replace(/^./, c => c.toUpperCase());
 const value = (data: Data, key: string) => String(data[key] ?? '');
 const inputClass = 'hrms-field-input';
 const CYCLE_DATES = ['start_date', 'goal_due_date', 'self_review_due_date', 'manager_review_due_date', 'end_date'];
+const NOTES: Record<string, string> = {
+  withdraw: 'The review is kept but no longer holds up the cycle. Use this when someone leaves or should not be reviewed this cycle.',
+  cancel_feedback: 'The reviewer is no longer asked, and the manager review can go ahead without it.',
+  reassign_feedback: 'The new reviewer is asked instead; the previous reviewer no longer sees the request.',
+  correct_rating: 'The employee sees the corrected rating and is asked to acknowledge it again. The previous rating and your reason are kept.',
+  remove_goal: 'The goal is removed from this review and no longer counts towards the 100% weight.',
+  change_approver: 'The new approver must not be the person who created or submitted the cycle.',
+  add_participants: 'They start at goal setting. Anyone already in the cycle is not added again.',
+  close: 'Closing makes ratings final. Reviews not yet acknowledged are counted on the cycle; acknowledgement confirms the employee has seen the outcome, not that they agree.',
+};
 export const usePerformance = () => useQuery({ queryKey: ['hrms', 'performance'], queryFn: () => request<Board>('/hrms/performance') });
 
 function ActionForm({ item, action, done }: { item?: Item; action: string; done: () => void }) {
@@ -31,12 +41,17 @@ function ActionForm({ item, action, done }: { item?: Item; action: string; done:
     : action === 'edit_cycle' ? Object.fromEntries(['name', 'description', 'approver_id', ...CYCLE_DATES].map(k =>
       [k, CYCLE_DATES.includes(k) ? String(initial[k] ?? '').slice(0, 10) : initial[k]])) : {});
   const [participants, setParticipants] = useState<string[]>(savedParticipants.map(p => String(p.employee_id)));
+  // Who assesses someone without a reporting manager; the reporting manager otherwise.
+  const [assessors, setAssessors] = useState<Record<string, string>>(Object.fromEntries(savedParticipants.map(p => [String(p.employee_id), String(p.manager_user_id ?? '')])));
   const [calibrator, setCalibrator] = useState(String(savedParticipants[0]?.calibrator_user_id ?? ''));
   const [pending, setPending] = useState<{ idempotency_key: string; action: string; data: Data } | null>(null);
   const queryClient = useQueryClient();
   const cycle = action === 'create_cycle' || action === 'edit_cycle';
-  const options = useQuery({ queryKey: ['hrms', 'performance-options'], queryFn: () => request<Options>('/hrms/performance/options'), enabled: cycle || action === 'reassign' });
-  const reviewers = useQuery({ queryKey: ['hrms', 'performance-reviewers', item?.id], queryFn: () => request<Person[]>(`/hrms/performance/${item?.id}/reviewers`), enabled: action === 'request_feedback' });
+  const choosing = cycle || action === 'add_participants';
+  const options = useQuery({ queryKey: ['hrms', 'performance-options'], queryFn: () => request<Options>('/hrms/performance/options'), enabled: choosing || action === 'reassign' || action === 'change_approver' });
+  const reviewers = useQuery({ queryKey: ['hrms', 'performance-reviewers', item?.id], queryFn: () => request<Person[]>(`/hrms/performance/${item?.id}/reviewers`), enabled: action === 'request_feedback' || action === 'reassign_feedback' });
+  const noManager = (id: string) => !options.data?.employees.find(e => e.id === id)?.manager_name;
+  const inCycle = new Set(action === 'add_participants' && Array.isArray(initial.participants) ? (initial.participants as Data[]).map(p => String(p.employee_id)) : []);
   const mutation = useMutation({
     mutationFn: (body: NonNullable<typeof pending>) => request(action === 'create_cycle' ? '/hrms/performance/cycles' : `/hrms/performance/${item?.id}/actions`, { method: 'POST', body: JSON.stringify(body) }),
     onSuccess: async () => { await queryClient.invalidateQueries({ queryKey: ['hrms'] }); done(); },
@@ -60,19 +75,33 @@ function ActionForm({ item, action, done }: { item?: Item; action: string; done:
   }
   function submit(event: FormEvent) {
     event.preventDefault();
-    const body = pending ?? { idempotency_key: createRequestId(), action, data: cycle ? {
-      ...data, participants: participants.map(employee_id => ({ employee_id, calibrator_user_id: calibrator })),
-    } : data };
+    const chosen = participants.map(employee_id => ({ employee_id, calibrator_user_id: calibrator,
+      ...(noManager(employee_id) && assessors[employee_id] ? { manager_user_id: assessors[employee_id] } : {}) }));
+    const body = pending ?? { idempotency_key: createRequestId(), action, data: cycle ? { ...data, participants: chosen }
+      : action === 'add_participants' ? { participants: chosen } : data };
     setPending(body); mutation.mutate(body);
   }
   const goal = action === 'add_goal' || action === 'edit_goal';
-  const entityType = cycle ? 'HRMS.PerformanceCycle' : goal ? 'HRMS.PerformanceGoal' : ['request_feedback','submit_feedback'].includes(action) ? 'HRMS.ProjectFeedback' : item?.kind ?? 'HRMS.PerformanceReview';
+  const entityType = choosing ? 'HRMS.PerformanceCycle' : goal || action === 'remove_goal' ? 'HRMS.PerformanceGoal' : ['request_feedback','submit_feedback','reassign_feedback','cancel_feedback'].includes(action) ? 'HRMS.ProjectFeedback' : item?.kind ?? 'HRMS.PerformanceReview';
   const aliases: Record<string,string> = {approver_id:'approver_name',manager_user_id:'manager_name',calibrator_user_id:'calibrator_name',reviewer_user_id:'reviewer_name'};
   if (['submit_self','submit_manager'].includes(action)) { const prefix = action === 'submit_self' ? 'self' : 'manager'; aliases.summary = `${prefix}_summary`; aliases.rating = `${prefix}_rating`; }
   if (action === 'calibrate') { aliases.rating = 'calibrated_rating'; aliases.comment = 'calibration_comment'; }
   if (action === 'acknowledge') aliases.comment = 'employee_comment';
   if (['return_goals','return_self','return_manager'].includes(action)) aliases.comment = 'return_comment';
   if (action === 'request_changes') aliases.comment = 'approval_comment';
+  if (action === 'withdraw') aliases.comment = 'withdrawal_reason';
+  if (action === 'cancel_feedback') aliases.comment = 'cancel_reason';
+  if (action === 'correct_rating') { aliases.rating = 'final_rating'; aliases.comment = 'rating_correction_reason'; }
+  if (action === 'acknowledge_correction') aliases.comment = 'employee_comment';
+  const participantPicker = <>
+    <ConfiguredField field="calibrator_user_id" label="HR calibrator"><select className={inputClass} required value={calibrator} onChange={e => setCalibrator(e.target.value)}><option value="">Select…</option>{options.data?.calibrators.map(p => <option key={p.id} value={p.id}>{p.name}{p.email ? ` · ${p.email}` : ""}</option>)}</select></ConfiguredField>
+    <p className="text-sm text-muted-foreground">Select employees with active accounts. For someone without a reporting manager, choose who assesses them. The employee cannot assess or calibrate their own review.</p>
+    <div className="max-h-56 space-y-2 overflow-auto rounded-lg border p-3">{options.data?.employees.filter(p => !inCycle.has(p.id)).map(p => <div key={p.id} className="flex flex-wrap items-center gap-2 text-sm">
+      <label className="flex items-center gap-2"><input type="checkbox" checked={participants.includes(p.id)} onChange={e => setParticipants(e.target.checked ? [...participants, p.id] : participants.filter(id => id !== p.id))} />{p.name} · Manager: {p.manager_name ?? 'none'}</label>
+      {!p.manager_name && participants.includes(p.id) && <select aria-label={`Who assesses ${p.name}`} className={inputClass} required value={assessors[p.id] ?? ''} onChange={e => setAssessors({ ...assessors, [p.id]: e.target.value })}><option value="">Who assesses them…</option>{options.data?.users.filter(u => u.id !== p.employee_user_id).map(u => <option key={u.id} value={u.id}>{u.name}</option>)}</select>}
+    </div>)}</div>
+    {options.isLoading && <p>Loading participants…</p>}{options.isError && <p role="alert">{getApiErrorMessage(options.error)}</p>}
+  </>;
   return <ConfiguredForm entityType={entityType} aliases={aliases}><form className="hrms-surface hrms-people-form hrms-performance-form" onSubmit={submit}>
     <h3 className="hrms-section-heading">{label(action)}</h3>
     <fieldset disabled={Boolean(pending) || mutation.isPending} className="hrms-performance-fields disabled:opacity-70">
@@ -80,11 +109,15 @@ function ActionForm({ item, action, done }: { item?: Item; action: string; done:
         {field('name')}{field('description', 'textarea', false)}
         <div className="grid gap-3 sm:grid-cols-2">{CYCLE_DATES.map(key => field(key, 'date'))}</div>
         {select('approver_id', options.data?.approvers ?? [])}
-        <ConfiguredField field="calibrator_user_id" label="HR calibrator"><select className={inputClass} required value={calibrator} onChange={e => setCalibrator(e.target.value)}><option value="">Select…</option>{options.data?.calibrators.map(p => <option key={p.id} value={p.id}>{p.name}{p.email ? ` · ${p.email}` : ""}</option>)}</select></ConfiguredField>
-        <p className="text-sm text-muted-foreground">Select employees with active accounts and reporting managers. The employee cannot calibrate their own review.</p>
-        <div className="max-h-56 space-y-2 overflow-auto rounded-lg border p-3">{options.data?.employees.map(p => <label key={p.id} className="flex items-center gap-2 text-sm"><input type="checkbox" checked={participants.includes(p.id)} onChange={e => setParticipants(e.target.checked ? [...participants, p.id] : participants.filter(id => id !== p.id))} />{p.name} · Manager: {p.manager_name}</label>)}</div>
-        {options.isLoading && <p>Loading participants…</p>}{options.isError && <p role="alert">{getApiErrorMessage(options.error)}</p>}
+        {participantPicker}
       </>}
+      {action === 'add_participants' && participantPicker}
+      {action === 'change_approver' && <>{select('approver_id', options.data?.approvers ?? [])}{field('comment', 'textarea')}</>}
+      {['withdraw', 'cancel_feedback'].includes(action) && field('comment', 'textarea')}
+      {action === 'reassign_feedback' && <>{select('reviewer_user_id', reviewers.data ?? [])}{field('comment', 'textarea')}{reviewers.isError && <p role="alert">{getApiErrorMessage(reviewers.error)}</p>}</>}
+      {action === 'correct_rating' && <>{field('rating', 'number', true, 1, 5)}{field('comment', 'textarea')}</>}
+      {action === 'acknowledge_correction' && field('comment', 'textarea', false)}
+      {NOTES[action] && <p className="text-sm text-muted-foreground">{NOTES[action]}</p>}
       {goal && <>{field('title')}{field('description', 'textarea', false)}
         <ConfiguredField field="category" label="Category"><select className={inputClass} value={value(data, 'category') || 'delivery'} onChange={e => setData({ ...data, category: e.target.value })}>{['delivery', 'competency', 'leadership', 'learning', 'organization'].map(c => <option key={c}>{c}</option>)}</select></ConfiguredField>
         {field('measurement', 'textarea')}{field('weight', 'number', true, 1, 100)}{field('target_date', 'date')}{field('progress', 'number', false, 0, 100)}{field('evidence', 'textarea', false)}</>}
@@ -98,7 +131,7 @@ function ActionForm({ item, action, done }: { item?: Item; action: string; done:
       {action === 'publish' && <p>Publish all calibrated reviews in this cycle. Employees will be able to see their final rating and acknowledge it.</p>}
     </fieldset>
     {mutation.isError && <p role="alert" className="text-sm text-destructive">{getApiErrorMessage(mutation.error)}{pending && ' Retry uses the same request. Keep this form open until recovery finishes.'}</p>}
-    <div className="hrms-form-actions"><Button className="hrms-primary-button" variant="primary" size="md" type="submit" disabled={mutation.isPending || (cycle && !pending && (!participants.length || !calibrator))}>{mutation.isPending ? 'Saving…' : pending ? 'Retry action' : label(action)}</Button><Button className="hrms-outline-button" type="button" variant="outline" disabled={Boolean(pending)} onClick={done}>Cancel</Button></div>
+    <div className="hrms-form-actions"><Button className="hrms-primary-button" variant="primary" size="md" type="submit" disabled={mutation.isPending || (choosing && !pending && (!participants.length || !calibrator))}>{mutation.isPending ? 'Saving…' : pending ? 'Retry action' : label(action)}</Button><Button className="hrms-outline-button" type="button" variant="outline" disabled={Boolean(pending)} onClick={done}>Cancel</Button></div>
   </form></ConfiguredForm>;
 }
 
@@ -112,13 +145,13 @@ export function PerformanceDetail({ entityId }: { entityId: string }) {
   if (!row) return <p className="p-6">{query.isLoading ? 'Loading performance workflow…' : 'This workflow is not available to your account.'}</p>;
   const readable = Object.entries(row.data).filter(([key, v]) => v !== null && v !== '' && !key.endsWith('_id') && !['participants', 'created_by', 'identifier'].includes(key));
   return <section className="hrms-brand hrms-performance-detail">
-    <div><h2 className="hrms-case-name">{value(row.data, 'employee_name') || value(row.data, 'name') || row.employee_name}</h2><p className="text-sm text-muted-foreground">{row.cycle_name} · {label(row.state)}</p></div>
+    <div><h2 className="hrms-case-name">{value(row.data, 'employee_name') || value(row.data, 'name') || row.employee_name}</h2><p className="text-sm text-muted-foreground">{row.cycle_name} · {label(row.state)}{row.due_date ? ` · due ${row.due_date}` : ''}</p></div>
     <WorkflowStages entityId={entityId} />
     {row.kind === 'HRMS.PerformanceReview' && <p className="text-sm text-muted-foreground">Employee: {value(row.data, 'employee_name')} → Manager: {value(row.data, 'manager_name')} → Calibration: {value(row.data, 'calibrator_name')} → HR publication → Employee acknowledgement</p>}
     <dl className="hrms-surface hrms-detail-grid">{readable.map(([key, val]) => <div key={key}><dt className="text-xs text-muted-foreground">{label(key)}</dt><dd className="whitespace-pre-wrap break-words text-sm">{String(val)}</dd></div>)}</dl>
     {Array.isArray(row.data.participants) && <div className="hrms-surface hrms-review-card"><h3 className="font-medium">Participants</h3>{(row.data.participants as Data[]).map(p => <p key={value(p, 'employee_id')} className="mt-2 text-sm">{value(p, 'employee_name')} · Manager: {value(p, 'manager_name')} · Calibration: {value(p, 'calibrator_name')}</p>)}</div>}
     {row.goals && <div className="space-y-3"><h3 className="font-semibold">Goals · {row.goals.reduce((sum, g) => sum + Number(g.data.weight), 0)}% total weight</h3>{row.goals.map(goal => <article key={goal.id} className="hrms-surface hrms-review-card"><div className="flex justify-between gap-3"><h4 className="font-medium">{value(goal.data, 'title')} · {value(goal.data, 'weight')}%</h4><span className="text-xs">{label(goal.state)}</span></div><p className="mt-2 text-sm">{value(goal.data, 'measurement')}</p><p className="text-sm text-muted-foreground">Target: {value(goal.data, 'target_date')} · {value(goal.data, 'evidence')}</p>{Boolean(goal.data.manager_comment) && <p className="mt-2 text-sm">Manager: {value(goal.data, 'manager_comment')}</p>}{goal.actions?.map(a => <Button key={a} variant="outline" className="hrms-outline-button mt-2" onClick={() => setAction({ name: a, item: goal })}>{label(a)}</Button>)}</article>)}</div>}
-    {Boolean(row.feedback?.length) && <div className="space-y-3"><h3 className="font-semibold">Project feedback</h3>{row.feedback?.map(f => <article key={f.id} className="hrms-surface hrms-review-card"><p>{value(f.data, 'project_reference')} · {value(f.data, 'reviewer_name')} · {label(f.state)}</p><p className="text-sm">{value(f.data, 'contribution')}</p><p className="text-sm">{value(f.data, 'collaboration')}</p>{Boolean(f.data.rating) && <p className="text-sm">Rating: {value(f.data, 'rating')} / 5</p>}</article>)}</div>}
+    {Boolean(row.feedback?.length) && <div className="space-y-3"><h3 className="font-semibold">Project feedback</h3>{row.feedback?.map(f => <article key={f.id} className="hrms-surface hrms-review-card"><p>{value(f.data, 'project_reference')} · {value(f.data, 'reviewer_name')} · {label(f.state)}</p><p className="text-sm">{value(f.data, 'contribution')}</p><p className="text-sm">{value(f.data, 'collaboration')}</p>{Boolean(f.data.rating) && <p className="text-sm">Rating: {value(f.data, 'rating')} / 5</p>}{Boolean(f.data.cancel_reason) && <p className="text-sm text-muted-foreground">Cancelled: {value(f.data, 'cancel_reason')}</p>}{f.actions?.map(a => <Button key={a} variant="outline" className="hrms-outline-button mt-2 mr-2" onClick={() => setAction({ name: a, item: f })}>{label(a)}</Button>)}</article>)}</div>}
     {!action && <div className="flex flex-wrap gap-2">{row.actions.map(a => <Button className="hrms-primary-button" variant="primary" size="md" key={a} onClick={() => setAction({ name: a, item: row })}>{transitionLabel(configured,a)}</Button>)}{row.actions.length === 0 && <p className="text-sm text-muted-foreground">No action is assigned to you at this stage.</p>}</div>}
     {action && <ActionForm key={`${action.item.id}:${action.name}`} item={action.item} action={action.name} done={() => setAction(null)} />}
   </section>;
@@ -142,7 +175,7 @@ export default function PerformancePage() {
     {query.isLoading && <p role="status" className="hrms-surface hrms-work-feedback">Loading performance…</p>}{query.isError && <div role="alert" className="hrms-notice hrms-notice--error"><p>{getApiErrorMessage(query.error)}</p><button className="hrms-outline-button" onClick={() => void query.refetch()}>Try again</button></div>}
     {pending.data?.map(operation => <div key={operation.idempotency_key} role="status" className="hrms-notice"><p>An interrupted action needs recovery: {label(operation.action)}.</p><Button className="mt-2" variant="outline" disabled={resume.isPending} onClick={() => resume.mutate(operation)}>Resume action</Button></div>)}
     {resume.isError && <p role="alert">{getApiErrorMessage(resume.error)}</p>}
-    {query.data && [['Cycles', query.data.cycles], ['Employee reviews', query.data.reviews], ['Assigned project feedback', query.data.assigned_feedback]].map(([title, items]) => <section key={String(title)} className="hrms-surface hrms-performance-section"><div className="hrms-panel-title"><span className="hrms-work-icon">{title === 'Cycles' ? <Layers size={23} strokeWidth={1.25} /> : title === 'Employee reviews' ? <Target size={23} strokeWidth={1.25} /> : <MessageSquare size={23} strokeWidth={1.25} />}</span><div><h2>{String(title)}</h2><p>{title === 'Cycles' ? 'Review periods and milestones.' : title === 'Employee reviews' ? 'Goals, progress, and conversations.' : 'Your perspective on project contributions.'}</p></div><span className="hrms-work-count">{(items as Item[]).length}</span></div>{(items as Item[]).length === 0 && <div className="hrms-work-empty"><CheckCircle2 size={27} strokeWidth={1.25} /><h3>No {String(title).toLowerCase()} yet</h3><p>Items available to you will appear here.</p></div>}{(items as Item[]).length > 0 && <div className="hrms-table-scroll"><table className="hrms-people-table"><thead className="bg-muted/40"><tr><th className="p-3">Name</th><th className="p-3">Stage</th><th className="p-3">Your next action</th></tr></thead><tbody>{(items as Item[]).map(row => <tr key={row.id} className="border-t"><td className="p-3"><button className="hrms-text-link" onClick={() => setSelected(row.id)}>{value(row.data, 'name') || value(row.data, 'employee_name') || row.employee_name}</button><p className="text-xs text-muted-foreground">{row.cycle_name || value(row.data, 'project_reference')}</p></td><td className="p-3"><span className="hrms-status" data-state={row.state}>{label(row.state)}</span></td><td className="p-3">{row.actions.map(label).join(', ') || (['closed', 'acknowledged', 'submitted'].includes(row.state) ? 'Complete' : 'Waiting')}</td></tr>)}</tbody></table></div>}</section>)}
+    {query.data && [['Cycles', query.data.cycles], ['Employee reviews', query.data.reviews], ['Assigned project feedback', query.data.assigned_feedback]].map(([title, items]) => <section key={String(title)} className="hrms-surface hrms-performance-section"><div className="hrms-panel-title"><span className="hrms-work-icon">{title === 'Cycles' ? <Layers size={23} strokeWidth={1.25} /> : title === 'Employee reviews' ? <Target size={23} strokeWidth={1.25} /> : <MessageSquare size={23} strokeWidth={1.25} />}</span><div><h2>{String(title)}</h2><p>{title === 'Cycles' ? 'Review periods and milestones.' : title === 'Employee reviews' ? 'Goals, progress, and conversations.' : 'Your perspective on project contributions.'}</p></div><span className="hrms-work-count">{(items as Item[]).length}</span></div>{(items as Item[]).length === 0 && <div className="hrms-work-empty"><CheckCircle2 size={27} strokeWidth={1.25} /><h3>No {String(title).toLowerCase()} yet</h3><p>Items available to you will appear here.</p></div>}{(items as Item[]).length > 0 && <div className="hrms-table-scroll"><table className="hrms-people-table"><thead className="bg-muted/40"><tr><th className="p-3">Name</th><th className="p-3">Stage</th><th className="p-3">Due</th><th className="p-3">Your next action</th></tr></thead><tbody>{(items as Item[]).map(row => <tr key={row.id} className="border-t"><td className="p-3"><button className="hrms-text-link" onClick={() => setSelected(row.id)}>{value(row.data, 'name') || value(row.data, 'employee_name') || row.employee_name}</button><p className="text-xs text-muted-foreground">{row.cycle_name || value(row.data, 'project_reference')}</p></td><td className="p-3"><span className="hrms-status" data-state={row.state}>{label(row.state)}</span></td><td className="p-3">{row.due_date ?? '—'}</td><td className="p-3">{row.actions.map(label).join(', ') || (row.state === 'withdrawn' ? 'Withdrawn' : ['closed', 'acknowledged', 'submitted'].includes(row.state) ? 'Complete' : 'Waiting')}</td></tr>)}</tbody></table></div>}</section>)}
     <Sheet open={Boolean(selected) || create} onOpenChange={open => { if (!open) { setSelected(null); setCreate(false); } }}><SheetContent className="hrms-brand hrms-review-drawer overflow-y-auto data-[side=right]:w-full data-[side=right]:sm:max-w-4xl"><SheetHeader><SheetTitle>{create ? 'Create performance cycle' : 'Performance workflow'}</SheetTitle></SheetHeader>{create ? <div className="p-6"><ActionForm action="create_cycle" done={() => setCreate(false)} /></div> : selected && <PerformanceDetail key={selected} entityId={selected} />}</SheetContent></Sheet>
   </main>;
 }

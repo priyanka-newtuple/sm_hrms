@@ -13,6 +13,8 @@ class Contract(BaseModel):
 class Participant(Contract):
     employee_id: UUID
     calibrator_user_id: UUID
+    # Needed only for someone without a reporting manager who has an active login (a CEO, say).
+    manager_user_id: UUID | None = None
 
 
 class CycleInput(Contract):
@@ -68,6 +70,24 @@ class FeedbackInput(Contract):
     rating: int = Field(ge=1, le=5)
     contribution: str = Field(min_length=1, max_length=4000)
     collaboration: str = Field(default='', max_length=4000)
+
+
+class Participants(Contract):
+    participants: list[Participant] = Field(min_length=1, max_length=200)
+
+    @model_validator(mode='after')
+    def unique(self):
+        if len({p.employee_id for p in self.participants}) != len(self.participants):
+            raise ValueError('An employee can appear only once per cycle')
+        return self
+
+
+class FeedbackReassignment(Comment):
+    reviewer_user_id: UUID
+
+
+class ApproverChange(Comment):
+    approver_id: UUID
 
 
 class Reassignment(Comment):

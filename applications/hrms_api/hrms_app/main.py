@@ -2,6 +2,7 @@
 from contextlib import asynccontextmanager
 from dataclasses import replace
 from json import JSONDecodeError
+import logging
 import os
 from uuid import UUID
 
@@ -188,13 +189,25 @@ def create_app(platform=None, journal=None):
     def directory(current=Depends(actor)):
         return service.directory(current)
 
+    def follow_directory(current, employee_id):
+        # Reviews follow a manager change or a leaver; the directory change itself is already saved.
+        try:
+            performance.sync_employee(current, employee_id)
+        except AppError:
+            logging.getLogger(__name__).exception('performance reviews not updated for employee %s', employee_id)
+
     @app.put('/v1/api/hrms/employees/{employee_id}', response_model=EmployeeListItem)
     def update_employee(employee_id: str, payload: EmployeeUpdateRequest, current=Depends(actor)):
-        return service.update_employee(current, employee_id, payload)
+        result = service.update_employee(current, employee_id, payload)
+        follow_directory(current, employee_id)
+        return result
 
     @app.post('/v1/api/hrms/employees/{employee_id}/exit', response_model=EmployeeListItem)
     def exit_employee(employee_id: str, payload: EmployeeExitRequest, current=Depends(actor)):
-        return service.exit_employee(current, employee_id, payload)
+        result = service.exit_employee(current, employee_id, payload)
+        if result['employment_status'] == 'offboarded':
+            follow_directory(current, employee_id)
+        return result
 
     @app.post('/v1/api/hrms/employees/{employee_id}/exit/withdraw', response_model=EmployeeListItem)
     def withdraw_employee_exit(employee_id: str, payload: EmployeeOperationRequest, current=Depends(actor)):
@@ -260,9 +273,11 @@ def create_app(platform=None, journal=None):
         from .performance import check
         snap = performance.snapshot()
         row = performance.find(snap, str(entity_id))
-        check('request_feedback' in performance.allowed(current, row, snap), 'Only the assigned manager can request feedback', 403)
+        allowed = performance.allowed(current, row, snap)
+        check('request_feedback' in allowed or 'reassign_feedback' in allowed, 'Only the assigned manager or HR can choose a reviewer', 403)
+        review = performance.find(snap, row['data']['review_id']) if 'reassign_feedback' in allowed else row
         return [{'id': u['id'], 'name': u['name']} for u in performance.user_options()
-                if u['id'] != row['data']['employee_user_id']]
+                if u['id'] not in {review['data']['employee_user_id'], row['data'].get('reviewer_user_id')}]
 
     @app.post('/v1/api/hrms/performance/cycles')
     def performance_create(payload: PerformanceAction, current=Depends(actor)):

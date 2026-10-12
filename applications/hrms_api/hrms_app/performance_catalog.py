@@ -9,8 +9,8 @@ def performance_packs(pack):
 
     return (
         pack('HRMS.PerformanceCycle', 'Performance cycle', 'PFC', fields(
-            strings=('name', 'created_by', 'approver_id', 'approver_name'),
-            texts=('description', 'decision_comment'),
+            strings=('name', 'created_by', 'submitted_by', 'approver_id', 'approver_name'),
+            texts=('description', 'decision_comment'), integers=('unacknowledged_count',),
             dates=('start_date', 'end_date', 'goal_due_date', 'self_review_due_date', 'manager_review_due_date'),
             jsons=('participants',)), 'draft',
             ('draft', 'pending_approval', 'open', 'review', 'calibration', 'published', 'closed'),
@@ -21,9 +21,11 @@ def performance_packs(pack):
                 ('published', 'close', 'closed'))),
         pack('HRMS.PerformanceReview', 'Performance review', 'PFR', fields(
             strings=('cycle_id', 'employee_id', 'employee_user_id', 'employee_name', 'manager_user_id',
-                     'manager_name', 'calibrator_user_id', 'calibrator_name', 'published_at', 'acknowledged_at'),
-            texts=('self_summary', 'manager_summary', 'calibration_comment', 'employee_comment', 'return_comment'),
-            integers=('self_rating', 'manager_rating', 'calibrated_rating', 'final_rating')),
+                     'manager_name', 'calibrator_user_id', 'calibrator_name', 'published_at', 'acknowledged_at',
+                     'withdrawn_at', 'withdrawn_by', 'rating_corrected_at', 'rating_corrected_by', 'reacknowledge_required'),
+            texts=('self_summary', 'manager_summary', 'calibration_comment', 'employee_comment', 'return_comment',
+                   'withdrawal_reason', 'rating_correction_reason'),
+            integers=('self_rating', 'manager_rating', 'calibrated_rating', 'final_rating', 'previous_final_rating')),
             'goals_draft', ('goals_draft', 'goals_pending', 'self_review', 'manager_review',
                             'calibration', 'publish_ready', 'published', 'acknowledged'),
             frozenset({'acknowledged'}), (
@@ -38,14 +40,14 @@ def performance_packs(pack):
                 ('publish_ready', 'publish', 'published'),
                 ('published', 'acknowledge', 'acknowledged'))),
         pack('HRMS.PerformanceGoal', 'Performance goal', 'PFG', fields(
-            strings=('review_id', 'title', 'category'), texts=('description', 'measurement', 'evidence', 'manager_comment'),
+            strings=('review_id', 'title', 'category', 'removed_at'), texts=('description', 'measurement', 'evidence', 'manager_comment'),
             integers=('weight', 'progress'), dates=('target_date',)), 'draft',
             ('draft', 'pending_approval', 'approved', 'changes_requested'), frozenset({'approved'}), (
                 ('draft', 'submit', 'pending_approval'), ('changes_requested', 'submit', 'pending_approval'),
                 ('pending_approval', 'approve', 'approved'),
                 ('pending_approval', 'request_changes', 'changes_requested'))),
         pack('HRMS.ProjectFeedback', 'Project feedback', 'PFF', fields(
-            strings=('review_id', 'project_reference', 'reviewer_user_id', 'reviewer_name'),
-            texts=('contribution', 'collaboration'), integers=('rating',)), 'pending',
+            strings=('review_id', 'project_reference', 'reviewer_user_id', 'reviewer_name', 'cancelled_at', 'cancelled_by'),
+            texts=('contribution', 'collaboration', 'cancel_reason'), integers=('rating',)), 'pending',
             ('pending', 'submitted'), frozenset({'submitted'}), (('pending', 'submit', 'submitted'),)),
     )

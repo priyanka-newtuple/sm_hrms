@@ -36,7 +36,7 @@ export function EditEmployeeSheet({ employee, employees, options, onClose, onSav
   const [first, last] = splitName(employee.full_name);
   const [form, setForm] = useState({
     first_name: first, last_name: last, department: employee.department, designation: employee.designation,
-    reports_to_entity_id: employee.reports_to_entity_id ?? '', date_joined: (employee.date_joined ?? today()).slice(0, 10),
+    reports_to_entity_id: employee.reports_to_entity_id ?? '', date_joined: (employee.date_joined ?? '').slice(0, 10),  // never guess a joining date
     employment_type: employee.employment_type ?? 'full_time', work_location: employee.work_location ?? '',
     notice_period_days: employee.notice_period_days == null ? '' : String(employee.notice_period_days), phone: employee.phone ?? '',
   });
