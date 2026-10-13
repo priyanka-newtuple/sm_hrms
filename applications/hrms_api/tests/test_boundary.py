@@ -56,6 +56,8 @@ def test_actor_rejects_inactive_or_cross_tenant(membership, status, org):
 
 def test_gateway_blocks_native_mutation_bypasses_even_for_administrator():
     class Platform:
+        def records(self, kind, fields):
+            return []
         org = 'org'
         def actor(self, token):
             return Actor('admin', 'org', token, frozenset({'admin'}), grants({'admin'}))
@@ -68,6 +70,9 @@ def test_gateway_blocks_native_mutation_bypasses_even_for_administrator():
 
 def test_employee_creation_requires_permission_before_upstream_writes():
     class Platform:
+        org = "org"
+        def records(self, kind, fields):
+            return []
         def actor(self, token):
             return Actor('employee', 'org', token, frozenset({'hrms_employee'}), grants({'hrms_employee'}))
     client = TestClient(create_app(Platform(), object()))
@@ -87,6 +92,8 @@ def test_workflow_list_is_empty_not_forbidden_for_people_without_workflow_access
         return httpx.Response(200, json={'scope': 'all', 'published_items': [{'machine_name': 'wf'}], 'draft_items': []})
 
     class Platform:
+        def records(self, kind, fields):
+            return []
         org = 'org'
         http = httpx.Client(base_url='http://platform.test/', transport=httpx.MockTransport(platform_response))
         def actor(self, token):

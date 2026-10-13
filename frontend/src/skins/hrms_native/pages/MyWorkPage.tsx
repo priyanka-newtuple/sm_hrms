@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowRight, BriefcaseBusiness, CalendarCheck2, ClipboardList, FileCheck2, Home, TrendingUp, UserRoundPlus, type LucideIcon } from 'lucide-react';
+import { ArrowRight, BriefcaseBusiness, CalendarCheck2, FileCheck2, Home, TrendingUp, UserRoundPlus, type LucideIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { request } from '@/core/services/api/client';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -28,7 +28,6 @@ const AREAS: Record<Area, { label: string; icon: LucideIcon; tab?: string }> = {
   projects: { label: 'Projects', icon: BriefcaseBusiness },
   wfh: { label: 'Work from home', icon: Home, tab: 'WFH' },
   performance: { label: 'Performance', icon: TrendingUp },
-  onboarding: { label: 'Onboarding', icon: ClipboardList },
 };
 
 function greeting(hour: number) {
@@ -89,9 +88,6 @@ export default function MyWorkPage() {
     ...waiting.performanceActions.map(item => ({ key: `pf-${item.id}`, area: 'performance' as const, title: performanceTitle(item),
       detail: joined(item.kind === 'HRMS.PerformanceCycle' ? 'Review cycle' : item.cycle_name, `Next: ${item.actions.filter(a => a !== 'reassign').map(humanize).join(', ')}`, item.due_date ? `Due ${day(item.due_date)}` : ''),
       action: <Go to="/hrms/performance">Open</Go> })),
-    ...waiting.onboardingActions.map(step => ({ key: `o-${step.caseId}-${step.sequence}`, area: 'onboarding' as const, title: step.title,
-      detail: joined(step.employee, step.due_date ? `Due ${day(step.due_date)}` : '', step.owner_name ? `Assigned to ${step.owner_name}` : ''),
-      action: <Go to={`/hrms/workflows?case=${step.caseId}`}>Open</Go> })),
   ];
 
   // Every area this person can act on gets a tab, so all work types are visible even when empty.

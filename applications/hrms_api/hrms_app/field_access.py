@@ -12,10 +12,11 @@ from .form_config import _active_workflow, configured_form
 from .project_catalog import TYPES as PROJECT_TYPES
 from .wfh_catalog import TYPES as WFH_TYPES
 
+
 SERVICE_ROLE = 'hrms_application_service'
 RUNTIME_TYPES = frozenset({*PROJECT_TYPES, *COCKPIT_TYPES, *WFH_TYPES,
     'HRMS.Asset',
-    'HRMS.Employee', 'HRMS.OnboardingCase', 'HRMS.OnboardingStep', 'HRMS.LeaveRequest',
+    'HRMS.Employee', 'HRMS.LeaveRequest',
     'HRMS.PerformanceCycle', 'HRMS.PerformanceReview', 'HRMS.PerformanceGoal', 'HRMS.ProjectFeedback'})
 # Settings writes that can add a field to a form.
 FORM_ROOTS = {'method-library', 'field-library', 'forms', 'workflow-state-machines', 'entity-types'}

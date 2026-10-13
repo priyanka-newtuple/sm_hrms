@@ -5,21 +5,6 @@ from .service import LEAVE, LEAVE_FIELDS, LeaveApprovers, name
 
 def workflow_rows(service, actor):
     rows = []
-    for case in service.onboarding(actor):
-        ready = [s for s in case['steps'] if s['readiness'] == 'ready']
-        if case['state'] != 'in_progress':
-            ready = []
-        rows.append(dict(
-            entity_id=case['entity_id'], entity_type='HRMS.OnboardingCase',
-            title=case['employee_name'], identifier=case['identifier'],
-            current_state=case['state'], workflow_label='Employee onboarding',
-            owner_name=', '.join(dict.fromkeys(s['owner_name'] for s in ready)),
-            next_action=' · '.join(s['title'] for s in ready) or (
-                'Complete onboarding' if case['can_complete_case'] else ''),
-            progress=f"{case['completed_steps']}/{case['total_steps']} steps",
-            due_date=min((s['due_date'] for s in ready if s['due_date']), default=None),
-            leave=None, leave_view=None))
-
     employees = service.employees()
     own = [e for e in employees if e['data'].get('platform_user_id') == actor.user_id]
     if not own:

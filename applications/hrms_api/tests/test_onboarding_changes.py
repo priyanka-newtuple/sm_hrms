@@ -19,7 +19,7 @@ def staff(platform, key, code, role, manager=None):
         hrms_role=role, employment_status='active', reports_to_employee_code=manager))
 
 
-def test_steps_go_to_the_least_busy_owner_and_the_hires_own_manager():
+def test_employee_creation_preserves_existing_steps_without_creating_new_ones():
     p = ProvisioningPlatform(existing=True)
     for key, code, role in (('busy', 'OA1', 'hrms_office_admin'), ('free', 'OA2', 'hrms_office_admin'),
                             ('lead', 'M1', 'hrms_manager'), ('people', 'HR1', 'hrms_hr_full')):
@@ -31,10 +31,9 @@ def test_steps_go_to_the_least_busy_owner_and_the_hires_own_manager():
         actor('hr', 'hrms_hr_full'), employee_request(reports_to_entity_id='lead'))
     owners = {r['data']['sequence']: r['data']['assigned_to'] for r in p.rows.values()
               if r['kind'] == 'HRMS.OnboardingStep' and r['entity_id'] != 'old-step'}
-    assert result['onboarding_task_count'] == len(TEMPLATES[2]) == 9
-    assert owners[1] == 'free-user'          # the other office admin already has an open step
-    assert owners[9] == 'lead-user'          # the hire's own manager welcomes them
-    assert owners[2] == owners[3] == 'people-user'  # nobody in Finance: HR Full covers it, not the creator
+    assert result['account_status'] == 'pending'
+    assert owners == {}
+    assert p.rows['old-step']['data']['assigned_to'] == 'busy-user'
 
 
 class ManagedPlatform(Platform):

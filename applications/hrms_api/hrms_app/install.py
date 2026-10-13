@@ -14,6 +14,7 @@ from .project_catalog import TYPES as PROJECT_TYPES
 from .provisioning import ensure_tenant_administrator
 from .wfh_catalog import TYPES as WFH_TYPES
 from .asset_catalog import ASSET
+from .install_local_mail import install_local_mail
 from .install_assets import install_asset_form, install_asset_permissions
 
 
@@ -32,6 +33,8 @@ def install():
     marker = {'field': 'hrms_operation_key', 'type': 'string'}
     machines = {}
     for pack in PACKS:
+        if pack.entity_type in {"HRMS.OnboardingCase", "HRMS.OnboardingStep"}:
+            continue  # Retired; preserve historical records, never install new legacy flows.
         # Existing forms/workflows remain version-pinned. The operation marker is entity metadata.
         desired = pack.entity_request(org)
         desired['schema_definition']['fields'].append(marker)
@@ -130,13 +133,14 @@ def install():
 
     migrate_native_permissions(api, os.environ['HRMS_APP_DATABASE_URL'])
     install_asset_permissions(api, os.environ['HRMS_APP_DATABASE_URL'])
+    install_local_mail(api)
 
     service_name = 'hrms_application_service'
     runtime_packs = [p for p in PACKS if p.entity_type in RUNTIME_TYPES]
     role_spec = dict(name=service_name, display_name='HRMS Application Service',
         description='Internal API client for HRMS; never assign to a human user',
         permissions=[{'permission_key': key} for key in ['entity_record:write', 'workflow:read', 'workflow:write',
-            'user:read', 'user:write', 'role:read', 'form:read', 'integration:read',
+            'file:read', 'file:write', 'user:read', 'user:write', 'role:read', 'form:read', 'integration:read',
             'field_library:read', 'method_library:read']],
         entity_permissions=[{'entity_type': p.entity_type, 'action': action}
                             for p in runtime_packs for action in ['view', 'create', 'edit']],

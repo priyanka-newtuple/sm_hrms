@@ -21,8 +21,7 @@ def may_manage(actor, roles):
 
 
 def setup_access(service, actor, employee_id, operation_key):
-    if 'superadmin' not in actor.roles:
-        raise AppError(403, 'Only Super Admin can approve employee account access')
+    require(actor, 'employee:activate')
     local_email_disabled = (os.getenv('HRMS_LOCAL_DISABLE_EMAIL', '').lower() == 'true'
                             and os.getenv('HRMS_ORGANIZATION_ID') == '11111111-1111-1111-1111-111111111111'
                             and os.getenv('PLATFORM_API_URL') == 'http://platform-api:8000/v1/api')
@@ -44,8 +43,8 @@ def setup_access(service, actor, employee_id, operation_key):
         roles = identity_roles(service.platform, actor, identity)
         if op.progress.get('activation_requested') and 'viewer' not in op.progress['original_roles']:
             roles.discard('viewer')
-        if not may_manage(actor, roles):
-            raise AppError(403, 'Only Super Admin can activate or send setup for privileged accounts')
+        if not roles:
+            raise AppError(403, 'Account must have a native role before activation')
         if identity['status'] not in {'pending', 'active'}:
             raise AppError(409, 'Suspended or rejected accounts require administrator review')
         if op.result:
@@ -87,7 +86,6 @@ def setup_access(service, actor, employee_id, operation_key):
         result = {'account_status': 'active', 'email_status': email_status, 'message': message}
         service.journal.audit(db, actor, 'employee.access.setup_requested', employee_id)
         op.finish(result)
-        service.complete_invite_step(employee_id)
         return result
 
 

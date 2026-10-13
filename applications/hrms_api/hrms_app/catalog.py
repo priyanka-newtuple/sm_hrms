@@ -255,5 +255,6 @@ PACKS += wfh_packs(HrmsEntityPack)
 from .asset_catalog import asset_packs
 PACKS += asset_packs(HrmsEntityPack)
 
+
 def pack_by_type(entity_type: str) -> HrmsEntityPack:
     return next(pack for pack in PACKS if pack.entity_type == entity_type)

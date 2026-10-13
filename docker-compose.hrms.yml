@@ -80,6 +80,7 @@ services:
       FRONTEND_URL: http://localhost:5182
       ACTION_RUNS_WORKER_ENABLED: "false"
       BULK_IMPORT_WORKER_ENABLED: "false"
+    volumes: ["hrms_native_files:/tmp/modular_filehandler"]
     depends_on:
       platform-db:
         condition: service_healthy
@@ -90,11 +91,19 @@ services:
       interval: 10s
       timeout: 5s
       retries: 30
+  local-mail:
+    profiles: ["native"]
+    image: axllent/mailpit:v1.27
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: "1"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "1"
+    ports: ["127.0.0.1:8025:8025"]
   platform-install:
     profiles: ["native"]
     image: sm-hrms-application:local
     build: ./applications/hrms_api
     environment: &hrms_install_environment
+      HRMS_LOCAL_MAIL_CAPTURE: "true"
       HRMS_APP_DATABASE_URL: postgresql://hrms_application:${HRMS_APP_DB_PASSWORD}@hrms-app-db:5432/hrms_application
       PLATFORM_API_URL: http://platform-api:8000/v1/api
       HRMS_ORGANIZATION_ID: 11111111-1111-1111-1111-111111111111
@@ -106,6 +115,8 @@ services:
       HRMS_SERVICE_PASSWORD: ${HRMS_SERVICE_PASSWORD:?Run the HRMS setup script}
     command: ["python", "-m", "hrms_app.install"]
     depends_on:
+      local-mail:
+        condition: service_started
       hrms-app-db:
         condition: service_healthy
       platform-api:
@@ -144,7 +155,6 @@ services:
     profiles: ["native"]
     image: postgres:16-alpine
     environment:
-      HRMS_LOCAL_DISABLE_EMAIL: "true"
       POSTGRES_USER: hrms_application
       POSTGRES_PASSWORD: ${HRMS_APP_DB_PASSWORD:?Run the HRMS setup script}
       POSTGRES_DB: hrms_application
@@ -222,6 +232,7 @@ services:
     command: ["python", "-m", "pytest", "-c", "hrms/pytest.ini", "hrms/tests", "-q"]
 
 volumes:
+  hrms_native_files:
   hrms_db:
   hrms_documents:
   hrms_platform_db:

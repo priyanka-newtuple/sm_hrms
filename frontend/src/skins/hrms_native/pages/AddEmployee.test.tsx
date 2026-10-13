@@ -10,20 +10,22 @@ afterEach(() => {cleanup();access.allowed=true;});
 function show() {return render(<QueryClientProvider client={new QueryClient({defaultOptions:{queries:{retry:false}}})}><MemoryRouter><AddEmployee/></MemoryRouter></QueryClientProvider>);}
 it('opens employee creation from onboarding', async () => {
  show();
- fireEvent.click(screen.getByRole('button',{name:'Add employee / Start onboarding'}));
- expect(await screen.findByRole('button',{name:'Create employee & start onboarding'})).toBeTruthy();
+ fireEvent.click(screen.getByRole('button',{name:'Add employee'}));
+ expect(await screen.findByRole('button',{name:'Create employee'})).toBeTruthy();
  expect(screen.getByLabelText(/Work email/)).toBeTruthy();
+ expect(screen.queryByLabelText(/Department/)).toBeNull();
+ expect(screen.queryByLabelText(/First name/)).toBeNull();
 });
 it('hides employee creation without permission', () => {
  access.allowed=false;show();
- expect(screen.queryByRole('button',{name:'Add employee / Start onboarding'})).toBeNull();
+ expect(screen.queryByRole('button',{name:'Add employee'})).toBeNull();
 });
 
 
 it('uses the native role display name and requires a selection', async () => {
  show();
- fireEvent.click(screen.getByRole('button',{name:'Add employee / Start onboarding'}));
+ fireEvent.click(screen.getByRole('button',{name:'Add employee'}));
  expect(await screen.findByRole('option',{name:'Senior Engineer'})).toBeTruthy();
  expect((screen.getByLabelText('Access role') as HTMLSelectElement).value).toBe('');
- expect(screen.getByText(/All new accounts require Super Admin approval/)).toBeTruthy();
+ expect(screen.getByText(/New accounts require approval/)).toBeTruthy();
 });

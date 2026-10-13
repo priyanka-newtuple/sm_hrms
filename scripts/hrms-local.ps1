@@ -59,5 +59,5 @@ try {
     }
     if ($LASTEXITCODE -ne 0) { throw "HRMS $Action failed" }
     if ($Action -eq 'up') { Write-Host 'HRMS: http://localhost:5181 — choose a local test role on the login page.' }
-    if ($Action -eq 'native-up') { Write-Host 'Native platform: http://localhost:5182 — HRMS entities, forms and workflows installed.' }
+    if ($Action -eq 'native-up') { Write-Host 'Local email inbox: http://localhost:8025 (no external delivery). Native platform: http://localhost:5182 — HRMS entities, forms and workflows installed.' }
 } finally { Pop-Location }

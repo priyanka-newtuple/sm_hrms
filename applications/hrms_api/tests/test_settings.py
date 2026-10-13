@@ -12,6 +12,8 @@ def surface():
     calls = []
 
     class Platform:
+        def records(self, kind, fields):
+            return []
         org = 'org'
 
         def actor(self, token):

@@ -8,13 +8,12 @@ import { useProjects } from '../pages/ProjectsPage';
 import type { LeaveItem } from '../pages/LeaveRequestsPage';
 import { useWfhInbox } from '../pages/WorkFromHome';
 
-export type OnboardingCase = { entity_id: string; employee_name: string; steps: { sequence: number; title: string; owner_name: string; can_complete: boolean; assigned_to_me?: boolean; due_date: string | null }[] };
 
 // Accounts without a linked employee profile (e.g. bootstrap administrators) get 403 from leave APIs.
 export const isForbidden = (error: unknown) => (error as { status?: number } | null)?.status === 403;
 export const retryUnlessForbidden = (count: number, error: unknown) => !isForbidden(error) && count < 1;
 
-export interface WaitingSource { key: 'users' | 'leave' | 'cockpit' | 'projects' | 'onboarding' | 'wfh' | 'performance'; label: string; path: string; count: number; loading: boolean; error: boolean; retry: () => void }
+export interface WaitingSource { key: 'users' | 'leave' | 'cockpit' | 'projects' | 'wfh' | 'performance'; label: string; path: string; count: number; loading: boolean; error: boolean; retry: () => void }
 
 /**
  * What the signed-in person can act on right now, per work area. Shares query keys with the pages,
@@ -24,7 +23,6 @@ export interface WaitingSource { key: 'users' | 'leave' | 'cockpit' | 'projects'
 export function useWaitingActions() {
   const caps = useHrmsCapabilities();
   const has = (capability: string) => caps.data?.capabilities.includes(capability) ?? false;
-  const onboarding = useQuery({ queryKey: ['hrms', 'my-work'], queryFn: () => request<OnboardingCase[]>('/hrms/onboarding') });
   // Only pending approvals, so older history can never push waiting requests past the page limit.
   const leaveApprovals = useQuery({ queryKey: ['hrms', 'leave', 'approvals', 'pending'], queryFn: () => request<LeaveItem[]>('/hrms/leave-requests?view=approvals&state=pending&limit=200'), retry: retryUnlessForbidden,
     enabled: caps.isFetched && caps.data?.employee_profile !== false });
@@ -39,8 +37,6 @@ export function useWaitingActions() {
     enabled: isSuperAdmin, retry: retryUnlessForbidden,
   });
 
-  // HR may complete anyone's step from Onboarding; only steps assigned to you are waiting on you.
-  const onboardingActions = onboarding.data?.flatMap(c => c.steps.filter(s => s.can_complete && (s.assigned_to_me ?? true)).map(s => ({ ...s, caseId: c.entity_id, employee: c.employee_name }))) ?? [];
   const pendingLeave = leaveApprovals.data?.filter(item => item.state === 'pending') ?? [];
   // Same rule as the Performance page's "Awaiting you".
   const performanceActions = performance.data ? awaitingYou(performance.data) : [];
@@ -54,7 +50,6 @@ export function useWaitingActions() {
     { key: 'cockpit' as const, label: 'HR content', path: '/hrms/cockpit', count: cockpitActions.length, loading: cockpit.isLoading, error: cockpit.isError, retry: () => void cockpit.refetch(), show: has('cockpit:view') },
     { key: 'projects' as const, label: 'Projects', path: '/hrms/projects', count: projectActions.length, loading: projects.isLoading, error: projects.isError, retry: () => void projects.refetch(), show: has('project:view') },
     { key: 'performance' as const, label: 'Performance', path: '/hrms/performance', count: performanceActions.length, loading: performance.isLoading, error: false, retry: () => void performance.refetch(), show: performance.isSuccess },
-    { key: 'onboarding' as const, label: 'Onboarding', path: has('onboarding:view') ? '/hrms/cockpit?area=onboarding' : '/hrms/my-work', count: onboardingActions.length, loading: onboarding.isLoading, error: onboarding.isError, retry: () => void onboarding.refetch(), show: true },
   ].flatMap(({ show, ...source }) => (show ? [source] : []));
 
   return {
@@ -62,7 +57,7 @@ export function useWaitingActions() {
     total: sources.reduce((sum, source) => sum + source.count, 0),
     loading: caps.isLoading || sources.some(source => source.loading),
     countFor: (key: WaitingSource['key']) => sources.find(source => source.key === key)?.count ?? 0,
-    userApprovals, isSuperAdmin, onboarding, onboardingActions, leaveApprovals, pendingLeave, performance, performanceActions,
+    userApprovals, isSuperAdmin, leaveApprovals, pendingLeave, performance, performanceActions,
     cockpitActions, projectActions, wfhRequests: wfh.data ?? [],
   };
 }

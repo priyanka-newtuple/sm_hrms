@@ -1,7 +1,6 @@
 """HRMS composition and business rules over the native platform HTTP API."""
 from __future__ import annotations
 
-from collections import Counter
 from datetime import UTC, date, datetime, time, timedelta
 import hashlib
 import secrets
@@ -12,7 +11,7 @@ from .custom_fields import check_custom, custom_keys, custom_values
 from .errors import AppError
 from .form_config import configured_form
 from .employee_access import identity_roles, may_manage
-from .onboarding_template import CURRENT_TEMPLATE_VERSION, DEFAULT_ONBOARDING_STEPS, REPORTING_MANAGER, TEMPLATES
+from .onboarding_template import DEFAULT_ONBOARDING_STEPS, REPORTING_MANAGER, TEMPLATES
 from .policy import capabilities, require
 
 EMPLOYEE = 'HRMS.Employee'
@@ -137,8 +136,6 @@ class HrmsService:
         keys = custom_keys(self.platform, EMPLOYEE)
         rows = self.platform.records(EMPLOYEE, EMPLOYEE_FIELDS + keys)
         users = {u['id']: u for u in self.platform.users()}
-        states = self.platform.states('hrms_onboardingcase')
-        cases = {c['data'].get('employee_id'): c for c in self.platform.records(CASE, CASE_FIELDS)}
         result = []
         for row in rows:
             item = self.employee_item(row, rows, keys)
@@ -149,11 +146,9 @@ class HrmsService:
             item['uses_google_sign_in'] = bool(user and user.get('auth_type') == 'google')
             item['can_setup_access'] = bool(user and user.get('organization_id') == actor.organization_id
                 and user['status'] in {'pending', 'active'} and item['employment_status'] == 'active'
-                and 'superadmin' in actor.roles
-                and may_manage(actor, identity_roles(self.platform, actor, user)))
-            case = cases.get(row['entity_id'])
-            item['onboarding_state'] = ('not_started' if not case else 'cancelled' if case['data'].get('cancelled_at')
-                                        else states.get(case['entity_id'], 'not_started'))
+                and 'employee:activate' in capabilities(actor)
+                and bool(identity_roles(self.platform, actor, user)))
+            item['onboarding_state'] = 'not_started'  # Managed through native configuration.
             result.append(item)
         return sorted(result, key=lambda r: r['full_name'].casefold())
 
@@ -546,57 +541,8 @@ class HrmsService:
             current = self.platform.record(employee_id)
             data = {**current['data'], 'employee_code': current['data']['identifier'], 'platform_user_id': identity['id']}
             self.platform.call('PUT', f'/entity-records/{employee_id}', json={'data': data})
-            cases = self.platform.records(CASE, CASE_FIELDS)
-            case = next((c for c in cases if c['data'].get('employee_id') == employee_id), None)
-            if not case:
-                case = self._create_once(op, 'case', CASE, dict(employee_id=employee_id, template_key='default_onboarding',
-                    template_version=CURRENT_TEMPLATE_VERSION, hrms_operation_key=marker), actor.user_id, cases, marker)
-            case_id = case['entity_id']
-            state = self.platform.enroll(case_id, 'hrms_onboardingcase')
-            tasks = self.platform.tasks(case_id)
-            active_ids = {u['id'] for u in users if u['status'] == 'active'}
-            current_role = {u['id']: u.get('role') for u in users}
-
-            def holds(row, role):
-                user_id = row['data'].get('platform_user_id')
-                return user_id in active_ids and (current_role.get(user_id) or row['data'].get('hrms_role')) == role
-            # Spread steps across the people in a role: whoever has the fewest open onboarding steps.
-            load = Counter(t.get('assigned_to') for steps in self.platform.steps_by_case().values()
-                           for t in steps if t['status'] not in DONE)
-
-            def least_busy(role):
-                people = sorted((r for r in rows if holds(r, role)),
-                                key=lambda r: (load[r['data']['platform_user_id']], r['data'].get('employee_code') or ''))
-                return people[0]['data']['platform_user_id'] if people else None
-            manager = reporting_manager({'entity_id': employee_id, 'data': data}, rows)
-            manager_id = manager['data']['platform_user_id'] if manager and manager['data']['platform_user_id'] in active_ids else None
-            template = TEMPLATES[case['data'].get('template_version') or 1]
-            for step in template:
-                if (existing_step := task_for_step(tasks, step)):
-                    if existing_step['status'] == 'NOT_STARTED':
-                        self.platform.enroll(existing_step['id'], 'hrms_onboardingstep')
-                    continue
-                key = f'task_{step.sequence}_requested'
-                if op.progress.get(key):
-                    raise AppError(409, 'Task creation needs reconciliation before retrying')
-                if step.assignee_role is None:
-                    owner = identity['id']
-                else:
-                    # Nobody in the role (or no manager with a login): HR Full covers it, then whoever added the hire.
-                    owner = ((manager_id if step.assignee_role == REPORTING_MANAGER else least_busy(step.assignee_role))
-                             or least_busy('hrms_hr_full') or actor.user_id)
-                load[owner] += 1
-                op.checkpoint(**{key: True})
-                step_row = self.platform.create_record('HRMS.OnboardingStep', {
-                    'case_id': case_id, 'sequence': step.sequence,
-                    'title': step.title, 'description': f'HRMS onboarding step {step.sequence}; template v1; created by {actor.user_id}.',
-                    'assigned_to': owner, 'due_date': step.due_date(request.date_joined, datetime.now(UTC).date()).isoformat(),
-                    'hrms_operation_key': f'{marker}:{step.sequence}'}, actor.user_id)
-                self.platform.enroll(step_row['entity_id'], 'hrms_onboardingstep')
-                tasks = self.platform.tasks(case_id)
             final = self.platform.record(employee_id)
-            result = dict(employee=self.employee_item(final, rows), onboarding_entity_id=case_id,
-                          onboarding_state=state, onboarding_task_count=len(template),
+            result = dict(employee=self.employee_item(final, rows),
                           account_status=identity['status'], idempotent=False)
             self.journal.audit(db, actor, 'employee.created', employee_id)
             op.finish(result)

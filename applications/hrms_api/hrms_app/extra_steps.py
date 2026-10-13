@@ -14,7 +14,6 @@ LEAVE = 'HRMS.LeaveRequest'
 # Who may run added steps on each kind of record.
 MANAGERS = {
     LEAVE: 'onboarding:manage',  # HR, as well as the leave's own approvers
-    'HRMS.OnboardingCase': 'onboarding:manage', 'HRMS.OnboardingStep': 'onboarding:manage',
     **{kind: 'performance:manage' for kind in ('HRMS.PerformanceCycle', 'HRMS.PerformanceReview',
                                                 'HRMS.PerformanceGoal', 'HRMS.ProjectFeedback')},
     **{kind: 'cockpit:publish' for kind in COCKPIT_TYPES},

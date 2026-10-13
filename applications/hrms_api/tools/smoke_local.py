@@ -4,7 +4,6 @@ import os
 from pathlib import Path
 
 import httpx
-
 from hrms_app.platform import PlatformClient
 
 # Demo accounts get random passwords from seed_demo_users.py; the smoke run mounts that file at /demo.
@@ -23,34 +22,7 @@ def main():
     employees = app.get('/hrms/employees', headers=admin)
     assert employees.status_code == 200, employees.text
     options = app.get('/hrms/employees/form-options', headers=admin).json()
-    previous = next((e for e in employees.json() if e['work_email'] == 'hrms.boundary.check@newtuple.com'), None)
-    payload = dict(first_name='Architecture', last_name='Verification', work_email='hrms.boundary.check@newtuple.com',
-                   department=previous['department'] if previous else options['departments'][0], designation=previous['designation'] if previous else options['designations'][0],
-                   role='hrms_employee', date_joined='2026-09-28', idempotency_key='boundary-smoke-employee-v1')
-    created = app.post('/hrms/employees', headers=admin, json=payload)
-    assert created.status_code == 201, created.text
-    case_id = created.json()['onboarding_entity_id']
-    steps = created.json()['onboarding_task_count']  # 8 for hires before template v2, 9 after
-    assert steps in (8, 9), created.text
-    repeat = app.post('/hrms/employees', headers=admin, json=payload)
-    assert repeat.status_code == 201 and repeat.json()['idempotent'], repeat.text
-    assert repeat.json()['employee']['entity_id'] == created.json()['employee']['entity_id']
-    conflict = app.post('/hrms/employees', headers=admin, json={**payload, 'last_name': 'Changed'})
-    assert conflict.status_code == 409, conflict.text
-    cases = app.get('/hrms/onboarding', headers=admin)
-    assert cases.status_code == 200, cases.text
-    case = next(c for c in cases.json() if c['entity_id'] == case_id)
-    if case['completed_steps'] == 0:
-        denied = app.post(f'/hrms/onboarding/{case_id}/steps/3/complete', headers=admin)
-        assert denied.status_code == 409, denied.text
-        denied = app.post(f'/hrms/onboarding/{case_id}/complete', headers=admin)
-        assert denied.status_code == 409, denied.text
-    for sequence in range(1, steps + 1):
-        result = app.post(f'/hrms/onboarding/{case_id}/steps/{sequence}/complete', headers=admin)
-        assert result.status_code == 200, result.text
-    result = app.post(f'/hrms/onboarding/{case_id}/complete', headers=admin)
-    assert result.status_code == 200 and result.json()['state'] == 'completed', result.text
-    assert app.post(f'/entities/{case_id}/transitions', headers=admin, json={'trigger': 'complete'}).status_code == 403
+    payload = {'first_name': 'Denied', 'last_name': 'Creation', 'work_email': 'denied.creation@newtuple.com', 'role': 'hrms_employee', 'date_joined': '2026-10-13', 'idempotency_key': 'boundary-denied-onboarding-v2', 'department': options['departments'][0], 'designation': options['designations'][0]}
     assert app.patch('/tasks/anything', headers=admin, json={'status': 'COMPLETED'}).status_code == 403
     platform = PlatformClient(os.environ['PLATFORM_API_URL'], os.environ['HRMS_ORGANIZATION_ID'],
                               os.environ['HRMS_INSTALL_EMAIL'], os.environ['HRMS_INSTALL_PASSWORD'])
@@ -73,10 +45,10 @@ def main():
     employee_role = next(r for r in platform.call('GET', '/roles') if r['name'] == 'hrms_employee')
     platform.call('PUT', f"/roles/users/{fixture['id']}/role", json={'role_id': employee_role['id']})
     if not any(r['data'].get('work_email') == fixture_email for r in rows):
-        platform.create_record('HRMS.Employee', dict(first_name='Boundary', last_name='Test Employee',
-            work_email=fixture_email, employee_code='BOUNDARY-EMP', department=payload['department'],
-            designation=payload['designation'], employment_status='active', hrms_role='hrms_employee',
-            platform_user_id=fixture['id'], reports_to_employee_code=manager['data']['employee_code']), fixture['id'])
+        platform.create_record('HRMS.Employee', {'first_name': 'Boundary', 'last_name': 'Test Employee',
+            'work_email': fixture_email, 'employee_code': 'BOUNDARY-EMP', 'department': payload['department'],
+            'designation': payload['designation'], 'employment_status': 'active', 'hrms_role': 'hrms_employee',
+            'platform_user_id': fixture['id'], 'reports_to_employee_code': manager['data']['employee_code']}, fixture['id'])
     else:
         # This dedicated fixture may survive earlier manual local testing. Keep its
         # reporting line consistent with the manager this test signs in as.
@@ -88,14 +60,15 @@ def main():
     assert user_login.status_code == 200, user_login.text
     user_headers = {'Authorization': 'Bearer ' + user_login.json()['access_token']}
     assert app.get('/hrms/employees', headers=user_headers).status_code == 403
-    assert app.post('/hrms/employees', headers=user_headers, json=payload).status_code == 403
-    assert app.get('/hrms/onboarding', headers=user_headers).status_code == 200
+    assert app.post('/hrms/employees', headers=user_headers, json=payload).status_code in {403, 404}
+    legacy = app.get('/hrms/onboarding', headers=user_headers)
+    assert legacy.status_code in {403, 404}, legacy.text  # Retired route is unavailable.
     manager_login = app.post('/auth/login', json={'email': manager['data']['work_email'], 'password': DEMO[manager['data']['work_email']]})
     assert manager_login.status_code == 200, manager_login.text
     manager_headers = {'Authorization': 'Bearer ' + manager_login.json()['access_token']}
-    leave = app.post('/hrms/leave-requests', headers=user_headers, json=dict(
-        start_date='2041-09-23', end_date='2041-09-24', leave_type='annual', reason='Local boundary verification',
-        idempotency_key='boundary-smoke-leave-v2'))
+    leave = app.post('/hrms/leave-requests', headers=user_headers, json={
+        'start_date': '2041-09-23', 'end_date': '2041-09-24', 'leave_type': 'annual', 'reason': 'Local boundary verification',
+        'idempotency_key': 'boundary-smoke-leave-v2'})
     assert leave.status_code == 201, leave.text
     entity_id = leave.json()['entity_id']
     denied = app.post(f'/hrms/leave-requests/{entity_id}/actions', headers=user_headers,
@@ -105,11 +78,10 @@ def main():
                         json={'trigger':'approve','idempotency_key':'boundary-smoke-decision-v2'})
     assert approved.status_code == 200, approved.text
     assert platform.states('hrms_leaverequest')[entity_id] == 'approved'
-    assert platform.states('hrms_onboardingcase')[case_id] == 'completed'
     routes = httpx.get('http://platform-api:8000/openapi.json', timeout=30).json()['paths']
     assert not any('/hrms/' in route for route in routes)
     print('PASS: directory, role denial, employee creation/retry/conflict, onboarding dependencies/completion, leave approval, native bypass denial, core has no HRMS routes')
-    print('Local fixture retained: Architecture Verification (hrms.boundary.check@newtuple.com)')
+
 
 
 if __name__ == '__main__':

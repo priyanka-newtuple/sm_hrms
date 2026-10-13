@@ -37,27 +37,25 @@ class Service:
                 for key in ['own', 'report', 'unrelated']]
 
 
-def test_workflow_projection_includes_only_authorized_cases_own_and_direct_report_leave():
+def test_workflow_projection_excludes_retired_cases_and_scopes_leave():
     service = Service([employee('own', 'actor', 'M1'), employee('report', 'report-user', 'E1', 'M1'),
                        employee('unrelated', 'other-user', 'E2', 'M2')])
     rows = workflow_rows(service, SimpleNamespace(user_id='actor'))
-    assert {r['entity_id'] for r in rows} == {'allowed-case', 'own-leave', 'report-leave'}
+    assert {r['entity_id'] for r in rows} == {'own-leave', 'report-leave'}
     by_id = {r['entity_id']: r for r in rows}
     assert by_id['own-leave']['leave_view'] == 'mine'
     assert by_id['report-leave']['leave_view'] == 'approvals'
-    assert by_id['allowed-case']['title'] == 'Allowed Employee'
-    assert by_id['allowed-case']['next_action'] == 'Create account'
 
 
 def test_bootstrap_admin_has_no_implicit_access_to_all_leave_records():
     rows = workflow_rows(Service([employee('unrelated', 'other-user', 'E2')]), SimpleNamespace(user_id='admin'))
-    assert [r['entity_id'] for r in rows] == ['allowed-case']
+    assert [r['entity_id'] for r in rows] == []
 
 
 def test_missing_manager_codes_do_not_match_unrelated_leave():
     rows = workflow_rows(Service([employee('own', 'actor', None), employee('unrelated', 'other', 'E2')]),
                          SimpleNamespace(user_id='actor'))
-    assert {r['entity_id'] for r in rows} == {'allowed-case', 'own-leave'}
+    assert {r['entity_id'] for r in rows} == {'own-leave'}
 
 
 def test_duplicate_identity_links_fail_closed():

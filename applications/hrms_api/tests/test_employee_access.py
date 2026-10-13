@@ -68,13 +68,16 @@ def test_superadmin_approves_using_human_token_and_retries_do_not_send_again():
     assert p.writes.count('/auth/forgot-password') == 1
 
 
-@pytest.mark.parametrize('roles', [{'hrms_employee'}, {'superadmin'}, {'hrms_employee', 'hrms_hr_full'}, {'hrms_project_manager'}, set()])
-def test_hr_cannot_activate_privileged_accounts_even_if_employee_role_claims_standard(roles):
-    p, s = system()
-    p.roles = roles
-    with pytest.raises(AppError) as exc:
-        setup_access(s, actor('hr', 'hrms_hr_full'), 'employee', 'operation-1')
-    assert exc.value.status == 403
+@pytest.mark.parametrize('roles', [{'hrms_employee'}, {'superadmin'}, {'hrms_employee','hrms_hr_full'}, {'hrms_project_manager'}])
+def test_hr_full_approves_all_native_employee_roles(roles):
+    p,s=system();p.roles=roles
+    assert setup_access(s,actor('hr','hrms_hr_full'),'employee','operation-1')['account_status']=='active'
+    assert p.roles==roles
+
+
+def test_roleless_account_requires_reconciliation():
+    p,s=system();p.roles=set()
+    with pytest.raises(AppError): setup_access(s,actor('hr','hrms_hr_full'),'employee','operation-1')
     assert not p.writes
 
 
@@ -194,13 +197,13 @@ def employee_request(**values):
 
 
 @pytest.mark.parametrize('existing', [True, False])
-def test_creation_links_or_provisions_once_and_starts_onboarding(existing):
+def test_creation_links_or_provisions_once_without_custom_onboarding(existing):
     p = ProvisioningPlatform(existing)
     s = HrmsService(p, Journal(), 'newtuple.com')
     who = actor('admin', 'superadmin')
     result = s.create_employee(who, employee_request())
     assert result['account_status'] == 'pending'
-    assert result['onboarding_task_count'] > 0
+    assert not any(r['kind'] in {'HRMS.OnboardingCase', 'HRMS.OnboardingStep'} for r in p.rows.values())
     assert p.registered == (0 if existing else 1)
     assert sum(r['kind'] == 'HRMS.Employee' for r in p.rows.values()) == 1
     assert s.create_employee(who, employee_request())['idempotent']
@@ -287,7 +290,7 @@ def test_local_email_switch_does_not_disable_other_tenants(monkeypatch):
     assert '/auth/forgot-password' in p.writes
 
 
-def test_pending_user_inbox_is_superadmin_only_and_uses_native_human_session():
+def test_pending_user_inbox_supports_hr_full_and_superadmin_with_native_human_session():
     from fastapi.testclient import TestClient
     from hrms_app.main import create_app
     p = Platform()
@@ -305,8 +308,8 @@ def test_pending_user_inbox_is_superadmin_only_and_uses_native_human_session():
     client = TestClient(create_app(p, Journal()))
     url = '/v1/api/hrms/user-approvals'
     assert client.get(url).status_code == 401
-    assert client.get(url, headers={'Authorization': 'Bearer human'}).status_code == 403
-    assert not calls
+    assert client.get(url, headers={'Authorization': 'Bearer human'}).status_code == 200
+    calls.clear()
     from dataclasses import replace
     p.actor = lambda token: replace(actor('admin', 'superadmin'), token=token)
     response = client.get(url, headers={'Authorization': 'Bearer human'})

@@ -9,13 +9,13 @@ def permission_key(organization_id, capability):
 def capabilities(actor):
     prefix = f'tenant.{actor.organization_id}.hrms.'
     result = {key[len(prefix):] for key in actor.permissions if key.startswith(prefix)}
-    # Configuration and account approval are explicitly reserved for native Super Admin.
+    # Account approvals remain backed by native user permissions.
     result -= {'platform:configure', 'employee:activate'}
     if 'superadmin' in actor.roles:
         if 'settings:access' in actor.permissions:
             result.add('platform:configure')
-        if 'user:write' in actor.permissions:
-            result.add('employee:activate')
+    if actor.roles & {'superadmin', 'hrms_hr_full'} and 'user:write' in actor.permissions:
+        result.add('employee:activate')
     return result
 
 

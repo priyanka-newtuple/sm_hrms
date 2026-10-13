@@ -48,10 +48,10 @@ def activate(platform):
     return setup_access(HrmsService(platform, Journal(), 'newtuple.com'), actor('admin', 'superadmin'), 'employee', 'access-op-1')
 
 
-def test_activation_completes_the_invite_step_once_the_work_account_exists():
+def test_activation_does_not_advance_retired_onboarding_steps():
     platform = OnboardingPlatform()
     assert activate(platform)['account_status'] == 'active'
-    assert platform.transitions == ['task-3']
+    assert platform.transitions == []
 
 
 def test_activation_leaves_the_invite_step_while_the_work_account_is_missing():

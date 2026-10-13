@@ -20,8 +20,6 @@ from .cockpit_catalog import TYPES as COCKPIT_TYPES
 FORM_ACCESS = {
     'HRMS.OnboardingCase': {'onboarding:view','onboarding:manage'},
     'HRMS.OnboardingStep': {'onboarding:view','onboarding:manage'},
-    'HRMS.OnboardingCase': {'onboarding:view','onboarding:manage'},
-    'HRMS.OnboardingStep': {'onboarding:view','onboarding:manage'},
     'HRMS.Asset': {'asset:view', 'asset:manage'},
     'HRMS.WorkFromHomePolicy': {'wfh:configure'},
     'HRMS.WorkFromHomeRequest': {'wfh:request', 'wfh:approve'},

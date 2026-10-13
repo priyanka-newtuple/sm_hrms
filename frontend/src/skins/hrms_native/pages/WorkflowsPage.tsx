@@ -20,7 +20,6 @@ import PipelineListToolbar from '@/pages/Pipeline/components/PipelineListView/Pi
 import { usePipelineList } from '@/pages/Pipeline/components/PipelineListView/usePipelineList';
 import type { ColumnDescriptor, ColumnField } from '@/pages/Pipeline/components/PipelineListView/types';
 import PipelineTerminalToggle from '@/pages/Pipeline/components/PipelineTerminalToggle';
-import OnboardingPage from './OnboardingPage';
 import { ProjectDetail, PROJECT_KINDS } from './ProjectsPage';
 import { LeaveRow, type LeaveItem } from './LeaveRequestsPage';
 import { PerformanceDetail } from './PerformancePage';
@@ -124,10 +123,9 @@ export default function WorkflowsPage() {
         </div>} />
     </Card>}
     <Sheet open={Boolean(selected)} onOpenChange={open => { if (!open) setSelectedId(null); }}>
-      <SheetContent className={`hrms-brand overflow-y-auto data-[side=right]:w-full data-[side=right]:sm:max-w-4xl ${selected?.entity_type === 'HRMS.OnboardingCase' ? 'hrms-onboarding-drawer' : 'hrms-review-drawer'}`}>
+      <SheetContent className={`hrms-brand overflow-y-auto data-[side=right]:w-full data-[side=right]:sm:max-w-4xl hrms-review-drawer`}>
         <SheetHeader><SheetTitle>{selected?.title} · {selected?.workflow_label}</SheetTitle></SheetHeader>
         {selected && !CONTENT_TYPES.includes(selected.entity_type) && !PROJECT_KINDS.includes(selected.entity_type) && !selected.entity_type.startsWith('HRMS.Performance') && <div className="p-6"><WorkflowStages entityId={selected.entity_id} /></div>}
-        {selected?.entity_type === 'HRMS.OnboardingCase' && <OnboardingPage key={selected.entity_id} caseId={selected.entity_id} embedded />}
         {selected && ['HRMS.PerformanceCycle', 'HRMS.PerformanceReview', 'HRMS.ProjectFeedback'].includes(selected.entity_type) && <PerformanceDetail key={selected.entity_id} entityId={selected.entity_id} />}
         {selected && PROJECT_KINDS.includes(selected.entity_type) && <ProjectDetail key={selected.entity_id} entityId={selected.entity_id} />}
         {selected && CONTENT_TYPES.includes(selected.entity_type) && <CockpitPage key={selected.entity_id} entityId={selected.entity_id} />}

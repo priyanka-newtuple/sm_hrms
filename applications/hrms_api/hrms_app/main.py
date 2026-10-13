@@ -19,8 +19,8 @@ from .field_access import changes_forms, sync_service_access
 from .extra_steps import ExtraSteps
 from . import custom_fields
 from .requests import (EmployeeCreateRequest, EmployeeExitRequest, EmployeeOperationRequest, EmployeeUpdateRequest,
-                       LeaveCreateRequest, OnboardingReasonRequest, OnboardingStepUpdateRequest)
-from .responses import EmployeeCreateResponse, EmployeeListItem, LeaveCreateResponse, LeaveListItem, OnboardingCaseItem
+                       LeaveCreateRequest)
+from .responses import EmployeeListItem, LeaveCreateResponse, LeaveListItem
 from .service import HrmsService
 from .employee_access import setup_access
 from .workflow_view import workflow_rows
@@ -155,9 +155,9 @@ def create_app(platform=None, journal=None):
 
     @app.get('/v1/api/hrms/user-approvals')
     def pending_user_approvals(current=Depends(actor)):
-        if 'superadmin' not in current.roles:
-            raise AppError(403, 'Only Super Admin can review new user approvals')
-        # The inbox mirrors native Users; approval stays on the native administration surface.
+        if 'employee:activate' not in capabilities(current):
+            raise AppError(403, 'Account approval permission is required')
+        # Native Users remains authoritative. Account approval uses the native user APIs.
         rows = platform.request('GET', '/users/pending', token=current.token)
         return [{'id': row['id'], 'full_name': row['full_name'], 'email': row['email']}
                 for row in rows if row.get('organization_id') == current.organization_id
@@ -174,7 +174,7 @@ def create_app(platform=None, journal=None):
     def follow_directory(current, employee_id, left=False):
         # Reviews follow a manager change or a leaver, and a leaver's open onboarding ends; the
         # directory change itself is already saved.
-        for follow in (performance.sync_employee, *([service.end_onboarding_of_leaver] if left else [])):
+        for follow in (performance.sync_employee,):
             try:
                 follow(current, employee_id)
             except AppError:
@@ -201,13 +201,9 @@ def create_app(platform=None, journal=None):
     def employee_setup_access(employee_id: str, payload: EmployeeAccessRequest, current=Depends(actor)):
         return setup_access(service, current, employee_id, payload.idempotency_key)
 
-    @app.post('/v1/api/hrms/employees', response_model=EmployeeCreateResponse, status_code=201)
+    @app.post('/v1/api/hrms/employees', status_code=201)
     def create_employee(payload: EmployeeCreateRequest, current=Depends(actor)):
         return service.create_employee(current, payload)
-
-    @app.get('/v1/api/hrms/onboarding', response_model=list[OnboardingCaseItem])
-    def onboarding(current=Depends(actor)):
-        return service.onboarding(current)
 
     @app.get('/v1/api/hrms/workflows')
     def workflows(current=Depends(actor)):
@@ -277,10 +273,6 @@ def create_app(platform=None, journal=None):
     def performance_action(entity_id: UUID, payload: PerformanceAction, current=Depends(actor)):
         return performance.execute(current, str(entity_id), payload)
 
-    @app.post('/v1/api/hrms/onboarding/{case_id}/steps/{sequence}/complete', response_model=OnboardingCaseItem)
-    def complete_step(case_id: UUID, sequence: int, current=Depends(actor)):
-        return service.complete_step(current, str(case_id), sequence)
-
     extra_steps = ExtraSteps(service)
 
     @app.get('/v1/api/hrms/workflow-steps/{entity_id}')
@@ -290,26 +282,6 @@ def create_app(platform=None, journal=None):
     @app.post('/v1/api/hrms/workflow-steps/{entity_id}')
     def run_added_step(entity_id: UUID, payload: StepRequest, current=Depends(actor)):
         return extra_steps.run(current, str(entity_id), payload.trigger, payload.idempotency_key)
-
-    @app.get('/v1/api/hrms/onboarding/assignees')
-    def onboarding_assignees(current=Depends(actor)):
-        return service.onboarding_assignees(current)
-
-    @app.patch('/v1/api/hrms/onboarding/{case_id}/steps/{sequence}', response_model=OnboardingCaseItem)
-    def update_step(case_id: UUID, sequence: int, payload: OnboardingStepUpdateRequest, current=Depends(actor)):
-        return service.update_step(current, str(case_id), sequence, payload.assigned_to, payload.due_date)
-
-    @app.post('/v1/api/hrms/onboarding/{case_id}/steps/{sequence}/skip', response_model=OnboardingCaseItem)
-    def skip_step(case_id: UUID, sequence: int, payload: OnboardingReasonRequest, current=Depends(actor)):
-        return service.skip_step(current, str(case_id), sequence, payload.reason)
-
-    @app.post('/v1/api/hrms/onboarding/{case_id}/cancel', response_model=OnboardingCaseItem)
-    def cancel_onboarding(case_id: UUID, payload: OnboardingReasonRequest, current=Depends(actor)):
-        return service.cancel_onboarding(current, str(case_id), payload.reason)
-
-    @app.post('/v1/api/hrms/onboarding/{case_id}/complete', response_model=OnboardingCaseItem)
-    def complete_case(case_id: UUID, current=Depends(actor)):
-        return service.complete_case(current, str(case_id))
 
     @app.get('/v1/api/hrms/leave-requests', response_model=list[LeaveListItem])
     def leave(view: str = 'mine', limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0),

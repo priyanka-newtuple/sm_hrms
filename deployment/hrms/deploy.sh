@@ -28,6 +28,16 @@ for service in platform-db hrms-app-db; do
 done
 # Migrations may run at platform startup. Do not automatically roll back schemas.
 trap 'echo "Deployment failed. Previous release pointer retained. Inspect HRMS only; database restore requires an explicit recovery decision." >&2' ERR
+# Preserve files written by the native default local provider before replacing its container.
+# The existing uploads volume is retained across releases; never delete or move source files.
+current_api=$("${compose[@]}" ps -q platform-api)
+if [ -n "$current_api" ]; then
+  docker exec "$current_api" sh -c '
+    if [ -d /tmp/modular_filehandler ]; then
+      mkdir -p /app/backend/uploads/native-files
+      cp -an /tmp/modular_filehandler/. /app/backend/uploads/native-files/
+    fi'
+fi
 "${compose[@]}" up -d --no-deps --wait --wait-timeout 300 platform-api
 "${compose[@]}" run --rm --no-deps platform-install
 "${compose[@]}" up -d --no-deps --wait --wait-timeout 180 hrms-app platform-web

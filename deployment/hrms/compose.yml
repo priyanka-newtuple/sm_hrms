@@ -84,6 +84,7 @@ services:
       ACTION_RUNS_WORKER_ENABLED: 'false'
       BULK_IMPORT_WORKER_ENABLED: 'false'
       ENCRYPTION_KEY: ${HRMS_ENCRYPTION_KEY:?required}
+      FILEHANDLER_LOCAL_STORAGE_ROOT: /app/backend/uploads/native-files
       MODULAR_BYPASS_AUTH: 'false'
     depends_on:
       platform-db:

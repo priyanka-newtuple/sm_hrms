@@ -1,6 +1,5 @@
-import { ConfiguredInputs, ConfiguredForm, useFormSchema, formValues } from '../forms/ConfiguredForm';
 import AddEmployee from './AddEmployee';
-import OnboardingPage from './OnboardingPage';
+import { ConfiguredInputs, ConfiguredForm, useFormSchema, formValues } from '../forms/ConfiguredForm';
 import { createRequestId } from '../requestId';
 import { FileText, BookOpen, CalendarDays, BriefcaseBusiness, Users, Plus, ArrowUpRight, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
@@ -99,7 +98,7 @@ export default function CockpitPage({entityId}:{entityId?:string}) {
  const area=areas.find(a=>a.id===params.get('area'))?.id??areas[0].id;
  const tabs=<Segmented variant="underline" label="HR Cockpit areas" value={area} onChange={id=>setParams({area:id})} segments={areas.map(a=>({id:a.id,label:a.label,badge:a.id==='offboarding'?'Soon':undefined}))}/>;
  if(area==='publishing')return <ContentCockpit tabs={tabs}/>;
- return <main className="hrms-workspace-page"><PageHero title="HR Cockpit" intro={area==='offboarding'?'Employee offboarding is coming soon.':area==='onboarding'?'Coordinate onboarding and help new colleagues settle in.':'Review work-from-home requests and set the yearly policy.'} illustration="cockpit" tabs={tabs}/>{area==='onboarding'?<><AddEmployee/><OnboardingPage embedded showNavigation/></>:area==='offboarding'?<section className="hrms-surface p-6"><h2 className="hrms-section-heading">Offboarding</h2><p className="text-sm text-muted-foreground">Coming soon</p><p className="mt-3">Employee exit workflows will be available here.</p></section>:<WorkFromHome cockpit/>}</main>;
+ return <main className="hrms-workspace-page"><PageHero title="HR Cockpit" intro={area==='offboarding'?'Employee offboarding is coming soon.':area==='onboarding'?'Coordinate onboarding and help new colleagues settle in.':'Review work-from-home requests and set the yearly policy.'} illustration="cockpit" tabs={tabs}/>{area==='onboarding'?<section className="hrms-surface p-6"><h2 className="hrms-section-heading">Onboarding</h2><p className="mb-4">Add a new employee to your organization.</p><AddEmployee/></section>:area==='offboarding'?<section className="hrms-surface p-6"><h2 className="hrms-section-heading">Offboarding</h2><p className="text-sm text-muted-foreground">Coming soon</p><p className="mt-3">Employee exit workflows will be available here.</p></section>:<WorkFromHome cockpit/>}</main>;
 }
 
 function ContentCockpit({entityId,tabs}:{entityId?:string;tabs?:React.ReactNode}) {

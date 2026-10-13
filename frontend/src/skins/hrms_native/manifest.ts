@@ -3,7 +3,6 @@ import { skin } from '../skin.config';
 import type { SkinManifest } from '../types';
 import LeaveRequestsPage from './pages/LeaveRequestsPage';
 import EmployeeDirectoryPage from './pages/EmployeeDirectoryPage';
-import OnboardingPage from './pages/OnboardingPage';
 
 export const hrmsNativeSkin: SkinManifest = {
   ...skin,
@@ -30,6 +29,5 @@ export const hrmsNativeSkin: SkinManifest = {
   customPages: [
     { path: '/hrms/leave', component: LeaveRequestsPage },
     { path: '/hrms/employees', component: EmployeeDirectoryPage },
-    { path: '/hrms/onboarding', component: OnboardingPage },
   ],
 };
