@@ -1,14 +1,14 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
-import { X } from 'lucide-react';
 import { request } from '@/core/services/api/client';
 import { informationCategories } from '../components/Brand';
-import { AnimIcon, ArrowRightIcon, SearchIcon } from '../animated-icons';
+import { AnimIcon, ArrowRightIcon } from '../animated-icons';
+import { SearchField } from '../components/ListKit';
 import { Waves } from '../login/Waves';
 import { usePrefersReducedMotion } from '../components/useReducedMotion';
 import { CareerList, HolidayView, LearningList, PolicyList } from '../public-info/CategoryViews';
-import { matches, type Published } from '../public-info/format';
+import { type Published } from '../public-info/format';
 import '../login/login.css';
 import '../public-info/public-info.css';
 
@@ -33,7 +33,6 @@ export default function PublishedContent({ publicPage = false }: { publicPage?: 
 
   const counts = useMemo(() => Object.fromEntries(informationCategories.map(c => [c.id, query.data?.filter(r => c.types.includes(String(r.entity_type))).length ?? 0])), [query.data]);
   const inCategory = query.data?.filter(r => category.types.includes(String(r.entity_type))) ?? [];
-  const records = inCategory.filter(r => matches(r, search.trim()));
   const View = VIEWS[category.id as keyof typeof VIEWS];
 
   const choose = (id: string) => { setSearch(''); setParams({ category: id }); };
@@ -74,32 +73,23 @@ export default function PublishedContent({ publicPage = false }: { publicPage?: 
 
     <section className="hrms-info-content" aria-labelledby="information-heading">
       <header className="hrms-info-head">
-        <div>
-          <p className="hrms-index-label">{category.short}</p>
-          <h2 id="information-heading">{category.title}</h2>
-          <p>{category.description}</p>
-        </div>
-        <label className="hrms-info-search">
-          <span className="sr-only">Search {category.title.toLowerCase()}</span>
-          <AnimIcon icon={SearchIcon} size={17} />
-          <input type="search" value={search} onChange={e => setSearch(e.target.value)} placeholder={`Search ${category.short.toLowerCase()}`} />
-          {search && <button type="button" onClick={() => setSearch('')} aria-label="Clear search"><X size={15} aria-hidden="true" /></button>}
-        </label>
+        <h2 id="information-heading">{category.title}</h2>
+        <p>{category.description}</p>
       </header>
 
       <div aria-live="polite">
-        {query.isSuccess && <p className="hrms-info-count">{search ? `${records.length} of ${inCategory.length}` : inCategory.length} published {inCategory.length === 1 ? 'item' : 'items'}</p>}
         {query.isLoading && <div className="hrms-info-skeletons" role="status" aria-label="Loading published information">{[0, 1, 2].map(i => <div key={i} className="hrms-info-skeleton" />)}</div>}
         {query.isError && <div role="alert" className="hrms-info-empty"><h3>Information couldn’t be loaded</h3><p>Check your connection and try again.</p><button type="button" className="hrms-info-action" onClick={() => void query.refetch()}>Try again</button></div>}
-        {query.isSuccess && records.length > 0 && <div key={category.id} className="hrms-info-view"><View records={records} /></div>}
-        {query.isSuccess && !records.length && (search
-          ? <div className="hrms-info-empty"><h3>No results for “{search}”</h3><p>Try a different word, or clear the search.</p><button type="button" className="hrms-info-action" onClick={() => setSearch('')}>Clear search</button></div>
-          : <div className="hrms-info-empty" data-anim-trigger>
-              <span className="hrms-info-empty-icon"><AnimIcon icon={category.animatedIcon} size={30} every={motion ? 4000 : undefined} /></span>
-              <h3>No {category.title.toLowerCase()} published yet</h3>
-              <p>When HR publishes something{publicPage ? ' for public viewing' : ''}, you’ll find it here.{publicPage ? ' Employees may see more after signing in.' : ''}</p>
-              {publicPage && <Link to="/login" className="hrms-info-action">Employee sign in<AnimIcon icon={ArrowRightIcon} size={15} /></Link>}
-            </div>)}
+        {query.isSuccess && inCategory.length > 0 && <div key={category.id} className="hrms-info-view">
+          <View records={inCategory} search={search.trim()} clearSearch={() => setSearch('')}
+            searchField={<SearchField value={search} onChange={setSearch} placeholder={`Search ${category.short.toLowerCase()}`} />} />
+        </div>}
+        {query.isSuccess && !inCategory.length && <div className="hrms-info-empty" data-anim-trigger>
+          <span className="hrms-info-empty-icon"><AnimIcon icon={category.animatedIcon} size={30} every={motion ? 4000 : undefined} /></span>
+          <h3>No {category.title.toLowerCase()} published yet</h3>
+          <p>When HR publishes something{publicPage ? ' for public viewing' : ''}, you’ll find it here.{publicPage ? ' Employees may see more after signing in.' : ''}</p>
+          {publicPage && <Link to="/login" className="hrms-info-action">Employee sign in<AnimIcon icon={ArrowRightIcon} size={15} /></Link>}
+        </div>}
       </div>
     </section>
   </main>;
