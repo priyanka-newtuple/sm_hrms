@@ -14,7 +14,7 @@ export type OnboardingCase = { entity_id: string; employee_name: string; steps: 
 export const isForbidden = (error: unknown) => (error as { status?: number } | null)?.status === 403;
 export const retryUnlessForbidden = (count: number, error: unknown) => !isForbidden(error) && count < 1;
 
-export interface WaitingSource { key: 'users' | 'leave' | 'cockpit' | 'projects' | 'onboarding' | 'wfh' | 'performance'; label: string; path: string; count: number; loading: boolean }
+export interface WaitingSource { key: 'users' | 'leave' | 'cockpit' | 'projects' | 'onboarding' | 'wfh' | 'performance'; label: string; path: string; count: number; loading: boolean; error: boolean; retry: () => void }
 
 /**
  * What the signed-in person can act on right now, per work area. Shares query keys with the pages,
@@ -48,13 +48,13 @@ export function useWaitingActions() {
   const projectActions = projects.data?.requests.filter(r => r.state === 'pending' && r.actions.includes('approve')) ?? [];
 
   const sources: WaitingSource[] = [
-    { key: 'users' as const, label: 'New user approvals', path: '/settings?tab=users', count: userApprovals.data?.length ?? 0, loading: userApprovals.isLoading || userApprovals.isError, show: isSuperAdmin },
-    { key: 'wfh' as const, label: 'WFH approvals', path: '/hrms/cockpit?area=wfh', count: wfh.data?.length ?? 0, loading: wfh.isLoading, show: has('wfh:approve') },
-    { key: 'leave' as const, label: 'Leave approvals', path: '/hrms/leave', count: pendingLeave.length, loading: leaveApprovals.isLoading, show: (leaveApprovals.data?.length ?? 0) > 0 },
-    { key: 'cockpit' as const, label: 'HR content', path: '/hrms/cockpit', count: cockpitActions.length, loading: cockpit.isLoading, show: has('cockpit:view') },
-    { key: 'projects' as const, label: 'Projects', path: '/hrms/projects', count: projectActions.length, loading: projects.isLoading, show: has('project:view') },
-    { key: 'performance' as const, label: 'Performance', path: '/hrms/performance', count: performanceActions.length, loading: performance.isLoading, show: performance.isSuccess },
-    { key: 'onboarding' as const, label: 'Onboarding', path: has('onboarding:view') ? '/hrms/cockpit?area=onboarding' : '/hrms/my-work', count: onboardingActions.length, loading: onboarding.isLoading, show: true },
+    { key: 'users' as const, label: 'New user approvals', path: '/settings?tab=users', count: userApprovals.data?.length ?? 0, loading: userApprovals.isLoading || userApprovals.isError, error: userApprovals.isError, retry: () => void userApprovals.refetch(), show: isSuperAdmin },
+    { key: 'wfh' as const, label: 'WFH approvals', path: '/hrms/cockpit?area=wfh', count: wfh.data?.length ?? 0, loading: wfh.isLoading, error: wfh.isError, retry: () => void wfh.refetch(), show: has('wfh:approve') },
+    { key: 'leave' as const, label: 'Leave approvals', path: '/hrms/leave', count: pendingLeave.length, loading: leaveApprovals.isLoading, error: leaveApprovals.isError && !isForbidden(leaveApprovals.error), retry: () => void leaveApprovals.refetch(), show: caps.data?.employee_profile === true && !isForbidden(leaveApprovals.error) },
+    { key: 'cockpit' as const, label: 'HR content', path: '/hrms/cockpit', count: cockpitActions.length, loading: cockpit.isLoading, error: cockpit.isError, retry: () => void cockpit.refetch(), show: has('cockpit:view') },
+    { key: 'projects' as const, label: 'Projects', path: '/hrms/projects', count: projectActions.length, loading: projects.isLoading, error: projects.isError, retry: () => void projects.refetch(), show: has('project:view') },
+    { key: 'performance' as const, label: 'Performance', path: '/hrms/performance', count: performanceActions.length, loading: performance.isLoading, error: false, retry: () => void performance.refetch(), show: performance.isSuccess },
+    { key: 'onboarding' as const, label: 'Onboarding', path: has('onboarding:view') ? '/hrms/cockpit?area=onboarding' : '/hrms/my-work', count: onboardingActions.length, loading: onboarding.isLoading, error: onboarding.isError, retry: () => void onboarding.refetch(), show: true },
   ].flatMap(({ show, ...source }) => (show ? [source] : []));
 
   return {
@@ -63,5 +63,6 @@ export function useWaitingActions() {
     loading: caps.isLoading || sources.some(source => source.loading),
     countFor: (key: WaitingSource['key']) => sources.find(source => source.key === key)?.count ?? 0,
     userApprovals, isSuperAdmin, onboarding, onboardingActions, leaveApprovals, pendingLeave, performance, performanceActions,
+    cockpitActions, projectActions, wfhRequests: wfh.data ?? [],
   };
 }

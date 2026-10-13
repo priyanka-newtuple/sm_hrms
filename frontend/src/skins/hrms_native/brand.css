@@ -298,11 +298,6 @@
 .hrms-content-categories button svg { color:#0047ab; }
 .hrms-content-categories button[aria-pressed=true] { background:#0047ab; border-color:#0047ab; color:white; }
 .hrms-content-categories button[aria-pressed=true] svg { color:inherit; }
-.hrms-content-directory .hrms-directory-heading { flex-wrap:wrap; }
-.hrms-content-directory .hrms-directory-heading > button { margin-left:auto; }
-.hrms-content-directory thead { background:#f9fafb; }
-.hrms-content-directory tbody tr { border-top:1px solid #eef0f3; }
-.hrms-content-directory td .hrms-outline-button { padding:8px 14px; font-size:12px; }
 .hrms-content-editor,.hrms-content-summary { padding:28px; }
 .hrms-content-detail { display:grid; gap:24px; }
 .hrms-content-back { justify-self:start; }
