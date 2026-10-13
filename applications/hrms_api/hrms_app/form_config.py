@@ -18,6 +18,11 @@ from .policy import capabilities
 from .cockpit_catalog import TYPES as COCKPIT_TYPES
 
 FORM_ACCESS = {
+    'HRMS.OnboardingCase': {'onboarding:view','onboarding:manage'},
+    'HRMS.OnboardingStep': {'onboarding:view','onboarding:manage'},
+    'HRMS.OnboardingCase': {'onboarding:view','onboarding:manage'},
+    'HRMS.OnboardingStep': {'onboarding:view','onboarding:manage'},
+    'HRMS.Asset': {'asset:view', 'asset:manage'},
     'HRMS.WorkFromHomePolicy': {'wfh:configure'},
     'HRMS.WorkFromHomeRequest': {'wfh:request', 'wfh:approve'},
     **{kind: {'cockpit:view'} for kind in COCKPIT_TYPES},
@@ -52,7 +57,8 @@ def configured_form(platform, entity_type):
         form = _method_block_form(platform, entity_type) or _legacy_form(platform, entity_type)
     if form is None:
         raise AppError(409, 'The configured HRMS form is missing or inactive')
-    return {'entity_type': entity_type, 'name': form['name'], 'fields': _presentation(platform, form['fields'])}
+    return {'entity_type': entity_type, 'name': form['name'], 'fields': _presentation(platform, form['fields']),
+            'workflow_versioned': bool(workflow and _workflow_form(workflow))}
 
 
 def has_method_blocks(platform, entity_type):
@@ -83,6 +89,7 @@ def _method_block_form(platform, entity_type):
         return None
     engine_types = {t['code']: t.get('engine_type') for t in platform.call('GET', '/field-library/field-types')['items']}
     fields, seen = [], set()
+    date_fields={f['field'] for f in pack_by_type(entity_type).fields if f['type']=='date'}
     for method in sorted(methods, key=lambda m: m.get('method_code', 0)):
         detail = platform.call('GET', f"/method-library/methods/{method['method_id']}")
         for field in sorted(detail.get('fields', []), key=lambda f: f.get('position', 0)):
@@ -93,7 +100,7 @@ def _method_block_form(platform, entity_type):
             settings = field.get('settings') or {}
             fields.append({
                 'field': key,
-                'type': engine_types.get(field['field_type']) or field['field_type'],
+                'type': 'date' if key in date_fields and engine_types.get(field['field_type'])=='datetime' else engine_types.get(field['field_type']) or field['field_type'],
                 'description': field.get('label'),
                 'placeholder': field.get('placeholder'),
                 'required': bool(field.get('required')),

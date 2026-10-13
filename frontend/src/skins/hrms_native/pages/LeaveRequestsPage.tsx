@@ -1,8 +1,8 @@
 import { createRequestId } from '../requestId';
 import { CalendarDays, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { ConfiguredForm, ConfiguredField } from '../forms/ConfiguredForm';
-import { CustomFields, CustomFieldValues, type CustomValues } from '../forms/CustomFields';
+import { ConfiguredForm, ConfiguredInputs, useFormSchema, commandValues } from '../forms/ConfiguredForm';
+import { CustomFieldValues, type CustomValues } from '../forms/CustomFields';
 import { AddedSteps } from '../workflows/AddedSteps';
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -73,19 +73,9 @@ export function LeaveRow({ item, view, onChange }: { item: LeaveItem; view: View
   );
 }
 
-// The leave types the leave API accepts; Settings may narrow them, not extend them.
-const LEAVE_TYPES = ['annual', 'sick', 'casual', 'unpaid', 'other'];
-const SICK_LEAVE_BACKDATE_DAYS = 7;
-/** Local calendar date `offset` days from today, as YYYY-MM-DD. */
-const isoDate = (offset: number) => { const day = new Date(); day.setDate(day.getDate() + offset); return `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`; };
-
 export default function LeaveRequestsPage() {
   const [view, setView] = useState<View>('mine');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [leaveType, setLeaveType] = useState('annual');
-  const [reason, setReason] = useState('');
-  const [custom, setCustom] = useState<CustomValues>({});
+  const [data,setData]=useState<Record<string,unknown>>({});
   const [error, setError] = useState('');
   const queryClient = useQueryClient();
   const caps = useHrmsCapabilities();
@@ -96,31 +86,22 @@ export default function LeaveRequestsPage() {
     queryFn: () => request<LeaveItem[]>(`/hrms/leave-requests?view=${view}&limit=100`),
     enabled: caps.isFetched && !noProfile,
   });
-  // Settings can narrow the leave types; never submit one that was removed (the old default was 'annual').
-  const leaveForm = useQuery({
-    queryKey: ['hrms', 'form-config', 'HRMS.LeaveRequest'],
-    queryFn: () => request<{ fields: { field: string; enum_values?: string[] | null }[] }>('/hrms/forms/HRMS.LeaveRequest'),
-    enabled: caps.isFetched && !noProfile,
-  });
-  const configuredTypes = leaveForm.data?.fields.find(field => field.field === 'leave_type')?.enum_values;
-  const leaveTypes = LEAVE_TYPES.filter(type => !configuredTypes?.length || configuredTypes.includes(type));
-  const selectedType = leaveTypes.includes(leaveType) ? leaveType : leaveTypes[0] ?? leaveType;
-  // Same rule as the server: leave starts today or later; sick leave can be recorded up to a week after it began.
-  const earliestStart = isoDate(selectedType === 'sick' ? -SICK_LEAVE_BACKDATE_DAYS : 0);
+  const leaveForm=useFormSchema('HRMS.LeaveRequest',caps.isFetched&&!noProfile);
+  const excluded=['employee_id','manager_id','identifier','hrms_operation_key'];
   const create = useMutation({
     mutationFn: () => request('/hrms/leave-requests', {
       method: 'POST',
-      body: JSON.stringify({ start_date: startDate, end_date: endDate, leave_type: selectedType, reason, custom, idempotency_key: createRequestId() }),
+      body: JSON.stringify({ ...commandValues(leaveForm.data?.fields??[],data,excluded), idempotency_key: createRequestId() }),
     }),
     onSuccess: () => {
-      setError(''); setStartDate(''); setEndDate(''); setReason(''); setCustom({});
+      setError(''); setData({});
       void queryClient.invalidateQueries({ queryKey: ['hrms', 'leave'] });
     },
     onError: (cause) => setError(getApiErrorMessage(cause)),
   });
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (endDate < startDate) { setError('End date must be on or after start date.'); return; }
+    if (String(data.end_date??'') < String(data.start_date??'')) { setError('End date must be on or after start date.'); return; }
     create.mutate();
   }
 
@@ -142,14 +123,8 @@ export default function LeaveRequestsPage() {
     <ConfiguredForm entityType="HRMS.LeaveRequest"><form onSubmit={submit} className="hrms-people-form">
       <div className="hrms-panel-title"><span className="hrms-work-icon"><CalendarDays size={23} strokeWidth={1.25} /></span><div><h2>Request leave</h2><p>Choose your dates and share a reason.</p></div></div>
       <div className="grid gap-4 sm:grid-cols-2">
-        <ConfiguredField field="start_date" label="Start date" className="text-sm font-medium"><input required type="date" value={startDate} min={earliestStart} onChange={(event) => setStartDate(event.target.value)} className="hrms-field-input" /></ConfiguredField>
-        <ConfiguredField field="end_date" label="End date" className="text-sm font-medium"><input required type="date" value={endDate} min={startDate} onChange={(event) => setEndDate(event.target.value)} className="hrms-field-input" /></ConfiguredField>
-        <ConfiguredField field="leave_type" label="Leave type" className="text-sm font-medium"><select value={selectedType} onChange={(event) => setLeaveType(event.target.value)} className="hrms-field-input">
-          {leaveTypes.map((type) => <option key={type} value={type}>{type}</option>)}
-        </select></ConfiguredField>
-        <ConfiguredField field="reason" label="Reason" className="text-sm font-medium"><textarea value={reason} onChange={(event) => setReason(event.target.value)} maxLength={5000} rows={2} className="hrms-field-input" /></ConfiguredField>
+        <ConfiguredInputs values={data} onChange={setData} exclude={excluded}/>
       </div>
-      <CustomFields entityType="HRMS.LeaveRequest" values={custom} onChange={setCustom} />
       {error && <p role="alert" className="mt-3 text-sm text-red-700">{error}</p>}
       <button type="submit" disabled={create.isPending} className="hrms-primary-button">{create.isPending ? 'Submitting…' : 'Submit request'}</button>
     </form></ConfiguredForm></section>

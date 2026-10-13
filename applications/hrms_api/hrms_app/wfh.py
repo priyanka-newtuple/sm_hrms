@@ -5,6 +5,8 @@ import hashlib
 from pydantic import BaseModel, ConfigDict, Field
 
 from .catalog import pack_by_type
+from .custom_fields import check_custom, custom_keys
+from .form_values import editable_values
 from .errors import AppError
 from .policy import capabilities, require
 from .service import name, LEAVE, LEAVE_FIELDS
@@ -18,6 +20,7 @@ class PolicyInput(BaseModel):
     annual_days: int = Field(ge=0, le=366)
     notice_days: int = Field(ge=0, le=365)
     revision: int = Field(ge=0)
+    custom: dict = Field(default_factory=dict)
     idempotency_key: str = Field(min_length=8, max_length=128)
 
 
@@ -25,6 +28,7 @@ class RequestInput(BaseModel):
     model_config = ConfigDict(extra='forbid')
     dates: list[date] = Field(min_length=1, max_length=366)
     reason: str = Field(default='', max_length=2000)
+    custom: dict = Field(default_factory=dict)
     idempotency_key: str = Field(min_length=8, max_length=128)
 
 
@@ -50,17 +54,11 @@ class WfhService:
 
     def rows(self, kind):
         fields = [f['field'] for f in pack_by_type(kind).fields]
-        return self.platform.records(kind, [*fields, 'identifier', 'hrms_operation_key'])
+        return self.platform.records(kind, [*fields, *custom_keys(self.platform,kind), 'identifier', 'hrms_operation_key'])
 
     def validate_form(self, actor, kind, data, previous=None):
-        from .form_config import form_configuration
-        previous = previous or {}
-        for field in form_configuration(self.platform, actor, kind)['fields']:
-            key = field['field']
-            if key not in data or key in {'employee_id', 'policy_id', 'revision', 'hrms_operation_key'}:
-                continue
-            check(not field.get('required') or data[key] not in (None, '', []), f'{key} is required by the configured form')
-            check(not field.get('read_only') or data[key] == previous.get(key), f'{key} is read-only in the configured form')
+        excluded={'employee_id','policy_id','revision','hrms_operation_key'}
+        editable_values(self.platform,kind,{k:v for k,v in data.items() if k not in excluded},excluded=excluded,current=previous)
 
     def states(self, kind):
         return self.platform.states(pack_by_type(kind).machine_name)
@@ -152,7 +150,7 @@ class WfhService:
                 for employee in self.service.employees():
                     check(len(self.reserved(employee['entity_id'], payload.year)) <= payload.annual_days,
                           'Allowance cannot be lower than an employee’s pending and approved bookings', 409)
-                data = payload.model_dump(exclude={'idempotency_key'})
+                data = {**(row['data'] if row else {}), **payload.model_dump(exclude_unset=True, exclude={'idempotency_key','custom'}), **check_custom(self.platform,POLICY,payload.custom,row['data'] if row else None)}
                 data['revision'] += 1
                 data['hrms_operation_key'] = hashlib.sha256(key.encode()).hexdigest()
                 self.validate_form(actor, POLICY, data, row['data'] if row else None)
@@ -184,7 +182,7 @@ class WfhService:
                 check(len(reserved) + len(dates) <= policy['data']['annual_days'], 'Annual WFH allowance exceeded', 409)
                 self.conflicts(own['entity_id'], dates)
                 data = dict(employee_id=own['entity_id'], policy_id=policy['entity_id'], year=year,
-                            dates='\n'.join(sorted(dates)), reason=payload.reason,
+                            dates='\n'.join(sorted(dates)), **({'reason':payload.reason} if 'reason' in payload.model_fields_set else {}), **check_custom(self.platform,REQUEST,payload.custom),
                             hrms_operation_key=hashlib.sha256(key.encode()).hexdigest())
                 self.validate_form(actor, REQUEST, data)
                 op.checkpoint(wfh_plan={'mode': 'create', 'kind': REQUEST, 'data': data, 'action': 'requested'})
@@ -251,7 +249,7 @@ class WfhService:
             transitions = row['workflow_configuration']['transitions']
             row['actions'] = [a for a in row['actions'] if any(t['trigger'] == a and t['from_state'] == row['current_state'] for t in transitions)]
         policy = self.policy(year)
-        policy_data = {k: policy['data'][k] for k in ('year', 'annual_days', 'notice_days', 'revision')} if policy else None
+        policy_data = {k: policy['data'].get(k) for k in ('year','annual_days','notice_days','revision', *custom_keys(self.platform,POLICY))} if policy else None
         mine = [r for r in rows if r['data']['employee_id'] == own_id]
         today = date.today().isoformat()
         approved = set().union(*(request_dates(r) for r in mine if states.get(r['entity_id']) == 'approved'))

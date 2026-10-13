@@ -44,11 +44,11 @@ class ProjectInput(Dates):
     pm_id: UUID
     dm_id: UUID
     approver_id: UUID
-    engagement_type: Literal["time_material", "fixed_price", "internal"] = (
+    engagement_type: str = (
         "time_material"
     )
     practice: str = Field(default="", max_length=100)
-    health: Literal["green", "amber", "red"] = "green"
+    health: str = "green"
     currency: str = Field(default="INR", pattern=r"^[A-Z]{3}$")
     budget_amount: float = Field(default=0, ge=0, allow_inf_nan=False)
     billing_rate: float = Field(default=0, ge=0, allow_inf_nan=False)

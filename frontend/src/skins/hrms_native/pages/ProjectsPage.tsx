@@ -3,7 +3,7 @@ import { BriefcaseBusiness, ArrowRight, Plus, Search, Users } from 'lucide-react
 import { WorkPanel } from '../components/WorkPanel';
 import { useHrmsCapabilities } from '../capabilities';
 import { WorkflowStages, useWorkflowConfiguration, transitionLabel } from '../workflows/WorkflowConfiguration';
-import { ConfiguredForm, ConfiguredField } from '../forms/ConfiguredForm';
+import { ConfiguredForm, ConfiguredField, ConfiguredInputs, useFormSchema, formValues } from '../forms/ConfiguredForm';
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -24,8 +24,9 @@ const val = (d: Data, k: string) => String(d[k] ?? '');
 const input = 'hrms-field-input';
 export const PROJECT_KINDS = ['HRMS.Project', 'HRMS.ProjectChange', 'HRMS.Allocation', 'HRMS.AllocationChange'];
 export const useProjects = () => { const caps=useHrmsCapabilities(); return useQuery({ queryKey: ['hrms', 'projects'], queryFn: () => request<Board>('/hrms/projects'), enabled: caps.data?.capabilities.includes('project:view') ?? false }); };
-const projectKeys = ['name','description','customer_id','pm_id','dm_id','start_date','end_date','engagement_type','practice','health','currency','budget_amount','billing_rate','planned_hours'];
-const allocationKeys = ['employee_id','project_role_id','start_date','end_date','percentage','billable','billing_rate'];
+const projectSystemFields = ['created_by','revision','identifier','hrms_operation_key','customer_name','pm_name','dm_name'];
+const allocationSystemFields = ['created_by','revision','identifier','hrms_operation_key','project_id','employee_name','project_role_name'];
+const customerSystemFields = ['created_by','identifier','hrms_operation_key'];
 
 export function ProjectAction({ item, action, done, onCreated }: { item?: Item; action: string; done: () => void; onCreated?: (customer: Choice) => void }) {
   const caps = useHrmsCapabilities();
@@ -36,11 +37,16 @@ export function ProjectAction({ item, action, done, onCreated }: { item?: Item; 
   const allocationForm = ['request_allocation','amend_allocation'].includes(action) || (action === 'edit_request' && item?.kind === 'HRMS.AllocationChange');
   const projects = useProjects();
   const allocationProject = item?.kind === 'HRMS.Project' ? item : projects.data?.projects.find(p => p.id === item?.data.project_id);
-  const [data, setData] = useState<Data>(() => ({ ...Object.fromEntries((projectForm ? projectKeys : allocationForm ? allocationKeys : []).filter(k => proposed[k] !== undefined).map(k => [k, proposed[k]])),
+  const [data, setData] = useState<Data>(() => ({ ...(projectForm || allocationForm ? proposed : {}),
     ...(action === 'edit_request' ? { approver_id: item?.data.approver_id, note: item?.data.note } : {}) }));
   const [pending, setPending] = useState<Body | null>(null);
   const [preview, setPreview] = useState<{ segments: {start_date:string;end_date:string;committed:number;proposed:number;total:number}[]; over_capacity:boolean } | null>(null);
   const queryClient = useQueryClient();
+  const entityType = projectForm ? 'HRMS.Project' : allocationForm ? 'HRMS.Allocation' : action === 'create_customer' ? 'HRMS.Customer' : item?.kind ?? 'HRMS.Project';
+  const schema = useFormSchema(entityType);
+  const excluded = projectForm ? projectSystemFields : allocationForm ? allocationSystemFields : customerSystemFields;
+  const submittedValues = () => projectForm || allocationForm || action==='create_customer'
+    ? {...formValues(schema.data?.fields??[],data,excluded), ...(projectForm || allocationForm ? {approver_id:data.approver_id,note:data.note} : {})} : data;
   const options = useQuery({ queryKey: ['hrms','project-options'], staleTime: 0, refetchOnMount: 'always', queryFn: () => request<Options>('/hrms/projects/options'), enabled: projectForm || allocationForm || action === 'release_allocation' });
   useEffect(() => {
     const refresh = () => { void queryClient.invalidateQueries({queryKey:['hrms','project-options']}); };
@@ -64,25 +70,24 @@ export function ProjectAction({ item, action, done, onCreated }: { item?: Item; 
   const previewMutation = useMutation({ mutationFn: () => {
     const projectId = item?.kind === 'HRMS.Project' ? item.id : val(item?.data ?? {},'project_id');
     const allocationId = item?.kind === 'HRMS.Allocation' ? item.id : val(item?.data ?? {},'allocation_id');
-    return request<NonNullable<typeof preview>>(`/hrms/projects/${projectId}/capacity${allocationId ? `?allocation_id=${allocationId}` : ''}`, {method:'POST',body:JSON.stringify({action:'preview',data,idempotency_key:createRequestId()})});
+    return request<NonNullable<typeof preview>>(`/hrms/projects/${projectId}/capacity${allocationId ? `?allocation_id=${allocationId}` : ''}`, {method:'POST',body:JSON.stringify({action:'preview',data:submittedValues(),idempotency_key:createRequestId()})});
   }, onSuccess: setPreview });
   function field(key: string, type='text', required=true) {
-    return <ConfiguredField key={key} field={key} label={label(key)}><input type={type} required={required} className={input} min={type==='number'?0:undefined} step={type==='number'?'any':undefined} maxLength={4000} value={val(data,key)} onChange={e=>{setData({...data,[key]:type==='number'?Number(e.target.value):e.target.value});setPreview(null);}} /></ConfiguredField>;
+    return <ConfiguredField operational key={key} field={key} label={label(key)}><input type={type} required={required} className={input} min={type==='number'?0:undefined} step={type==='number'?'any':undefined} maxLength={4000} value={val(data,key)} onChange={e=>{setData({...data,[key]:type==='number'?Number(e.target.value):e.target.value});setPreview(null);}} /></ConfiguredField>;
   }
   function select(key: string, choices: Choice[], required=true) {
-    return <ConfiguredField field={key} label={label(key.replace(/_id$/, ""))} action={key === 'customer_id' && action === 'create_project' && caps.data?.capabilities.includes('customer:create') ? <button type="button" className="hrms-text-link inline-flex items-center gap-1" onClick={()=>setCreatingCustomer(true)}><Plus size={14} aria-hidden="true" />Create customer</button> : undefined}><select required={required} className={input} value={val(data,key)} onChange={e=>{setData({...data,[key]:e.target.value || null});setPreview(null);}}><option value="">Select…</option>{choices.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></ConfiguredField>;
+    return <ConfiguredField operational field={key} label={label(key.replace(/_id$/, ""))} action={key === 'customer_id' && action === 'create_project' && caps.data?.capabilities.includes('customer:create') ? <button type="button" className="hrms-text-link inline-flex items-center gap-1" onClick={()=>setCreatingCustomer(true)}><Plus size={14} aria-hidden="true" />Create customer</button> : undefined}><select required={required} className={input} value={val(data,key)} onChange={e=>{setData({...data,[key]:e.target.value || null});setPreview(null);}}><option value="">Select…</option>{choices.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></ConfiguredField>;
   }
   function allocationApprover() {
     const pmId = val(allocationProject?.data ?? {}, 'pm_id');
     const pmName = val(allocationProject?.data ?? {}, 'pm_name');
     if (pmId && options.data?.current_user_id && pmId !== options.data.current_user_id && action !== 'edit_request') {
-      return <ConfiguredField field="approver_id" label="Approver"><input className={input} value={pmName || 'Project Manager'} readOnly /></ConfiguredField>;
+      return <ConfiguredField operational field="approver_id" label="Approver"><input className={input} value={pmName || 'Project Manager'} readOnly /></ConfiguredField>;
     }
     return select('approver_id', options.data?.approvers ?? [], true);
   }
-  function enumeration(key:string, values:string[]) {return select(key,values.map(v=>({id:v,name:label(v)})),false);}
-  function submit(e:FormEvent) {e.preventDefault();const body=pending ?? {action,data,expected_revision:Number(item?.data.revision ?? 0),idempotency_key:createRequestId()};setPending(body);mutation.mutate(body);}
-  const entityType = projectForm ? 'HRMS.Project' : allocationForm ? 'HRMS.Allocation' : action === 'create_customer' ? 'HRMS.Customer' : item?.kind ?? 'HRMS.Project';
+  function submit(e:FormEvent) {e.preventDefault();
+    const body=pending ?? {action,data:submittedValues(),expected_revision:Number(item?.data.revision ?? 0),idempotency_key:createRequestId()};setPending(body);mutation.mutate(body);}
   if (creatingCustomer) return <ProjectAction action="create_customer" done={()=>setCreatingCustomer(false)} onCreated={customer=>{
     setCreatedCustomer(customer);
     setData(current=>({...current, customer_id:customer.id}));
@@ -91,9 +96,12 @@ export function ProjectAction({ item, action, done, onCreated }: { item?: Item; 
   const customerChoices = createdCustomer && !customers.some(customer=>customer.id === createdCustomer.id) ? [...customers, createdCustomer] : customers;
   return <ConfiguredForm entityType={entityType} aliases={{pm_id:'pm_name',dm_id:'dm_name',customer_id:'customer_name',employee_id:'employee_name',approver_id:'approver_name'}}><form onSubmit={submit} className="hrms-surface hrms-people-form hrms-project-form"><h3 className="hrms-section-heading">{label(action)}</h3>
     <fieldset disabled={Boolean(pending)||mutation.isPending} className="grid gap-5 disabled:opacity-60 sm:grid-cols-2">
-      {action==='create_customer' && <>{field('name')}{field('contact_name','text',false)}{field('contact_email','email',false)}{field('currency','text',false)}{field('contract_value','number',false)}</>}
-      {projectForm && <>{field('name')}{field('description','text',false)}{select('customer_id',customerChoices)}{select('pm_id',options.data?.pms??[])}{select('dm_id',options.data?.dms??[])}{select('approver_id',options.data?.approvers??[])}{field('start_date','date')}{field('end_date','date')}{enumeration('engagement_type',['time_material','fixed_price','internal'])}{field('practice','text',false)}{enumeration('health',['green','amber','red'])}{field('currency','text',false)}{field('budget_amount','number',false)}{field('billing_rate','number',false)}{field('planned_hours','number',false)}{field('note','text',false)}</>}
-      {allocationForm && <>{select('employee_id',options.data?.employees??[])}{select('project_role_id',options.data?.project_roles??[])}{options.isSuccess && options.data.project_roles.length === 0 && <p role="status" className="text-sm text-muted-foreground">No project roles are configured. Ask a tenant administrator to update the Project role picklist in Settings.</p>}{field('start_date','date')}{field('end_date','date')}{field('percentage','number')}{enumeration('billable',['yes','no'])}{field('billing_rate','number',false)}{allocationApprover()}{field('note','text',false)}<p className="text-sm text-muted-foreground sm:col-span-2">The project Project Manager approves. If you are that Project Manager, choose an independent approver. A capacity exception requires a reason. Pending requests do not book capacity.</p></>}
+      {action==='create_customer' && <ConfiguredInputs values={data} onChange={setData} exclude={customerSystemFields}/>}
+      {projectForm && <><ConfiguredInputs values={data} onChange={setData} exclude={projectSystemFields} adapters={{
+        customer_id:{label:'Customer',options:customerChoices,action:action==='create_project'&&caps.data?.capabilities.includes('customer:create')?<button type="button" className="hrms-text-link" onClick={()=>setCreatingCustomer(true)}>Create customer</button>:undefined},
+        pm_id:{label:'Project Manager',options:options.data?.pms??[]},dm_id:{label:'Delivery Manager',options:options.data?.dms??[]}
+      }}/>{select('approver_id',options.data?.approvers??[])}{field('note','text',false)}</>}
+      {allocationForm && <><ConfiguredInputs values={data} onChange={values=>{setData(values);setPreview(null);}} exclude={allocationSystemFields} adapters={{employee_id:{label:'Employee',options:options.data?.employees??[]},project_role_id:{label:'Project role',options:options.data?.project_roles??[]}}}/>{options.isSuccess&&options.data.project_roles.length===0&&<p role="status">No project roles are configured. Ask an administrator to update the native Project role picklist.</p>}{allocationApprover()}{field('note','text',false)}<p className="text-sm text-muted-foreground sm:col-span-2">The Project Manager approves. If you are that Project Manager, choose an independent approver. Pending requests do not book capacity.</p></>}
       {action==='release_allocation' && <>{allocationApprover()}{field('note')}<p className="text-sm sm:col-span-2">After approval, this allocation is cancelled and its capacity is released. Its history is retained.</p></>}
       {['reject','request_changes'].includes(action) && field('comment')}
       {action==='approve' && <p className="sm:col-span-2 text-sm">Approve this version and apply its proposed values. Capacity and project dates are checked again before committing.</p>}
@@ -231,7 +239,7 @@ export default function ProjectsPage() {
           {selected.actions.includes('request_allocation') && <Button className="hrms-primary-button" variant="primary" onClick={()=>{setAllocating(true);setEditing(false);}}>Add allocation</Button>}
           {allocating && selected.actions.includes('request_allocation') && <><p className="text-sm text-muted-foreground">Choose an employee, project role, dates and capacity. The request goes to the project's Project Manager; self-approval is not permitted. Submit and track approval in Workflows.</p><ProjectAction key={`${selected.id}:allocation`} item={selected} action="request_allocation" done={()=>setAllocating(false)} /></>}
           {editing&&edit?<><p className="text-sm text-muted-foreground">Changes are saved as an approval request. Review and approve them in Workflows before they update the project.</p><ProjectAction key={`${edit.item.id}:${edit.action}`} item={edit.item} action={edit.action} done={()=>setEditing(false)} /></>:
-            <ConfiguredForm entityType="HRMS.Project"><dl className="hrms-surface hrms-detail-grid">{Object.entries(selected.data).filter(([k,v])=>v!=null&&v!==''&&!k.endsWith('_id')&&!['created_by','revision','hrms_operation_key'].includes(k)).map(([key,v])=><div key={key}><ConfiguredField field={key} label={label(key)}><p className="whitespace-pre-wrap break-words font-medium">{String(v)}</p></ConfiguredField></div>)}</dl></ConfiguredForm>}
+            <ConfiguredForm entityType="HRMS.Project"><dl className="hrms-surface hrms-detail-grid">{Object.entries(selected.data).filter(([k,v])=>v!=null&&v!==''&&!k.endsWith('_id')&&!['created_by','revision','hrms_operation_key'].includes(k)).map(([key,v])=><div key={key}><ConfiguredField operational field={key} label={label(key)}><p className="whitespace-pre-wrap break-words font-medium">{String(v)}</p></ConfiguredField></div>)}</dl></ConfiguredForm>}
           <section className="hrms-surface hrms-project-team"><div className="hrms-panel-title"><span className="hrms-work-icon"><Users size={23} strokeWidth={1.25} /></span><h3 className="hrms-section-heading">Assigned team</h3><Link className="hrms-text-link" to={`/hrms/allocations?project=${selected.id}`}>View allocations</Link></div>
             {query.data?.allocations.filter(a=>a.data.project_id===selected.id).map(a=><div key={a.id} className="hrms-notice"><p className="font-medium">{val(a.data,'employee_name')} · {val(a.data,'project_role_name')}</p><p>{val(a.data,'percentage')}% · {val(a.data,'start_date')} to {val(a.data,'end_date')}</p></div>)}
             {!query.data?.allocations.some(a=>a.data.project_id===selected.id)&&<p className="text-sm text-muted-foreground">No allocations yet.</p>}

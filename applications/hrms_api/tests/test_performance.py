@@ -59,6 +59,10 @@ class Platform:
         return self.rows[entity_id]['state']
 
     def call(self, method, path, **kwargs):
+        if method=='GET' and path in UNMIGRATED_TENANT:
+            return deepcopy(UNMIGRATED_TENANT[path])
+        if method=='GET' and path=='/forms/config':
+            return {'items':[pack_by_type(kwargs['params']['entity_type']).form_request()]}
         data = kwargs['json']
         if method == 'PUT':
             self.rows[path.rsplit('/', 1)[1]]['data'] = deepcopy(data['data'])

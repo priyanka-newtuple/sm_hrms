@@ -5,7 +5,8 @@ import hashlib
 from pydantic import ValidationError
 
 from .catalog import pack_by_type
-from .custom_fields import check_custom, custom_keys
+from .custom_fields import custom_keys
+from .form_values import record_input
 from .errors import AppError
 from .performance_contracts import (ApproverChange, Assessment, Calibration, Comment, CycleInput,
                                     FeedbackInput, FeedbackReassignment, FeedbackRequest, GoalInput,
@@ -55,9 +56,9 @@ class PerformanceService:
                                                       *[f['field'] for f in pack.fields], *custom_keys(self.platform, kind)])]
 
     def parse_with_custom(self, model, kind, data, current=None):
-        """The screen's own fields through its contract; any others are fields added in Settings."""
-        own = {k: v for k, v in data.items() if k in model.model_fields}
-        return {**parse(model, own), **check_custom(self.platform, kind, {k: v for k, v in data.items() if k not in own}, current)}
+        operational = {'participants'} if model is CycleInput else set()
+        return record_input(self.platform, kind, model, data, operational=operational, current=current,
+                            excluded={'identifier','hrms_operation_key','revision','created_by','created_by_name'})
 
     def snapshot(self):
         return {kind: self.records(kind) for kind in TYPES}

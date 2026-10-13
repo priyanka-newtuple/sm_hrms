@@ -1,6 +1,5 @@
-import { CustomFields, type CustomValues } from '../forms/CustomFields';
 import { createRequestId } from '../requestId';
-import { ConfiguredForm, ConfiguredField } from '../forms/ConfiguredForm';
+import { ConfiguredForm, ConfiguredInputs, useFormSchema, commandValues, employeeSystemFields, employeeAdapters } from '../forms/ConfiguredForm';
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus, ArrowRight } from 'lucide-react';
@@ -39,9 +38,9 @@ export default function AddEmployee() {
   const [showForm, setShowForm] = useState(false);
   const [created, setCreated] = useState<CreatedEmployee | null>(null);
   const [error, setError] = useState('');
-  const [custom, setCustom] = useState<CustomValues>({});
+  const schema=useFormSchema('HRMS.Employee',canCreate&&showForm);
   const [key, setKey] = useState(() => createRequestId());
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<Record<string,unknown>>({
     first_name: '', last_name: '', work_email: '', department: '', designation: '',
     role: '', reports_to_entity_id: '', date_joined: new Date().toISOString().slice(0, 10),
     employment_type: 'full_time', notice_period_days: '', phone: '', work_location: '',
@@ -60,25 +59,18 @@ export default function AddEmployee() {
     mutationFn: () => request<CreatedEmployee>('/hrms/employees', {
       method: 'POST',
       body: JSON.stringify({
-        ...form,
-        custom,
-        reports_to_entity_id: form.reports_to_entity_id || null,
-        notice_period_days: form.notice_period_days ? Number(form.notice_period_days) : null,
-        phone: form.phone || null,
-        work_location: form.work_location || null,
+        ...commandValues(schema.data?.fields??[],form,employeeSystemFields,employeeAdapters),
         idempotency_key: key,
       }),
     }),
     onSuccess: (result) => {
       setError(''); setShowForm(false); setKey(createRequestId());
-      setCreated(result); setCustom({});
+      setCreated(result);
       void queryClient.invalidateQueries({ queryKey: ['hrms'] });
     },
     onError: (cause) => setError(getApiErrorMessage(cause)),
   });
-  const set = (field: keyof typeof form) => (value: string) => setForm((current) => ({ ...current, [field]: value }));
   function submit(event: FormEvent<HTMLFormElement>) { event.preventDefault(); create.mutate(); }
-  const input = 'hrms-field-input';
 
   if (!canCreate) return null;
   return <>
@@ -95,27 +87,11 @@ export default function AddEmployee() {
         {options.isLoading && <p role="status" className="hrms-work-feedback">Loading employee options…</p>}
         {options.isError && <div role="alert" className="hrms-notice hrms-notice--error">{getApiErrorMessage(options.error)}<button className="hrms-outline-button" onClick={() => void options.refetch()}>Try again</button></div>}
         <ConfiguredForm entityType="HRMS.Employee"><form onSubmit={submit} className="hrms-people-form">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <ConfiguredField field="first_name" label="First name" className="text-sm font-medium"><input required maxLength={100} value={form.first_name} onChange={(e) => set('first_name')(e.target.value)} className={input} /></ConfiguredField>
-            <ConfiguredField field="last_name" label="Last name" className="text-sm font-medium"><input required maxLength={100} value={form.last_name} onChange={(e) => set('last_name')(e.target.value)} className={input} /></ConfiguredField>
-          </div>
-          <ConfiguredField field="work_email" label="Work email" className="block text-sm font-medium"><input required type="email" placeholder="first.last@newtuple.com" value={form.work_email} onChange={(e) => set('work_email')(e.target.value)} className={input} /><span className="text-xs text-slate-500">Must be @newtuple.com to match Google SSO.</span></ConfiguredField>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <ConfiguredField field="department" label="Department" className="text-sm font-medium"><select required value={form.department} onChange={(e) => set('department')(e.target.value)} className={input}><option value="">Select department…</option>{options.data?.departments.map((item) => <option key={item} value={item}>{options.data?.department_labels?.[item] ?? item}</option>)}</select></ConfiguredField>
-            <ConfiguredField field="designation" label="Designation" className="text-sm font-medium"><select required value={form.designation} onChange={(e) => set('designation')(e.target.value)} className={input}><option value="">Select designation…</option>{options.data?.designations.map((item) => <option key={item} value={item}>{options.data?.designation_labels?.[item] ?? item}</option>)}</select></ConfiguredField>
-          </div>
-          <ConfiguredField field="role" label="Access role" className="block text-sm font-medium"><select required value={form.role} onChange={(e) => set('role')(e.target.value)} className={input}><option value="">Select a role…</option>{options.data?.roles.map((role) => <option key={role} value={role}>{options.data?.role_labels?.[role] ?? role}</option>)}</select></ConfiguredField>
-          <ConfiguredField field="reports_to_employee_code" label="Reporting manager" className="block text-sm font-medium"><select value={form.reports_to_entity_id} onChange={(e) => set('reports_to_entity_id')(e.target.value)} className={input}><option value="">None</option>{employees.data?.filter((item) => item.employment_status === 'active').map((item) => <option key={item.entity_id} value={item.entity_id}>{item.full_name} · {item.designation}</option>)}</select></ConfiguredField>
-          <div className="grid gap-3 sm:grid-cols-3">
-            <ConfiguredField field="employment_type" label="Employment type" className="text-sm font-medium"><select value={form.employment_type} onChange={(e) => set('employment_type')(e.target.value)} className={input}><option value="full_time">Full time</option><option value="contract">Contract</option><option value="intern">Intern</option></select></ConfiguredField>
-            <ConfiguredField field="date_joined" label="Date joined" className="text-sm font-medium"><input required type="date" value={form.date_joined} onChange={(e) => set('date_joined')(e.target.value)} className={input} /></ConfiguredField>
-            <ConfiguredField field="notice_period_days" label="Notice period" className="text-sm font-medium"><input type="number" min={0} max={365} value={form.notice_period_days} onChange={(e) => set('notice_period_days')(e.target.value)} className={input} /></ConfiguredField>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <ConfiguredField field="phone" label="Phone" className="text-sm font-medium"><input maxLength={30} value={form.phone} onChange={(e) => set('phone')(e.target.value)} className={input} /></ConfiguredField>
-            <ConfiguredField field="work_location" label="Work location" className="text-sm font-medium"><input maxLength={100} value={form.work_location} onChange={(e) => set('work_location')(e.target.value)} className={input} /></ConfiguredField>
-          </div>
-          <CustomFields entityType="HRMS.Employee" values={custom} onChange={setCustom} />
+          <div className="grid gap-3 sm:grid-cols-2"><ConfiguredInputs values={form} onChange={setForm} exclude={employeeSystemFields} adapters={{
+            ...employeeAdapters,
+            hrms_role:{...employeeAdapters.hrms_role,options:(options.data?.roles??[]).map(id=>({id,name:options.data?.role_labels[id]??id}))},
+            reports_to_employee_code:{...employeeAdapters.reports_to_employee_code,options:(employees.data??[]).filter(e=>e.employment_status==='active').map(e=>({id:e.entity_id,name:e.full_name}))}
+          }}/></div>
           {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
           <div className="hrms-form-actions"><button type="button" onClick={() => setShowForm(false)} className="hrms-outline-button">Cancel</button><button type="submit" disabled={create.isPending || !options.data} className="hrms-primary-button">{create.isPending ? 'Creating…' : 'Create employee & start onboarding'}</button></div>
         </form></ConfiguredForm>

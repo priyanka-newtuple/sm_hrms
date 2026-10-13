@@ -183,7 +183,7 @@ def test_inbox_includes_next_year_requests(system):
 def test_configured_form_constraints_enforced_by_server(system, monkeypatch):
     s, _, _ = system
     policy(s)
-    monkeypatch.setattr('hrms_app.form_config.form_configuration', lambda *args: {'fields': [{'field': 'reason', 'read_only': True}]})
+    monkeypatch.setattr('hrms_app.form_values.configured_form', lambda *args: {'fields': [*[{**f, 'read_only':True} if f['field']=='reason' else f for f in pack_by_type(REQUEST).fields]]})
     with pytest.raises(AppError, match='read-only'):
         create(s)
 

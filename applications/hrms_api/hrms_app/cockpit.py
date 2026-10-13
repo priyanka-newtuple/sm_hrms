@@ -8,6 +8,7 @@ from uuid import uuid4
 from pydantic import BaseModel, ConfigDict, Field
 
 from .catalog import pack_by_type
+from .form_values import editable_values
 from .custom_fields import custom_keys
 from .cockpit_catalog import INTERNAL, TYPES
 from .errors import AppError
@@ -17,8 +18,6 @@ from .workflow_config import configured_workflow_rows, offers_step
 
 # Native field types a content value is checked against. `datetime` is where date
 # fields land in the Field Library; the cockpit still stores ISO dates in them.
-TEXT_TYPES = {"string", "text", "email", "enum", "date", "datetime", "phone", "url"}
-INTEGER_TYPES = {"int", "integer"}
 # Not yet public: seen only by the author, the approver and publishers.
 UNPUBLISHED = {"draft", "pending_approval", "approved"}
 # Holds a calendar's place for its year and location (drafts do not).
@@ -283,44 +282,17 @@ class CockpitService:
         """`current` is the record being edited, revised or submitted; None when creating. A draft
         may wait for its approver to be chosen; submitting needs one."""
         check(kind in TYPES, "Unsupported content type")
-        pack = pack_by_type(kind)
-        fields = {f["field"]: f for f in pack.fields}
-        for f in configured_form(self.platform, kind)["fields"]:
-            if f["field"] not in INTERNAL:
-                core = fields.get(f["field"], {})
-                # Settings may make a field required, but not relax one the content type depends on
-                # (year, holidays, event date, openings...), which the checks below read directly.
-                fields[f["field"]] = {**core, **f, "required": bool(core.get("required") or f.get("required"))}
-        allowed = set(fields) - INTERNAL | {"approver_id"}
-        check(not set(data) - allowed, "Unrecognized or protected content fields")
+        protected = INTERNAL - {'approver_id'}
+        fields = {f['field']: f for f in configured_form(self.platform,kind)['fields'] if f['field'] not in protected}
+        previous=(current or {}).get('data',{})
+        check(not (set(data)-set(fields)) or all(k in previous and previous[k]==data[k] and k not in protected for k in set(data)-set(fields)), 'Unrecognized or protected content fields')
+        supplied={k:v for k,v in data.items() if k in fields}
+        editable_values(self.platform,kind,{k:v for k,v in supplied.items() if k!='approver_id'},excluded=protected|{'approver_id'},current=previous)
+        data={**{k:v for k,v in previous.items() if k not in protected}, **supplied}
+        essential={f['field'] for f in pack_by_type(kind).fields if f.get('required') and f['field'] not in protected and (f['field']!='approver_id' or submitting)}
+        for key in essential:
+            check(data.get(key) not in (None,''), f'{key} is required for this content type')
         check(len(str(data)) < 100000, "Content is too large")
-        for key, f in fields.items():
-            if key in INTERNAL:
-                continue
-            if f.get("required"):
-                check(data.get(key) not in (None, ""), f"{key} is required")
-            value = data.get(key)
-            if value in (None, ""):
-                continue
-            if f.get("enum_values"):
-                check(value in f["enum_values"], f"{key} is not a configured option")
-            if f["type"] in TEXT_TYPES:
-                check(isinstance(value, str), f"{key} must be text")
-            if f["type"] == "date":
-                try:
-                    date.fromisoformat(value)
-                except (ValueError, TypeError):
-                    raise AppError(422, f"{key} must be an ISO date")
-            if f["type"] == "datetime":
-                try:
-                    datetime.fromisoformat(value)
-                except (ValueError, TypeError):
-                    raise AppError(422, f"{key} must be an ISO date")
-            if f["type"] in INTEGER_TYPES:
-                check(
-                    isinstance(value, int) and not isinstance(value, bool),
-                    f"{key} must be an integer",
-                )
         check(
             data.get("audience") in {"public", "employees"}, "Select a valid audience"
         )
@@ -341,12 +313,13 @@ class CockpitService:
             )
         if kind == TYPES[1]:
             check(
-                not data.get("end_date") or data["event_date"] <= data["end_date"],
+                not data.get("end_date") or bool(data.get("event_date")) and data["event_date"] <= data["end_date"],
                 "Event dates are reversed",
             )
         snapshot = self.snapshot()
         own = publication(current) if current else None
         if kind == TYPES[2]:
+            check(isinstance(data.get('year'),int) and isinstance(data.get('holidays'),str), 'Holiday calendar requires year and holidays in its native form')
             check(2000 <= data["year"] <= 2200, "Invalid calendar year")
             # One live calendar per year and location; revise it rather than publish a second.
             check(
@@ -475,18 +448,6 @@ class CockpitService:
                 values = None
                 if creating or cmd.action == "edit":
                     data = cmd.data
-                    if cmd.action == "edit":
-                        for field in configured_form(self.platform, kind)["fields"]:
-                            if (
-                                field.get("read_only")
-                                and field["field"] not in INTERNAL
-                            ):
-                                check(
-                                    data.get(field["field"])
-                                    == row["data"].get(field["field"]),
-                                    "A configured read-only field cannot be changed",
-                                    403,
-                                )
                     if cmd.action == "new_revision":
                         data = {
                             k: v
@@ -496,7 +457,7 @@ class CockpitService:
                         # The earlier approver may have left or be the reviser; the author then
                         # picks one before submitting.
                         if data.get("approver_id") not in {p["id"] for p in self.people(actor)}:
-                            data.pop("approver_id", None)
+                            data["approver_id"] = None
                     data = self.validate(actor, kind, data, current=row)
                     if cmd.action == "new_revision":
                         check(

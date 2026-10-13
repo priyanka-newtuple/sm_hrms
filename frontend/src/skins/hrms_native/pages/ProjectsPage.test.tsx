@@ -4,11 +4,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ProjectAction } from './ProjectsPage';
 
 const state = vi.hoisted(() => ({allowed:true, readonly:false, fail:false, posts:[] as Record<string, unknown>[], roleOptions:[] as {id:string;name:string}[]}));
+const customer = vi.hoisted(()=>({fields:[{field:'name',type:'string',required:true},{field:'contract_value',type:'float',required:false}]}));
 vi.mock('../capabilities', () => ({useHrmsCapabilities:()=>({data:{capabilities:state.allowed ? ['customer:create'] : []}})}));
 vi.mock('@/core/services/api/client', () => ({
   getApiErrorMessage:(error:Error)=>error.message,
   request:vi.fn(async (path:string, options?:{body:string})=>{
-    if (path.includes('/forms/')) return {fields:state.readonly && path.endsWith('HRMS.Project') ? [{field:'customer_name', read_only:true}] : []};
+    if (path.endsWith('/forms/HRMS.Customer')) return customer;
+    if (path.includes('/forms/')) return {fields:path.endsWith('HRMS.Project')?[{field:'name',type:'string'},{field:'customer_id',type:'string',read_only:state.readonly}]:[{field:'project_role_id',type:'string'}]};
     if (path.endsWith('/options')) return {current_user_id:"requester",customers:[],pms:[],dms:[],approvers:[],employees:[],project_roles:state.roleOptions};
     if (options?.body) {
       state.posts.push(JSON.parse(options.body));
@@ -28,10 +30,22 @@ async function startCustomer() {
   await screen.findByRole('heading',{name:'Create customer'});
   fireEvent.change(await screen.findByLabelText('Name'), {target:{value:'New customer'}});
 }
-beforeEach(()=>{state.allowed=true;state.readonly=false;state.fail=false;state.posts=[];state.roleOptions=[];});
+beforeEach(()=>{state.allowed=true;state.readonly=false;state.fail=false;state.posts=[];state.roleOptions=[];customer.fields=[{field:'name',type:'string',required:true},{field:'contract_value',type:'float',required:false}];});
 afterEach(cleanup);
 
 describe('Customer creation within a project draft',()=>{
+  it('removes deleted native fields and excludes stale values on submit',async()=>{
+    show('create_customer');
+    fireEvent.change(await screen.findByLabelText('Name'),{target:{value:'Customer'}});
+    fireEvent.change(await screen.findByLabelText('Contract value'),{target:{value:'500'}});
+    customer.fields=[{field:'name',type:'string',required:true},{field:'reference',type:'string',required:false}];
+    window.dispatchEvent(new Event('form-schemas-changed'));
+    await waitFor(()=>expect(screen.queryByLabelText('Contract value')).toBeNull());
+    fireEvent.change(await screen.findByLabelText('Reference'),{target:{value:'New field'}});
+    fireEvent.submit(screen.getByRole('button',{name:'Create customer'}).closest('form')!);
+    await waitFor(()=>expect(state.posts).toHaveLength(1));
+    expect(state.posts[0].data).toEqual({name:'Customer',reference:'New field'});
+  });
   it('creates through the existing command, selects the result and preserves the project draft',async()=>{
     show(); await startCustomer();
     expect(document.querySelector('form form')).toBeNull();

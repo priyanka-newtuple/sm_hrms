@@ -1,6 +1,5 @@
 """Product input contracts. The platform remains unaware of HR policy."""
 from datetime import date
-from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -40,7 +39,7 @@ class CycleInput(Contract):
 class GoalInput(Contract):
     title: str = Field(min_length=1, max_length=200)
     description: str = Field(default='', max_length=4000)
-    category: Literal['delivery', 'competency', 'leadership', 'learning', 'organization'] = 'delivery'
+    category: str = 'delivery'
     measurement: str = Field(min_length=1, max_length=2000)
     weight: int = Field(ge=1, le=100)
     target_date: date

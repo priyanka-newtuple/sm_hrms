@@ -8,5 +8,6 @@ ROUTES = {
  '/forms/config': {'items': [{'schema_key': pack_by_type('HRMS.Employee').schema_key, 'name': 'Employee', 'fields': [
      {'field': 'department', 'type': 'enum', 'enum_values': ['Engineering', 'Finance', 'People']},
      {'field': 'designation', 'type': 'enum', 'enum_values': ['Engineer', 'Senior Software Engineer', 'Software Engineer', 'Project Manager']},
+ *[f for f in pack_by_type('HRMS.Employee').fields if f['field'] not in {'department','designation'}],
  ]}]},
 }

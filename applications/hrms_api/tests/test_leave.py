@@ -31,7 +31,7 @@ class Platform:
     def __init__(self, state='pending', allocations=(), people=None, start=LEAVE_START, old_workflow=False):
         self.state, self.start, self.old_workflow = state, start, old_workflow
         self.form_fields = [{'field': 'leave_type', 'type': 'enum', 'enum_values': ['annual', 'sick', 'casual', 'unpaid', 'other']},
-                            {'field': 'reason', 'type': 'text'}]
+                            {'field': 'reason', 'type': 'text'}, {'field':'start_date','type':'date'}, {'field':'end_date','type':'date'}]
         self.people = people or [person('boss', 'B1'), person('lead', 'L1', 'B1'), person('dev', 'D1', 'L1'),
                                  person('pm1', 'P1'), person('pm2', 'P2')]
         self.allocations = list(allocations)  # (employee, project, start, end, state)

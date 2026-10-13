@@ -7,14 +7,13 @@ import { request } from '@/core/services/api/client';
 
 vi.mock('../capabilities', () => ({ useHrmsCapabilities: () => ({ data: { capabilities: ['wfh:view','wfh:request','wfh:approve'] } }) }));
 vi.mock('@/core/services/api/client', () => ({ request: vi.fn(), getApiErrorMessage: (e: Error) => e.message }));
-vi.mock('../forms/ConfiguredForm', () => ({ ConfiguredForm: ({ children }: {children: React.ReactNode}) => children, ConfiguredField: ({ label, children }: {label: string; children: React.ReactNode}) => <label>{label}{children}</label> }));
 vi.mock('../components/WorkPanel', () => ({ WorkPanel: () => null }));
 const api = vi.mocked(request);
 let board: WfhBoard;
 let client: QueryClient;
 beforeEach(() => {
   board = { policy: {year: new Date().getFullYear(), annual_days: 24, notice_days: 0, revision: 1}, requests: [], calendar: [], can_configure: true, can_approve: true, can_request: true, balance: {used: 0, upcoming: 0, pending: 0, remaining: 24} };
-  api.mockImplementation(async () => board);
+  api.mockImplementation(async (path) => path.includes('/forms/')?{fields:path.endsWith('Policy')?[{field:'annual_days',type:'integer',description:'Annual allowance (days)',required:true},{field:'notice_days',type:'integer',required:true}]:[{field:'reason',type:'text'}]}:board);
   client = new QueryClient({defaultOptions: {queries: {retry: false, gcTime: 0}, mutations: {retry: false}}});
 });
 afterEach(() => { cleanup(); client.clear(); vi.clearAllMocks(); });
@@ -23,7 +22,7 @@ function show(cockpit = false) { render(<QueryClientProvider client={client}><Me
 it('puts policy configuration inside HR Cockpit', async () => {
   show(true);
   fireEvent.click(await screen.findByRole('button', {name: 'Policy'}));
-  fireEvent.change(screen.getByLabelText('Annual allowance (days)'), {target: {value: '30'}});
+  fireEvent.change(await screen.findByLabelText('Annual allowance (days)'), {target: {value: '30'}});
   fireEvent.click(screen.getByRole('button', {name: 'Save policy'}));
   await waitFor(() => expect(api).toHaveBeenCalledWith('/hrms/wfh/policy', expect.objectContaining({method: 'POST'})));
   const call = api.mock.calls.find(c => c[0] === '/hrms/wfh/policy');

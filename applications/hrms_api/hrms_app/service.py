@@ -7,6 +7,7 @@ import hashlib
 import secrets
 import json
 
+from .form_values import editable_values
 from .custom_fields import check_custom, custom_keys, custom_values
 from .errors import AppError
 from .form_config import configured_form
@@ -271,24 +272,25 @@ class HrmsService:
 
     def update_employee(self, actor, employee_id, request):
         require(actor, 'employee:create')
-        payload = request.model_dump(mode='json')
+        payload = request.model_dump(mode='json', exclude_unset=True)
         with self.journal.lock(actor.organization_id) as db:
             op = self.journal.operation(db, actor, f'employee-update:{request.idempotency_key}', {**payload, 'employee_id': employee_id})
             if op.result:
                 return op.result
             rows = self.employees()
             employee = self._editable_employee(rows, employee_id)
-            options = self.form_options(actor)
-            current = employee['data']
-            # Keep a value that is no longer offered (an older department, say) rather than refuse the edit.
-            for key, choices in (('department', options['departments']), ('designation', options['designations'])):
-                if getattr(request, key) not in choices and getattr(request, key) != current.get(key):
-                    raise AppError(400, 'Select an active department and designation')
-            manager = self._check_reporting_manager(rows, employee, request.reports_to_entity_id)
             record = self.platform.record(employee_id)
             custom = check_custom(self.platform, EMPLOYEE, request.custom, record['data'])
-            data = {**record['data'], **{k: v for k, v in payload.items() if k not in {'idempotency_key', 'reports_to_entity_id', 'custom'}},
-                    **custom, 'reports_to_employee_code': manager['data'].get('employee_code') if manager else None}
+            supplied = {k:v for k,v in payload.items() if k not in {'idempotency_key','reports_to_entity_id','custom'}}
+            patch = editable_values(self.platform, EMPLOYEE, supplied, current=record['data'],
+                excluded={'employee_code','employment_status','platform_user_id','hrms_role','last_working_day','exit_reason','exit_note','work_email','reports_to_employee_code', *custom})
+            data = {**record['data'], **patch, **custom}
+            if 'reports_to_entity_id' in payload:
+                manager = self._check_reporting_manager(rows, employee, request.reports_to_entity_id)
+                relationship = {'reports_to_employee_code': manager['data'].get('employee_code') if manager else None}
+                editable_values(self.platform, EMPLOYEE, relationship, current=record['data'],
+                    excluded={f['field'] for f in configured_form(self.platform, EMPLOYEE)['fields'] if f['field']!='reports_to_employee_code'})
+                data.update(relationship)
             self.platform.call('PUT', f'/entity-records/{employee_id}', json={'data': data})
             self.journal.audit(db, actor, 'employee.updated', employee_id)
             result = self.employee_item({**employee, 'data': data}, rows, list(custom))
@@ -317,6 +319,7 @@ class HrmsService:
                 raise AppError(403, 'Only Super Admin can record the exit of a privileged account')
             leaving = never_joined or request.last_working_day <= datetime.now(UTC).date()
             record = self.platform.record(employee_id)['data']
+            editable_values(self.platform, EMPLOYEE, {k:v for k,v in request.model_dump(mode='json',exclude_unset=True).items() if k!='idempotency_key'}, current={'last_working_day':record.get('last_working_day'),'reason':record.get('exit_reason'),'note':record.get('exit_note')}, aliases={'exit_reason':'reason','exit_note':'note'}, excluded={f['field'] for f in configured_form(self.platform, EMPLOYEE)['fields'] if f['field'] not in {'last_working_day','exit_reason','exit_note'}})
             # Completing a notice period without a new note keeps the note recorded with the resignation.
             data = {**record, 'last_working_day': payload['last_working_day'],
                     'exit_reason': request.reason, 'exit_note': request.note or record.get('exit_note'),
@@ -487,9 +490,6 @@ class HrmsService:
             if op.result:
                 return {**op.result, 'idempotent': True}
             rows = self.employees()
-            options = self.form_options(actor)
-            if request.department not in options['departments'] or request.designation not in options['designations']:
-                raise AppError(400, 'Select an active department and designation')
             manager = next((r for r in rows if r['entity_id'] == request.reports_to_entity_id), None)
             if request.reports_to_entity_id and (not manager or manager['data'].get('employment_status') != 'active'):
                 raise AppError(400, 'Reporting manager must be active in this organization')
@@ -510,7 +510,8 @@ class HrmsService:
                 if not op.progress.get('identity_requested') and (request.role not in assigned or
                         (assigned - {'hrms_employee'} and 'platform:configure' not in capabilities(actor))):
                     raise AppError(403, 'Existing account access must be reviewed by Super Admin; select its current role')
-            data = {k: v for k, v in payload.items() if k not in {'idempotency_key', 'reports_to_entity_id', 'role', 'custom'}}
+            data = {k: v for k, v in request.model_dump(mode='json', exclude_unset=True).items() if k not in {'idempotency_key', 'reports_to_entity_id', 'role', 'custom'}}
+            data = editable_values(self.platform, EMPLOYEE, data, excluded={'employee_code','employment_status','platform_user_id','hrms_role','last_working_day','exit_reason','exit_note','reports_to_employee_code', *request.custom})
             data.update(check_custom(self.platform, EMPLOYEE, request.custom))
             data.update(work_email=email, employment_status='active', hrms_role=request.role,
                         reports_to_employee_code=manager['data'].get('employee_code') if manager else None,
@@ -664,7 +665,7 @@ class HrmsService:
                 return {**op.result, 'idempotent': True}
             employees = self.employees()
             own = self.own_employee(actor, employees)
-            self._check_leave_form(actor, request.model_dump(mode='json', exclude={'idempotency_key', 'custom'}))
+            editable_values(self.platform, LEAVE, request.model_dump(mode='json', exclude_unset=True, exclude={'idempotency_key','custom'}), excluded={'employee_id','manager_id', *request.custom})
             custom = check_custom(self.platform, LEAVE, request.custom)
             started = (datetime.now(UTC).date() - request.start_date).days
             if started > 0 and (request.leave_type != 'sick' or started > SICK_LEAVE_BACKDATE_DAYS):
@@ -692,7 +693,7 @@ class HrmsService:
                 if (d.get('employee_id') == own['entity_id'] and states.get(row['entity_id'], 'pending') not in {'rejected', 'cancelled'}
                     and d['start_date'] <= request.end_date.isoformat() and d['end_date'] >= request.start_date.isoformat()):
                     raise AppError(409, 'A pending or approved leave request overlaps these dates')
-            data = {**request.model_dump(mode='json', exclude={'idempotency_key', 'custom'}), **custom}
+            data = {**request.model_dump(mode='json', exclude_unset=True, exclude={'idempotency_key', 'custom'}), **custom}
             data.update(employee_id=own['entity_id'], manager_id=manager['entity_id'] if manager else None,
                         hrms_operation_key=marker)
             row = self._create_once(op, 'leave', LEAVE, data, actor.user_id, rows, marker)
@@ -701,21 +702,6 @@ class HrmsService:
             self.journal.audit(db, actor, 'leave.created', row['entity_id'])
             op.finish(result)
             return result
-
-    def _check_leave_form(self, actor, data):
-        """The tenant's leave form, enforced on the server: required fields and configured leave types.
-        Only fields the employee submits are checked; HRMS fills in employee_id and manager_id."""
-        from .form_config import form_configuration
-        for field in form_configuration(self.platform, actor, LEAVE)['fields']:
-            key = field['field']
-            if key not in data:
-                continue
-            label = field.get('description') or key.replace('_', ' ').capitalize()
-            if field.get('required') and data[key] in (None, ''):
-                raise AppError(422, f'{label} is required')
-            options = field.get('enum_values')
-            if options and data[key] not in (None, '') and data[key] not in options:
-                raise AppError(422, f'{label} must be one of the configured options')
 
     def leave_actions(self, actor, entity_id):
         row = self.platform.record(entity_id)

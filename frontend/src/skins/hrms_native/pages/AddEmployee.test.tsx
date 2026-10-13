@@ -5,8 +5,7 @@ import { MemoryRouter } from 'react-router-dom';
 import AddEmployee from './AddEmployee';
 const access = vi.hoisted(() => ({ allowed: true }));
 vi.mock('../capabilities', () => ({useHrmsCapabilities: () => ({data:{capabilities:access.allowed ? ['employee:create'] : []}})}));
-vi.mock('../../../core/services/api/client', () => ({getApiErrorMessage:String, request:vi.fn(async (path:string) => path.endsWith('form-options') ? {departments:[],designations:[],roles:['custom_engineer'],role_labels:{custom_engineer:'Senior Engineer'}} : [])}));
-vi.mock('../forms/ConfiguredForm', () => ({ConfiguredForm:({children}:{children:React.ReactNode}) => children, ConfiguredField:({children,label}:{children:React.ReactNode;label:string}) => <label>{label}{children}</label>}));
+vi.mock('../../../core/services/api/client', () => ({getApiErrorMessage:String, request:vi.fn(async (path:string) => path.includes('/forms/')?{fields:[{field:'work_email',type:'email',required:true},{field:'hrms_role',type:'string',required:true}]}:path.endsWith('form-options') ? {departments:[],designations:[],roles:['custom_engineer'],role_labels:{custom_engineer:'Senior Engineer'}} : [])}));
 afterEach(() => {cleanup();access.allowed=true;});
 function show() {return render(<QueryClientProvider client={new QueryClient({defaultOptions:{queries:{retry:false}}})}><MemoryRouter><AddEmployee/></MemoryRouter></QueryClientProvider>);}
 it('opens employee creation from onboarding', async () => {

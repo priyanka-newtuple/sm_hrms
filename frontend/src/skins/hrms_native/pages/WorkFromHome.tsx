@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import { request, getApiErrorMessage } from '@/core/services/api/client';
 import { useHrmsCapabilities } from '../capabilities';
 import { createRequestId } from '../requestId';
-import { ConfiguredField, ConfiguredForm } from '../forms/ConfiguredForm';
+import { ConfiguredInputs, ConfiguredForm, useFormSchema, commandValues } from '../forms/ConfiguredForm';
 import { WorkPanel } from '../components/WorkPanel';
 
 type Policy = { year: number; annual_days: number; notice_days: number; revision: number };
@@ -33,14 +33,14 @@ function useCommand(path: string, done?: () => void) {
 }
 
 function PolicyEditor({ policy, year }: { policy: Policy | null; year: number }) {
-  const [annual, setAnnual] = useState(policy?.annual_days ?? 0);
-  const [notice, setNotice] = useState(policy?.notice_days ?? 0);
+  const [values,setValues]=useState<Record<string,unknown>>({...policy,annual_days:policy?.annual_days??0,notice_days:policy?.notice_days??0});
+  const schema=useFormSchema('HRMS.WorkFromHomePolicy');
+  const excluded=['year','revision','identifier','hrms_operation_key'];
   const command = useCommand('/hrms/wfh/policy');
   return <section className="hrms-surface p-6"><h2 className="hrms-section-heading">Annual WFH policy · {year}</h2><p className="hrms-muted mb-4">Full-day requests go to HR Full or Super Admin for approval. HR cannot approve their own request. Weekends and published holidays are excluded; no carry-forward.</p>
-    <ConfiguredForm entityType="HRMS.WorkFromHomePolicy"><form onSubmit={e => { e.preventDefault(); command.submit({ year, annual_days: annual, notice_days: notice, revision: policy?.revision ?? 0 }); }}>
+    <ConfiguredForm entityType="HRMS.WorkFromHomePolicy"><form onSubmit={e => { e.preventDefault(); command.submit({ ...commandValues(schema.data?.fields??[],values,excluded),year,revision:policy?.revision??0 }); }}>
       <fieldset disabled={command.pending !== null || year < new Date().getFullYear()} className="grid gap-4 sm:grid-cols-2">
-        <ConfiguredField field="annual_days" label="Annual allowance (days)"><input className="hrms-field-input" type="number" min={0} max={366} required value={annual} onChange={e => setAnnual(Number(e.target.value))} /></ConfiguredField>
-        <ConfiguredField field="notice_days" label="Minimum notice (calendar days)"><input className="hrms-field-input" type="number" min={0} max={365} required value={notice} onChange={e => setNotice(Number(e.target.value))} /></ConfiguredField>
+        <ConfiguredInputs values={values} onChange={setValues} exclude={excluded}/>
         <div><button className="hrms-primary-button" type="submit">Save policy</button></div>
       </fieldset>{command.feedback}{command.mutation.isSuccess && <p role="status">Policy saved.</p>}
     </form></ConfiguredForm>
@@ -60,11 +60,13 @@ export function WorkFromHome({ cockpit = false }: { cockpit?: boolean }) {
   const [month, setMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   const [tab, setTab] = useState(cockpit ? 'requests' : 'calendar');
   const [selected, setSelected] = useState<string[]>([]);
-  const [reason, setReason] = useState('');
+  const [values,setValues]=useState<Record<string,unknown>>({});
+  const schema=useFormSchema('HRMS.WorkFromHomeRequest',caps.data?.capabilities.includes('wfh:request')??false);
+  const excluded=['dates','employee_id','policy_id','year','identifier','hrms_operation_key'];
   const [search, setSearch] = useState('');
   const year = month.getFullYear();
   const query = useWfh(year);
-  const command = useCommand('/hrms/wfh/requests', () => { setSelected([]); setReason(''); setTab('requests'); });
+  const command = useCommand('/hrms/wfh/requests', () => { setSelected([]); setValues({}); setTab('requests'); });
   const board = query.data;
   const visibleRequests = board?.requests.filter(r => cockpit || r.is_mine) ?? [];
   function changeMonth(delta: number) { setMonth(d => new Date(d.getFullYear(), d.getMonth() + delta, 1)); setSelected([]); }
@@ -94,9 +96,9 @@ export function WorkFromHome({ cockpit = false }: { cockpit?: boolean }) {
           const people = board.calendar.filter(p => p.dates.includes(day) && `${p.employee_name} ${p.department}`.toLowerCase().includes(search.toLowerCase()));
           return <div className="hrms-wfh-day" key={day} data-selected={selected.includes(day)}><button type="button" aria-label={`Request WFH ${day}`} aria-pressed={selected.includes(day)} disabled={!board.can_request || !board.policy || day < localDate(new Date()) || weekday === 0 || weekday === 6 || command.pending !== null} onClick={() => setSelected(s => s.includes(day) ? s.filter(d => d !== day) : [...s, day].sort())}>{i + 1}</button><ul>{people.map(p => <li key={p.employee_id}>{p.employee_name}</li>)}</ul></div>;
         })}</div>
-        {board.can_request && board.policy && <ConfiguredForm entityType="HRMS.WorkFromHomeRequest"><form className="hrms-surface p-6 mt-4" onSubmit={e => { e.preventDefault(); command.submit({ dates: selected, reason }); }}>
+        {board.can_request && board.policy && <ConfiguredForm entityType="HRMS.WorkFromHomeRequest"><form className="hrms-surface p-6 mt-4" onSubmit={e => { e.preventDefault(); command.submit({ ...commandValues(schema.data?.fields??[],values,excluded),dates:selected }); }}>
           <h3 className="hrms-section-heading">Request work from home</h3><p>Select weekdays in the calendar above. Requests go to HR for approval.</p><p className="my-3">{selected.length ? selected.join(', ') : 'No dates selected'}</p>
-          <fieldset disabled={command.pending !== null}><ConfiguredField field="reason" label="Note for HR (optional)"><textarea className="hrms-field-input" maxLength={2000} value={reason} onChange={e => setReason(e.target.value)} /></ConfiguredField><button className="hrms-primary-button mt-4" disabled={!selected.length} type="submit">Submit to HR</button></fieldset>{command.feedback}
+          <fieldset disabled={command.pending !== null}><ConfiguredInputs values={values} onChange={setValues} exclude={excluded}/><button className="hrms-primary-button mt-4" disabled={!selected.length} type="submit">Submit to HR</button></fieldset>{command.feedback}
         </form></ConfiguredForm>}
         {!board.can_request && <p className="hrms-notice">An active employee profile linked to your account is needed to request WFH.</p>}
       </>}

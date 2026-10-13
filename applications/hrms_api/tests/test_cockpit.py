@@ -1,3 +1,4 @@
+from hrms_app.catalog import pack_by_type
 from dataclasses import replace
 from uuid import uuid4
 
@@ -200,7 +201,7 @@ def test_migrated_content_types_are_validated(system):
         if method == "GET" and path == "/workflow-state-machines":
             return {"published_items": [
                 {"entity_type": kind, "is_active": True, "name": kind,
-                 "definition": {"states": pinned, "entity_schema": {"fields": fields}}}
+                 "definition": {"states": pinned, "entity_schema": {"fields": [*[f for f in pack_by_type(kind).fields if f['field'] not in {v['field'] for v in fields}], *fields]}}}
                 for kind, fields in schema.items()]}
         return native(method, path, **kwargs)
 
@@ -208,10 +209,10 @@ def test_migrated_content_types_are_validated(system):
     who = actor("hrms_super_admin")
     policy = {"title": "T", "body": "B", "audience": "employees", "approver_id": "approver"}
     assert s.validate(who, "HRMS.Policy", {**policy, "publish_from": "2026-10-12"})
-    with pytest.raises(AppError, match="must be an ISO date"):
+    with pytest.raises(AppError, match="must be a date"):
         s.validate(who, "HRMS.Policy", {**policy, "publish_from": "next week"})
     opening = {**policy, "job_description_id": "jd", "requisition_code": "R1", "hiring_manager_id": "approver"}
-    with pytest.raises(AppError, match="openings must be an integer"):
+    with pytest.raises(AppError, match="Openings must be a whole number"):
         s.validate(who, "HRMS.JobOpening", {**opening, "openings": "2"})
 
 
@@ -228,12 +229,12 @@ def test_a_holiday_calendar_ignores_blank_lines(system):
 def test_settings_cannot_relax_fields_the_content_type_depends_on(system, monkeypatch):
     s, _, _ = system
     import hrms_app.cockpit as cockpit
-    monkeypatch.setattr(cockpit, "configured_form", lambda platform, kind: {"fields": [
+    monkeypatch.setattr(cockpit, "configured_form", lambda platform, kind: {"fields": [*[f for f in pack_by_type(kind).fields if f["field"] not in {"year","holidays"}],
         {"field": "year", "type": "int", "required": False}, {"field": "holidays", "type": "text", "required": False}]})
     for missing in ("year", "holidays"):
         with pytest.raises(AppError) as error:
             s.validate(HR, "HRMS.HolidayCalendar", {k: v for k, v in CALENDAR.items() if k != missing})
-        assert error.value.status == 422 and missing in error.value.detail
+        assert error.value.status == 422 and missing in error.value.detail.lower()
 
 
 @pytest.fixture

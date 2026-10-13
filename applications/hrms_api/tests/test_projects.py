@@ -22,11 +22,14 @@ class ProjectPlatform(Platform):
     def __init__(self):
         super().__init__()
         self.role_options = []
-        self.role_form = {**pack_by_type(ALLOCATION).form_request(), 'fields': [
+        self.role_form = {**pack_by_type(ALLOCATION).form_request(), 'fields': [*[f for f in pack_by_type(ALLOCATION).fields if f['field']!='project_role_id'],
             {'field': 'project_role_id', 'type': 'enum', 'picklist_id': 'staffing-roles'}]}
 
     def call(self, method, path, **kwargs):
         if method == 'GET' and path == '/forms/config':
+            kind=kwargs.get('params', {}).get('entity_type')
+            if kind != ALLOCATION:
+                return {'items': [pack_by_type(kind).form_request()]}
             return {'items': [deepcopy(self.role_form)]}
         if method == 'GET' and path == '/config/picklists':
             return {'items': [{'id': 'staffing-roles', 'name': 'HRMS Project roles', 'options': deepcopy(self.role_options)}]}
@@ -643,3 +646,20 @@ def test_customer_directory_respects_access_and_omits_contract_values(system):
     assert service.customers(limited)['items'] == []
     with pytest.raises(AppError):
         service.customers(actor(ids['employee'], 'unknown_role'))
+
+
+def test_customer_native_field_removal_and_added_required_field(system, monkeypatch):
+    fields = [{'field': 'name', 'type': 'string', 'required': True},
+              {'field': 'reference', 'type': 'string', 'required': True},
+              {'field': 'created_by', 'type': 'string'}]
+    monkeypatch.setattr('hrms_app.form_values.configured_form', lambda *args: {'fields': fields})
+    with pytest.raises(AppError) as error:
+        perform(system, 'sa', 'new', 'create_customer', {'name': 'New customer', 'reference': 'ABC', 'contract_value': 10})
+    assert error.value.status == 422
+    with pytest.raises(AppError):
+        perform(system, 'sa', 'new', 'create_customer', {'name': 'New customer'})
+    result = perform(system, 'sa', 'new', 'create_customer', {'name': 'New customer', 'reference': 'ABC'})
+    row = system[1].rows[result['entity_id']]
+    assert row['data']['reference'] == 'ABC'
+    assert 'contract_value' not in row['data'] and 'currency' not in row['data']
+    assert row['data']['created_by'] == system[3]['sa']

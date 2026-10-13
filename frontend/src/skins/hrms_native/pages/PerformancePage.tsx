@@ -1,8 +1,7 @@
 import { createRequestId } from '../requestId';
 import { ArrowRight, Plus, Layers, Target, MessageSquare, CheckCircle2 } from 'lucide-react';
 import { WorkflowStages, useWorkflowConfiguration, transitionLabel } from '../workflows/WorkflowConfiguration';
-import { ConfiguredForm, ConfiguredField } from '../forms/ConfiguredForm';
-import { CustomFields } from '../forms/CustomFields';
+import { ConfiguredForm, ConfiguredField, ConfiguredInputs, useFormSchema, formValues } from '../forms/ConfiguredForm';
 import { AddedSteps } from '../workflows/AddedSteps';
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
@@ -21,7 +20,6 @@ interface Options { users: Person[]; employees: (Person & { manager_name: string
 const label = (value: string) => value.replaceAll('_', ' ').replace(/^./, c => c.toUpperCase());
 const value = (data: Data, key: string) => String(data[key] ?? '');
 const inputClass = 'hrms-field-input';
-const CYCLE_DATES = ['start_date', 'goal_due_date', 'self_review_due_date', 'manager_review_due_date', 'end_date'];
 const NOTES: Record<string, string> = {
   withdraw: 'The review is kept but no longer holds up the cycle. Use this when someone leaves or should not be reviewed this cycle.',
   cancel_feedback: 'The reviewer is no longer asked, and the manager review can go ahead without it.',
@@ -38,10 +36,7 @@ function ActionForm({ item, action, done }: { item?: Item; action: string; done:
   const initial = item?.data ?? {};
   // Editing starts from what was saved: goals from the goal, a draft cycle from its details and participants.
   const savedParticipants = action === 'edit_cycle' && Array.isArray(initial.participants) ? initial.participants as Data[] : [];
-  const [data, setData] = useState<Data>(action === 'edit_goal' ? Object.fromEntries(
-    ['title', 'description', 'category', 'measurement', 'weight', 'target_date', 'progress', 'evidence'].map(k => [k, initial[k]]))
-    : action === 'edit_cycle' ? Object.fromEntries(['name', 'description', 'approver_id', ...CYCLE_DATES].map(k =>
-      [k, CYCLE_DATES.includes(k) ? String(initial[k] ?? '').slice(0, 10) : initial[k]])) : {});
+  const [data, setData] = useState<Data>(['edit_goal','edit_cycle'].includes(action)?{...initial}:{});
   const [participants, setParticipants] = useState<string[]>(savedParticipants.map(p => String(p.employee_id)));
   // Who assesses someone without a reporting manager; the reporting manager otherwise.
   const [assessors, setAssessors] = useState<Record<string, string>>(Object.fromEntries(savedParticipants.map(p => [String(p.employee_id), String(p.manager_user_id ?? '')])));
@@ -67,36 +62,39 @@ function ActionForm({ item, action, done }: { item?: Item; action: string; done:
     },
   });
   function field(key: string, type = 'text', required = true, min?: number, max?: number) {
-    return <ConfiguredField key={key} field={key} label={label(key)}>{type === 'textarea'
+    return <ConfiguredField operational={key==='comment'&&!aliases.comment} key={key} field={key} label={label(key)}>{type === 'textarea'
       ? <textarea className={inputClass} required={required} maxLength={8000} value={value(data, key)} onChange={e => setData({ ...data, [key]: e.target.value })} />
       : <input className={inputClass} required={required} type={type} min={min} max={max} value={value(data, key)} onChange={e => setData({ ...data, [key]: type === 'number' ? Number(e.target.value) : e.target.value })} />}</ConfiguredField>;
   }
   function select(key: string, people: Person[]) {
-    return <ConfiguredField field={key} label={label(key.replace(/_id$/, ""))}><select className={inputClass} required value={value(data, key)} onChange={e => setData({ ...data, [key]: e.target.value })}>
+    return <ConfiguredField operational field={key} label={label(key.replace(/_id$/, ""))}><select className={inputClass} required value={value(data, key)} onChange={e => setData({ ...data, [key]: e.target.value })}>
       <option value="">Select…</option>{people.map(p => <option key={p.id} value={p.id}>{p.name}{p.email ? ` · ${p.email}` : ""}</option>)}</select></ConfiguredField>;
   }
   function submit(event: FormEvent) {
     event.preventDefault();
     const chosen = participants.map(employee_id => ({ employee_id, calibrator_user_id: calibrator,
       ...(noManager(employee_id) && assessors[employee_id] ? { manager_user_id: assessors[employee_id] } : {}) }));
-    const body = pending ?? { idempotency_key: createRequestId(), action, data: cycle ? { ...data, participants: chosen }
-      : action === 'add_participants' ? { participants: chosen } : data };
+    const body = pending ?? { idempotency_key: createRequestId(), action, data: cycle ? { ...formValues(fields,data), participants: chosen }
+      : action === 'add_participants' ? { participants: chosen } : goal || action==='submit_feedback' ? formValues(fields,data) : data };
     setPending(body); mutation.mutate(body);
   }
   const goal = action === 'add_goal' || action === 'edit_goal';
   const entityType = choosing ? 'HRMS.PerformanceCycle' : goal || action === 'remove_goal' ? 'HRMS.PerformanceGoal' : ['request_feedback','submit_feedback','reassign_feedback','cancel_feedback'].includes(action) ? 'HRMS.ProjectFeedback' : item?.kind ?? 'HRMS.PerformanceReview';
+  const schema=useFormSchema(entityType);
+  const internal=['identifier','hrms_operation_key','created_by','created_by_name','revision','requested_by','employee_id','employee_name','review_id','cycle_id','manager_user_id','manager_name','calibrator_user_id','calibrator_name','approver_name','state','decision_comment','participants','submitted_by','unacknowledged_count','removed_at','manager_comment'];
+  const fields=(schema.data?.fields??[]).filter(f=>!internal.includes(f.field) && (action!=='submit_feedback'||f.custom||['rating','contribution','collaboration'].includes(f.field)));
   const aliases: Record<string,string> = {approver_id:'approver_name',manager_user_id:'manager_name',calibrator_user_id:'calibrator_name',reviewer_user_id:'reviewer_name'};
   if (['submit_self','submit_manager'].includes(action)) { const prefix = action === 'submit_self' ? 'self' : 'manager'; aliases.summary = `${prefix}_summary`; aliases.rating = `${prefix}_rating`; }
   if (action === 'calibrate') { aliases.rating = 'calibrated_rating'; aliases.comment = 'calibration_comment'; }
   if (action === 'acknowledge') aliases.comment = 'employee_comment';
   if (['return_goals','return_self','return_manager'].includes(action)) aliases.comment = 'return_comment';
-  if (action === 'request_changes') aliases.comment = 'approval_comment';
+  if (action === 'request_changes') aliases.comment = 'decision_comment';
   if (action === 'withdraw') aliases.comment = 'withdrawal_reason';
   if (action === 'cancel_feedback') aliases.comment = 'cancel_reason';
   if (action === 'correct_rating') { aliases.rating = 'final_rating'; aliases.comment = 'rating_correction_reason'; }
   if (action === 'acknowledge_correction') aliases.comment = 'employee_comment';
   const participantPicker = <>
-    <ConfiguredField field="calibrator_user_id" label="HR calibrator"><select className={inputClass} required value={calibrator} onChange={e => setCalibrator(e.target.value)}><option value="">Select…</option>{options.data?.calibrators.map(p => <option key={p.id} value={p.id}>{p.name}{p.email ? ` · ${p.email}` : ""}</option>)}</select></ConfiguredField>
+    <ConfiguredField operational field="calibrator_user_id" label="HR calibrator"><select className={inputClass} required value={calibrator} onChange={e => setCalibrator(e.target.value)}><option value="">Select…</option>{options.data?.calibrators.map(p => <option key={p.id} value={p.id}>{p.name}{p.email ? ` · ${p.email}` : ""}</option>)}</select></ConfiguredField>
     <p className="text-sm text-muted-foreground">Select employees with active accounts. For someone without a reporting manager, choose who assesses them. The employee cannot assess or calibrate their own review.</p>
     <div className="max-h-56 space-y-2 overflow-auto rounded-lg border p-3">{options.data?.employees.filter(p => !inCycle.has(p.id)).map(p => <div key={p.id} className="flex flex-wrap items-center gap-2 text-sm">
       <label className="flex items-center gap-2"><input type="checkbox" checked={participants.includes(p.id)} onChange={e => setParticipants(e.target.checked ? [...participants, p.id] : participants.filter(id => id !== p.id))} />{p.name} · Manager: {p.manager_name ?? 'none'}</label>
@@ -108,9 +106,7 @@ function ActionForm({ item, action, done }: { item?: Item; action: string; done:
     <h3 className="hrms-section-heading">{label(action)}</h3>
     <fieldset disabled={Boolean(pending) || mutation.isPending} className="hrms-performance-fields disabled:opacity-70">
       {cycle && <>
-        {field('name')}{field('description', 'textarea', false)}
-        <div className="grid gap-3 sm:grid-cols-2">{CYCLE_DATES.map(key => field(key, 'date'))}</div>
-        {select('approver_id', options.data?.approvers ?? [])}
+        <ConfiguredInputs fields={fields} values={data} onChange={setData} adapters={{approver_id:{label:'Approver',options:options.data?.approvers??[]}}}/>
         {participantPicker}
       </>}
       {action === 'add_participants' && participantPicker}
@@ -120,18 +116,14 @@ function ActionForm({ item, action, done }: { item?: Item; action: string; done:
       {action === 'correct_rating' && <>{field('rating', 'number', true, 1, 5)}{field('comment', 'textarea')}</>}
       {action === 'acknowledge_correction' && field('comment', 'textarea', false)}
       {NOTES[action] && <p className="text-sm text-muted-foreground">{NOTES[action]}</p>}
-      {goal && <>{field('title')}{field('description', 'textarea', false)}
-        <ConfiguredField field="category" label="Category"><select className={inputClass} value={value(data, 'category') || 'delivery'} onChange={e => setData({ ...data, category: e.target.value })}>{['delivery', 'competency', 'leadership', 'learning', 'organization'].map(c => <option key={c}>{c}</option>)}</select></ConfiguredField>
-        {field('measurement', 'textarea')}{field('weight', 'number', true, 1, 100)}{field('target_date', 'date')}{field('progress', 'number', false, 0, 100)}{field('evidence', 'textarea', false)}</>}
+      {goal && <ConfiguredInputs fields={fields} values={data} onChange={setData}/>}
       {['submit_self', 'submit_manager'].includes(action) && <>{field('summary', 'textarea')}{field('rating', 'number', true, 1, 5)}</>}
       {['request_changes', 'return_goals', 'return_self', 'return_manager', 'calibrate'].includes(action) && field('comment', 'textarea')}
       {action === 'calibrate' && field('rating', 'number', true, 1, 5)}
       {action === 'reassign' && <>{select('manager_user_id', options.data?.users ?? [])}{select('calibrator_user_id', options.data?.calibrators ?? [])}{field('comment', 'textarea')}<p className="text-sm text-muted-foreground">The reason and previous assignment are retained in the action audit.</p></>}
       {action === 'acknowledge' && field('comment', 'textarea', false)}
       {action === 'request_feedback' && <>{field('project_reference')}{select('reviewer_user_id', reviewers.data ?? [])}<p className="text-sm text-muted-foreground">Choose a project reviewer. Feedback must be submitted before the manager review is completed.</p>{reviewers.isError && <p role="alert">{getApiErrorMessage(reviewers.error)}</p>}</>}
-      {action === 'submit_feedback' && <>{field('rating', 'number', true, 1, 5)}{field('contribution', 'textarea')}{field('collaboration', 'textarea', false)}</>}
-      {(cycle || goal || action === 'submit_feedback') && <CustomFields entityType={entityType} values={data} onChange={setData}
-        saved={['edit_cycle', 'edit_goal', 'submit_feedback'].includes(action) ? initial : undefined} />}
+      {action === 'submit_feedback' && <ConfiguredInputs fields={fields} values={data} onChange={setData}/>}
       {action === 'publish' && <p>Publish all calibrated reviews in this cycle. Employees will be able to see their final rating and acknowledge it.</p>}
     </fieldset>
     {mutation.isError && <p role="alert" className="text-sm text-destructive">{getApiErrorMessage(mutation.error)}{pending && ' Retry uses the same request. Keep this form open until recovery finishes.'}</p>}

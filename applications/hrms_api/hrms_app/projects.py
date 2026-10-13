@@ -5,6 +5,8 @@ from datetime import UTC, date, datetime, timedelta
 
 from .catalog import pack_by_type
 from .form_config import form_configuration
+from .form_values import record_input
+from .custom_fields import custom_keys
 from .install_project_roles import PICKLIST_NAME
 from .performance import PerformanceService, check, parse
 from .policy import capabilities, require
@@ -92,7 +94,7 @@ class ProjectsService:
                     [
                         "identifier",
                         "hrms_operation_key",
-                        *[f["field"] for f in pack.fields],
+                        *[f["field"] for f in pack.fields], *custom_keys(self.platform, kind),
                     ],
                 )
             ]
@@ -313,7 +315,7 @@ class ProjectsService:
         return role
 
     def project_values(self, actor, data, snap):
-        values = parse(ProjectInput, data)
+        values = record_input(self.platform, PROJECT, ProjectInput, data, excluded={'created_by','revision','customer_name','pm_name','dm_name'}, operational={'approver_id','note'})
         if "project:manage_all" not in capabilities(actor):
             check(
                 values["pm_id"] == actor.user_id,
@@ -361,7 +363,7 @@ class ProjectsService:
             "Allocations require an approved planned or active project",
             422,
         )
-        values = parse(AllocationInput, data)
+        values = record_input(self.platform, ALLOCATION, AllocationInput, data, excluded={'created_by','revision','project_id','employee_name','project_role_name'}, operational={'approver_id','note'})
         check(
             project["data"]["start_date"]
             <= values["start_date"]
@@ -625,7 +627,8 @@ class ProjectsService:
         if target == "new":
             if action == "create_customer":
                 require(actor, "customer:create")
-                values = parse(CustomerInput, data)
+                values = record_input(self.platform, CUSTOMER, CustomerInput, data, excluded={'created_by'})
+                check(bool(values.get('name')), 'The customer form must include an editable Name field.', 422)
                 check(
                     not any(
                         c["data"]["name"].casefold() == values["name"].casefold()

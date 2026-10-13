@@ -30,6 +30,7 @@ from .cockpit import CockpitService, Command as CockpitCommand
 from .projects import ProjectsService
 from .project_contracts import Action as ProjectAction
 from .wfh import WfhService, PolicyInput, RequestInput, DecisionInput
+from .assets import AssetService, AssetCommand
 
 
 class EmployeeAccessRequest(BaseModel):
@@ -56,6 +57,7 @@ def create_app(platform=None, journal=None):
     projects = ProjectsService(service)
     cockpit = CockpitService(platform, journal)
     wfh = WfhService(service)
+    assets = AssetService(service)
 
     @asynccontextmanager
     async def lifespan(app):
@@ -79,6 +81,20 @@ def create_app(platform=None, journal=None):
     @app.get('/health')
     def health():
         return {'status': 'ok', 'service': 'hrms-application'}
+
+    @app.get('/v1/api/hrms/assets')
+    def asset_inventory(current=Depends(actor)):
+        return assets.board(current)
+
+    @app.post('/v1/api/hrms/assets')
+    def asset_create(payload: AssetCommand, current=Depends(actor)):
+        if payload.action != 'create':
+            raise AppError(422, 'Use an asset ID to edit or issue')
+        return assets.execute(current, None, payload)
+
+    @app.post('/v1/api/hrms/assets/{entity_id}/actions')
+    def asset_action(entity_id: UUID, payload: AssetCommand, current=Depends(actor)):
+        return assets.execute(current, str(entity_id), payload)
 
     @app.get('/v1/api/hrms/wfh')
     def wfh_board(year: int = Query(ge=2000, le=2100), current=Depends(actor)):

@@ -1,3 +1,4 @@
+import { ConfiguredInputs, ConfiguredForm, useFormSchema, formValues } from '../forms/ConfiguredForm';
 import AddEmployee from './AddEmployee';
 import OnboardingPage from './OnboardingPage';
 import { createRequestId } from '../requestId';
@@ -17,18 +18,14 @@ import { PageHero } from '../components/PageHero';
 export const CONTENT_TYPES=['HRMS.Policy','HRMS.LearningEvent','HRMS.HolidayCalendar','HRMS.JobDescription','HRMS.JobOpening'];
 export const CONTENT_LABELS=['Policies','L&D calendar','Holidays','Job descriptions','Open positions'];
 const internal=new Set(['author_id','author_name','approver_name','publication_id','published_at','revision','hrms_operation_key','identifier']);
-// Native field types: date fields land on Date & Time in the Field Library but content still stores ISO dates.
-const numericTypes=new Set(['int','integer','float','decimal','number']);
-const inputType=(type?:string)=>type==='date'||type==='datetime'?'date':numericTypes.has(type??'')?'number':type==='email'?'email':type==='phone'?'tel':type==='url'?'url':'text';
 type Data=Record<string,string|number>;
 type Item={entity_id:string;kind:string;state:string;state_label:string;data:Data;actions:string[];superseded?:boolean;expired?:boolean;workflow_configuration:{transitions:{trigger:string;label:string;from_state:string}[]}};
 /** Replaced by a later published revision, or past its end date: shown, but not live. */
 const notLive=(r:Item)=>Boolean(r.superseded||r.expired);
 const statusText=(r:Item)=>r.superseded?'Replaced by a newer version':r.expired?'Expired':r.state_label;
 type Board={items:Item[];creatable:string[];approvers:{id:string;name:string}[];people:{id:string;name:string}[]};
-type Field={field:string;type:string;description?:string;required?:boolean;read_only?:boolean;placeholder?:string;enum_values?:string[];enum_labels?:Record<string,string>;col_span?:number};
+
 const label=(s:string)=>s.replaceAll('_',' ').replace(/^./,c=>c.toUpperCase());
-const input='hrms-field-input';
 const contentIcons=[FileText,BookOpen,CalendarDays,BriefcaseBusiness,Users];
 const contentNames=['policy','learning event','holiday calendar','job description','open position'];
 
@@ -74,15 +71,12 @@ function Editor({kind,item,board,done}:{kind:string;item?:Item;board:Board;done:
  const [key,setKey]=useState(()=>createRequestId());
  const [submitted,setSubmitted]=useState<Data|null>(null);
  const client=useQueryClient();
- const schema=useQuery({queryKey:['hrms','form-config',kind],queryFn:()=>request<{fields:Field[]}>(`/hrms/forms/${kind}`),staleTime:0});
- const save=useMutation({mutationFn:()=>request(item?`/hrms/cockpit/${item.entity_id}/actions`:'/hrms/cockpit/actions',{method:'POST',body:JSON.stringify({action:item?'edit':'create',entity_type:kind,data:submitted??data,expected_revision:item?.data.revision??0,idempotency_key:key})}),onSuccess:async()=>{await client.invalidateQueries({queryKey:['hrms']});done();}});
+ const schema=useFormSchema(kind);
+ const values=()=>formValues(schema.data?.fields??[],data,[...internal]);
+ const save=useMutation({mutationFn:()=>request(item?`/hrms/cockpit/${item.entity_id}/actions`:'/hrms/cockpit/actions',{method:'POST',body:JSON.stringify({action:item?'edit':'create',entity_type:kind,data:submitted??values(),expected_revision:item?.data.revision??0,idempotency_key:key})}),onSuccess:async()=>{await client.invalidateQueries({queryKey:['hrms']});done();}});
  if(schema.isLoading)return <p>Loading configured form…</p>;
  if(schema.isError)return <p role="alert">{getApiErrorMessage(schema.error)}</p>;
- return <form className="hrms-surface hrms-people-form hrms-content-editor" onSubmit={e=>{e.preventDefault();setSubmitted(data);save.mutate();}}><h2 className="hrms-section-heading">{item?'Edit draft':'Create content'}</h2><fieldset disabled={save.isPending||submitted!==null} className="grid gap-4 sm:grid-cols-2">{schema.data?.fields.filter(f=>!internal.has(f.field)).map(f=>{
- const choices=f.field==='approver_id'?board.approvers:f.field==='hiring_manager_id'?board.people:f.field==='job_description_id'?board.items.filter(r=>r.kind==='HRMS.JobDescription'&&r.state==='published'&&!r.superseded).map(r=>({id:r.entity_id,name:String(r.data.title)})):undefined;
- const props={className:input,required:f.required,disabled:f.read_only,value:data[f.field]??'',onChange:(e:React.ChangeEvent<HTMLInputElement|HTMLTextAreaElement|HTMLSelectElement>)=>setData({...data,[f.field]:numericTypes.has(f.type)&&e.target.value!==''?Number(e.target.value):e.target.value}),placeholder:f.placeholder};
- return <label key={f.field} className={`space-y-1 text-sm ${f.col_span===2||f.type==='text'?'sm:col-span-2':''}`}><span>{f.description||label(f.field)}</span>{choices?<select {...props}><option value="">Select…</option>{choices.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select>:f.enum_values?.length?<select {...props}><option value="">Select…</option>{f.enum_values.map(v=><option key={v} value={v}>{f.enum_labels?.[v]??label(v)}</option>)}</select>:f.type==='text'?<textarea {...props} rows={f.field==='body'?6:4}/>:<input {...props} type={inputType(f.type)} step={f.type==='float'||f.type==='decimal'?'any':undefined}/>}</label>;
- })}</fieldset>{!board.approvers.length&&<p role="alert">An independent active approver is required. Configure cockpit approvers under Settings → Roles.</p>}{save.isError&&<p role="alert" className="text-destructive">{getApiErrorMessage(save.error)}. Retry keeps the same request.</p>}<div className="hrms-form-actions">{save.isError && (save.error as {status?:number}).status===422 && <Button className="hrms-outline-button" type="button" variant="outline" onClick={()=>{setSubmitted(null);setKey(createRequestId());save.reset();}}>Correct draft</Button>}<Button className="hrms-primary-button" variant="primary" disabled={save.isPending||!board.approvers.length} type="submit">{save.isError?'Retry save':'Save draft'}</Button><Button className="hrms-outline-button" type="button" variant="outline" disabled={save.isPending} onClick={done}>Cancel</Button></div><p className="text-sm text-muted-foreground">Public content and linked documents will be visible without signing in. Save as a draft, preview, then submit for independent approval.</p></form>;
+ return <ConfiguredForm entityType={kind}><form className="hrms-surface hrms-people-form hrms-content-editor" onSubmit={e=>{e.preventDefault();setSubmitted(values() as Data);save.mutate();}}><h2 className="hrms-section-heading">{item?'Edit draft':'Create content'}</h2><fieldset disabled={save.isPending||submitted!==null} className="grid gap-4 sm:grid-cols-2"><ConfiguredInputs values={data} onChange={v=>setData(v as Data)} exclude={[...internal]} adapters={{approver_id:{options:board.approvers},hiring_manager_id:{options:board.people},job_description_id:{options:board.items.filter(r=>r.kind==='HRMS.JobDescription'&&r.state==='published'&&!r.superseded).map(r=>({id:r.entity_id,name:String(r.data.title)}))}}}/></fieldset>{!board.approvers.length&&<p role="alert">An independent active approver is required. Configure cockpit approvers under Settings → Roles.</p>}{save.isError&&<p role="alert" className="text-destructive">{getApiErrorMessage(save.error)}. Retry keeps the same request.</p>}<div className="hrms-form-actions">{save.isError && (save.error as {status?:number}).status===422 && <Button className="hrms-outline-button" type="button" variant="outline" onClick={()=>{setSubmitted(null);setKey(createRequestId());save.reset();}}>Correct draft</Button>}<Button className="hrms-primary-button" variant="primary" disabled={save.isPending||!board.approvers.length} type="submit">{save.isError?'Retry save':'Save draft'}</Button><Button className="hrms-outline-button" type="button" variant="outline" disabled={save.isPending} onClick={done}>Cancel</Button></div><p className="text-sm text-muted-foreground">Public content and linked documents will be visible without signing in. Save as a draft, preview, then submit for independent approval.</p></form></ConfiguredForm>;
 }
 export default function CockpitPage({entityId}:{entityId?:string}) {
  const [params,setParams]=useSearchParams();

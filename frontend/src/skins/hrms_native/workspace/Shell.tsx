@@ -243,7 +243,7 @@ export function WorkspaceShell() {
     ] : [] },
     { label: 'Management', standalone: true, items: [
       ...((allowed('cockpit:view') || allowed('onboarding:view') || allowed('wfh:approve')) ? [{ path: '/hrms/cockpit', label: 'HR Cockpit', icon: SlidersHorizontalIcon, keywords: 'onboarding policies holidays careers publish HR' }] : []),
-      { path: '/hrms/assets', label: 'Asset Management', icon: LayoutGridIcon, comingSoon: true },
+      ...((allowed('asset:view') || allowed('asset:manage')) ? [{ path: '/hrms/assets', label: 'Asset Management', icon: LayoutGridIcon, keywords: 'inventory equipment laptops issue' }] : []),
     ] },
   ].filter(group => group.items.length);
   const settings: NavItem | null = allowed('platform:configure') ? { path: '/settings', label: 'Settings', icon: SettingsIcon, keywords: 'configuration roles forms' } : null;

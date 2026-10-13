@@ -14,6 +14,7 @@ from .wfh_catalog import TYPES as WFH_TYPES
 
 SERVICE_ROLE = 'hrms_application_service'
 RUNTIME_TYPES = frozenset({*PROJECT_TYPES, *COCKPIT_TYPES, *WFH_TYPES,
+    'HRMS.Asset',
     'HRMS.Employee', 'HRMS.OnboardingCase', 'HRMS.OnboardingStep', 'HRMS.LeaveRequest',
     'HRMS.PerformanceCycle', 'HRMS.PerformanceReview', 'HRMS.PerformanceGoal', 'HRMS.ProjectFeedback'})
 # Settings writes that can add a field to a form.

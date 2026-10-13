@@ -1,9 +1,4 @@
-"""Fields an organization adds in Settings → Fields/Forms, on HRMS screens built around fixed fields.
-
-The screen keeps its own fields and rules. Anything else on the entity type's configured form is a
-custom field: shown on the screen, checked here against its configured type, options and required
-flag, and stored on the record next to the built-in fields.
-"""
+"""Tenant-added attributes and native field type validation for HRMS commands."""
 from datetime import date, datetime
 import time
 

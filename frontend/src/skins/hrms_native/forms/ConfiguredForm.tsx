@@ -2,27 +2,66 @@ import { Children, cloneElement, createContext, isValidElement, useContext, useE
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { request, getApiErrorMessage } from '@/core/services/api/client';
 
-type Field = { field: string; description?: string; placeholder?: string; required?: boolean; read_only?: boolean; col_span?: number; type?: string; enum_values?: string[]; enum_labels?: Record<string,string> };
-type Schema = { name: string; fields: Field[] };
+export type Field = { field: string; description?: string; placeholder?: string; required?: boolean; read_only?: boolean; col_span?: number; type?: string; enum_values?: string[]; custom?: boolean; enum_labels?: Record<string,string> };
+type Schema = { name: string; fields: Field[]; workflow_versioned?: boolean };
 const Context = createContext<{ fields: Field[]; aliases: Record<string,string> }>({fields:[],aliases:{}});
+
+export type FieldAdapter = { key?: string; label?: string; options?: {id:string;name:string}[]; action?: ReactNode; readOnly?: boolean; type?: string };
+export function useFormSchema(entityType:string, enabled=true) {
+  return useQuery({queryKey:['hrms','form-config',entityType],queryFn:()=>request<Schema>(`/hrms/forms/${entityType}`),enabled,staleTime:0,refetchOnMount:'always'});
+}
+/** Only currently configured editable fields enter a command. Aliases are explicit relationship adapters. */
+export function formValues(fields:Field[], values:Record<string,unknown>, exclude:string[]=[], adapters:Record<string,FieldAdapter>={}) {
+  return Object.fromEntries(fields.filter(f=>!exclude.includes(f.field)&&!f.read_only&&!adapters[f.field]?.readOnly)
+    .map(f=>adapters[f.field]?.key??f.field).filter(k=>values[k]!==undefined).map(k=>[k,values[k]]));
+}
+/** Legacy command envelopes keep custom attributes separate; both groups use the same native form. */
+export function commandValues(fields:Field[], values:Record<string,unknown>, exclude:string[]=[], adapters:Record<string,FieldAdapter>={}) {
+  const current=formValues(fields,values,exclude,adapters);
+  const customKeys=new Set(fields.filter(f=>f.custom).map(f=>f.field));
+  return {...Object.fromEntries(Object.entries(current).filter(([k])=>!customKeys.has(k))),
+    custom:Object.fromEntries(Object.entries(current).filter(([k])=>customKeys.has(k)))};
+}
+export const employeeSystemFields=['employee_code','employment_status','platform_user_id','identifier','hrms_operation_key','last_working_day','exit_reason','exit_note'];
+export const employeeAdapters={hrms_role:{key:'role',label:'Access role'},reports_to_employee_code:{key:'reports_to_entity_id',label:'Reporting manager'}};
+export function ConfiguredInputs({values,onChange,exclude=[],fields:provided,adapters={}}:{values:Record<string,unknown>;onChange:(values:Record<string,unknown>)=>void;exclude?:string[];fields?:Field[];adapters?:Record<string,FieldAdapter>}) {
+  const context=useContext(Context);
+  return <>{(provided??context.fields).filter(f=>!exclude.includes(f.field)).map(f=>{
+    const adapter=adapters[f.field]??{}, key=adapter.key??f.field, type=adapter.type??f.type??'string', value=values[key];
+    const set=(v:unknown)=>onChange({...values,[key]:v});
+    const numeric=['integer','int','number','float','decimal','timer_duration'].includes(type);
+    const supported=['string','str','text','email','phone','url','date','datetime','enum','boolean','bool'].includes(type)||numeric;
+    const readonly=!!f.read_only||!!adapter.readOnly;
+    const common={className:'hrms-field-input',required:!!f.required&&!readonly,disabled:readonly||(!supported&&!adapter.options),placeholder:f.placeholder};
+    const title=f.description?.trim()||adapter.label||key.replaceAll('_',' ').replace(/^./,c=>c.toUpperCase());
+    const choices=adapter.options??(f.enum_values??[]).map(v=>({id:v,name:f.enum_labels?.[v]??v}));
+    const display=value==null?'':typeof value==='object'?JSON.stringify(value):String(value);
+    return <div key={f.field} className={f.col_span===2?'sm:col-span-2':''}><label className="block space-y-1 text-sm"><span>{title}</span>{adapter.options||type==='enum'||!!f.enum_values?.length?
+      <select {...common} value={display} onChange={e=>set(e.target.value)}><option value="">Select…</option>{choices.map(v=><option key={v.id} value={v.id}>{v.name}</option>)}</select>
+      :['boolean','bool'].includes(type)?<input type="checkbox" disabled={common.disabled} checked={value===true} onChange={e=>set(e.target.checked)}/>
+      :type==='text'?<textarea {...common} value={display} onChange={e=>set(e.target.value)}/>
+      :<input {...common} type={numeric?'number':type==='date'?'date':type==='datetime'?'datetime-local':type==='phone'?'tel':['email','url'].includes(type)?type:'text'} step={['float','decimal'].includes(type)?'any':1} value={display.slice(0,type==='datetime'?16:undefined)} onChange={e=>set(numeric?(e.target.value===''?null:Number(e.target.value)):e.target.value)}/>}</label>{!readonly&&adapter.action}</div>;
+  })}</>;
+}
 
 export function ConfiguredForm({entityType, aliases = {}, children}: {entityType: string; aliases?: Record<string,string>; children: ReactNode}) {
   const client = useQueryClient();
-  const schema = useQuery({queryKey:['hrms','form-config',entityType], queryFn:()=>request<Schema>(`/hrms/forms/${entityType}`), staleTime:0, refetchOnMount:'always'});
+  const schema = useFormSchema(entityType);
   useEffect(() => {
     const refresh = () => { void client.invalidateQueries({queryKey:['hrms','form-config']}); };
     window.addEventListener('form-schemas-changed',refresh);
     return () => window.removeEventListener('form-schemas-changed',refresh);
   },[client]);
   if (schema.isLoading) return <p role="status">Loading form configuration…</p>;
-  if (schema.isError) return <p role="alert">{getApiErrorMessage(schema.error)}</p>;
-  return <Context.Provider value={{fields:schema.data?.fields??[],aliases}}>{children}</Context.Provider>;
+  if (schema.isError) return <p role="alert">{getApiErrorMessage(schema.error)} <button type="button" onClick={()=>void schema.refetch()}>Retry</button></p>;
+  return <Context.Provider value={{fields:schema.data?.fields??[],aliases}}>{schema.data?.workflow_versioned&&<p className="text-xs text-slate-500 mb-3">Fields follow the published workflow form. After editing its form in Settings, publish the updated workflow to apply that version.</p>}{children}</Context.Provider>;
 }
 
 /** Keep authorized options and command types; overlay tenant presentation metadata. */
-export function ConfiguredField({field, label, children, action, className = 'block space-y-1 text-sm'}: {field:string; label:string; children:ReactNode; action?:ReactNode; className?:string}) {
+export function ConfiguredField({field, label, children, action, operational = false, className = 'block space-y-1 text-sm'}: {field:string; label:string; children:ReactNode; action?:ReactNode; operational?:boolean; className?:string}) {
   const context = useContext(Context);
   const config = context.fields.find(f=>f.field===(context.aliases[field]??field));
+  if (!config && !operational) return null;
   const text = config?.description?.trim() || label;
   const content = Children.map(children, child => {
     if (!isValidElement(child) || !['input','textarea','select'].includes(String(child.type))) return child;
@@ -31,24 +70,14 @@ export function ConfiguredField({field, label, children, action, className = 'bl
     const select = child.type === 'select';
     const readonly = Boolean(config?.read_only);
     const configured: Record<string,unknown> = {
-      required: Boolean(props.required || config?.required),
+      required: Boolean(config ? config.required && !readonly : props.required),
       placeholder: config?.placeholder ?? props.placeholder,
       readOnly: select ? undefined : Boolean(props.readOnly || readonly),
       disabled: Boolean(props.disabled || (select && readonly)),
     };
-    // Fixed enums can be narrowed by config, never extended past the command contract.
-    if (select && config?.enum_values?.length && !field.endsWith('_id')) {
-      configured.children = Children.toArray(props.children as ReactNode).filter(option => {
-        if (!isValidElement(option)) return true;
-        const p = option.props as {value?:string; children?:string};
-        const value = p.value ?? p.children;
-        return !value || config.enum_values!.includes(String(value));
-      }).map(option => {
-        if (!isValidElement(option)) return option;
-        const p = option.props as {value?:string; children?:string};
-        const value = String(p.value ?? p.children ?? '');
-        return config.enum_labels?.[value] ? cloneElement(option, {}, config.enum_labels[value]) : option;
-      });
+    if (select && config?.enum_values && !field.endsWith('_id')) {
+      configured.children = [<option key="" value="">Select…</option>, ...config.enum_values.map(value =>
+        <option key={value} value={value}>{config.enum_labels?.[value]??value}</option>)];
     }
     return cloneElement(control,configured);
   });

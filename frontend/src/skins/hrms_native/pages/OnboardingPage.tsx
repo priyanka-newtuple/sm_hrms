@@ -1,3 +1,4 @@
+import { ConfiguredForm, ConfiguredField } from '../forms/ConfiguredForm';
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
@@ -127,11 +128,11 @@ export default function OnboardingPage({ caseId, embedded = false, showNavigatio
             {selected.can_cancel && managing !== 'cancel' && <button type="button" onClick={() => open('cancel')} className="hrms-outline-button">Cancel onboarding</button>}
           </div>
           {selected.can_cancel && <AddedSteps entityId={selected.entity_id} />}
-          {managing === 'cancel' && <form className="mt-3 space-y-2" onSubmit={(event) => { event.preventDefault(); manage.mutate({ path: `/hrms/onboarding/${selected.entity_id}/cancel`, method: 'POST', body: { reason: change.reason } }); }}>
-            <label className="block space-y-1 text-sm font-medium"><span>Why is onboarding cancelled?</span><textarea required maxLength={2000} rows={2} value={change.reason} onChange={(event) => setChange({ ...change, reason: event.target.value })} className="hrms-field-input" placeholder="No-show, offer withdrawn…" /></label>
+          {managing === 'cancel' && <ConfiguredForm entityType="HRMS.OnboardingCase"><form className="mt-3 space-y-2" onSubmit={(event) => { event.preventDefault(); manage.mutate({ path: `/hrms/onboarding/${selected.entity_id}/cancel`, method: 'POST', body: { reason: change.reason } }); }}>
+            <ConfiguredField field="cancel_reason" label="Why is onboarding cancelled?"><textarea required maxLength={2000} rows={2} value={change.reason} onChange={(event) => setChange({ ...change, reason: event.target.value })} className="hrms-field-input" placeholder="No-show, offer withdrawn…" /></ConfiguredField>
             <p className="text-sm text-slate-600">Open steps are cancelled. If they will not join, record their exit as “Did not join” in Org Directory.</p>
             <div className="flex gap-2"><button type="submit" disabled={manage.isPending} className="hrms-primary-button">Cancel onboarding</button><button type="button" onClick={() => setManaging(null)} className="hrms-outline-button">Keep it</button></div>
-          </form>}
+          </form></ConfiguredForm>}
         </div>
         <div className="hrms-surface hrms-case-card">
           <h3 className="hrms-section-heading">Onboarding steps</h3>
@@ -148,18 +149,18 @@ export default function OnboardingPage({ caseId, embedded = false, showNavigatio
                 {step.can_manage && <button type="button" onClick={() => open({ sequence: step.sequence, mode: 'reassign' })} className="hrms-text-link">Reassign or change date</button>}
                 {step.can_manage && <button type="button" onClick={() => open({ sequence: step.sequence, mode: 'skip' })} className="hrms-text-link">Skip step</button>}
               </div>
-              {managing !== null && managing !== 'cancel' && managing.sequence === step.sequence && <form className="mt-2 space-y-2" onSubmit={(event) => {
+              {managing !== null && managing !== 'cancel' && managing.sequence === step.sequence && <ConfiguredForm entityType="HRMS.OnboardingStep"><form className="mt-2 space-y-2" onSubmit={(event) => {
                 event.preventDefault();
                 const path = `/hrms/onboarding/${selected.entity_id}/steps/${step.sequence}`;
                 manage.mutate(managing.mode === 'skip' ? { path: `${path}/skip`, method: 'POST', body: { reason: change.reason } }
                   : { path, method: 'PATCH', body: { assigned_to: change.assigned_to || null, due_date: change.due_date || null } });
               }}>
                 {managing.mode === 'reassign' ? <div className="grid gap-2 sm:grid-cols-2">
-                  <label className="space-y-1 text-sm font-medium"><span>New owner</span><select value={change.assigned_to} onChange={(event) => setChange({ ...change, assigned_to: event.target.value })} className="hrms-field-input"><option value="">Keep {step.owner_name}</option>{assignees.data?.map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}</select></label>
-                  <label className="space-y-1 text-sm font-medium"><span>New due date</span><input type="date" value={change.due_date} onChange={(event) => setChange({ ...change, due_date: event.target.value })} className="hrms-field-input" /></label>
-                </div> : <label className="block space-y-1 text-sm font-medium"><span>Why skip this step?</span><input required maxLength={2000} value={change.reason} onChange={(event) => setChange({ ...change, reason: event.target.value })} className="hrms-field-input" placeholder="Not needed for this hire…" /></label>}
+                  <ConfiguredField field="assigned_to" label="New owner"><select value={change.assigned_to} onChange={(event) => setChange({ ...change, assigned_to: event.target.value })} className="hrms-field-input"><option value="">Keep {step.owner_name}</option>{assignees.data?.map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}</select></ConfiguredField>
+                  <ConfiguredField field="due_date" label="New due date"><input type="date" value={change.due_date} onChange={(event) => setChange({ ...change, due_date: event.target.value })} className="hrms-field-input" /></ConfiguredField>
+                </div> : <ConfiguredField field="skip_reason" label="Why skip this step?"><input required maxLength={2000} value={change.reason} onChange={(event) => setChange({ ...change, reason: event.target.value })} className="hrms-field-input" placeholder="Not needed for this hire…" /></ConfiguredField>}
                 <div className="flex gap-2"><button type="submit" disabled={manage.isPending || (managing.mode === 'reassign' && !change.assigned_to && !change.due_date)} className="hrms-primary-button">{managing.mode === 'skip' ? 'Skip step' : 'Save'}</button><button type="button" onClick={() => setManaging(null)} className="hrms-outline-button">Cancel</button></div>
-              </form>}
+              </form></ConfiguredForm>}
             </div>
           </li>)}</ol>
         </div>

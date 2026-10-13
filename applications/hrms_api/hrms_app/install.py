@@ -13,6 +13,8 @@ from .permission_migration import INITIAL_ROLE_GRANTS, migrate_native_permission
 from .project_catalog import TYPES as PROJECT_TYPES
 from .provisioning import ensure_tenant_administrator
 from .wfh_catalog import TYPES as WFH_TYPES
+from .asset_catalog import ASSET
+from .install_assets import install_asset_form, install_asset_permissions
 
 
 def install():
@@ -46,6 +48,7 @@ def install():
             if additions:
                 api.call('PUT', f'/entity-types/{pack.entity_type}', json={
                     'schema_definition': {**schema, 'fields': [*schema.get('fields', []), *additions]}})
+        asset_method = install_asset_form(api, pack) if pack.entity_type == ASSET else None
         forms = api.call('GET', '/forms/config', params={'entity_type': pack.entity_type})['items']
         # A type moved onto method blocks is configured there; never recreate its legacy Form.
         if not any(f['schema_key'] == pack.schema_key for f in forms) and not has_method_blocks(api, pack.entity_type):
@@ -57,7 +60,13 @@ def install():
                 raise RuntimeError(f'Multiple active workflows for {pack.entity_type}; choose one before installing')
             if not matching:
                 draft = api.call('POST', '/workflow-state-machines/draft', json={'name': pack.label})
-                published_row = api.call('POST', f"/workflow-state-machines/{draft['id']}/publish", json={'definition': pack.workflow_definition()})['state_machine']
+                definition = pack.workflow_definition()
+                if asset_method:
+                    # Native blocks supply the schema, including live picklist bindings.
+                    definition['entity_schema']['fields'] = []
+                    for state in definition['states']:
+                        state['method_refs'] = [{'method_id': asset_method}]
+                published_row = api.call('POST', f"/workflow-state-machines/{draft['id']}/publish", json={'definition': definition})['state_machine']
                 matching = [published_row]
             elif pack.entity_type == 'HRMS.ProjectChange':
                 current = api.call('GET', f"/workflow-state-machines/{matching[0]['id']}")
@@ -120,6 +129,7 @@ def install():
         # Existing tenant role customizations are left intact. The gateway is the only browser API surface.
 
     migrate_native_permissions(api, os.environ['HRMS_APP_DATABASE_URL'])
+    install_asset_permissions(api, os.environ['HRMS_APP_DATABASE_URL'])
 
     service_name = 'hrms_application_service'
     runtime_packs = [p for p in PACKS if p.entity_type in RUNTIME_TYPES]
