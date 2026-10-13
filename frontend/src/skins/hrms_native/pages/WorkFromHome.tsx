@@ -7,6 +7,7 @@ import { useHrmsCapabilities } from '../capabilities';
 import { createRequestId } from '../requestId';
 import { ConfiguredInputs, ConfiguredForm, useFormSchema, commandValues } from '../forms/ConfiguredForm';
 import { WorkPanel } from '../components/WorkPanel';
+import { Segmented } from '../components/ListKit';
 
 type Policy = { year: number; annual_days: number; notice_days: number; revision: number };
 export type Booking = { entity_id: string; employee_name: string; dates: string[]; reason: string; state: string; state_label: string; actions: string[]; is_mine: boolean; workflow_configuration: { transitions: { trigger: string; label: string; from_state: string }[] } };
@@ -77,9 +78,7 @@ export function WorkFromHome({ cockpit = false }: { cockpit?: boolean }) {
   if (caps.isError) return <p role="alert">Could not load WFH access. <button onClick={() => void caps.refetch()}>Try again</button></p>;
   if (!caps.data?.capabilities.includes('wfh:view')) return <p>Work from home is not available to your role.</p>;
   return <section className="hrms-wfh" aria-label="Work from home">
-    <header className="hrms-directory-heading"><Home size={24} /><div><h2>Work from home</h2><p>Plan your days and see who is working remotely.</p></div></header>
-    <nav className="hrms-content-categories" aria-label="WFH views"><button type="button" aria-pressed={tab === 'calendar'} onClick={() => setTab('calendar')}>Calendar</button><button type="button" aria-pressed={tab === 'requests'} onClick={() => setTab('requests')}>{cockpit ? 'Requests & approvals' : 'My requests'}</button>{cockpit && board?.can_configure && <button type="button" aria-pressed={tab === 'policy'} onClick={() => setTab('policy')}>Policy</button>}</nav>
-    <div className="hrms-filter-bar"><button type="button" className="hrms-outline-button" aria-label="Previous month" disabled={command.pending !== null || year <= 2000} onClick={() => changeMonth(-1)}><ChevronLeft size={18} /></button><strong>{month.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</strong><button type="button" className="hrms-outline-button" aria-label="Next month" disabled={command.pending !== null || year >= 2100} onClick={() => changeMonth(1)}><ChevronRight size={18} /></button></div>
+    <div className="hrms-wfh-toolbar"><Segmented label="WFH views" value={tab} onChange={setTab} segments={[{ id: 'calendar', label: 'Calendar' }, { id: 'requests', label: cockpit ? 'Requests & approvals' : 'My requests' }, ...(cockpit && board?.can_configure ? [{ id: 'policy', label: 'Policy' }] : [])]} /><div className="hrms-wfh-month"><button type="button" className="hrms-outline-button" aria-label="Previous month" disabled={command.pending !== null || year <= 2000} onClick={() => changeMonth(-1)}><ChevronLeft size={18} /></button><strong>{month.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</strong><button type="button" className="hrms-outline-button" aria-label="Next month" disabled={command.pending !== null || year >= 2100} onClick={() => changeMonth(1)}><ChevronRight size={18} /></button></div></div>
     {query.isLoading && <p role="status">Loading work from home…</p>}
     {query.isError && <div role="alert" className="hrms-notice hrms-notice--error">{getApiErrorMessage(query.error)} <button className="hrms-outline-button" onClick={() => void query.refetch()}>Try again</button></div>}
     {board && <>

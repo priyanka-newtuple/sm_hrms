@@ -2,7 +2,7 @@ import { ConfiguredInputs, ConfiguredForm, useFormSchema, formValues } from '../
 import AddEmployee from './AddEmployee';
 import OnboardingPage from './OnboardingPage';
 import { createRequestId } from '../requestId';
-import { FileCheck2, FileText, BookOpen, CalendarDays, BriefcaseBusiness, Users, Plus, ArrowUpRight } from 'lucide-react';
+import { FileCheck2, FileText, BookOpen, CalendarDays, BriefcaseBusiness, Users, Plus, ArrowUpRight, ChevronRight } from 'lucide-react';
 import { WorkPanel } from '../components/WorkPanel';
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -15,6 +15,9 @@ import { useHrmsCapabilities } from '../capabilities';
 import { WorkflowStages } from '../workflows/WorkflowConfiguration';
 import { AddedSteps } from '../workflows/AddedSteps';
 import { PageHero } from '../components/PageHero';
+import { FilterSelect, ListEmpty, Pager, SearchField, Segmented, Toolbar } from '../components/ListKit';
+import { matchesText, usePaged } from '../components/useList';
+import { formatDate, toDate } from '../public-info/format';
 export const CONTENT_TYPES=['HRMS.Policy','HRMS.LearningEvent','HRMS.HolidayCalendar','HRMS.JobDescription','HRMS.JobOpening'];
 export const CONTENT_LABELS=['Policies','L&D calendar','Holidays','Job descriptions','Open positions'];
 const internal=new Set(['author_id','author_name','approver_name','publication_id','published_at','revision','hrms_operation_key','identifier']);
@@ -28,6 +31,37 @@ type Board={items:Item[];creatable:string[];approvers:{id:string;name:string}[];
 const label=(s:string)=>s.replaceAll('_',' ').replace(/^./,c=>c.toUpperCase());
 const contentIcons=[FileText,BookOpen,CalendarDays,BriefcaseBusiness,Users];
 const contentNames=['policy','learning event','holiday calendar','job description','open position'];
+const contentSlugs=['policies','learning','holidays','job-descriptions','openings'];
+
+/** Status filters for the content list; "Active" hides archived items and replaced revisions. */
+const STATUS_FILTERS:{value:string;label:string;test:(r:Item)=>boolean}[]=[
+ {value:'active',label:'Active',test:r=>r.state!=='archived'&&!r.superseded},
+ {value:'action',label:'Needs your action',test:r=>r.actions.includes('approve')||r.actions.includes('publish')},
+ {value:'draft',label:'Drafts',test:r=>r.state==='draft'},
+ {value:'pending_approval',label:'Pending approval',test:r=>r.state==='pending_approval'},
+ {value:'approved',label:'Approved',test:r=>r.state==='approved'},
+ {value:'live',label:'Published',test:r=>r.state==='published'&&!notLive(r)},
+ {value:'inactive',label:'Paused, closed or expired',test:r=>r.state!=='archived'&&!r.superseded&&(r.state==='paused'||r.state==='closed'||Boolean(r.expired))},
+ {value:'history',label:'Archived or replaced',test:r=>r.state==='archived'||Boolean(r.superseded)},
+ {value:'all',label:'All',test:()=>true},
+];
+const AUDIENCES=[{value:'all',label:'All'},{value:'employees',label:'Employees'},{value:'public',label:'Public'}];
+/** Work in progress first, then live content, then the rest; alphabetical within each group. */
+const STATE_ORDER=['pending_approval','approved','draft','published','paused','closed','archived'];
+const rank=(r:Item)=>(notLive(r)?10:0)+(STATE_ORDER.indexOf(r.state)+1||STATE_ORDER.length);
+const day=(v:unknown)=>{const d=toDate(v);return d?formatDate(d):'';};
+/** The one detail that tells similar items apart in the list. */
+function detail(r:Item){
+ const d=r.data;
+ switch(r.kind){
+  case 'HRMS.Policy':return d.effective_date?`Effective ${day(d.effective_date)}`:'';
+  case 'HRMS.LearningEvent':return [day(d.event_date),d.trainer,d.location].filter(Boolean).join(' · ');
+  case 'HRMS.HolidayCalendar':return [d.year,d.location].filter(Boolean).join(' · ');
+  case 'HRMS.JobDescription':return String(d.department??'');
+  case 'HRMS.JobOpening':return [d.location,d.work_mode,d.application_deadline&&`Apply by ${day(d.application_deadline)}`].filter(Boolean).join(' · ');
+  default:return '';
+ }
+}
 
 export function useCockpitBoard() {
  const caps = useHrmsCapabilities();
@@ -37,6 +71,7 @@ export function useCockpitBoard() {
   enabled: caps.data?.capabilities.includes('cockpit:view') ?? false,
  });
 }
+
 
 /** Reuse server-authorized actions and the cockpit detail view in My Work. */
 export function CockpitInbox() {
@@ -88,22 +123,27 @@ export default function CockpitPage({entityId}:{entityId?:string}) {
  const areas=[...(allowed('cockpit:view')?[{id:'publishing',label:'Content & publishing'}]:[]),...(allowed('onboarding:view')?[{id:'onboarding',label:'Onboarding'},{id:'offboarding',label:'Offboarding'}]:[]),...(allowed('wfh:approve')?[{id:'wfh',label:'Work from home'}]:[])];
  if(!areas.length)return <p className="p-6">HR Cockpit is not available to your role.</p>;
  const area=areas.find(a=>a.id===params.get('area'))?.id??areas[0].id;
- const tabs=<nav className="hrms-view-tabs" aria-label="HR Cockpit areas">{areas.map(a=><button key={a.id} type="button" aria-pressed={area===a.id} onClick={()=>setParams({area:a.id})}>{a.label}{a.id==='offboarding' && <small className="block text-xs font-normal">Coming soon</small>}</button>)}</nav>;
+ const tabs=<Segmented variant="underline" label="HR Cockpit areas" value={area} onChange={id=>setParams({area:id})} segments={areas.map(a=>({id:a.id,label:a.label,badge:a.id==='offboarding'?'Soon':undefined}))}/>;
  if(area==='publishing')return <ContentCockpit tabs={tabs}/>;
  return <main className="hrms-workspace-page"><PageHero title="HR Cockpit" intro={area==='offboarding'?'Employee offboarding is coming soon.':area==='onboarding'?'Coordinate onboarding and help new colleagues settle in.':'Review work-from-home requests and set the yearly policy.'} illustration="cockpit" tabs={tabs}/>{area==='onboarding'?<><AddEmployee/><OnboardingPage embedded showNavigation/></>:area==='offboarding'?<section className="hrms-surface p-6"><h2 className="hrms-section-heading">Offboarding</h2><p className="text-sm text-muted-foreground">Coming soon</p><p className="mt-3">Employee exit workflows will be available here.</p></section>:<WorkFromHome cockpit/>}</main>;
 }
 
 function ContentCockpit({entityId,tabs}:{entityId?:string;tabs?:React.ReactNode}) {
- const caps=useHrmsCapabilities();const client=useQueryClient();const [kind,setKind]=useState(CONTENT_TYPES[0]);const [creating,setCreating]=useState(false);const [selected,setSelected]=useState<string|null>(entityId??null);const [editing,setEditing]=useState(false);const [pending,setPending]=useState<{id:string;action:string;revision:number;key:string;data?:Data}|null>(null);const [newApprover,setNewApprover]=useState<string|null>(null);
- const [publishedOnly,setPublishedOnly]=useState(false);
+ const caps=useHrmsCapabilities();const client=useQueryClient();const [params,setParams]=useSearchParams();const kind=CONTENT_TYPES[Math.max(0,contentSlugs.indexOf(params.get('type')??''))];const [creating,setCreating]=useState(false);const [selected,setSelected]=useState<string|null>(entityId??null);const [editing,setEditing]=useState(false);const [pending,setPending]=useState<{id:string;action:string;revision:number;key:string;data?:Data}|null>(null);const [newApprover,setNewApprover]=useState<string|null>(null);
+ const [status,setStatus]=useState('active');const [audience,setAudience]=useState('all');const [search,setSearch]=useState('');
  const query=useCockpitBoard();
  const act=useMutation({mutationFn:(p:NonNullable<typeof pending>)=>request<{entity_id:string}>(`/hrms/cockpit/${p.id}/actions`,{method:'POST',body:JSON.stringify({action:p.action,data:p.data??{},expected_revision:p.revision,idempotency_key:p.key})}),onSuccess:async(result)=>{setSelected(result.entity_id);setPending(null);setNewApprover(null);await client.invalidateQueries({queryKey:['hrms']});}});
- if(caps.isLoading)return <p className="p-6">Loading access…</p>;
- if(!caps.data?.capabilities.includes('cockpit:view'))return <p className="p-6">HR Cockpit is not available to your role.</p>;
  const board=query.data;const item=board?.items.find(r=>r.entity_id===(entityId??selected));
  const categoryIndex=CONTENT_TYPES.indexOf(kind);
- const CategoryIcon=contentIcons[categoryIndex];
- const rows=board?.items.filter(r=>r.kind===kind&&(!publishedOnly||(r.state==='published'&&!notLive(r))))??[];
+ const ofKind=board?.items.filter(r=>r.kind===kind)??[];
+ const statusFilter=STATUS_FILTERS.find(f=>f.value===status)??STATUS_FILTERS[0];
+ const rows=ofKind.filter(r=>statusFilter.test(r)&&(audience==='all'||r.data.audience===audience)&&matchesText(search,[r.data.title,r.data.approver_name,r.data.author_name,r.data.department,r.data.location,r.data.trainer,r.data.year]))
+  .sort((a,b)=>rank(a)-rank(b)||String(a.data.title).localeCompare(String(b.data.title),undefined,{numeric:true,sensitivity:'base'}));
+ const paged=usePaged(rows,20,`${kind}|${status}|${audience}|${search}`);
+ const filtered=status!=='active'||audience!=='all'||search!=='';
+ const chooseKind=(t:string)=>{setParams(p=>{p.set('type',contentSlugs[CONTENT_TYPES.indexOf(t)]);return p;});setSelected(null);setCreating(false);setEditing(false);setSearch('');};
+ if(caps.isLoading)return <p className="p-6">Loading access…</p>;
+ if(!caps.data?.capabilities.includes('cockpit:view'))return <p className="p-6">HR Cockpit is not available to your role.</p>;
  return <main className={`hrms-brand ${entityId?'hrms-cockpit-embedded':'hrms-workspace-page'} hrms-cockpit-page`}>
   {!entityId&&<PageHero title="HR Cockpit" intro="Share knowledge, opportunities, and what’s coming next." illustration="cockpit" tabs={tabs}
     actions={<Link className="hrms-outline-button" to="/hrms/content">Published information <ArrowUpRight size={16}/></Link>}
@@ -115,13 +155,27 @@ function ContentCockpit({entityId,tabs}:{entityId?:string;tabs?:React.ReactNode}
     ] : undefined} />}
   {query.isLoading&&<p role="status" className="hrms-work-feedback">Loading content…</p>}
   {query.isError&&<div role="alert" className="hrms-notice hrms-notice--error"><p>{getApiErrorMessage(query.error)}</p><button className="hrms-outline-button" onClick={()=>void query.refetch()}>Try again</button></div>}
-  {!entityId&&<div className="hrms-cockpit-toolbar">
-   <nav className="hrms-content-categories" aria-label="Content categories">{CONTENT_TYPES.map((t,i)=>{const Icon=contentIcons[i];return <button key={t} type="button" aria-pressed={kind===t} onClick={()=>{setKind(t);setSelected(null);setCreating(false);setEditing(false);}}><Icon size={20} strokeWidth={1.25} aria-hidden="true"/>{CONTENT_LABELS[i]}</button>;})}</nav>
-  </div>}
   {board&&!entityId&&!item&&<>
-   <section className="hrms-surface hrms-content-directory">
-    <div className="hrms-directory-heading"><span className="hrms-work-icon"><CategoryIcon size={23} strokeWidth={1.25}/></span><div><h2>{CONTENT_LABELS[categoryIndex]}</h2><p>{rows.length} {rows.length===1?'item':'items'} · {publishedOnly?'Currently published':'Draft, approve, and publish'}</p></div><div className="hrms-directory-actions"><nav className="hrms-content-categories hrms-status-filter" aria-label="Publication status"><button type="button" aria-pressed={!publishedOnly} onClick={()=>setPublishedOnly(false)}>All content</button><button type="button" aria-pressed={publishedOnly} onClick={()=>setPublishedOnly(true)}><FileCheck2 size={16}/>Published items</button></nav>{board.creatable.includes(kind)&&<button type="button" className="hrms-primary-button" onClick={()=>setCreating(true)}><Plus size={16}/>Add {contentNames[categoryIndex]}</button>}</div></div>
-    <div className="hrms-table-scroll"><table className="hrms-people-table"><thead><tr>{['Title','Status','Audience','Approver','Actions'].map(x=><th key={x}>{x}</th>)}</tr></thead><tbody>{rows.map(r=><tr key={r.entity_id}><td><button className="hrms-text-link" onClick={()=>setSelected(r.entity_id)}>{r.data.title}</button></td><td><span className="hrms-status" data-state={notLive(r)?'closed':r.state}>{statusText(r)}</span></td><td className="capitalize">{r.data.audience}</td><td>{r.data.approver_name||'—'}</td><td><button className="hrms-outline-button" onClick={()=>setSelected(r.entity_id)}>View details</button></td></tr>)}{!rows.length&&<tr><td colSpan={5}><div className="hrms-work-empty"><CategoryIcon size={28} strokeWidth={1.25}/><h3>No {publishedOnly?'published ':''}{CONTENT_LABELS[categoryIndex].toLowerCase()} yet</h3><p>{publishedOnly?'Published content will appear here with its audience and approver.':board.creatable.includes(kind)?'Create a draft to get started.':'Content shared with your role will appear here.'}</p></div></td></tr>}</tbody></table></div>
+   <section className="hrms-lk-card hrms-cockpit-list" aria-label={CONTENT_LABELS[categoryIndex]}>
+    <div className="hrms-lk-card-head">
+     <Segmented label="Content categories" value={kind} onChange={chooseKind} segments={CONTENT_TYPES.map((t,i)=>({id:t,label:CONTENT_LABELS[i],icon:contentIcons[i],count:board.items.filter(r=>r.kind===t&&r.state!=='archived'&&!r.superseded).length}))}/>
+     {board.creatable.includes(kind)&&<button type="button" className="hrms-primary-button hrms-lk-add" onClick={()=>setCreating(true)}><Plus size={16}/>Add {contentNames[categoryIndex]}</button>}
+    </div>
+    <Toolbar>
+     <SearchField value={search} onChange={setSearch} placeholder={`Search ${CONTENT_LABELS[categoryIndex].toLowerCase()}`}/>
+     <FilterSelect label="Status" value={status} onChange={setStatus} options={STATUS_FILTERS.map(f=>({value:f.value,label:`${f.label} (${ofKind.filter(f.test).length})`}))}/>
+     <FilterSelect label="Audience" value={audience} onChange={setAudience} options={AUDIENCES}/>
+     {filtered&&<button type="button" className="hrms-text-link text-sm" onClick={()=>{setStatus('active');setAudience('all');setSearch('');}}>Reset</button>}
+    </Toolbar>
+    {rows.length?<div className="hrms-lk-scroll"><table className="hrms-lk-table"><thead><tr><th>Title</th><th>Status</th><th>Audience</th><th>Approver</th><th><span className="sr-only">Open</span></th></tr></thead><tbody>{paged.items.map(r=><tr key={r.entity_id} data-row onClick={()=>setSelected(r.entity_id)} className="cursor-pointer">
+     <td><button type="button" className="hrms-lk-title" onClick={e=>{e.stopPropagation();setSelected(r.entity_id);}}>{r.data.title}</button>{detail(r)&&<span className="hrms-lk-sub">{detail(r)}</span>}</td>
+     <td data-label="Status"><span className="hrms-status" data-state={notLive(r)?'closed':r.state}>{statusText(r)}</span></td>
+     <td data-label="Audience" className="capitalize">{r.data.audience}</td>
+     <td data-label="Approver">{r.data.approver_name||'—'}</td>
+     <td className="hrms-lk-end"><span className="hrms-lk-chevron" aria-hidden="true"><ChevronRight size={16}/></span></td>
+    </tr>)}</tbody></table></div>
+    :<ListEmpty title={filtered?'Nothing matches these filters':`No ${CONTENT_LABELS[categoryIndex].toLowerCase()} yet`} text={filtered?'Try another status or search, or reset the filters.':board.creatable.includes(kind)?'Create a draft to get started.':'Content shared with your role will appear here.'} action={filtered?<button type="button" onClick={()=>{setStatus('all');setAudience('all');setSearch('');}}>Show everything</button>:undefined}/>}
+    <Pager paged={paged} noun={CONTENT_LABELS[categoryIndex].toLowerCase()}/>
    </section>
    <Sheet open={creating} onOpenChange={setCreating}><SheetContent className="hrms-brand hrms-review-drawer overflow-y-auto data-[side=right]:w-full data-[side=right]:sm:max-w-4xl"><SheetHeader><SheetTitle>Add {contentNames[categoryIndex]}</SheetTitle></SheetHeader><div className="p-6">{creating&&<Editor key={kind} kind={kind} board={board} done={()=>setCreating(false)}/>}</div></SheetContent></Sheet>
   </>}
