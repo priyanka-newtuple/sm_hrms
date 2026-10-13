@@ -7,7 +7,6 @@ import { request } from '@/core/services/api/client';
 
 vi.mock('../capabilities', () => ({ useHrmsCapabilities: () => ({ data: { capabilities: ['wfh:view','wfh:request','wfh:approve'] } }) }));
 vi.mock('@/core/services/api/client', () => ({ request: vi.fn(), getApiErrorMessage: (e: Error) => e.message }));
-vi.mock('../components/WorkPanel', () => ({ WorkPanel: () => null }));
 const api = vi.mocked(request);
 let board: WfhBoard;
 let client: QueryClient;

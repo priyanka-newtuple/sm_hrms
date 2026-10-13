@@ -1,6 +1,5 @@
 import { createRequestId } from '../requestId';
-import { BriefcaseBusiness, ArrowRight, Plus, Search, Users } from 'lucide-react';
-import { WorkPanel } from '../components/WorkPanel';
+import { BriefcaseBusiness, Plus, Search, Users } from 'lucide-react';
 import { useHrmsCapabilities } from '../capabilities';
 import { WorkflowStages, useWorkflowConfiguration, transitionLabel } from '../workflows/WorkflowConfiguration';
 import { ConfiguredForm, ConfiguredField, ConfiguredInputs, useFormSchema, formValues } from '../forms/ConfiguredForm';
@@ -146,15 +145,6 @@ export function ProjectRecovery() {
   </div>;
 }
 
-export function ProjectInbox() {
-  const board=useProjects();
-  const caps=useHrmsCapabilities();
-  const actions=board.data?.requests.filter(r=>r.state==='pending' && r.actions.includes('approve'))??[];
-  if (!caps.data?.capabilities.includes('project:view')) return null;
-  return <WorkPanel title="Projects & allocations" description="Review changes and resource requests." icon={BriefcaseBusiness} count={actions.length} loading={board.isLoading} error={board.isError ? getApiErrorMessage(board.error) : undefined} retry={() => void board.refetch()} empty="No project or allocation approvals are waiting for you.">
-    <ul>{actions.map(r=><li className="hrms-work-item" key={r.id}><p className="hrms-work-item-context">{r.kind==='HRMS.ProjectChange'?'Project approval':'Allocation approval'}</p><h3>{r.project_name}</h3><p>Requested by {val(r.data,'requested_by_name')}</p><Link className="hrms-outline-button" to={`/hrms/workflows?case=${r.id}`}>Review request <ArrowRight size={15} aria-hidden="true" /></Link></li>)}</ul>
-  </WorkPanel>;
-}
 
 function ReadableData({ data }: {data:Data}) {
   return <dl className="hrms-surface hrms-detail-grid">{Object.entries(data).filter(([k,v])=>v!=null && v!=='' && !k.endsWith('_id') && !['created_by','decided_by','proposed','revision','expected_revision','hrms_operation_key'].includes(k)).map(([k,v])=><div key={k}><dt className="text-xs text-muted-foreground">{label(k)}</dt><dd className="break-words text-sm">{String(v)}</dd></div>)}</dl>;

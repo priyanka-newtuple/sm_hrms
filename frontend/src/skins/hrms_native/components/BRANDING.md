@@ -44,9 +44,9 @@ filtering continue to come from the existing HRMS API.
 
 Use `.hrms-workspace-page` and `.hrms-workspace-heading` for page framing,
 `.hrms-resource-card` for shortcuts and `.hrms-outline-button` for secondary
-navigation. `WorkPanel` provides consistent task headings, authorized counts,
-loading/error/retry handling and empty states. Its children supply existing
-permission-aware actions; the component never decides authorization.
+navigation. My Tasks lists every waiting item in one task list (`MyWorkPage`), fed by
+`useWaitingActions`; each row carries the server-authorized action for its area, and
+the list never decides authorization itself.
 
 Quick actions is implemented in `pages/MyWorkPage.tsx`. Its inboxes reuse the
 existing cockpit and project APIs and review flows. Future HRMS screens should

@@ -1,26 +1,35 @@
+import { useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowRight, CalendarCheck2, CheckCircle2, TrendingUp, UserRoundPlus } from 'lucide-react';
+import { ArrowRight, BriefcaseBusiness, CalendarCheck2, ClipboardList, FileCheck2, Home, TrendingUp, UserRoundPlus, type LucideIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { request, getApiErrorMessage } from '@/core/services/api/client';
+import { request } from '@/core/services/api/client';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useAuth } from '../../../core/auth';
 import { useHrmsCapabilities } from '../capabilities';
-import { WorkPanel } from '../components/WorkPanel';
-import { AnimIcon, ArrowRightIcon } from '../animated-icons';
-import { LocalTime } from '../login/LocalTime';
-import { ShinyText } from '../login/reactbits';
+import { PageHero } from '../components/PageHero';
+import { Illustration } from '../components/Illustration';
+import { Pager, Segmented } from '../components/ListKit';
+import { usePaged } from '../components/useList';
 import { usePrefersReducedMotion } from '../components/useReducedMotion';
 import { formatDate, toDate, todayIso } from '../public-info/format';
-import { CockpitInbox } from './CockpitPage';
-import { ProjectInbox } from './ProjectsPage';
-import { WfhInbox } from './WorkFromHome';
+import CockpitPage, { CONTENT_LABELS, CONTENT_TYPES } from './CockpitPage';
+import { WfhDecision } from './WorkFromHome';
 import type { LeaveItem } from './LeaveRequestsPage';
-import { Illustration } from '../components/Illustration';
-import { ActionDonut } from '../workspace/ActionDonut';
 import { ComingUp } from '../workspace/ComingUp';
-import { isForbidden, retryUnlessForbidden, useWaitingActions } from '../workspace/useWaitingActions';
-import '../login/login.css';
+import { isForbidden, retryUnlessForbidden, useWaitingActions, type WaitingSource } from '../workspace/useWaitingActions';
 
-const roleName = (role: string) => role === 'superadmin' ? 'Super Admin' : role.replace(/^hrms_/, '').replaceAll('_', ' ').replace(/\b\w/g, c => c.toUpperCase());
+type Area = WaitingSource['key'];
+type Task = { key: string; area: Area; title: string; detail: string; action: ReactNode };
+
+const AREAS: Record<Area, { label: string; icon: LucideIcon; tab?: string }> = {
+  users: { label: 'New users', icon: UserRoundPlus },
+  leave: { label: 'Leave', icon: CalendarCheck2 },
+  cockpit: { label: 'HR content', icon: FileCheck2 },
+  projects: { label: 'Projects', icon: BriefcaseBusiness },
+  wfh: { label: 'Work from home', icon: Home, tab: 'WFH' },
+  performance: { label: 'Performance', icon: TrendingUp },
+  onboarding: { label: 'Onboarding', icon: ClipboardList },
+};
 
 function greeting(hour: number) {
   if (hour < 12) return 'Good morning';
@@ -28,104 +37,113 @@ function greeting(hour: number) {
   return 'Good evening';
 }
 
-/** Direct-report leave requests waiting for this user's decision (same API as the Leave page). */
-function LeaveInbox({ items, loading, error, retry }: { items: LeaveItem[]; loading: boolean; error?: string; retry: () => void }) {
-  return <WorkPanel title="Leave approvals" description="Requests from your direct reports." icon={CalendarCheck2} count={items.length} loading={loading} error={error} retry={retry} empty="No leave requests are waiting for your decision.">
-    <ul>{items.map(item => {
-      const start = toDate(item.start_date), end = toDate(item.end_date);
-      return <li className="hrms-work-item" key={item.entity_id}>
-        <p className="hrms-work-item-context">{item.leave_type}</p>
-        <h3>{item.employee_name}</h3>
-        <p>{start ? formatDate(start) : item.start_date}{end && item.end_date !== item.start_date ? ` – ${formatDate(end)}` : ''}{item.reason ? ` · ${item.reason}` : ''}</p>
-        <Link className="hrms-outline-button" to="/hrms/leave">Review request <ArrowRight size={15} aria-hidden="true" /></Link>
-      </li>;
-    })}</ul>
-  </WorkPanel>;
+/** Due dates arrive as ISO timestamps; show the calendar day. */
+const day = (iso: string | null | undefined) => { const d = toDate(iso?.slice(0, 10)); return d ? formatDate(d) : iso ?? ''; };
+const humanize = (value: string) => value.replaceAll('_', ' ').replace(/^./, c => c.toUpperCase());
+const joined = (...parts: unknown[]) => parts.filter(p => typeof p === 'string' && p.trim()).join(' · ');
+type PerformanceTask = { kind: string; data: Record<string, unknown>; cycle_name?: string; employee_name?: string; due_date?: string | null };
+const performanceTitle = (item: PerformanceTask) => {
+  const person = String(item.data.employee_name || item.employee_name || '');
+  return item.kind === 'HRMS.PerformanceCycle' ? String(item.data.name ?? 'Performance cycle')
+    : item.kind === 'HRMS.ProjectFeedback' ? `Feedback for ${person || 'a colleague'}`
+      : person ? `${person} · review` : 'Performance review';
+};
+
+function Go({ to, children }: { to: string; children: ReactNode }) {
+  return <Link className="hrms-lk-link" to={to}>{children}<ArrowRight size={13} aria-hidden="true" /></Link>;
 }
 
-/** Due dates arrive as ISO timestamps; show the calendar day. */
-const dueLabel = (iso: string) => { const day = toDate(iso.slice(0, 10)); return day ? formatDate(day) : iso; };
-const humanize = (value: string) => value.replaceAll('_', ' ').replace(/^./, c => c.toUpperCase());
-type PerformanceTask = { kind: string; data: Record<string, unknown>; cycle_name?: string; employee_name?: string };
-const performanceTitle = (item: PerformanceTask) =>
-  item.kind === 'HRMS.PerformanceCycle' ? String(item.data.name ?? 'Performance cycle')
-    : item.kind === 'HRMS.ProjectFeedback' ? `Feedback for ${item.employee_name ?? 'a colleague'}`
-      : item.employee_name ?? 'Performance review';
-const performanceContext = (item: PerformanceTask) =>
-  item.kind === 'HRMS.PerformanceCycle' ? 'Review cycle' : item.cycle_name ?? 'Performance';
-
+/**
+ * My Tasks: one prioritized list of everything waiting on the signed-in person, filterable by area,
+ * with the one action each item needs. Uses the same sources as the sidebar badge and the bell.
+ */
 export default function MyWorkPage() {
   const { user } = useAuth();
   const caps = useHrmsCapabilities();
   const motion = !usePrefersReducedMotion();
   const waiting = useWaitingActions();
-  const { sources, total, onboarding, onboardingActions, leaveApprovals, pendingLeave, performance, performanceActions } = waiting;
-  const summaryLoading = waiting.loading;
-  const { userApprovals, isSuperAdmin } = waiting;
+  const [area, setArea] = useState<string>('all');
+  const [reviewing, setReviewing] = useState<string | null>(null);
+
   const myLeave = useQuery({ queryKey: ['hrms', 'leave', 'mine'], queryFn: () => request<LeaveItem[]>('/hrms/leave-requests?view=mine&limit=100'), retry: retryUnlessForbidden,
     enabled: caps.isFetched && caps.data?.employee_profile !== false });
   const leaveUnavailable = caps.data?.employee_profile === false || isForbidden(myLeave.error);
-
   const today = todayIso();
   const nextLeave = myLeave.data?.filter(item => (item.end_date || item.start_date) >= today && !['rejected', 'cancelled'].includes(item.state))
     .sort((a, b) => a.start_date.localeCompare(b.start_date))[0];
-  const nextLeaveStart = nextLeave ? toDate(nextLeave.start_date) : null;
 
+  const tasks: Task[] = [
+    ...(waiting.userApprovals.data ?? []).map(person => ({ key: `u-${person.id}`, area: 'users' as const, title: person.full_name, detail: joined('New account', person.email),
+      action: <Go to="/settings?tab=users">Review</Go> })),
+    ...waiting.pendingLeave.map(item => ({ key: `l-${item.entity_id}`, area: 'leave' as const, title: item.employee_name,
+      detail: joined(item.leave_type, item.end_date && item.end_date !== item.start_date ? `${day(item.start_date)} – ${day(item.end_date)}` : day(item.start_date), item.reason),
+      action: <Go to="/hrms/leave">Review</Go> })),
+    ...waiting.cockpitActions.map(item => ({ key: `c-${item.entity_id}`, area: 'cockpit' as const, title: String(item.data.title ?? 'HR content'),
+      detail: joined(CONTENT_LABELS[CONTENT_TYPES.indexOf(item.kind)], item.state_label, item.data.author_name ? `by ${item.data.author_name}` : ''),
+      action: <button type="button" className="hrms-lk-link" onClick={() => setReviewing(item.entity_id)}>{item.actions.includes('approve') ? 'Review' : 'Publish'}<ArrowRight size={13} aria-hidden="true" /></button> })),
+    ...waiting.projectActions.map(item => ({ key: `p-${item.id}`, area: 'projects' as const, title: item.project_name,
+      detail: joined(item.kind === 'HRMS.ProjectChange' ? 'Project change' : 'Allocation request', item.data.requested_by_name ? `Requested by ${item.data.requested_by_name}` : ''),
+      action: <Go to={`/hrms/workflows?case=${item.id}`}>Review</Go> })),
+    ...waiting.wfhRequests.map(item => ({ key: `w-${item.entity_id}`, area: 'wfh' as const, title: item.employee_name, detail: joined(item.dates.map(d => day(d)).join(', '), item.reason),
+      action: <WfhDecision item={item} /> })),
+    ...waiting.performanceActions.map(item => ({ key: `pf-${item.id}`, area: 'performance' as const, title: performanceTitle(item),
+      detail: joined(item.kind === 'HRMS.PerformanceCycle' ? 'Review cycle' : item.cycle_name, `Next: ${item.actions.filter(a => a !== 'reassign').map(humanize).join(', ')}`, item.due_date ? `Due ${day(item.due_date)}` : ''),
+      action: <Go to="/hrms/performance">Open</Go> })),
+    ...waiting.onboardingActions.map(step => ({ key: `o-${step.caseId}-${step.sequence}`, area: 'onboarding' as const, title: step.title,
+      detail: joined(step.employee, step.due_date ? `Due ${day(step.due_date)}` : '', step.owner_name ? `Assigned to ${step.owner_name}` : ''),
+      action: <Go to={`/hrms/workflows?case=${step.caseId}`}>Open</Go> })),
+  ];
+
+  // Every area this person can act on gets a tab, so all work types are visible even when empty.
+  const areas = waiting.sources;
+  const current = area === 'all' || areas.some(s => s.key === area) ? area : 'all';
+  const visible = current === 'all' ? tasks : tasks.filter(t => t.area === current);
+  const paged = usePaged(visible, 10, current);
+  const failed = waiting.sources.filter(s => s.error);
   const firstName = user?.fullName?.trim().split(/\s+/)[0] || 'there';
-  const roles = caps.data?.roles.map(roleName) ?? [];
-
+  const dateLine = new Intl.DateTimeFormat(undefined, { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date());
+  const nextLeaveDate = nextLeave ? toDate(nextLeave.start_date) : null;
 
   return <main className={`hrms-ws-page hrms-mywork${motion ? ' hrms-ws--motion' : ''}`}>
-    <section className="hrms-mw-hero" aria-labelledby="hrms-mw-title">
-      <div className="hrms-mw-greet">
-        <LocalTime />
-        <h1 id="hrms-mw-title">My Tasks</h1>
-        <p>{greeting(new Date().getHours())}, <ShinyText text={firstName} disabled={!motion} /></p>
-        <p>Here’s what needs your attention today.</p>
-        {roles.length > 0 && <ul className="hrms-mw-roles" aria-label="Your roles">{roles.map(role => <li key={role}>{role}</li>)}</ul>}
-      </div>
-      <div className="hrms-mw-art"><Illustration name="my-work" animate={motion} /></div>
-      <aside className="hrms-mw-summary" aria-label="Summary">
-        <div>
-          <p className="hrms-mw-label">Waiting on you</p>
-          {isSuperAdmin && userApprovals.isError ? <p role="alert">Couldn’t load user approvals. <button className="hrms-mw-retry" onClick={() => void userApprovals.refetch()}>Try again</button></p> : summaryLoading ? <p className="hrms-mw-total" aria-busy="true">…</p>
-            : total > 0 ? <ActionDonut slices={sources.map(({ label, count }) => ({ label, count }))} />
-            : <><p className="hrms-mw-clear"><CheckCircle2 size={20} aria-hidden="true" />You’re all caught up</p>
-              <ul className="hrms-mw-breakdown">{sources.map(source => <li key={source.label}><span>{source.label}</span><b>{source.count}</b></li>)}</ul></>}
-        </div>
-        <div className="hrms-mw-leave">
-          <p className="hrms-mw-label">Your next time off</p>
-          {myLeave.isLoading || !caps.isFetched ? <p>Loading…</p>
-            : leaveUnavailable ? <p>Leave isn’t linked to this account because it has no employee profile.</p>
-            : myLeave.isError ? <p>Couldn’t load your leave. <button type="button" className="hrms-mw-retry" onClick={() => void myLeave.refetch()}>Try again</button></p>
-            : nextLeave && nextLeaveStart ? <p><strong>{formatDate(nextLeaveStart)}</strong> · {nextLeave.leave_type} <span className="hrms-mw-state" data-state={nextLeave.state}>{nextLeave.state}</span></p>
-            : <p>Nothing planned yet. <Link to="/hrms/leave">Request leave<AnimIcon icon={ArrowRightIcon} size={14} /></Link></p>}
-        </div>
-      </aside>
-    </section>
+    <PageHero title={`${greeting(new Date().getHours())}, ${firstName}`} illustration="my-work"
+      intro={`${dateLine} · ${waiting.loading ? 'Checking what needs you…' : waiting.total ? `${waiting.total} ${waiting.total === 1 ? 'item needs' : 'items need'} your attention.` : 'You’re all caught up.'}`}
+      actions={leaveUnavailable ? undefined : <Link className="hrms-primary-button" to="/hrms/leave">Request leave</Link>}
+      stats={[
+        { label: 'Waiting on you', value: waiting.loading ? '…' : waiting.total, tone: waiting.total ? 'attention' : 'positive' },
+        { label: 'Next time off', value: leaveUnavailable ? '—' : myLeave.isLoading || !caps.isFetched ? '…' : nextLeaveDate ? <span title={`${nextLeave?.leave_type} · ${nextLeave?.state}`}>{formatDate(nextLeaveDate)}</span> : 'None planned' },
+      ]} />
 
-    {/* Focused on tasks and approvals (follows main): no shortcut cards; the sidebar covers navigation. */}
-    <ComingUp />
-
-    <header className="hrms-mw-section">
-      <div><h2>Tasks &amp; approvals</h2><p>Actions you can take, based on your role and assignments.</p></div>
-      <Link className="hrms-outline-button" to="/hrms/workflows">View all workflows <ArrowRight size={16} aria-hidden="true" /></Link>
-    </header>
-    {caps.isError && <div role="alert" className="hrms-work-feedback"><p>Some work areas couldn’t be loaded.</p><button className="hrms-outline-button" onClick={() => void caps.refetch()}>Retry permissions</button></div>}
-    <div className="hrms-work-panels">
-      {isSuperAdmin && <WorkPanel title="New user approvals" description="Review new accounts before they can sign in." icon={UserRoundPlus} count={userApprovals.data?.length ?? 0} loading={userApprovals.isLoading} error={userApprovals.isError ? getApiErrorMessage(userApprovals.error) : undefined} retry={() => void userApprovals.refetch()} empty="No new accounts are waiting for approval.">
-        <ul>{userApprovals.data?.map(person => <li className="hrms-work-item" key={person.id}><h3>{person.full_name}</h3><p>{person.email}</p><Link className="hrms-outline-button" to="/settings?tab=users">Review in Users <ArrowRight size={15} aria-hidden="true" /></Link></li>)}</ul>
-      </WorkPanel>}
-      {(leaveApprovals.data?.length ?? 0) > 0 && <LeaveInbox items={pendingLeave} loading={leaveApprovals.isLoading} error={leaveApprovals.isError ? getApiErrorMessage(leaveApprovals.error) : undefined} retry={() => void leaveApprovals.refetch()} />}
-      <CockpitInbox />
-      <ProjectInbox />
-      <WfhInbox />
-      {performance.isSuccess && <WorkPanel title="Performance" description="Goals, reviews and feedback waiting for you." icon={TrendingUp} count={performanceActions.length} loading={performance.isLoading} error={undefined} retry={() => void performance.refetch()} empty="No performance tasks are waiting for you.">
-        <ul>{performanceActions.map(item => <li className="hrms-work-item" key={item.id}><p className="hrms-work-item-context">{performanceContext(item)}</p><h3>{performanceTitle(item)}</h3><p>Next: {item.actions.filter(action => action !== 'reassign').map(humanize).join(', ')}</p><Link className="hrms-outline-button" to="/hrms/performance">Open performance <ArrowRight size={15} aria-hidden="true" /></Link></li>)}</ul>
-      </WorkPanel>}
-      <WorkPanel title="Onboarding tasks" description="Help new colleagues get started." icon={UserRoundPlus} count={onboardingActions.length} loading={onboarding.isLoading} error={onboarding.isError ? getApiErrorMessage(onboarding.error) : undefined} retry={() => void onboarding.refetch()} empty="No onboarding tasks are waiting for you.">
-        <ul>{onboardingActions.map(a => <li className="hrms-work-item" key={`${a.caseId}-${a.sequence}`}><p className="hrms-work-item-context">{a.employee}</p><h3>{a.title}</h3><p>Assigned to {a.owner_name}{a.due_date ? ` · Due ${dueLabel(a.due_date)}` : ''}</p><Link className="hrms-outline-button" to={`/hrms/workflows?case=${a.caseId}`}>Open task <ArrowRight size={15} aria-hidden="true" /></Link></li>)}</ul>
-      </WorkPanel>
+    <div className="hrms-mw-layout">
+      <section className="hrms-lk-card hrms-mw-tasks" aria-labelledby="hrms-tasks-title">
+        <div className="hrms-lk-card-head">
+          <h2 id="hrms-tasks-title">Tasks &amp; approvals</h2>
+          <Link className="hrms-coming-all" to="/hrms/workflows">All workflows<ArrowRight size={14} aria-hidden="true" /></Link>
+        </div>
+        {areas.length > 1 && <div className="hrms-mw-areas"><Segmented label="Filter by area" value={current} onChange={setArea}
+          segments={[{ id: 'all', label: 'All', count: tasks.length }, ...areas.map(s => ({ id: s.key, label: AREAS[s.key].tab ?? AREAS[s.key].label, count: s.loading && !s.error ? undefined : s.count }))]} /></div>}
+        {failed.length > 0 && <div role="alert" className="hrms-task-alert">Couldn’t load {failed.map(s => AREAS[s.key].label).join(', ')}.<button type="button" onClick={() => failed.forEach(s => s.retry())}>Try again</button></div>}
+        {visible.length > 0 ? <ul className="hrms-task-list">{paged.items.map(task => {
+          const Icon = AREAS[task.area].icon;
+          return <li key={task.key} className="hrms-task">
+            <span className="hrms-task-icon" title={AREAS[task.area].label}><Icon size={16} aria-hidden="true" /></span>
+            <div className="hrms-task-main">
+              <strong>{task.title}</strong>
+              <small>{current === 'all' && <span className="hrms-task-area">{AREAS[task.area].label}</span>}{task.detail}</small>
+            </div>
+            <div className="hrms-task-action">{task.action}</div>
+          </li>;
+        })}</ul> : waiting.loading ? <ul className="hrms-task-list" aria-busy="true" aria-label="Loading tasks">{[0, 1, 2].map(i => <li key={i} className="hrms-task hrms-task--skeleton" />)}</ul>
+          : <div className="hrms-task-empty"><Illustration name="all-clear" animate={motion} className="hrms-task-empty-art" /><h3>{current === 'all' ? 'You’re all caught up' : `Nothing waiting in ${AREAS[current as Area].label}`}</h3><p>{current === 'all' ? 'New approvals and tasks for your role will appear here.' : 'New items will appear here as soon as they need you.'}</p></div>}
+        <Pager paged={paged} noun={current === 'all' ? 'tasks' : AREAS[current as Area].label.toLowerCase()} />
+      </section>
+      <ComingUp />
     </div>
+
+    <Sheet open={reviewing !== null} onOpenChange={open => { if (!open) setReviewing(null); }}>
+      <SheetContent className="hrms-brand hrms-review-drawer overflow-y-auto data-[side=right]:w-full data-[side=right]:sm:max-w-4xl">
+        <SheetHeader><SheetTitle>Review HR content</SheetTitle></SheetHeader>
+        {reviewing && <CockpitPage key={reviewing} entityId={reviewing} />}
+      </SheetContent>
+    </Sheet>
   </main>;
 }

@@ -1,12 +1,10 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Home, ChevronLeft, ChevronRight } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { request, getApiErrorMessage } from '@/core/services/api/client';
 import { useHrmsCapabilities } from '../capabilities';
 import { createRequestId } from '../requestId';
 import { ConfiguredInputs, ConfiguredForm, useFormSchema, commandValues } from '../forms/ConfiguredForm';
-import { WorkPanel } from '../components/WorkPanel';
 import { Segmented } from '../components/ListKit';
 
 type Policy = { year: number; annual_days: number; notice_days: number; revision: number };
@@ -47,6 +45,12 @@ function PolicyEditor({ policy, year }: { policy: Policy | null; year: number })
     </form></ConfiguredForm>
     <p className="hrms-muted mt-4">Pending requests reserve allowance. The annual limit cannot be reduced below existing pending and approved bookings. Changes to notice apply to new requests.</p>
   </section>;
+}
+
+/** Approve / reject buttons for one request, labelled from its configured workflow. */
+export function WfhDecision({ item }: { item: Booking }) {
+  const command = useCommand(`/hrms/wfh/requests/${item.entity_id}/actions`);
+  return <div className="hrms-task-buttons">{item.actions.map(trigger => <button type="button" key={trigger} className="hrms-lk-link" disabled={command.pending !== null} onClick={() => command.submit({ trigger })}>{item.workflow_configuration.transitions.find(t => t.trigger === trigger && t.from_state === item.state)?.label ?? trigger}</button>)}{command.feedback}</div>;
 }
 
 export function WfhRequestRow({ item }: { item: Booking }) {
@@ -105,10 +109,3 @@ export function WorkFromHome({ cockpit = false }: { cockpit?: boolean }) {
   </section>;
 }
 
-export function WfhInbox() {
-  const caps = useHrmsCapabilities();
-  const query = useWfhInbox();
-  if (!caps.data?.capabilities.includes('wfh:approve')) return null;
-  const rows = query.data ?? [];
-  return <WorkPanel title="Work from home approvals" description="Review employee work location requests." icon={Home} count={rows.length} loading={query.isLoading} error={query.isError ? getApiErrorMessage(query.error) : undefined} retry={() => void query.refetch()} empty="No WFH requests are waiting for you."><ul>{rows.map(r => <WfhRequestRow key={r.entity_id} item={r} />)}</ul><Link className="hrms-text-link" to="/hrms/cockpit?area=wfh">Open HR Cockpit</Link></WorkPanel>;
-}
