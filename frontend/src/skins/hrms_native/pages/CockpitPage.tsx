@@ -4,7 +4,6 @@ import { createRequestId } from '../requestId';
 import { FileText, BookOpen, CalendarDays, BriefcaseBusiness, Users, Plus, ArrowUpRight, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { WorkFromHome } from './WorkFromHome';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { request, getApiErrorMessage } from '@/core/services/api/client';
 import { Button } from '@/components/ui/button';
@@ -93,12 +92,13 @@ export default function CockpitPage({entityId}:{entityId?:string}) {
  if(caps.isLoading)return <p role="status">Loading HR access...</p>;
  if(caps.isError)return <p role="alert">Could not load HR access. <button onClick={()=>void caps.refetch()}>Try again</button></p>;
  const allowed=(cap:string)=>caps.data?.capabilities.includes(cap)??false;
- const areas=[...(allowed('cockpit:view')?[{id:'publishing',label:'Content & publishing'}]:[]),...(allowed('onboarding:view')?[{id:'onboarding',label:'Onboarding'},{id:'offboarding',label:'Offboarding'}]:[]),...(allowed('wfh:approve')?[{id:'wfh',label:'Work from home'}]:[])];
+ // Work from home lives on its own page; its approvals are on My Tasks.
+ const areas=[...(allowed('onboarding:view')?[{id:'onboarding',label:'Onboarding'}]:[]),...(allowed('cockpit:view')?[{id:'publishing',label:'Content & publishing'}]:[]),...(allowed('onboarding:view')?[{id:'offboarding',label:'Offboarding'}]:[])];
  if(!areas.length)return <p className="p-6">HR Cockpit is not available to your role.</p>;
  const area=areas.find(a=>a.id===params.get('area'))?.id??areas[0].id;
  const tabs=<Segmented variant="underline" label="HR Cockpit areas" value={area} onChange={id=>setParams({area:id})} segments={areas.map(a=>({id:a.id,label:a.label,badge:a.id==='offboarding'?'Soon':undefined}))}/>;
  if(area==='publishing')return <ContentCockpit tabs={tabs}/>;
- return <main className="hrms-workspace-page"><PageHero title="HR Cockpit" intro={area==='offboarding'?'Employee offboarding is coming soon.':area==='onboarding'?'Coordinate onboarding and help new colleagues settle in.':'Review work-from-home requests and set the yearly policy.'} illustration="cockpit" tabs={tabs}/>{area==='onboarding'?<section className="hrms-surface p-6"><h2 className="hrms-section-heading">Onboarding</h2><p className="mb-4">Add a new employee to your organization.</p><AddEmployee/></section>:area==='offboarding'?<section className="hrms-surface p-6"><h2 className="hrms-section-heading">Offboarding</h2><p className="text-sm text-muted-foreground">Coming soon</p><p className="mt-3">Employee exit workflows will be available here.</p></section>:<WorkFromHome cockpit/>}</main>;
+ return <main className="hrms-workspace-page"><PageHero title="HR Cockpit" intro={area==='offboarding'?'Employee offboarding is coming soon.':'Coordinate onboarding and help new colleagues settle in.'} illustration="cockpit" tabs={tabs}/>{area==='onboarding'?<section className="hrms-surface p-6"><h2 className="hrms-section-heading">Onboarding</h2><p className="mb-4">Add a new employee to your organization.</p><AddEmployee/></section>:<section className="hrms-surface p-6"><h2 className="hrms-section-heading">Offboarding</h2><p className="text-sm text-muted-foreground">Coming soon</p><p className="mt-3">Employee exit workflows will be available here.</p></section>}</main>;
 }
 
 function ContentCockpit({entityId,tabs}:{entityId?:string;tabs?:React.ReactNode}) {

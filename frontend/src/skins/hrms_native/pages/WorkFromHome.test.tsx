@@ -16,10 +16,10 @@ beforeEach(() => {
   client = new QueryClient({defaultOptions: {queries: {retry: false, gcTime: 0}, mutations: {retry: false}}});
 });
 afterEach(() => { cleanup(); client.clear(); vi.clearAllMocks(); });
-function show(cockpit = false) { render(<QueryClientProvider client={client}><MemoryRouter><WorkFromHome cockpit={cockpit} /></MemoryRouter></QueryClientProvider>); }
+function show() { render(<QueryClientProvider client={client}><MemoryRouter><WorkFromHome /></MemoryRouter></QueryClientProvider>); }
 
-it('puts policy configuration inside HR Cockpit', async () => {
-  show(true);
+it('lets HR who may configure set the yearly policy on the Work from Home page', async () => {
+  show();
   fireEvent.click(await screen.findByRole('button', {name: 'Policy'}));
   fireEvent.change(await screen.findByLabelText('Annual allowance (days)'), {target: {value: '30'}});
   fireEvent.click(screen.getByRole('button', {name: 'Save policy'}));

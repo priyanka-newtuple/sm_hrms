@@ -242,7 +242,7 @@ export function WorkspaceShell() {
       { path: '/hrms/allocations', label: 'Allocations', icon: LayoutGridIcon, keywords: 'capacity staffing' },
     ] : [] },
     { label: 'Management', standalone: true, items: [
-      ...((allowed('cockpit:view') || allowed('onboarding:view') || allowed('wfh:approve')) ? [{ path: '/hrms/cockpit', label: 'HR Cockpit', icon: SlidersHorizontalIcon, keywords: 'onboarding policies holidays careers publish HR' }] : []),
+      ...((allowed('cockpit:view') || allowed('onboarding:view')) ? [{ path: '/hrms/cockpit', label: 'HR Cockpit', icon: SlidersHorizontalIcon, keywords: 'onboarding policies holidays careers publish HR' }] : []),
       ...((allowed('asset:view') || allowed('asset:manage')) ? [{ path: '/hrms/assets', label: 'Asset Management', icon: LayoutGridIcon, keywords: 'inventory equipment laptops issue' }] : []),
     ] },
   ].filter(group => group.items.length);
