@@ -60,10 +60,11 @@ export function WfhRequestRow({ item }: { item: Booking }) {
   </li>;
 }
 
-export function WorkFromHome({ cockpit = false }: { cockpit?: boolean }) {
+/** Calendar and own requests for everyone; all requests and the yearly policy for HR who may approve or configure. */
+export function WorkFromHome() {
   const caps = useHrmsCapabilities();
   const [month, setMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
-  const [tab, setTab] = useState(cockpit ? 'requests' : 'calendar');
+  const [tab, setTab] = useState('calendar');
   const [selected, setSelected] = useState<string[]>([]);
   const [values,setValues]=useState<Record<string,unknown>>({});
   const schema=useFormSchema('HRMS.WorkFromHomeRequest',caps.data?.capabilities.includes('wfh:request')??false);
@@ -73,7 +74,8 @@ export function WorkFromHome({ cockpit = false }: { cockpit?: boolean }) {
   const query = useWfh(year);
   const command = useCommand('/hrms/wfh/requests', () => { setSelected([]); setValues({}); setTab('requests'); });
   const board = query.data;
-  const visibleRequests = board?.requests.filter(r => cockpit || r.is_mine) ?? [];
+  const manage = board?.can_approve ?? false;
+  const visibleRequests = board?.requests.filter(r => manage || r.is_mine) ?? [];
   function changeMonth(delta: number) { setMonth(d => new Date(d.getFullYear(), d.getMonth() + delta, 1)); setSelected([]); }
   const prefix = localDate(month).slice(0, 7);
   const count = new Date(year, month.getMonth() + 1, 0).getDate();
@@ -82,14 +84,14 @@ export function WorkFromHome({ cockpit = false }: { cockpit?: boolean }) {
   if (caps.isError) return <p role="alert">Could not load WFH access. <button onClick={() => void caps.refetch()}>Try again</button></p>;
   if (!caps.data?.capabilities.includes('wfh:view')) return <p>Work from home is not available to your role.</p>;
   return <section className="hrms-wfh" aria-label="Work from home">
-    <div className="hrms-wfh-toolbar"><Segmented label="WFH views" value={tab} onChange={setTab} segments={[{ id: 'calendar', label: 'Calendar' }, { id: 'requests', label: cockpit ? 'Requests & approvals' : 'My requests' }, ...(cockpit && board?.can_configure ? [{ id: 'policy', label: 'Policy' }] : [])]} /><div className="hrms-wfh-month"><button type="button" className="hrms-outline-button" aria-label="Previous month" disabled={command.pending !== null || year <= 2000} onClick={() => changeMonth(-1)}><ChevronLeft size={18} /></button><strong>{month.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</strong><button type="button" className="hrms-outline-button" aria-label="Next month" disabled={command.pending !== null || year >= 2100} onClick={() => changeMonth(1)}><ChevronRight size={18} /></button></div></div>
+    <div className="hrms-wfh-toolbar"><Segmented label="WFH views" value={tab} onChange={setTab} segments={[{ id: 'calendar', label: 'Calendar' }, { id: 'requests', label: manage ? 'Requests & approvals' : 'My requests' }, ...(board?.can_configure ? [{ id: 'policy', label: 'Policy' }] : [])]} /><div className="hrms-wfh-month"><button type="button" className="hrms-outline-button" aria-label="Previous month" disabled={command.pending !== null || year <= 2000} onClick={() => changeMonth(-1)}><ChevronLeft size={18} /></button><strong>{month.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</strong><button type="button" className="hrms-outline-button" aria-label="Next month" disabled={command.pending !== null || year >= 2100} onClick={() => changeMonth(1)}><ChevronRight size={18} /></button></div></div>
     {query.isLoading && <p role="status">Loading work from home…</p>}
     {query.isError && <div role="alert" className="hrms-notice hrms-notice--error">{getApiErrorMessage(query.error)} <button className="hrms-outline-button" onClick={() => void query.refetch()}>Try again</button></div>}
     {board && <>
       {!board.policy && <p className="hrms-notice">HR has not configured a WFH policy for {year} yet.</p>}
       {board.can_request && board.policy && <p className="hrms-notice">{board.policy.annual_days} days allowed · {board.balance.used} used · {board.balance.upcoming} upcoming · {board.balance.pending} pending · <strong>{board.balance.remaining} remaining</strong></p>}
-      {tab === 'policy' && cockpit && board.can_configure && <PolicyEditor key={`${year}-${board.policy?.revision ?? 0}`} policy={board.policy} year={year} />}
-      {tab === 'requests' && <section className="hrms-surface p-6"><h2 className="hrms-section-heading">{cockpit ? 'Requests & approvals' : 'My requests'} · {year}</h2><p className="hrms-muted">HR reviews requests here. Pending dates are private and reserve allowance.</p><ul>{visibleRequests.map(r => <WfhRequestRow key={r.entity_id} item={r} />)}</ul>{visibleRequests.length === 0 && <p className="hrms-work-empty">No WFH requests for this year.</p>}</section>}
+      {tab === 'policy' && board.can_configure && <PolicyEditor key={`${year}-${board.policy?.revision ?? 0}`} policy={board.policy} year={year} />}
+      {tab === 'requests' && <section className="hrms-surface p-6"><h2 className="hrms-section-heading">{manage ? 'Requests & approvals' : 'My requests'} · {year}</h2><p className="hrms-muted">HR reviews requests here. Pending dates are private and reserve allowance.</p><ul>{visibleRequests.map(r => <WfhRequestRow key={r.entity_id} item={r} />)}</ul>{visibleRequests.length === 0 && <p className="hrms-work-empty">No WFH requests for this year.</p>}</section>}
       {tab === 'calendar' && <>
         <label className="block mb-4">Search employees or departments<input className="hrms-field-input" value={search} onChange={e => setSearch(e.target.value)} /></label>
         <p className="hrms-muted mb-4">Approved WFH dates are visible to everyone in your organization. An empty day does not confirm office attendance.</p>
