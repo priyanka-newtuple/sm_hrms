@@ -2,6 +2,7 @@
 from contextlib import asynccontextmanager
 from json import JSONDecodeError
 import logging
+import asyncio
 import os
 from uuid import UUID
 
@@ -37,6 +38,17 @@ class EmployeeAccessRequest(BaseModel):
     idempotency_key: str = Field(min_length=8, max_length=128)
 
 
+class EmployeeWorkflowAction(BaseModel):
+    workflow_id: UUID
+    trigger: str = Field(min_length=1, max_length=200)
+    idempotency_key: str = Field(min_length=8, max_length=128)
+
+
+class EmployeeFormSave(BaseModel):
+    workflow_id: UUID
+    values: dict = Field(default_factory=dict)
+
+
 class Decision(BaseModel):
     trigger: str
     idempotency_key: str = Field(min_length=8, max_length=128)
@@ -62,8 +74,25 @@ def create_app(platform=None, journal=None):
     @asynccontextmanager
     async def lifespan(app):
         journal.initialize()
-        yield
-        platform.close()
+        stopping = asyncio.Event()
+        async def sync_accounts():
+            from .employee_lifecycle import reconcile
+            while not stopping.is_set():
+                try:
+                    await asyncio.to_thread(reconcile, service)
+                except Exception:
+                    logging.getLogger(__name__).exception('Employee account synchronization failed')
+                try:
+                    await asyncio.wait_for(stopping.wait(), timeout=30)
+                except TimeoutError:
+                    pass
+        worker = asyncio.create_task(sync_accounts())
+        try:
+            yield
+        finally:
+            stopping.set()
+            await worker
+            platform.close()
 
     app = FastAPI(title='HRMS Application API', version='1.0.0', lifespan=lifespan)
 
@@ -76,7 +105,48 @@ def create_app(platform=None, journal=None):
         if not authorization.lower().startswith('bearer '):
             raise AppError(401, 'Sign in to continue')
         current = platform.actor(authorization.split(' ', 1)[1])
+        if 'hrms_onboarding_employee' in current.roles:
+            path = request.url.path
+            allowed = path in {'/v1/api/hrms/employee-work', '/v1/api/hrms/capabilities', '/v1/api/hrms/organization'} or path.startswith('/v1/api/hrms/employee-work/')
+            if not allowed:
+                raise AppError(403, 'Complete your onboarding before accessing other modules')
         return current
+
+    @app.get('/v1/api/hrms/employee-work/{entity_id}/assets')
+    def employee_assets(entity_id: UUID, workflow_id: UUID, current=Depends(actor)):
+        from .onboarding_assets import board
+        return board(assets, current, str(entity_id), str(workflow_id))
+
+    @app.post('/v1/api/hrms/employee-work/{entity_id}/assets/{asset_id}')
+    def employee_issue_asset(entity_id: UUID, asset_id: UUID, workflow_id: UUID, payload: AssetCommand, current=Depends(actor)):
+        from .onboarding_assets import issue
+        return issue(assets, current, str(entity_id), str(workflow_id), str(asset_id), payload)
+
+    @app.get('/v1/api/hrms/onboarding-tracker')
+    def employee_onboarding_tracker(current=Depends(actor)):
+        from .employee_work import onboarding_tracker
+        return onboarding_tracker(platform, current)
+
+    @app.get('/v1/api/hrms/employee-work')
+    def employee_inbox(current=Depends(actor)):
+        from .employee_work import employee_work
+        return employee_work(platform, current)
+
+    @app.post('/v1/api/hrms/employee-work/{entity_id}/actions')
+    def employee_action(entity_id: UUID, payload: EmployeeWorkflowAction, current=Depends(actor)):
+        from .employee_work import transition_employee
+        return transition_employee(platform, current, str(entity_id), str(payload.workflow_id),
+                                   payload.trigger, payload.idempotency_key)
+
+    @app.get('/v1/api/hrms/employee-work/{entity_id}/form')
+    def employee_work_form(entity_id: UUID, workflow_id: UUID, current=Depends(actor)):
+        from .employee_work import employee_form
+        return employee_form(platform, current, str(entity_id), str(workflow_id))
+
+    @app.put('/v1/api/hrms/employee-work/{entity_id}/form')
+    def employee_work_save(entity_id: UUID, payload: EmployeeFormSave, current=Depends(actor)):
+        from .employee_work import save_employee_form
+        return save_employee_form(platform, current, str(entity_id), str(payload.workflow_id), payload.values)
 
     @app.get('/health')
     def health():
@@ -139,7 +209,7 @@ def create_app(platform=None, journal=None):
     @app.get('/v1/api/hrms/capabilities')
     def get_capabilities(current=Depends(actor)):
         return {'capabilities': sorted(capabilities(current)), 'roles': sorted(current.roles),
-                'employee_profile': service.has_employee_profile(current)}
+                'employee_profile': 'hrms_onboarding_employee' not in current.roles and service.has_employee_profile(current)}
 
     @app.get('/v1/api/hrms/organization')
     def current_organization(current=Depends(actor)):
@@ -149,9 +219,9 @@ def create_app(platform=None, journal=None):
         return {key: organization.get(key) for key in ('id', 'name', 'slug', 'domain', 'status')}
 
     @app.get('/v1/api/hrms/forms/{entity_type}')
-    def form_configuration_view(entity_type: str, current=Depends(actor)):
+    def form_configuration_view(entity_type: str, purpose: str = 'record', current=Depends(actor)):
         from .form_config import form_configuration
-        return form_configuration(platform, current, entity_type)
+        return form_configuration(platform, current, entity_type, purpose)
 
     @app.get('/v1/api/hrms/user-approvals')
     def pending_user_approvals(current=Depends(actor)):
@@ -321,6 +391,11 @@ def create_app(platform=None, journal=None):
                 (path.startswith('workflow-state-machines/') and path.endswith('/active'))):
             from starlette.concurrency import run_in_threadpool
             await run_in_threadpool(platform.actor, token)
+        elif (request.method == 'GET' and path == 'config/file-types') or path.startswith('filehandler/'):
+            from .employee_work import authorize_employee_file
+            from starlette.concurrency import run_in_threadpool
+            current = await run_in_threadpool(platform.actor, token)
+            await run_in_threadpool(authorize_employee_file, platform, current, request.method, path, dict(request.query_params))
         elif configuration_route(request.method, path, platform.org):
             from starlette.concurrency import run_in_threadpool
             current = await run_in_threadpool(platform.actor, token)

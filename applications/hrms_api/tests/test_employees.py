@@ -36,6 +36,12 @@ class DirectoryPlatform:
     def users(self):
         return [dict(id='u1', role='hrms_finance', status='active', auth_type='local', organization_id='org')]
 
+    def request(self, method, path, **kwargs):
+        assert method == 'GET' and path == '/workflow-enrollments'
+        assert kwargs['token'] == 'human'
+        return {'items': [dict(entity_id='e1', organization_id='org', entity_type='HRMS.Employee',
+                               current_state='Email Setup', transition_options=[])], 'has_more': False}
+
     def states(self, machine):
         return {}
 
@@ -57,6 +63,7 @@ def test_hr_who_assigns_roles_can_add_office_admin_and_finance_staff():
 def test_the_directory_shows_the_accounts_current_role():
     rows = HrmsService(DirectoryPlatform(), None, 'newtuple.com').directory(actor('hr', 'hrms_hr_full'))
     assert [(r['entity_id'], r['role']) for r in rows] == [('e1', 'hrms_finance')]
+    assert rows[0]['onboarding_state'] == 'Email Setup'
 
 
 def test_onboarding_cases_need_onboarding_view_not_directory_read():
@@ -281,3 +288,19 @@ def test_a_hire_who_never_joined_is_offboarded_straight_away():
     platform.rows['dev']['data']['date_joined'] = (TODAY + timedelta(days=14)).isoformat()  # due to join in two weeks
     result = service(platform).exit_employee(hr(), 'dev', exit_request(0, reason='did_not_join'))
     assert result['employment_status'] == 'offboarded' and platform.status['dev-user'] == 'suspended'
+
+
+@pytest.mark.parametrize('status', [403, 502])
+def test_directory_workflow_errors_are_not_shown_as_not_started(status):
+    platform = DirectoryPlatform()
+    def fail(*args, **kwargs):
+        raise AppError(status, 'Workflow lookup failed')
+    platform.request = fail
+    service = HrmsService(platform, None, 'newtuple.com')
+    if status == 403:
+        item = service.directory(actor('hr', 'hrms_hr_full'))[0]
+        assert item['onboarding_state'] is None
+        assert item['onboarding_status_message'] == 'Workflow access restricted'
+    else:
+        with pytest.raises(AppError):
+            service.directory(actor('hr', 'hrms_hr_full'))

@@ -12,7 +12,7 @@ let board: WfhBoard;
 let client: QueryClient;
 beforeEach(() => {
   board = { policy: {year: new Date().getFullYear(), annual_days: 24, notice_days: 0, revision: 1}, requests: [], calendar: [], can_configure: true, can_approve: true, can_request: true, balance: {used: 0, upcoming: 0, pending: 0, remaining: 24} };
-  api.mockImplementation(async (path) => path.includes('/forms/')?{fields:path.endsWith('Policy')?[{field:'annual_days',type:'integer',description:'Annual allowance (days)',required:true},{field:'notice_days',type:'integer',required:true}]:[{field:'reason',type:'text'}]}:board);
+  api.mockImplementation(async (path) => path.includes('/forms/')?{fields:path.split('?')[0].endsWith('Policy')?[{field:'annual_days',type:'integer',description:'Annual allowance (days)',required:true},{field:'notice_days',type:'integer',required:true}]:[{field:'reason',type:'text'}]}:board);
   client = new QueryClient({defaultOptions: {queries: {retry: false, gcTime: 0}, mutations: {retry: false}}});
 });
 afterEach(() => { cleanup(); client.clear(); vi.clearAllMocks(); });

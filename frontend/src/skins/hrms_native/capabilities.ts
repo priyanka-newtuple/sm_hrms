@@ -14,5 +14,6 @@ export function useHrmsCapabilities() {
     // employee_profile: whether the account is linked to an employee, which self-service (leave) needs.
     queryFn: () => request<{ capabilities: string[]; roles: string[]; employee_profile?: boolean }>('/hrms/capabilities'),
     staleTime: 0,
+    refetchInterval: query => query.state.data?.roles.includes('hrms_onboarding_employee') ? 30_000 : false,
   });
 }

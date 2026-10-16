@@ -116,3 +116,31 @@ def test_definite_workflow_rejection_restores_available_asset(system):
         command(s, 'issue', {'issued_employee_id': 'employee-one', 'issued_date': '2026-01-01'}, aid)
     assert not p.rows[aid]['data'].get('issued_employee_id')
     command(s, 'edit', {'asset_name': 'Updated'}, aid)
+
+
+def test_relation_failure_can_retry_without_reassigning_asset(system, monkeypatch):
+    import hrms_app.onboarding_assets as links
+    s,p,_=system
+    aid=create(s)
+    attempts=[]
+    def relation(platform,asset,employee):
+        attempts.append((asset,employee))
+        if len(attempts)==1:raise AppError(503,'Temporary relationship failure')
+    monkeypatch.setattr(links,'ensure_relation',relation)
+    data={'issued_employee_id':'employee-one','issued_date':'2026-01-01'}
+    with pytest.raises(AppError):command(s,'issue',data,aid)
+    assert p.rows[aid]['state']=='issued'
+    with pytest.raises(AppError):command(s,'issue',{**data,'issued_employee_id':'employee-two'},aid,key='different-key')
+    command(s,'issue',data,aid)
+    command(s,'issue',data,aid)
+    assert attempts==[(aid,'employee-one'),(aid,'employee-one')]
+    assert p.rows[aid]['data']['issued_employee_id']=='employee-one'
+
+
+def test_same_employee_can_receive_multiple_assets(system):
+    s,p,_=system
+    first=create(s)
+    second=command(s,'create',{'asset_tag':'NT-002','asset_name':'Monitor','asset_category':'Monitor','asset_condition':'Good'},key='create-monitor')['entity_id']
+    for aid in (first,second):
+        command(s,'issue',{'issued_employee_id':'employee-one','issued_date':'2026-01-01'},aid,key='issue-'+aid)
+    assert len(s.board(actor('one','hrms_employee'))['items'])==2

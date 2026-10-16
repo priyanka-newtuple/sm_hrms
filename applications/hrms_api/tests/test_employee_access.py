@@ -136,6 +136,10 @@ class ProvisioningPlatform(Platform):
         self.has_identity = existing
         self.rows = {}
         self.registered = 0
+        self.workflows = [dict(entity_type='HRMS.Employee', is_active=True, machine_name='configured_employee', definition={})]
+        self.enrollments = {}
+        self.enroll_calls = 0
+        self.fail_enroll = False
 
     def users(self):
         return super().users() if self.has_identity else []
@@ -152,8 +156,16 @@ class ProvisioningPlatform(Platform):
     def record(self, key):
         return deepcopy(self.rows[key])
 
-    def enroll(self, *args):
-        return 'in_progress'
+    def states(self, machine):
+        return {key: state for (key, name), state in self.enrollments.items() if name == machine}
+
+    def enroll(self, key, machine):
+        assert self.rows[key]['data']['platform_user_id'] == 'user'
+        self.enroll_calls += 1
+        self.enrollments[key, machine] = 'Employee Registration'
+        if self.fail_enroll:
+            raise AppError(503, 'Response lost after enrollment')
+        return 'Employee Registration'
 
     def tasks(self, case):
         return self.steps_by_case().get(case, [])
@@ -174,6 +186,8 @@ class ProvisioningPlatform(Platform):
         return dict(organization_id='org', approval_type='pending_org_admin', user_id='user')
 
     def call(self, method, path, **kwargs):
+        if path == '/workflow-state-machines':
+            return {'published_items': deepcopy(self.workflows)}
         if method == 'GET' and path in EMPLOYEE_FORM_ROUTES:
             return deepcopy(EMPLOYEE_FORM_ROUTES[path])
         if path == '/organizations/current':
@@ -194,6 +208,28 @@ def employee_request(**values):
     from hrms_app.requests import EmployeeCreateRequest
     return EmployeeCreateRequest(**{**dict(first_name='New', last_name='Employee', work_email='new@newtuple.com',
         department='Engineering', designation='Engineer', date_joined='2026-10-08', idempotency_key='employee-op'), **values})
+
+
+def test_registration_without_email_creates_only_employee_and_enrollment(monkeypatch):
+    from hrms_app import form_config
+    fields = [{'field': key, 'type': 'string'} for key in ['first_name', 'last_name', 'department', 'designation', 'hrms_role']]
+    fields.append({'field': 'date_joined', 'type': 'datetime'})
+    monkeypatch.setattr(form_config, 'registration_form', lambda p: {'fields': fields})
+    p = ProvisioningPlatform(False)
+    def enroll(eid, machine):
+        p.enroll_calls += 1
+        p.enrollments[eid, machine] = 'Employee Registration'
+        return 'Employee Registration'
+    p.enroll = enroll
+    s = HrmsService(p, Journal(), 'newtuple.com')
+    who = actor('admin', 'superadmin')
+    req = employee_request(work_email=None)
+    result = s.create_employee(who, req)
+    assert result['account_status'] == 'not_created'
+    assert p.registered == 0 and p.enroll_calls == 1
+    assert 'work_email' not in next(iter(p.rows.values()))['data']
+    assert s.create_employee(who, req)['idempotent']
+    assert p.enroll_calls == 1
 
 
 @pytest.mark.parametrize('existing', [True, False])
@@ -316,3 +352,43 @@ def test_pending_user_inbox_supports_hr_full_and_superadmin_with_native_human_se
     assert response.status_code == 200
     assert response.json() == [{'id': 'pending', 'full_name': 'New Hire', 'email': 'new@newtuple.com'}]
     assert calls == [('GET', '/users/pending', {'token': 'human'})]
+
+
+@pytest.mark.parametrize('workflows', [[], [dict(entity_type='HRMS.Employee', is_active=False)],
+    [dict(entity_type='HRMS.Employee', is_active=True)] * 2])
+def test_employee_requires_one_published_active_workflow_before_writes(workflows):
+    p = ProvisioningPlatform(False)
+    p.workflows = workflows
+    with pytest.raises(AppError) as exc:
+        HrmsService(p, Journal(), 'newtuple.com').create_employee(actor('admin', 'superadmin'), employee_request())
+    assert exc.value.status == 409
+    assert not p.rows and not p.registered
+
+
+def test_employee_enrollment_retry_reconciles_without_repeating_initial_actions():
+    p = ProvisioningPlatform(False)
+    p.fail_enroll = True
+    service = HrmsService(p, Journal(), 'newtuple.com')
+    who = actor('admin', 'superadmin')
+    with pytest.raises(AppError):
+        service.create_employee(who, employee_request())
+    p.workflows[0]['machine_name'] = 'replacement_workflow'
+    result = service.create_employee(who, employee_request())
+    assert result['workflow'] == dict(machine_name='configured_employee', current_state='Employee Registration')
+    assert p.enroll_calls == 1 and p.registered == 1
+    assert service.create_employee(who, employee_request())['idempotent']
+    assert p.enroll_calls == 1
+
+
+def test_uncertain_employee_enrollment_is_not_reissued_without_evidence():
+    p = ProvisioningPlatform(False)
+    p.fail_enroll = True
+    service = HrmsService(p, Journal(), 'newtuple.com')
+    who = actor('admin', 'superadmin')
+    with pytest.raises(AppError):
+        service.create_employee(who, employee_request())
+    p.enrollments.clear()
+    with pytest.raises(AppError) as exc:
+        service.create_employee(who, employee_request())
+    assert exc.value.status == 409
+    assert p.enroll_calls == 1 and p.registered == 1

@@ -28,7 +28,7 @@ class LeaveCreateRequest(BaseModel):
 class EmployeeCreateRequest(BaseModel):
     first_name: str = Field(min_length=1, max_length=100)
     last_name: str = Field(min_length=1, max_length=100)
-    work_email: EmailStr
+    work_email: EmailStr | None = None
     department: str | None = Field(default=None, max_length=100)
     designation: str | None = Field(default=None, max_length=100)
     role: str = Field(default='hrms_employee', min_length=1, max_length=128)

@@ -1,3 +1,4 @@
+import { EmployeeWorkflowActions } from '../workflows/EmployeeWorkflowActions';
 import { useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowRight, BriefcaseBusiness, CalendarCheck2, FileCheck2, Home, TrendingUp, UserRoundPlus, type LucideIcon } from 'lucide-react';
@@ -19,9 +20,10 @@ import { ComingUp } from '../workspace/ComingUp';
 import { isForbidden, retryUnlessForbidden, useWaitingActions, type WaitingSource } from '../workspace/useWaitingActions';
 
 type Area = WaitingSource['key'];
-type Task = { key: string; area: Area; title: string; detail: string; action: ReactNode };
+type Task = { key: string; area: Area; title: string; detail: string; feedback?: string | null; action: ReactNode };
 
 const AREAS: Record<Area, { label: string; icon: LucideIcon; tab?: string }> = {
+  onboarding: {label:'Employee onboarding',icon:UserRoundPlus},
   users: { label: 'New users', icon: UserRoundPlus },
   leave: { label: 'Leave', icon: CalendarCheck2 },
   cockpit: { label: 'HR content', icon: FileCheck2 },
@@ -59,6 +61,7 @@ function Go({ to, children }: { to: string; children: ReactNode }) {
 export default function MyWorkPage() {
   const { user } = useAuth();
   const caps = useHrmsCapabilities();
+  const onboardingOnly = caps.data?.roles.includes('hrms_onboarding_employee') ?? false;
   const motion = !usePrefersReducedMotion();
   const waiting = useWaitingActions();
   const [area, setArea] = useState<string>('all');
@@ -72,6 +75,8 @@ export default function MyWorkPage() {
     .sort((a, b) => a.start_date.localeCompare(b.start_date))[0];
 
   const tasks: Task[] = [
+    ...waiting.employeeWork.filter(item=>item.actions.length>0).map(item=>({key:`e-${item.entity_id}-${item.workflow_id}`,area:'onboarding' as const,title:item.title,feedback:item.verifier_feedback,
+      detail:joined(item.workflow_label,item.current_state,item.feedback_status==='resolved'?'Previous feedback resolved by HR':item.feedback_status==='submitted'?'Corrections submitted, awaiting HR review':'',item.due_date?`Due ${day(item.due_date)}`:''),action:<EmployeeWorkflowActions key={item.current_state} item={item}/>})),
     ...(waiting.userApprovals.data ?? []).map(person => ({ key: `u-${person.id}`, area: 'users' as const, title: person.full_name, detail: joined('New account', person.email),
       action: <Go to="/settings?tab=users">Review</Go> })),
     ...waiting.pendingLeave.map(item => ({ key: `l-${item.entity_id}`, area: 'leave' as const, title: item.employee_name,
@@ -113,7 +118,7 @@ export default function MyWorkPage() {
       <section className="hrms-lk-card hrms-mw-tasks" aria-labelledby="hrms-tasks-title">
         <div className="hrms-lk-card-head">
           <h2 id="hrms-tasks-title">Tasks &amp; approvals</h2>
-          <Link className="hrms-coming-all" to="/hrms/workflows">All workflows<ArrowRight size={14} aria-hidden="true" /></Link>
+          {!onboardingOnly && <Link className="hrms-coming-all" to="/hrms/workflows">All workflows<ArrowRight size={14} aria-hidden="true" /></Link>}
         </div>
         {areas.length > 1 && <div className="hrms-mw-areas"><Segmented label="Filter by area" value={current} onChange={setArea}
           segments={[{ id: 'all', label: 'All', count: tasks.length }, ...areas.map(s => ({ id: s.key, label: AREAS[s.key].tab ?? AREAS[s.key].label, count: s.loading && !s.error ? undefined : s.count }))]} /></div>}
@@ -125,6 +130,7 @@ export default function MyWorkPage() {
             <div className="hrms-task-main">
               <strong>{task.title}</strong>
               <small>{current === 'all' && <span className="hrms-task-area">{AREAS[task.area].label}</span>}{task.detail}</small>
+              {task.feedback && <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50 p-3"><strong>Verifier feedback</strong><p className="whitespace-pre-wrap break-words mt-1">{task.feedback}</p></div>}
             </div>
             <div className="hrms-task-action">{task.action}</div>
           </li>;
@@ -132,7 +138,12 @@ export default function MyWorkPage() {
           : <div className="hrms-task-empty"><Illustration name="all-clear" animate={motion} className="hrms-task-empty-art" /><h3>{current === 'all' ? 'You’re all caught up' : `Nothing waiting in ${AREAS[current as Area].label}`}</h3><p>{current === 'all' ? 'New approvals and tasks for your role will appear here.' : 'New items will appear here as soon as they need you.'}</p></div>}
         <Pager paged={paged} noun={current === 'all' ? 'tasks' : AREAS[current as Area].label.toLowerCase()} />
       </section>
-      <ComingUp />
+      {waiting.employeeWork.filter(item=>item.is_own_onboarding).map(item=><section key={`status-${item.entity_id}-${item.workflow_id}`} className="hrms-lk-card p-6" aria-label="Your onboarding status">
+        <h2 className="font-semibold">Your onboarding</h2>
+        <p className="mt-2">{item.current_state}</p>
+        <p className="mt-2 text-sm">{item.actions.length ? 'Your next action is listed in Tasks & approvals above.' : 'No action is needed from you at this step. Your status updates here as onboarding progresses.'}</p>
+      </section>)}
+      {!onboardingOnly && <ComingUp />}
     </div>
 
     <Sheet open={reviewing !== null} onOpenChange={open => { if (!open) setReviewing(null); }}>

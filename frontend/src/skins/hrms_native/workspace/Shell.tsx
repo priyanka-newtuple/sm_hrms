@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
-import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { ChevronDown, CornerDownLeft, LogOut } from 'lucide-react';
 import { useAuth } from '../../../core/auth';
 import { useHrmsCapabilities } from '../capabilities';
@@ -9,7 +9,7 @@ import { usePrefersReducedMotion } from '../components/useReducedMotion';
 import {
   AnimIcon, BellIcon, BookTextIcon, BriefcaseBusinessIcon, CalendarDaysIcon, LayoutGridIcon, MenuIcon, PanelLeftCloseIcon,
   PanelLeftOpenIcon, SearchIcon, SettingsIcon, SlidersHorizontalIcon, TrendingUpIcon, UsersIcon,
-  XIcon, ZapIcon, type AnimatedIcon,
+  WorkflowIcon, XIcon, ZapIcon, type AnimatedIcon,
 } from '../animated-icons';
 import { useWaitingActions, type WaitingSource } from './useWaitingActions';
 
@@ -210,7 +210,7 @@ function UserMenu({ name, email, roles, initials, canConfigure, onSignOut }: { n
 
 /* ── Shell ─────────────────────────────────────────────────── */
 export function WorkspaceShell() {
-  const { user, logout } = useAuth();
+  const { user, logout, permissions } = useAuth();
   const caps = useHrmsCapabilities();
   const waiting = useWaitingActions();
   const motion = !usePrefersReducedMotion();
@@ -224,9 +224,11 @@ export function WorkspaceShell() {
   // Close the mobile drawer after navigating (state derived during render, no effect needed).
   if (drawerPath !== location.pathname) { setDrawerPath(location.pathname); if (drawerOpen) setDrawerOpen(false); }
 
+  const onboardingOnly = caps.data?.roles.includes('hrms_onboarding_employee') ?? false;
   const groups: NavGroup[] = [
     { label: 'Workspace', standalone: true, items: [
       { path: '/hrms/my-work', label: 'My Tasks', icon: ZapIcon, badge: waiting.total, keywords: 'home assigned tasks approvals completion' },
+      ...(permissions?.permissions.includes('workflow:read') ? [{ path: '/hrms/workflows', label: 'Workflows', icon: WorkflowIcon, keywords: 'workflow states transitions approvals' }] : []),
       ...(allowed('employee:read') ? [{ path: '/hrms/employees', label: 'Org Directory', icon: UsersIcon, keywords: 'employees directory people staff' }] : []),
     ] },
     { label: 'Self Service', items: [
@@ -245,9 +247,9 @@ export function WorkspaceShell() {
       ...((allowed('cockpit:view') || allowed('onboarding:view')) ? [{ path: '/hrms/cockpit', label: 'HR Cockpit', icon: SlidersHorizontalIcon, keywords: 'onboarding policies holidays careers publish HR' }] : []),
       ...((allowed('asset:view') || allowed('asset:manage')) ? [{ path: '/hrms/assets', label: 'Asset Management', icon: LayoutGridIcon, keywords: 'inventory equipment laptops issue' }] : []),
     ] },
-  ].filter(group => group.items.length);
+  ].map(group => onboardingOnly ? {...group, items:group.items.filter(item=>item.path==='/hrms/my-work')} : group).filter(group => group.items.length);
   const settings: NavItem | null = allowed('platform:configure') ? { path: '/settings', label: 'Settings', icon: SettingsIcon, keywords: 'configuration roles forms' } : null;
-  const paletteItems = [...groups.flatMap(group => group.items).filter(item => !item.comingSoon), { path: '/hrms/content', label: 'Company resources', icon: BookTextIcon, keywords: 'policies learning holidays careers published' }, ...(settings ? [settings] : [])];
+  const paletteItems = [...groups.flatMap(group => group.items).filter(item => !item.comingSoon), ...(onboardingOnly ? [] : [{ path: '/hrms/content', label: 'Company resources', icon: BookTextIcon, keywords: 'policies learning holidays careers published' }]), ...(settings ? [settings] : [])];
 
   const current = groups.flatMap(group => group.items.map(item => ({ ...item, group: group.standalone ? item.label : group.label }))).find(item => location.pathname.startsWith(item.path))
     ?? (location.pathname.startsWith('/settings') && settings ? { ...settings, group: 'Configuration' } : location.pathname.startsWith('/hrms/content') ? { ...paletteItems.find(i => i.path === '/hrms/content')!, group: 'Resources' } : null);
@@ -291,7 +293,7 @@ export function WorkspaceShell() {
           <UserMenu name={user?.fullName ?? 'Signed in'} email={user?.email ?? ''} roles={roles} initials={initials} canConfigure={Boolean(settings)} onSignOut={() => void logout()} />
         </div>
       </header>
-      <div className="hrms-ws-content"><Outlet /></div>
+      <div className="hrms-ws-content">{onboardingOnly && location.pathname !== '/hrms/my-work' ? <Navigate to="/hrms/my-work" replace /> : <Outlet />}</div>
     </div>
 
     <CommandPalette items={paletteItems} open={paletteOpen} onClose={() => setPaletteOpen(false)} />

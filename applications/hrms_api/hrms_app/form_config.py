@@ -5,8 +5,8 @@ Settings -> Forms (method blocks):
 
 1. the entity type's active workflow, once method blocks are pinned to it; the
    engine assembles its schema from those blocks on every publish;
-2. the method blocks tagged to the entity type, for a type with no workflow
-   (Customer, Employee, Project role);
+2. the native forms tagged to the entity type when no published workflow
+   form blocks are pinned yet;
 3. the legacy Form, only while a tenant's forms are not migrated to method blocks.
 """
 import re
@@ -33,14 +33,16 @@ PRESENTATION_KEYS = ('field', 'description', 'placeholder', 'required', 'read_on
 METHOD_PAGE_LIMIT = 100
 
 
-def form_configuration(platform, actor, entity_type):
+def form_configuration(platform, actor, entity_type, purpose='record'):
+    if purpose not in {'record', 'registration'}:
+        raise AppError(422, 'Unknown form purpose')
     if entity_type not in FORM_ACCESS:
         raise AppError(404, 'This form is not exposed by HRMS')
     required = FORM_ACCESS[entity_type]
     caps = capabilities(actor)
     if (required and not required.intersection(caps)) or (not required and not caps):
         raise AppError(403, 'You cannot access this HRMS form')
-    form = configured_form(platform, entity_type)
+    form = registration_form(platform) if entity_type == 'HRMS.Employee' and purpose == 'registration' else configured_form(platform, entity_type)
     # Fields added in Settings, which HRMS screens render alongside their own (see custom_fields).
     built_in = {f['field'] for f in pack_by_type(entity_type).fields} | {'hrms_operation_key', 'identifier'}
     return {**form, 'fields': [{**f, 'custom': f['field'] not in built_in} for f in form['fields']]}
@@ -48,9 +50,9 @@ def form_configuration(platform, actor, entity_type):
 
 def configured_form(platform, entity_type):
     """The entity type's current field configuration, without the access check."""
-    workflow = _active_workflow(platform, entity_type)
+    workflow = active_workflow(platform, entity_type)
     if workflow is not None:
-        form = _workflow_form(workflow) or _legacy_form(platform, entity_type)
+        form = _workflow_form(workflow) or _method_block_form(platform, entity_type) or _legacy_form(platform, entity_type)
     else:
         form = _method_block_form(platform, entity_type) or _legacy_form(platform, entity_type)
     if form is None:
@@ -64,7 +66,7 @@ def has_method_blocks(platform, entity_type):
     return bool(_methods(platform, entity_type, limit=1))
 
 
-def _active_workflow(platform, entity_type):
+def active_workflow(platform, entity_type):
     workflows = platform.call('GET', '/workflow-state-machines', params={'scope': 'published'})['published_items']
     active = [w for w in workflows if w['entity_type'] == entity_type and w['is_active']]
     if len(active) > 1:
@@ -75,7 +77,7 @@ def _active_workflow(platform, entity_type):
 def _workflow_form(workflow):
     definition = workflow.get('definition') or {}
     if not any(state.get('method_refs') for state in definition.get('states', [])):
-        return None  # Not migrated yet: its tenant edits still live on the legacy Form.
+        return None  # Resolve current native forms before considering the legacy fallback.
     fields = [{**field, 'read_only': bool(field.get('read_only') or field.get('editable') is False)}
               for field in definition.get('entity_schema', {}).get('fields', [])]
     return {'name': workflow.get('name') or definition.get('name') or workflow['entity_type'], 'fields': fields}
@@ -102,7 +104,7 @@ def _method_block_form(platform, entity_type):
                 'description': field.get('label'),
                 'placeholder': field.get('placeholder'),
                 'required': bool(field.get('required')),
-                'read_only': bool(settings.get('read_only')),
+                'read_only': bool(settings.get('read_only') or settings.get('editable') is False),
                 'col_span': settings.get('col_span'),
                 'enum_values': settings.get('enum_values') or [],
                 'picklist_id': settings.get('picklist_id'),
@@ -129,6 +131,8 @@ def _presentation(platform, fields):
     result = []
     for field in fields:
         item = {key: field.get(key) for key in PRESENTATION_KEYS}
+        if field.get('document_config') is not None:
+            item['document_config'] = field['document_config']
         if item['description'] == _auto_label(field['field']):
             # The Forms migration labels unlabelled fields from their key ("Pm Name");
             # that is not a tenant choice, so the screen keeps its own wording.
@@ -161,3 +165,23 @@ def _auto_label(key):
 
 def _value(option):
     return option['value'] if isinstance(option, dict) else option
+
+
+def registration_form(platform):
+    """Creation uses the initial state's pinned native forms, never later-stage fields."""
+    workflow = active_workflow(platform, 'HRMS.Employee')
+    definition = (workflow or {}).get('definition') or {}
+    if definition.get('method_schemas'):
+        return state_form(platform, workflow, definition['initial_state'])
+    return configured_form(platform, 'HRMS.Employee')
+
+
+def state_form(platform, workflow, state):
+    definition = workflow['definition']
+    blocks = [b for b in definition.get('method_schemas', []) if b['state_name'] == state]
+    fields = {}
+    for block in sorted(blocks, key=lambda b: b.get('method_order', 0)):
+        for field in block['fields']:
+            fields[field['field']] = {**field, 'read_only': bool(field.get('read_only') or field.get('editable') is False)}
+    return {'entity_type': 'HRMS.Employee', 'name': ' / '.join(b['method_name'] for b in blocks) or state,
+            'fields': _presentation(platform, list(fields.values())), 'workflow_versioned': True}

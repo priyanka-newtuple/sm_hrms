@@ -4,7 +4,7 @@ import os
 from .catalog import PACKS
 from .cockpit_catalog import TYPES as COCKPIT_TYPES
 from .errors import AppError
-from .field_access import RUNTIME_TYPES, configured_fields, configured_transitions, grant
+from .field_access import RUNTIME_TYPES, configured_fields, configured_transitions, grant, sync_service_access
 from .form_config import has_method_blocks
 from .install_employee_picklists import install_employee_picklists
 from .install_project_roles import install_project_role_picklist
@@ -165,6 +165,7 @@ def install():
         api.call('PUT', f"/roles/{role['id']}", json=role_spec)
     else:
         role = api.call('POST', '/roles', json=role_spec)
+    sync_service_access(api, lambda method, path, **kwargs: api.call(method, '/' + path, **kwargs))
     email = os.environ['HRMS_SERVICE_EMAIL']
     user = next((u for u in api.users() if u['email'] == email), None)
     if user is None:

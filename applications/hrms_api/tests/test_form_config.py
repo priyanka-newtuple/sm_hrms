@@ -95,16 +95,26 @@ def test_a_migrated_type_follows_its_active_workflow_not_the_legacy_form():
     assert configured_form(api, 'HRMS.Policy')['fields'][0]['description'] == 'Changed in Settings'
 
 
-def test_a_workflow_without_pinned_blocks_keeps_the_legacy_form():
-    form = {'schema_key': pack_by_type('HRMS.Policy').schema_key, 'name': 'Legacy', 'fields': [{'field': 'title', 'type': 'string'}]}
-    blocks = {'items': [{'method_id': 'unpinned', 'name': 'Draft block', 'method_code': 1}]}
-    api = platform(**{'/workflow-state-machines': workflow('HRMS.Policy', [{'field': 'title', 'type': 'text'}], pinned=False),
-                      '/forms/config': {'items': [form]}, '/method-library/methods': blocks})
-
-    result = configured_form(api, 'HRMS.Policy')
-
-    assert result['name'] == 'Legacy' and result['fields'][0]['type'] == 'string'
-    assert '/method-library/methods' not in api.calls
+def test_workflow_without_pinned_forms_uses_native_select_instead_of_legacy_text():
+    kind = 'HRMS.Employee'
+    api = platform(**{
+        '/workflow-state-machines': workflow(kind, [{'field': 'employment_type', 'type': 'string'}], pinned=False),
+        '/method-library/methods': {'items': [{'method_id': 'm', 'name': 'Employee form', 'method_code': 1}]},
+        '/method-library/methods/m': {'fields': [{'field_key': 'employment_type', 'field_type': 'select',
+            'label': 'Employment Type', 'required': True, 'position': 0,
+            'settings': {'picklist_id': 'employment', 'col_span': 2, 'editable': False}}]},
+        '/field-library/field-types': {'items': [{'code': 'select', 'engine_type': 'enum'}]},
+        '/config/picklists': {'items': [{'id': 'employment', 'options': [
+            {'value': 'fte', 'label': 'FTE'}, {'value': 'contractor', 'label': 'Contractor'}]}]},
+    })
+    result = configured_form(api, kind)
+    field = result['fields'][0]
+    assert result['workflow_versioned'] is False
+    assert field['type'] == 'enum'
+    assert field['enum_values'] == ['fte', 'contractor']
+    assert field['enum_labels'] == {'fte': 'FTE', 'contractor': 'Contractor'}
+    assert field['required'] and field['read_only'] and field['col_span'] == 2
+    assert '/forms/config' not in api.calls
 
 
 def test_a_type_without_a_workflow_follows_its_method_blocks():

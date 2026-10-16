@@ -35,12 +35,12 @@ export default function AddEmployee() {
   const [showForm, setShowForm] = useState(false);
   const [created, setCreated] = useState<CreatedEmployee | null>(null);
   const [error, setError] = useState('');
-  const schema=useFormSchema('HRMS.Employee',canCreate&&showForm);
+  const schema=useFormSchema('HRMS.Employee',canCreate&&showForm,'registration');
   const [key, setKey] = useState(() => createRequestId());
   const [form, setForm] = useState<Record<string,unknown>>({
     first_name: '', last_name: '', work_email: '', department: '', designation: '',
     role: '', reports_to_entity_id: '', date_joined: new Date().toISOString().slice(0, 10),
-    employment_type: 'full_time', notice_period_days: '', phone: '', work_location: '',
+    employment_type: '', notice_period_days: '', phone: '', work_location: '',
   });
   const employees = useQuery({
     queryKey: ['hrms', 'employees'],
@@ -74,14 +74,14 @@ export default function AddEmployee() {
     <button type="button" className="hrms-primary-button" onClick={() => { setCreated(null); setShowForm(true); }}><Plus size={16} /> Add employee</button>
     {created && <div role="status" className="hrms-notice">
       <strong>{created.employee.full_name} ({created.employee.employee_code}) was added.</strong>{' '}
-      Account status: {created.account_status}. New accounts appear in Settings → Users for approval.
+      {created.account_status === 'not_created' ? 'Registration saved. Continue the configured workflow from My Tasks.' : `Account status: ${created.account_status}. Review the account in Settings → Users.`}
     </div>}
     <Sheet open={showForm} onOpenChange={setShowForm}>
       <SheetContent className="hrms-brand hrms-employee-form overflow-y-auto data-[side=right]:w-full data-[side=right]:sm:max-w-2xl">
         <SheetHeader><p className="hrms-eyebrow">GROW THE TEAM</p><SheetTitle>Add Employee</SheetTitle><p className="hrms-form-intro">Enter the employee details. New accounts require approval before sign-in.</p></SheetHeader>
         {options.isLoading && <p role="status" className="hrms-work-feedback">Loading employee options…</p>}
         {options.isError && <div role="alert" className="hrms-notice hrms-notice--error">{getApiErrorMessage(options.error)}<button className="hrms-outline-button" onClick={() => void options.refetch()}>Try again</button></div>}
-        <ConfiguredForm entityType="HRMS.Employee"><form onSubmit={submit} className="hrms-people-form">
+        <ConfiguredForm entityType="HRMS.Employee" purpose="registration"><form onSubmit={submit} className="hrms-people-form">
           <div className="grid gap-3 sm:grid-cols-2"><ConfiguredInputs values={form} onChange={values=>{setForm(values);setKey(createRequestId());}} exclude={employeeSystemFields} adapters={{
             ...employeeAdapters,
             hrms_role:{...employeeAdapters.hrms_role,options:(options.data?.roles??[]).map(id=>({id,name:options.data?.role_labels[id]??id}))},

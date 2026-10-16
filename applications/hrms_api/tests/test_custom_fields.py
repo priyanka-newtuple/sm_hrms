@@ -69,6 +69,9 @@ def test_the_service_role_is_granted_new_fields_and_steps_without_losing_any(mon
 
     def call(method, path, json=None):
         calls.append((method, path, json))
+        if path == 'workflow-state-machines?scope=published':
+            return {'published_items': [dict(machine_name='leave_machine', entity_type='HRMS.LeaveRequest', is_active=True,
+                definition={'transitions': [{'key': 'pending_to_hr_review'}]})]}
         return [{'id': 'svc', 'name': 'hrms_application_service'}] if path == 'roles' else role
     added = field_access.sync_service_access(None, call)
     assert added == [field_access.grant('HRMS.Employee', 'blood_group'), {'machine_name': 'leave_machine', 'transition_key': 'pending_to_hr_review'}]
@@ -86,3 +89,20 @@ def test_requests_without_custom_fields_match_retries_from_before_they_existed()
     request = dict(start_date='2041-01-07', end_date='2041-01-07', leave_type='casual', idempotency_key='retry-key-1')
     assert 'custom' not in fingerprint(LeaveCreateRequest(**request))
     assert fingerprint(LeaveCreateRequest(**request, custom={'blood_group': 'A+'}))['custom'] == {'blood_group': 'A+'}
+
+
+def test_new_employee_workflow_access_is_discovered_as_admin(monkeypatch):
+    from hrms_app import field_access
+    monkeypatch.setattr(field_access, 'configured_fields', lambda platform, kind: [])
+    updates = []
+    def call(method, path, json=None):
+        if path == 'roles':
+            return [dict(id='svc', name='hrms_application_service')]
+        if path == 'workflow-state-machines?scope=published':
+            return {'published_items': [dict(machine_name='new_employee', entity_type='HRMS.Employee', is_active=True, definition={}),
+                dict(machine_name='other_product', entity_type='Other.Type', is_active=True, definition={})]}
+        if method == 'GET':
+            return dict(field_permissions=[], transition_permissions=[], workflow_permissions=[])
+        updates.append(json)
+    field_access.sync_service_access(None, call)
+    assert updates == [{'workflow_permissions': [{'machine_name': 'new_employee'}]}]

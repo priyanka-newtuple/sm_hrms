@@ -8,7 +8,7 @@ gateway does it with the administrator's own token right after they change a for
 """
 from .cockpit_catalog import TYPES as COCKPIT_TYPES
 from .errors import AppError
-from .form_config import _active_workflow, configured_form
+from .form_config import active_workflow, configured_form
 from .project_catalog import TYPES as PROJECT_TYPES
 from .wfh_catalog import TYPES as WFH_TYPES
 
@@ -37,7 +37,7 @@ def configured_fields(platform, entity_type):
 def configured_transitions(platform, entity_type):
     """(machine name, transition key) for every step of the type's active workflow."""
     try:
-        workflow = _active_workflow(platform, entity_type)
+        workflow = active_workflow(platform, entity_type)
     except AppError:
         return []
     if not workflow:
@@ -56,9 +56,14 @@ def sync_service_access(platform, call):
     have = {(p['entity_type'], p['field_name']) for p in current['field_permissions']}
     fields = [grant(kind, field) for kind in sorted(RUNTIME_TYPES) for field in configured_fields(platform, kind)
               if (kind, field) not in have]
-    steps = {(machine, key) for kind in sorted(RUNTIME_TYPES) for machine, key in configured_transitions(platform, kind)}
+    # Discover new workflows as the authorized configuration administrator: the
+    # service's own listing hides workflows it has not been granted yet.
+    workflows = [w for w in call('GET', 'workflow-state-machines?scope=published')['published_items']
+                 if w['is_active'] and w['entity_type'] in RUNTIME_TYPES]
+    steps = {(w['machine_name'], t.get('key') or f"{t.get('from', t.get('from_state'))}_to_{t['to_state']}")
+             for w in workflows for t in (w.get('definition') or {}).get('transitions', [])}
     steps -= {(p['machine_name'], p['transition_key']) for p in current['transition_permissions']}
-    machines = {machine for machine, _ in steps} - {p['machine_name'] for p in current['workflow_permissions']}
+    machines = {w['machine_name'] for w in workflows} - {p['machine_name'] for p in current['workflow_permissions']}
     update = {}
     if fields:
         update['field_permissions'] = [*({k: p[k] for k in ('entity_type', 'field_name', 'can_view', 'can_edit', 'mask_value')}

@@ -38,7 +38,8 @@ class EmployeeListItem(BaseModel):
     employment_status: str
     role: str
     account_status: str = "not_linked"
-    onboarding_state: str = "not_started"
+    onboarding_state: str | None = None
+    onboarding_status_message: str | None = None
     can_setup_access: bool = False
     uses_google_sign_in: bool = False
     # Editable details, so the edit form starts from what is saved.

@@ -13,7 +13,8 @@ interface Employee extends EditableEmployee {
   role: string;
   on_notice: boolean;
   account_status: string;
-  onboarding_state: string;
+  onboarding_state: string | null;
+  onboarding_status_message?: string;
   can_setup_access: boolean;
   uses_google_sign_in: boolean;
 }
@@ -112,17 +113,17 @@ function EmployeeDirectory() {
     {employees.data && <div className="hrms-surface hrms-directory">
       <div className="hrms-directory-heading"><span className="hrms-work-icon"><Users size={22} strokeWidth={1.25} /></span><div><h2>Employee directory</h2><p>{visible.length} of {employees.data.length} employees</p></div></div><div className="hrms-table-scroll">
       <table className="hrms-people-table"><thead className="bg-slate-50 text-slate-600"><tr>
-        {['Name', 'Code', 'Department', 'Designation', 'Reports To', 'Access role', 'Employment', 'Account access', 'Onboarding', ...(canCreate || canExit ? ['Actions'] : [])].map((heading) => <th key={heading} className="p-3">{heading}</th>)}
+        {['Name', 'Code', 'Department', 'Designation', 'Access role', 'Employment', 'Account access', 'Onboarding', ...(canCreate || canExit ? ['Actions'] : [])].map((heading) => <th key={heading} className="p-3">{heading}</th>)}
       </tr></thead><tbody>{visible.map((employee) => <tr key={employee.entity_id} className="border-t border-slate-100">
         <td className="p-3"><strong>{employee.full_name}</strong><span className="hrms-employee-email">{employee.work_email}</span></td><td className="p-3">{employee.employee_code}</td><td className="p-3">{employee.department}</td>
-        <td className="p-3">{employee.designation}</td><td className="p-3">{employee.reports_to_name || '—'}</td>
+        <td className="p-3">{employee.designation}</td>
         <td className="p-3">{labelForRole(employee.role)}</td><td className="p-3"><span className="hrms-status" data-state={exitStage(employee) === 'none' ? employee.employment_status : 'pending'}>{statusLabel(employee)}</span></td>
         <td className="p-3"><span>{(employee.account_status ?? 'not_linked').replaceAll('_', ' ')}</span>
           {employee.can_setup_access && <button type="button" className="hrms-text-link" disabled={setupAccess.isPending}
             onClick={() => { setAccessMessage(''); setupAccess.mutate(employee); }}>
             {setupAccess.isPending && setupAccess.variables?.entity_id === employee.entity_id ? 'Requesting…' : employee.uses_google_sign_in ? 'Enable Google sign-in' : employee.account_status === 'pending' ? 'Activate & send setup email' : 'Request setup email'}
           </button>}</td>
-        <td className="p-3">{(employee.onboarding_state ?? 'not_started').replaceAll('_', ' ')}</td>
+        <td className="p-3">{employee.onboarding_state ?? employee.onboarding_status_message ?? 'Workflow status unavailable'}</td>
         {(canCreate || canExit) && <td className="p-3"><div className="flex flex-col items-start gap-1">{employee.employment_status !== 'offboarded' && <>
           {canCreate && <button type="button" className="hrms-text-link" onClick={() => { setAccessMessage(''); setEditing(employee); }}>Edit</button>}
           {canExit && exitStage(employee) === 'none' && <button type="button" className="hrms-text-link" onClick={() => { setAccessMessage(''); setExiting(employee); }}>Record exit</button>}
@@ -130,7 +131,7 @@ function EmployeeDirectory() {
           {canExit && ['notice', 'due'].includes(exitStage(employee)) && <button type="button" className="hrms-text-link" disabled={withdrawExit.isPending}
             onClick={() => { setAccessMessage(''); withdrawExit.mutate(employee); }}>{withdrawExit.isPending && withdrawExit.variables?.entity_id === employee.entity_id ? 'Withdrawing…' : 'Withdraw exit'}</button>}
         </>}</div></td>}
-      </tr>)}{visible.length === 0 && <tr><td colSpan={canCreate || canExit ? 10 : 9} className="hrms-empty-message">No employees match your filters.</td></tr>}</tbody></table></div>
+      </tr>)}{visible.length === 0 && <tr><td colSpan={canCreate || canExit ? 9 : 8} className="hrms-empty-message">No employees match your filters.</td></tr>}</tbody></table></div>
     </div>}
     {editing && <EditEmployeeSheet key={editing.entity_id} employee={editing} employees={employees.data ?? []} options={options.data} onClose={() => setEditing(null)} onSaved={changed} />}
     {exiting && <ExitEmployeeSheet key={exiting.entity_id} employee={exiting} onClose={() => setExiting(null)} onSaved={changed} />}

@@ -7,36 +7,36 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { useHrmsCapabilities } from '../capabilities';
 import { PageHero } from '../components/PageHero';
 
-type Asset = {id:string; data:Record<string,unknown>; state:string; employee_name:string; actions:string[]};
+export type Asset = {id:string; data:Record<string,unknown>; state:string; employee_name:string; actions:string[]};
 type Board = {items:Asset[];can_manage:boolean;employees:{id:string;label:string}[]};
 
 const hidden = new Set(['issued_employee_id','issued_date','issued_by','issue_note','identifier','hrms_operation_key']);
 const label = (s:string) => s.replaceAll('_',' ').replace(/^./,c=>c.toUpperCase());
 const text = (a:Asset,k:string) => String(a.data[k]??'');
 
-function AssetForm({asset,action,employees,done}:{asset?:Asset;action:string;employees:Board['employees'];done:()=>void}) {
+export function AssetForm({asset,action,employees,done,onboarding}:{asset?:Asset;action:string;employees:Board['employees'];done:()=>void;onboarding?:{employeeId:string;workflowId:string}}) {
  const client=useQueryClient();
  const schema=useFormSchema('HRMS.Asset');
- const [values,setValues]=useState<Record<string,unknown>>(action==='issue'?{issued_date:new Date().toLocaleDateString('en-CA')}:{...asset?.data});
+ const [values,setValues]=useState<Record<string,unknown>>(action==='issue'?{issued_date:new Date().toLocaleDateString('en-CA'),...(onboarding?{issued_employee_id:onboarding.employeeId}:{})}:{...asset?.data});
  const [key,setKey]=useState(()=>crypto.randomUUID());
  const submitted=useRef<Record<string,unknown>|null>(null);
- const mutation=useMutation({mutationFn:()=>request(asset?`/hrms/assets/${asset.id}/actions`:'/hrms/assets',{method:'POST',body:JSON.stringify({action,idempotency_key:key,data:submitted.current??(submitted.current=formValues(schema.data?.fields??[],values,action==='issue'?(schema.data?.fields??[]).map(f=>f.field).filter(k=>!['issued_employee_id','issued_date','issue_note'].includes(k)):[...hidden]))})}),onError:(error)=>{
+ const mutation=useMutation({mutationFn:()=>request(onboarding?`/hrms/employee-work/${onboarding.employeeId}/assets/${asset?.id}?workflow_id=${onboarding.workflowId}`:asset?`/hrms/assets/${asset.id}/actions`:'/hrms/assets',{method:'POST',body:JSON.stringify({action,idempotency_key:key,data:submitted.current??(submitted.current=formValues(schema.data?.fields??[],values,action==='issue'?(schema.data?.fields??[]).map(f=>f.field).filter(k=>!['issued_employee_id','issued_date','issue_note'].includes(k)):[...hidden]))})}),onError:(error)=>{
    // Duplicate identifiers are rejected before any write. Correcting one is a new
    // operation; ambiguous failures must retain the original payload and key.
    if ((error as Error & {status?:number}).status===409 && /^An asset with this (asset tag|serial number) already exists$/.test(getApiErrorMessage(error))) {
      submitted.current=null;
      setKey(crypto.randomUUID());
    }
- },onSuccess:async()=>{await client.invalidateQueries({queryKey:['hrms','assets']});done();}});
+ },onSuccess:async()=>{await client.invalidateQueries({queryKey:['hrms']});done();}});
 
  if(schema.isLoading)return <p role="status">Loading native form…</p>;
  if(schema.isError)return <p role="alert">{getApiErrorMessage(schema.error)} <button onClick={()=>void schema.refetch()}>Retry</button></p>;
  const retry=mutation.isError&&submitted.current!==null;
  const locked=mutation.isPending||retry;
- return <ConfiguredForm entityType="HRMS.Asset"><form className="p-6 space-y-5" onSubmit={e=>{e.preventDefault();mutation.mutate();}}>
+ return <ConfiguredForm entityType="HRMS.Asset"><form className="p-6 space-y-5" onSubmit={e=>{e.preventDefault();e.stopPropagation();mutation.mutate();}}>
  <p className="text-slate-500">{action==='issue'?`Issue ${asset?.data.asset_name} to an active employee.`:'Inventory fields are configured in native Settings → Forms.'}</p>
  <fieldset disabled={locked} className="grid gap-4 sm:grid-cols-2">
- <ConfiguredInputs values={values} onChange={setValues} exclude={action==='issue'?(schema.data?.fields??[]).map(f=>f.field).filter(k=>!['issued_employee_id','issued_date','issue_note'].includes(k)):[...hidden]} adapters={{issued_employee_id:{label:'Employee',options:employees.map(e=>({id:e.id,name:e.label}))},issued_date:{type:'date'}}}/>
+ <ConfiguredInputs values={values} onChange={setValues} exclude={action==='issue'?(schema.data?.fields??[]).map(f=>f.field).filter(k=>!['issued_employee_id','issued_date','issue_note'].includes(k)):[...hidden]} adapters={{issued_employee_id:{label:'Employee',readOnly:!!onboarding,options:employees.map(e=>({id:e.id,name:e.label}))},issued_date:{type:'date'}}}/>
  </fieldset>
  {mutation.isError&&<div role="alert" className="hrms-notice hrms-notice--error">{getApiErrorMessage(mutation.error)}<p>{retry?'Retry sends the same request safely.':'Correct the asset tag or serial number, then save again.'}</p></div>}
  <div className="flex justify-end gap-3"><button type="button" className="hrms-outline-button" disabled={mutation.isPending} onClick={done}>Cancel</button><button className="hrms-primary-button" disabled={mutation.isPending}>{mutation.isPending?'Saving…':retry?'Retry':action==='issue'?'Issue asset':'Save asset'}</button></div>

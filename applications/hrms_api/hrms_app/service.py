@@ -9,7 +9,7 @@ import json
 from .form_values import editable_values
 from .custom_fields import check_custom, custom_keys, custom_values
 from .errors import AppError
-from .form_config import configured_form
+from .form_config import active_workflow, configured_form
 from .employee_access import identity_roles, may_manage
 from .onboarding_template import DEFAULT_ONBOARDING_STEPS, REPORTING_MANAGER, TEMPLATES
 from .policy import capabilities, require
@@ -136,6 +136,17 @@ class HrmsService:
         keys = custom_keys(self.platform, EMPLOYEE)
         rows = self.platform.records(EMPLOYEE, EMPLOYEE_FIELDS + keys)
         users = {u['id']: u for u in self.platform.users()}
+        from .employee_work import employee_enrollments
+        workflow_states = {}
+        workflow_access = True
+        try:
+            for enrollment in employee_enrollments(self.platform, actor):
+                if not enrollment.get('archived_at'):
+                    workflow_states.setdefault(enrollment['entity_id'], []).append(enrollment['current_state'])
+        except AppError as exc:
+            if exc.status != 403:
+                raise
+            workflow_access = False
         result = []
         for row in rows:
             item = self.employee_item(row, rows, keys)
@@ -148,7 +159,8 @@ class HrmsService:
                 and user['status'] in {'pending', 'active'} and item['employment_status'] == 'active'
                 and 'employee:activate' in capabilities(actor)
                 and bool(identity_roles(self.platform, actor, user)))
-            item['onboarding_state'] = 'not_started'  # Managed through native configuration.
+            item['onboarding_state'] = ' · '.join(workflow_states.get(row['entity_id'], [])) or None
+            item['onboarding_status_message'] = 'No visible workflow' if workflow_access else 'Workflow access restricted'
             result.append(item)
         return sorted(result, key=lambda r: r['full_name'].casefold())
 
@@ -157,7 +169,7 @@ class HrmsService:
         fields = {f['field']: f for f in configured_form(self.platform, EMPLOYEE)['fields']}
         # Native roles are the catalog; internal service identities are never employee roles.
         native_roles = self.platform.call('GET', '/roles')
-        native_roles = [r for r in native_roles if r['name'] != 'hrms_application_service']
+        native_roles = [r for r in native_roles if r['name'] not in {'hrms_application_service', 'hrms_onboarding_employee'}]
         roles = [r['name'] for r in native_roles]
         role_labels = {r['name']: r['display_name'] for r in native_roles}
         return dict(departments=fields.get('department', {}).get('enum_values') or [],
@@ -477,6 +489,14 @@ class HrmsService:
         payload = fingerprint(request)
         if request.role not in self.form_options(actor)['roles']:
             raise AppError(403, 'You cannot assign the requested employee role')
+        from .form_config import registration_form
+        registration = registration_form(self.platform)
+        if 'work_email' not in {f['field'] for f in registration['fields']}:
+            if request.work_email:
+                raise AppError(422, 'Work email is entered in the configured Email Setup step')
+            return self.register_employee(actor, request, registration)
+        if not request.work_email:
+            raise AppError(422, 'Work email is required by the registration form')
         email = str(request.work_email).lower().strip()
         if email.rsplit('@', 1)[-1] != self.domain:
             raise AppError(400, f'Work email must be on @{self.domain}')
@@ -484,6 +504,13 @@ class HrmsService:
             op = self.journal.operation(db, actor, f'employee:{request.idempotency_key}', payload)
             if op.result:
                 return {**op.result, 'idempotent': True}
+            machine = op.progress.get('employee_workflow')
+            if not machine:
+                workflow = active_workflow(self.platform, EMPLOYEE)
+                if workflow is None:
+                    raise AppError(409, 'Publish and activate an Employee workflow in Settings before adding employees')
+                machine = workflow['machine_name']
+                op.checkpoint(employee_workflow=machine)
             rows = self.employees()
             manager = next((r for r in rows if r['entity_id'] == request.reports_to_entity_id), None)
             if request.reports_to_entity_id and (not manager or manager['data'].get('employment_status') != 'active'):
@@ -541,10 +568,76 @@ class HrmsService:
             current = self.platform.record(employee_id)
             data = {**current['data'], 'employee_code': current['data']['identifier'], 'platform_user_id': identity['id']}
             self.platform.call('PUT', f'/entity-records/{employee_id}', json={'data': data})
+            # Enrol only after the native account and employee links are complete, so
+            # initial-state actions can use the final employee data. Keep retries on
+            # the originally selected machine, even if Settings changes meanwhile.
+            if not op.progress.get('employee_enrolled'):
+                if op.progress.get('employee_enrollment_requested'):
+                    state = self.platform.states(machine).get(employee_id)
+                    if state is None:
+                        raise AppError(409, 'Employee workflow enrollment outcome is uncertain; reconciliation is required')
+                else:
+                    op.checkpoint(employee_enrollment_requested=True)
+                    state = self.platform.enroll(employee_id, machine)
+                op.checkpoint(employee_enrolled=True, employee_workflow_state=state)
             final = self.platform.record(employee_id)
             result = dict(employee=self.employee_item(final, rows),
+                          workflow=dict(machine_name=machine, current_state=op.progress['employee_workflow_state']),
                           account_status=identity['status'], idempotent=False)
             self.journal.audit(db, actor, 'employee.created', employee_id)
+            op.finish(result)
+            return result
+
+    def register_employee(self, actor, request, registration):
+        """Create only the Employee; the configured later state provisions its account."""
+        from .custom_fields import _typed
+        workflow = active_workflow(self.platform, EMPLOYEE)
+        if workflow is None:
+            raise AppError(409, 'Publish an Employee workflow before registering employees')
+        with self.journal.lock(actor.organization_id) as db:
+            op = self.journal.operation(db, actor, f'employee:{request.idempotency_key}', fingerprint(request))
+            if op.result:
+                return {**op.result, 'idempotent': True}
+            rows = self.employees()
+            manager = next((r for r in rows if r['entity_id'] == request.reports_to_entity_id), None)
+            if request.reports_to_entity_id and (not manager or manager['data'].get('employment_status') != 'active'):
+                raise AppError(400, 'Reporting manager must be active in this organization')
+            values = {**request.model_dump(mode='json', exclude_unset=True), **request.custom,
+                      'hrms_role': request.role, 'reports_to_employee_code': manager['data'].get('employee_code') if manager else None}
+            fields = {f['field']: f for f in registration['fields']}
+            if set(request.custom) - set(fields):
+                raise AppError(422, 'Fields are not on the registration form')
+            data = {}
+            for key, field in fields.items():
+                if field.get('read_only') or key in {'employee_code','platform_user_id','employment_status'}:
+                    continue
+                value = values.get(key)
+                if value in (None, ''):
+                    if field.get('required'):
+                        raise AppError(422, f"{field.get('description') or key} is required")
+                    continue
+                data[key] = _typed(field.get('description') or key, field, value)
+            marker = hashlib.sha256(f'{actor.organization_id}:employee:{request.idempotency_key}'.encode()).hexdigest()
+            data.update(hrms_role=request.role, employment_status='active', hrms_operation_key=marker)
+            employee = self._create_once(op, 'employee', EMPLOYEE, data, actor.user_id, rows, marker)
+            employee_id = employee['entity_id']
+            machine = op.progress.get('employee_workflow') or workflow['machine_name']
+            op.checkpoint(employee_workflow=machine, employee_id=employee_id)
+            current = self.platform.record(employee_id)
+            self.platform.call('PUT', f'/entity-records/{employee_id}', json={'data': {**current['data'], 'employee_code': current['data']['identifier']}})
+            if not op.progress.get('employee_enrolled'):
+                if op.progress.get('employee_enrollment_requested'):
+                    state = self.platform.states(machine).get(employee_id)
+                    if state is None:
+                        raise AppError(409, 'Employee enrollment requires reconciliation')
+                else:
+                    op.checkpoint(employee_enrollment_requested=True)
+                    state = self.platform.enroll(employee_id, machine)
+                op.checkpoint(employee_enrolled=True, employee_workflow_state=state)
+            result = dict(employee=self.employee_item(self.platform.record(employee_id), rows),
+                          workflow=dict(machine_name=machine, current_state=op.progress['employee_workflow_state']),
+                          account_status='not_created', idempotent=False)
+            self.journal.audit(db, actor, 'employee.registered', employee_id)
             op.finish(result)
             return result
 

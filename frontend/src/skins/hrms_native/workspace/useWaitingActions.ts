@@ -13,7 +13,7 @@ import { useWfhInbox } from '../pages/WorkFromHome';
 export const isForbidden = (error: unknown) => (error as { status?: number } | null)?.status === 403;
 export const retryUnlessForbidden = (count: number, error: unknown) => !isForbidden(error) && count < 1;
 
-export interface WaitingSource { key: 'users' | 'leave' | 'cockpit' | 'projects' | 'wfh' | 'performance'; label: string; path: string; count: number; loading: boolean; error: boolean; retry: () => void }
+export interface WaitingSource { key: 'onboarding' | 'users' | 'leave' | 'cockpit' | 'projects' | 'wfh' | 'performance'; label: string; path: string; count: number; loading: boolean; error: boolean; retry: () => void }
 
 /**
  * What the signed-in person can act on right now, per work area. Shares query keys with the pages,
@@ -26,6 +26,7 @@ export function useWaitingActions() {
   // Only pending approvals, so older history can never push waiting requests past the page limit.
   const leaveApprovals = useQuery({ queryKey: ['hrms', 'leave', 'approvals', 'pending'], queryFn: () => request<LeaveItem[]>('/hrms/leave-requests?view=approvals&state=pending&limit=200'), retry: retryUnlessForbidden,
     enabled: caps.isFetched && caps.data?.employee_profile !== false });
+  const employeeWork = useQuery({queryKey:['hrms','employee-work'], queryFn:()=>request<EmployeeWork[]>('/hrms/employee-work'), retry:retryUnlessForbidden,refetchInterval:30_000});
   const cockpit = useCockpitBoard();
   const projects = useProjects();
   const wfh = useWfhInbox();
@@ -44,6 +45,7 @@ export function useWaitingActions() {
   const projectActions = projects.data?.requests.filter(r => r.state === 'pending' && r.actions.includes('approve')) ?? [];
 
   const sources: WaitingSource[] = [
+    {key:'onboarding' as const,label:'Employee onboarding',path:'/hrms/my-work',count:employeeWork.data?.filter(item=>item.actions.length>0).length??0,loading:employeeWork.isLoading,error:employeeWork.isError,retry:()=>void employeeWork.refetch(),show:!isForbidden(employeeWork.error)},
     { key: 'users' as const, label: 'New user approvals', path: '/settings?tab=users', count: userApprovals.data?.length ?? 0, loading: userApprovals.isLoading || userApprovals.isError, error: userApprovals.isError, retry: () => void userApprovals.refetch(), show: isSuperAdmin },
     { key: 'wfh' as const, label: 'WFH approvals', path: '/hrms/my-work', count: wfh.data?.length ?? 0, loading: wfh.isLoading, error: wfh.isError, retry: () => void wfh.refetch(), show: has('wfh:approve') },
     { key: 'leave' as const, label: 'Leave approvals', path: '/hrms/leave', count: pendingLeave.length, loading: leaveApprovals.isLoading, error: leaveApprovals.isError && !isForbidden(leaveApprovals.error), retry: () => void leaveApprovals.refetch(), show: caps.data?.employee_profile === true && !isForbidden(leaveApprovals.error) },
@@ -53,7 +55,7 @@ export function useWaitingActions() {
   ].flatMap(({ show, ...source }) => (show ? [source] : []));
 
   return {
-    sources,
+    sources, employeeWork: employeeWork.data??[],
     total: sources.reduce((sum, source) => sum + source.count, 0),
     loading: caps.isLoading || sources.some(source => source.loading),
     countFor: (key: WaitingSource['key']) => sources.find(source => source.key === key)?.count ?? 0,
@@ -61,3 +63,5 @@ export function useWaitingActions() {
     cockpitActions, projectActions, wfhRequests: wfh.data ?? [],
   };
 }
+
+export type EmployeeWork = {feedback_status?:'requested'|'submitted'|'resolved'|null;is_own_onboarding?:boolean;verifier_feedback?:string|null;entity_id:string;workflow_id:string;title:string;workflow_label:string;current_state:string;due_date:string|null;actions:{trigger:string;label?:string;to_state:string;required_fields?:{field:string;required:boolean}[]}[]};

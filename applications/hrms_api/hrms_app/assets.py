@@ -30,7 +30,7 @@ class AssetService:
 
     def rows(self):
         fields = [f['field'] for f in configured_form(self.platform, ASSET)['fields']]
-        return self.platform.records(ASSET, list(dict.fromkeys([*fields, *INTERNAL])))
+        return self.platform.records(ASSET, list(dict.fromkeys([*fields, *INTERNAL, *ISSUE_FIELDS])))
 
     def board(self, actor):
         if not {'asset:view', 'asset:manage'} & capabilities(actor):
@@ -130,6 +130,8 @@ class AssetService:
                     note = command.data.get('issue_note', '')
                     if not isinstance(note, str) or len(note) > 2000:
                         raise AppError(422, 'Issue note must be text of at most 2000 characters')
+                    from .onboarding_assets import existing_relations
+                    existing_relations(self.platform, entity_id, employee['entity_id'])
                     data = {**data, 'issued_employee_id': employee['entity_id'], 'issued_date': issued.isoformat(),
                         'issued_by': actor.user_id, 'issue_note': note}
 
@@ -161,6 +163,9 @@ class AssetService:
                             self.platform.call('PUT', f'/entity-records/{entity_id}', json={'data': op.progress['asset_before']})
                             op.checkpoint(asset_plan=None)
                         raise
+            if command.action == 'issue':
+                from .onboarding_assets import ensure_relation
+                ensure_relation(self.platform, entity_id, data['issued_employee_id'])
             self.journal.audit(db, actor, 'asset.' + command.action, entity_id, command.idempotency_key)
             result = {'entity_id': entity_id}
             op.finish(result)
