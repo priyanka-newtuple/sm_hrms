@@ -1,3 +1,4 @@
+import { RecordTabs } from '../components/record/RecordTabs';
 import { createRequestId } from '../requestId';
 import { ArrowRight, Plus, Layers, Target, MessageSquare, CheckCircle2 } from 'lucide-react';
 import { WorkflowStages, useWorkflowConfiguration, transitionLabel } from '../workflows/WorkflowConfiguration';
@@ -142,6 +143,7 @@ export function PerformanceDetail({ entityId }: { entityId: string }) {
   const readable = Object.entries(row.data).filter(([key, v]) => v !== null && v !== '' && !key.endsWith('_id') && !['participants', 'created_by', 'identifier'].includes(key));
   return <section className="hrms-brand hrms-performance-detail">
     <div><h2 className="hrms-case-name">{value(row.data, 'employee_name') || value(row.data, 'name') || row.employee_name}</h2><p className="text-sm text-muted-foreground">{row.cycle_name} · {label(row.state)}{row.due_date ? ` · due ${row.due_date}` : ''}</p></div>
+    <RecordTabs key={entityId} entityId={entityId} scope="performance">
     <WorkflowStages entityId={entityId} />
     {row.kind === 'HRMS.PerformanceReview' && <p className="text-sm text-muted-foreground">Employee: {value(row.data, 'employee_name')} → Manager: {value(row.data, 'manager_name')} → Calibration: {value(row.data, 'calibrator_name')} → HR publication → Employee acknowledgement</p>}
     <dl className="hrms-surface hrms-detail-grid">{readable.map(([key, val]) => <div key={key}><dt className="text-xs text-muted-foreground">{label(key)}</dt><dd className="whitespace-pre-wrap break-words text-sm">{String(val)}</dd></div>)}</dl>
@@ -151,7 +153,7 @@ export function PerformanceDetail({ entityId }: { entityId: string }) {
     {!action && <div className="flex flex-wrap gap-2">{row.actions.map(a => <Button className="hrms-primary-button" variant="primary" size="md" key={a} onClick={() => setAction({ name: a, item: row })}>{transitionLabel(configured,a)}</Button>)}{row.actions.length === 0 && <p className="text-sm text-muted-foreground">No action is assigned to you at this stage.</p>}</div>}
     {!action && query.data?.can_manage && <AddedSteps entityId={row.id} />}
     {action && <ActionForm key={`${action.item.id}:${action.name}`} item={action.item} action={action.name} done={() => setAction(null)} />}
-  </section>;
+  </RecordTabs></section>;
 }
 
 export default function PerformancePage() {

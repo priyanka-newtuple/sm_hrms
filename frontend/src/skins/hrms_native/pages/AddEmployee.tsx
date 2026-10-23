@@ -28,7 +28,7 @@ interface CreatedEmployee {
   account_status: string;
 }
 
-export default function AddEmployee() {
+export default function AddEmployee({buttonClassName = ''}: {buttonClassName?: string} = {}) {
   const { data: capabilities } = useHrmsCapabilities();
   const canCreate = capabilities?.capabilities.includes('employee:create') ?? false;
   const queryClient = useQueryClient();
@@ -71,7 +71,7 @@ export default function AddEmployee() {
 
   if (!canCreate) return null;
   return <>
-    <button type="button" className="hrms-primary-button" onClick={() => { setCreated(null); setShowForm(true); }}><Plus size={16} /> Add employee</button>
+    <button type="button" className={`hrms-primary-button ${buttonClassName}`} onClick={() => { setCreated(null); setShowForm(true); }}><Plus size={16} /> Add employee</button>
     {created && <div role="status" className="hrms-notice">
       <strong>{created.employee.full_name} ({created.employee.employee_code}) was added.</strong>{' '}
       {created.account_status === 'not_created' ? 'Registration saved. Continue the configured workflow from My Tasks.' : `Account status: ${created.account_status}. Review the account in Settings → Users.`}

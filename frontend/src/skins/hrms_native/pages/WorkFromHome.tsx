@@ -1,3 +1,4 @@
+import { RecordTabs } from '../components/record/RecordTabs';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
@@ -55,9 +56,9 @@ export function WfhDecision({ item }: { item: Booking }) {
 
 export function WfhRequestRow({ item }: { item: Booking }) {
   const command = useCommand(`/hrms/wfh/requests/${item.entity_id}/actions`);
-  return <li className="hrms-work-item"><h3>{item.employee_name}</h3><p>{item.dates.join(', ')}</p><span className="hrms-status" data-state={item.state}>{item.state_label}</span>{item.reason && <p>{item.reason}</p>}
+  return <li className="hrms-work-item"><RecordTabs entityId={item.entity_id} scope="wfh"><h3>{item.employee_name}</h3><p>{item.dates.join(', ')}</p><span className="hrms-status" data-state={item.state}>{item.state_label}</span>{item.reason && <p>{item.reason}</p>}
     <div className="hrms-heading-actions">{item.actions.map(trigger => <button type="button" key={trigger} className="hrms-outline-button" disabled={command.pending !== null} onClick={() => command.submit({ trigger })}>{item.workflow_configuration.transitions.find(t => t.trigger === trigger && t.from_state === item.state)?.label ?? trigger}</button>)}</div>{command.feedback}
-  </li>;
+</RecordTabs>  </li>;
 }
 
 /** Calendar and own requests for everyone; all requests and the yearly policy for HR who may approve or configure. */

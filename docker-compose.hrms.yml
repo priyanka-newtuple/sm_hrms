@@ -98,6 +98,20 @@ services:
       MP_SMTP_AUTH_ACCEPT_ANY: "1"
       MP_SMTP_AUTH_ALLOW_INSECURE: "1"
     ports: ["127.0.0.1:8025:8025"]
+  platform-worker:
+    profiles: ["native"]
+    image: sm-hrms-platform:local
+    command: ["python", "worker_main.py"]
+    environment:
+      <<: *platform_environment
+      ACTION_RUNS_WORKER_ENABLED: "true"
+      WORKER_MODE: "true"
+      WORKER_SKIP_MIGRATIONS: "true"
+    volumes: ["hrms_native_files:/tmp/modular_filehandler"]
+    depends_on:
+      platform-install:
+        condition: service_completed_successfully
+    restart: unless-stopped
   platform-install:
     profiles: ["native"]
     image: sm-hrms-application:local
@@ -154,6 +168,8 @@ services:
       dockerfile: Dockerfile.platform
     ports: ["127.0.0.1:5182:80"]
     depends_on:
+      platform-worker:
+        condition: service_started
       hrms-app:
         condition: service_healthy
   hrms-app-db:

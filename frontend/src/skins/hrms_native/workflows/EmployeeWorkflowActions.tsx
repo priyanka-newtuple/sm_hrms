@@ -1,3 +1,4 @@
+import { RecordTabs } from '../components/record/RecordTabs';
 import { OnboardingAssets } from './OnboardingAssets';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -8,9 +9,13 @@ import { createRequestId } from '../requestId';
 import type { EmployeeWork } from '../workspace/useWaitingActions';
 
 type Form = {feedback_status?:'requested'|'submitted'|'resolved'|null;previous_feedback?:string|null;asset_section?:boolean;name:string; fields:Field[]; previous_fields:Field[]; values:Record<string,unknown>; current_state:string; verifier_feedback?:string|null};
-export function EmployeeWorkflowActions({item,readOnly=false}:{item:EmployeeWork;readOnly?:boolean}) {
+export function EmployeeWorkflowActions({item,readOnly=false,open:controlledOpen,onOpenChange}:{
+  item:EmployeeWork;readOnly?:boolean;open?:boolean;onOpenChange?:(open:boolean)=>void;
+}) {
   const client=useQueryClient();
-  const [open,setOpen]=useState(false);
+  const [localOpen,setLocalOpen]=useState(false);
+  const open=controlledOpen??localOpen;
+  const setOpen=(value:boolean)=>{setLocalOpen(value);onOpenChange?.(value);};
   const [values,setValues]=useState<Record<string,unknown>|null>(null);
   const [key,setKey]=useState(createRequestId);
   const form=useQuery({queryKey:['hrms','employee-state-form',item.entity_id,item.workflow_id,item.current_state],
@@ -28,9 +33,10 @@ export function EmployeeWorkflowActions({item,readOnly=false}:{item:EmployeeWork
     if(trigger) await request(`/hrms/employee-work/${item.entity_id}/actions`,{
       method:'POST',body:JSON.stringify({workflow_id:item.workflow_id,trigger,idempotency_key:key})});
   },onSuccess:()=>{setValues(null);setKey(createRequestId());setOpen(false);void client.invalidateQueries({queryKey:['hrms']});}});
-  return <><button type="button" className="hrms-outline-button" onClick={()=>setOpen(true)}>{readOnly?'View details':'Open task'}</button>
+  return <>{controlledOpen===undefined&&<button type="button" className="hrms-outline-button" onClick={()=>setOpen(true)}>{readOnly?'View details':'Open task'}</button>}
     <Sheet open={open} onOpenChange={setOpen}><SheetContent className="hrms-brand hrms-employee-form overflow-y-auto data-[side=right]:w-full data-[side=right]:sm:max-w-3xl">
       <SheetHeader><SheetTitle>{item.title}</SheetTitle><p>{item.current_state}</p></SheetHeader>
+      <RecordTabs key={item.entity_id} entityId={item.entity_id} workflowId={item.workflow_id} scope="employee">
       {form.isLoading&&<p role="status">Loading configured form…</p>}
       {form.isError&&<p role="alert">{getApiErrorMessage(form.error)} <button onClick={()=>void form.refetch()}>Retry</button></p>}
       {form.data&&<form onSubmit={e=>{e.preventDefault();if(e.target===e.currentTarget)action.mutate(null);}} className="space-y-5 mt-5">
@@ -44,5 +50,6 @@ export function EmployeeWorkflowActions({item,readOnly=false}:{item:EmployeeWork
         {item.actions.map(step=><button key={step.trigger} type="button" className="hrms-primary-button" disabled={action.isPending} onClick={()=>action.mutate(step.trigger)}>{step.label||step.to_state}</button>)}</div>}
       </form>}
       {action.isError&&<p role="alert" className="text-red-700">{getApiErrorMessage(action.error)}</p>}
+      </RecordTabs>
     </SheetContent></Sheet></>;
 }

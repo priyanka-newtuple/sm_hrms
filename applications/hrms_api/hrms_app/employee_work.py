@@ -67,7 +67,7 @@ def employee_enrollments(platform, actor):
             token=actor.token,
             params={
                 "entity_type_name": "HRMS.Employee",
-                "fields": "first_name,last_name,identifier,platform_user_id,hr_verification_notes",
+                "fields": "first_name,last_name,identifier,platform_user_id,hr_verification_notes,employment_status",
                 "limit": 200,
                 "offset": offset,
             },
@@ -122,6 +122,8 @@ def employee_work(platform, actor):
             if record.get("owner_id") != actor.user_id:
                 options = []
         data = row.get("summary_fields") or {}
+        if data.get('employment_status') in {'offboarded','inactive'}:
+            options = []
         own = data.get("platform_user_id") == actor.user_id
         if is_employee_profile_step(workflow, row["current_state"]) and not own:
             options = []
@@ -296,6 +298,9 @@ def save_employee_form(platform, actor, entity_id, workflow_id, values):
     from .custom_fields import _typed
 
     form = employee_form(platform, actor, entity_id, workflow_id)
+    employee = platform.request('GET', f'/entity-records/{entity_id}', token=actor.token)
+    if employee['data'].get('employment_status') in {'offboarded','inactive'}:
+        raise AppError(409, 'This employee has left; onboarding details are read-only')
     editable = {f["field"]: f for f in form["fields"] if not f.get("read_only")}
     if set(values) - set(editable):
         raise AppError(
@@ -403,6 +408,13 @@ def onboarding_tracker(platform, actor):
             'actions': [], 'due_date': row.get('sla_due_at') or row.get('due_date'),
         })
         result.append({**item, 'completed': 'terminal' in state.get('tags', []),
+                       'identifier': summary.get('identifier') or row['display_name'],
+                       'workflow_configuration': {
+                           'machine_name': workflow['machine_name'],
+                           'version': workflow.get('version'),
+                           'states': [dict(name=s['name'], label=s['name'], terminal='terminal' in s.get('tags', []))
+                                      for s in sorted(workflow['definition']['states'], key=lambda s:s.get('order', 0))],
+                       },
                        'workflow_version': workflow.get('version'),
                        'states': [s['name'] for s in sorted(workflow['definition']['states'], key=lambda s:s.get('order', 0))],
                        'assigned_to': users.get(record.get('assignee_id')),

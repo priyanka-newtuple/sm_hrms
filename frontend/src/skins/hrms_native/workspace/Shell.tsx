@@ -11,6 +11,7 @@ import {
   PanelLeftOpenIcon, SearchIcon, SettingsIcon, SlidersHorizontalIcon, TrendingUpIcon, UsersIcon,
   WorkflowIcon, XIcon, ZapIcon, type AnimatedIcon,
 } from '../animated-icons';
+import { useWorkflowCatalog } from '../workflows/useWorkflowCatalog';
 import { useWaitingActions, type WaitingSource } from './useWaitingActions';
 
 interface NavItem { path: string; label: string; icon: AnimatedIcon; badge?: number; keywords?: string; comingSoon?: boolean }
@@ -40,7 +41,10 @@ function Sidebar({ groups, settings, collapsed, onToggle, waiting, motion }: {
   const [folded, setFolded] = useState<Record<string, boolean>>({});
   const nav = useRef<HTMLElement>(null);
   const pill = useRef<HTMLSpanElement>(null);
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
+  const catalog = useWorkflowCatalog(groups.some(group=>group.items.some(item=>item.path==='/hrms/workflows')));
+  const selectedWorkflow = new URLSearchParams(search).get('workflow');
+  const [workflowsExpanded, setWorkflowsExpanded] = useState(false);
 
   const moveTo = useCallback((target: HTMLElement | null) => {
     const host = nav.current, node = pill.current;
@@ -54,7 +58,7 @@ function Sidebar({ groups, settings, collapsed, onToggle, waiting, motion }: {
     node.style.height = `${target.offsetHeight}px`;
   }, []);
   const rest = useCallback(() => moveTo(nav.current?.querySelector<HTMLElement>('a[aria-current="page"]') ?? null), [moveTo]);
-  useLayoutEffect(rest, [rest, pathname, collapsed, groups, folded]);
+  useLayoutEffect(rest, [rest, pathname, collapsed, groups, folded, workflowsExpanded]);
 
   const toggleLabel = collapsed ? 'Expand sidebar' : 'Collapse sidebar';
   return <aside className="hrms-ws-sidebar" aria-label="Workspace">
@@ -69,12 +73,25 @@ function Sidebar({ groups, settings, collapsed, onToggle, waiting, motion }: {
       <span ref={pill} className="hrms-side-pill" aria-hidden="true" />
       {groups.map(group => <section key={group.label} className="hrms-side-group" aria-label={group.label}>
         {!group.standalone && <h2><button type="button" className="hrms-side-group-toggle" aria-expanded={!folded[group.label]} onClick={() => setFolded(previous => ({ ...previous, [group.label]: !previous[group.label] }))}>{group.label}<ChevronDown size={14} style={{ transform: folded[group.label] ? "rotate(-90deg)" : undefined }} /></button></h2>}
-        {(collapsed || !folded[group.label]) && group.items.map(item => item.comingSoon ? <div key={item.path} className="hrms-side-link hrms-side-coming" data-label={`${item.label} — Coming soon`} aria-disabled="true"><AnimIcon icon={item.icon} size={19} /><span className="hrms-side-label">{item.label}<small>Coming soon</small></span></div> : <NavLink key={item.path} to={item.path} className="hrms-side-link" data-label={item.label}
+        {(collapsed || !folded[group.label]) && group.items.map(item => item.comingSoon ? <div key={item.path} className="hrms-side-link hrms-side-coming" data-label={`${item.label} — Coming soon`} aria-disabled="true"><AnimIcon icon={item.icon} size={19} /><span className="hrms-side-label">{item.label}<small>Coming soon</small></span></div> : <div key={item.path}><NavLink to={item.path} className="hrms-side-link" data-label={item.label}
+          aria-expanded={item.path==='/hrms/workflows'&&!collapsed?workflowsExpanded:undefined}
+          aria-controls={item.path==='/hrms/workflows'&&!collapsed?'hrms-workflow-links':undefined}
+          onClick={()=>{if(item.path==='/hrms/workflows')setWorkflowsExpanded(value=>!value);}}
           onMouseEnter={event => moveTo(event.currentTarget)} onFocus={event => moveTo(event.currentTarget)}>
           <AnimIcon icon={item.icon} size={19} />
           <span className="hrms-side-label">{item.label}</span>
+          {item.path==='/hrms/workflows'&&!collapsed&&<ChevronDown size={14} className="hrms-workflow-chevron" style={{transform:workflowsExpanded?undefined:'rotate(-90deg)'}} aria-hidden="true"/>}
           {item.badge ? <span className="hrms-side-badge" aria-label={`${item.badge} waiting`}>{item.badge > 99 ? '99+' : item.badge}</span> : null}
-        </NavLink>)}
+        </NavLink>
+        {item.path==='/hrms/workflows' && !collapsed && workflowsExpanded && <>
+          <nav id="hrms-workflow-links" className="hrms-workflow-nav" aria-label="Workflows">
+            {catalog.isLoading && pathname!=='/hrms/workflows' && <p>Loading workflows…</p>}
+            {catalog.isError && <button onClick={()=>void catalog.refetch()}>Could not load workflows. Retry</button>}
+            {catalog.data?.map(workflow=><Link key={workflow.machine_name} to={`/hrms/workflows?workflow=${encodeURIComponent(workflow.machine_name)}`} aria-current={pathname==='/hrms/workflows'&&selectedWorkflow===workflow.machine_name?'page':undefined}>{workflow.name}</Link>)}
+            {catalog.data?.length===0 && <p>No published workflows</p>}
+          </nav>
+        </>}
+        </div>)}
       </section>)}
     </nav>
 
@@ -229,6 +246,7 @@ export function WorkspaceShell() {
     { label: 'Workspace', standalone: true, items: [
       { path: '/hrms/my-work', label: 'My Tasks', icon: ZapIcon, badge: waiting.total, keywords: 'home assigned tasks approvals completion' },
       ...(permissions?.permissions.includes('workflow:read') ? [{ path: '/hrms/workflows', label: 'Workflows', icon: WorkflowIcon, keywords: 'workflow states transitions approvals' }] : []),
+      ...(allowed('platform:configure') && permissions?.permissions.includes('agent:read') ? [{ path: '/agent', label: 'Agent Mode', icon: ZapIcon, keywords: 'AI assistant chat agents' }] : []),
       ...(allowed('employee:read') ? [{ path: '/hrms/employees', label: 'Org Directory', icon: UsersIcon, keywords: 'employees directory people staff' }] : []),
     ] },
     { label: 'Self Service', items: [

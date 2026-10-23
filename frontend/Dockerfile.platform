@@ -7,6 +7,7 @@ ENV VITE_SKIN_ID=newtuple-hrms-native
 ENV VITE_API_BASE_URL=/v1/api
 ENV CUSTOMER_SKINS_PATH=/app/src/skins/hrms_native/customer-skins.ts
 RUN sed -i 's|/src/main.tsx|/src/skins/hrms_native/main.tsx|' index.html
+RUN sed -i 's|/favicon.svg|/hrms-brand/myhub-favicon.svg|' index.html
 RUN sed -i 's|<title>State Machine</title>|<title>Newtuple HRMS</title>|' index.html
 RUN npm run build
 

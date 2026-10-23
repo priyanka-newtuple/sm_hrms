@@ -59,3 +59,30 @@ def test_invalid_credentials_do_not_replace_working_configuration():
     with pytest.raises(RuntimeError):
         configure(api, smtp_payload(VALUES))
     assert len(api.calls) == 2
+
+
+from hrms_app.configure_email import deployment_payload
+
+
+def test_deployment_defaults_to_capture_even_when_live_secrets_exist():
+    payload = deployment_payload(VALUES)
+    assert payload['config']['smtp_host'] == 'mailpit'
+    assert payload['config']['smtp_port'] == 1025
+    assert VALUES['SMTP_PASSWORD'] not in str(payload)
+    api = Api()
+    assert configure(api, payload)
+
+
+def test_explicit_live_mode_uses_validated_real_credentials():
+    assert deployment_payload({**VALUES, 'HRMS_EMAIL_MODE': 'live'}) == smtp_payload(VALUES)
+
+
+@pytest.mark.parametrize('values', [
+    {'HRMS_EMAIL_MODE': 'invalid'},
+    {'HRMS_EMAIL_MODE': 'live'},
+    {**VALUES, 'HRMS_EMAIL_MODE': 'live', 'EMAIL_ENABLED': 'false'},
+    {**VALUES, 'HRMS_EMAIL_MODE': 'live', 'SMTP_HOST': 'mailpit'},
+])
+def test_invalid_mode_or_unconfigured_live_fails_closed(values):
+    with pytest.raises(ValueError):
+        deployment_payload(values)

@@ -178,6 +178,8 @@ def install():
     if user['status'] == 'pending':
         api.call('POST', f"/users/{user['id']}/approve")
     api.call('PUT', f"/roles/users/{user['id']}/role", json={'role_id': role['id']})
+    from .install_offboarding import install as install_offboarding
+    install_offboarding(api, os.environ['HRMS_APP_DATABASE_URL'])
     # Verify real authentication and tenant context before reporting installation success.
     runtime = PlatformClient(os.environ['PLATFORM_API_URL'], org, email, os.environ['HRMS_SERVICE_PASSWORD'])
     runtime.service_token()

@@ -1,3 +1,4 @@
+import { RecordTabs } from '../components/record/RecordTabs';
 import { createRequestId } from '../requestId';
 import { CalendarDays, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -49,7 +50,7 @@ export function LeaveRow({ item, view, onChange }: { item: LeaveItem; view: View
 
   return (
     <li className="hrms-brand hrms-surface hrms-leave-card">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <RecordTabs entityId={item.entity_id} scope="leave"><div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="hrms-section-heading">{item.identifier || 'Leave Request'} · {item.employee_name}</p>
           <p className="mt-1 text-sm text-slate-600">{item.start_date} to {item.end_date} · {item.leave_type}</p>
@@ -69,7 +70,7 @@ export function LeaveRow({ item, view, onChange }: { item: LeaveItem; view: View
       {available.isFetching && <p className="hrms-muted" role="status">Loading available actions…</p>}
       {available.isError && <div role="alert" className="hrms-notice hrms-notice--error">{getApiErrorMessage(available.error)} <button className="hrms-outline-button" onClick={() => void available.refetch()}>Retry actions</button></div>}
       {error && <p role="alert" className="mt-2 text-sm text-red-700">{error}</p>}
-    </li>
+</RecordTabs>    </li>
   );
 }
 

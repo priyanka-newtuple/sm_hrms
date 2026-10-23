@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" fill="none">
+  <title>MyHub</title>
+  <defs>
+    <linearGradient id="navy" x1="0" y1="80" x2="0" y2="152" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#293F67"/><stop offset="1" stop-color="#091A3B"/>
+    </linearGradient>
+    <linearGradient id="blue" x1="0" y1="80" x2="0" y2="152" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0872F9"/><stop offset="1" stop-color="#0047AB"/>
+    </linearGradient>
+  </defs>
+  <rect width="240" height="240" rx="32" fill="white"/>
+  <g font-family="Arial Black, Arial, sans-serif" font-size="72" font-weight="900" letter-spacing="-4">
+    <text x="5" y="145" textLength="226" lengthAdjust="spacingAndGlyphs" fill="#07162F">My<tspan fill="#00347F">Hub</tspan></text>
+    <text x="7" y="143" textLength="226" lengthAdjust="spacingAndGlyphs" fill="#112343">My<tspan fill="#003D96">Hub</tspan></text>
+    <text x="10" y="140" textLength="226" lengthAdjust="spacingAndGlyphs" fill="url(#navy)">My<tspan fill="url(#blue)">Hub</tspan></text>
+  </g>
+</svg>

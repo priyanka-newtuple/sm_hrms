@@ -282,7 +282,8 @@ def test_tracker_keeps_other_owners_and_terminal_enrollments_without_adding_acti
         assert method=='GET' and kw['token']=='human-token'
         if path.startswith('/entity-records/'):
             return {'organization_id':'org','owner_id':'hr','assignee_id':None}
-        return {'definition':{'states':[{'name':'Review','tags':[]},{'name':'Done','tags':['terminal']}]}}
+        return {'machine_name':'configured_employee','version':2,
+                'definition':{'states':[{'name':'Review','tags':[]},{'name':'Done','tags':['terminal']}]}}
     p.request=request
     result=module.onboarding_tracker(p,actor)
     assert [r['completed'] for r in result]==[False,True]

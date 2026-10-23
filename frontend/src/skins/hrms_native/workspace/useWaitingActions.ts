@@ -1,3 +1,4 @@
+import type { MyExit } from '../pages/MyOffboardingPage';
 import { useQuery } from '@tanstack/react-query';
 import { request } from '@/core/services/api/client';
 import { useHrmsCapabilities } from '../capabilities';
@@ -13,7 +14,7 @@ import { useWfhInbox } from '../pages/WorkFromHome';
 export const isForbidden = (error: unknown) => (error as { status?: number } | null)?.status === 403;
 export const retryUnlessForbidden = (count: number, error: unknown) => !isForbidden(error) && count < 1;
 
-export interface WaitingSource { key: 'onboarding' | 'users' | 'leave' | 'cockpit' | 'projects' | 'wfh' | 'performance'; label: string; path: string; count: number; loading: boolean; error: boolean; retry: () => void }
+export interface WaitingSource { key: 'offboarding' | 'onboarding' | 'users' | 'leave' | 'cockpit' | 'projects' | 'wfh' | 'performance'; label: string; path: string; count: number; loading: boolean; error: boolean; retry: () => void }
 
 /**
  * What the signed-in person can act on right now, per work area. Shares query keys with the pages,
@@ -27,6 +28,8 @@ export function useWaitingActions() {
   const leaveApprovals = useQuery({ queryKey: ['hrms', 'leave', 'approvals', 'pending'], queryFn: () => request<LeaveItem[]>('/hrms/leave-requests?view=approvals&state=pending&limit=200'), retry: retryUnlessForbidden,
     enabled: caps.isFetched && caps.data?.employee_profile !== false });
   const employeeWork = useQuery({queryKey:['hrms','employee-work'], queryFn:()=>request<EmployeeWork[]>('/hrms/employee-work'), retry:retryUnlessForbidden,refetchInterval:30_000});
+  const myOffboarding=useQuery({queryKey:['hrms','my-offboarding'],queryFn:()=>request<MyExit[]>('/hrms/my-offboarding'),enabled:caps.isFetched&&caps.data?.employee_profile!==false,retry:retryUnlessForbidden});
+  const offboarding = useQuery({queryKey:['hrms','offboarding-inbox'],queryFn:()=>request<{entity_id:string;machine_name:string;current_state:string;summary_fields:Record<string,string>}[]>('/hrms/offboarding/inbox'),enabled:has('employee:exit'),retry:retryUnlessForbidden});
   const cockpit = useCockpitBoard();
   const projects = useProjects();
   const wfh = useWfhInbox();
@@ -45,6 +48,7 @@ export function useWaitingActions() {
   const projectActions = projects.data?.requests.filter(r => r.state === 'pending' && r.actions.includes('approve')) ?? [];
 
   const sources: WaitingSource[] = [
+    {key:'offboarding' as const,label:'Employee offboarding',path:'/hrms/my-work',count:(offboarding.data?.length??0)+(myOffboarding.data?.filter(r=>r.actions.length>0).length??0),loading:offboarding.isLoading||myOffboarding.isLoading,error:offboarding.isError||myOffboarding.isError,retry:()=>{void offboarding.refetch();void myOffboarding.refetch();},show:has('employee:exit')||(myOffboarding.data?.length??0)>0},
     {key:'onboarding' as const,label:'Employee onboarding',path:'/hrms/my-work',count:employeeWork.data?.filter(item=>item.actions.length>0).length??0,loading:employeeWork.isLoading,error:employeeWork.isError,retry:()=>void employeeWork.refetch(),show:!isForbidden(employeeWork.error)},
     { key: 'users' as const, label: 'New user approvals', path: '/settings?tab=users', count: userApprovals.data?.length ?? 0, loading: userApprovals.isLoading || userApprovals.isError, error: userApprovals.isError, retry: () => void userApprovals.refetch(), show: isSuperAdmin },
     { key: 'wfh' as const, label: 'WFH approvals', path: '/hrms/my-work', count: wfh.data?.length ?? 0, loading: wfh.isLoading, error: wfh.isError, retry: () => void wfh.refetch(), show: has('wfh:approve') },
@@ -55,7 +59,7 @@ export function useWaitingActions() {
   ].flatMap(({ show, ...source }) => (show ? [source] : []));
 
   return {
-    sources, employeeWork: employeeWork.data??[],
+    sources, offboarding, myOffboarding, employeeWork: employeeWork.data??[],
     total: sources.reduce((sum, source) => sum + source.count, 0),
     loading: caps.isLoading || sources.some(source => source.loading),
     countFor: (key: WaitingSource['key']) => sources.find(source => source.key === key)?.count ?? 0,

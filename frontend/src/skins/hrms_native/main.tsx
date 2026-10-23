@@ -12,6 +12,13 @@ import { Toaster } from '../../components/ui/toast.tsx';
 import { HelmetProvider } from 'react-helmet-async';
 import { ThemeProvider } from '../../core/components/theme-Provider.tsx';
 
+// Product favicon is scoped to this entry point, including sign-in pages.
+const favicon = document.querySelector<HTMLLinkElement>('link[rel~="icon"]') ?? document.createElement('link');
+favicon.rel = 'icon';
+favicon.type = 'image/svg+xml';
+favicon.href = '/hrms-brand/myhub-favicon.svg';
+if (!favicon.isConnected) document.head.appendChild(favicon);
+
 // Paint the light/dark mode before anything else so the cached organization
 // theme below derives its colors against the right mode, and so the first frame
 // is not a flash of the wrong one.

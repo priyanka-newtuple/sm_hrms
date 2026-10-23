@@ -1,3 +1,4 @@
+import MyOffboardingPage from './pages/MyOffboardingPage';
 import CustomersPage from './pages/CustomersPage';
 import AssetsPage from './pages/AssetsPage';
 import WorkFromHomePage from './pages/WorkFromHomePage';
@@ -34,6 +35,10 @@ import PerformancePage from './pages/PerformancePage';
 import ProjectsPage from './pages/ProjectsPage';
 import AllocationsPage from './pages/AllocationsPage';
 import { ConfigurationGuard } from './pages/PlatformSettings';
+import { AgentProvider } from '../../core/agent';
+import { GlobalEntityFilterProvider } from '../../core/contexts/GlobalEntityFilterContext';
+import { usePermissions } from '../../core/hooks/usePermissions';
+const AgentModePage = lazy(() => import('../../pages/agent/AgentModePage'));
 const PlatformSettings = lazy(() => import('./pages/PlatformSettings'));
 const FunnelEditor = lazy(() => import('../../pages/funnel'));
 
@@ -78,6 +83,16 @@ function Layout() {
   return <WorkspaceShell />;
 }
 
+function NativeAgentMode() {
+  const { permissions, loading } = usePermissions();
+  const caps = useHrmsCapabilities();
+  if (loading || caps.isLoading) return <p className="p-6">Loading permissions…</p>;
+  if (!permissions?.permissions.includes('agent:read') || !caps.data?.capabilities.includes('platform:configure')) {
+    return <Navigate to="/hrms/my-work" replace />;
+  }
+  return <GlobalEntityFilterProvider><AgentProvider><AgentModePage /></AgentProvider></GlobalEntityFilterProvider>;
+}
+
 
 
 function OnboardingManagement() {
@@ -117,6 +132,7 @@ export default function App() {
 
 
     </Route>
+    <Route path="/agent" element={<ProtectedRoute><NativeAgentMode /></ProtectedRoute>} />
     <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
 
       <Route path="/settings" element={<PlatformSettings />} />
@@ -132,6 +148,7 @@ export default function App() {
 
       <Route path="/hrms/performance" element={<PerformancePage />} />
 
+      <Route path="/hrms/my-offboarding/:id" element={<MyOffboardingPage />} />
       <Route path="/hrms/my-work" element={<MyWorkPage />} />
 
       <Route path="/hrms/cockpit" element={<CockpitPage />} />

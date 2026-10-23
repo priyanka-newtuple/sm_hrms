@@ -23,6 +23,7 @@ type Area = WaitingSource['key'];
 type Task = { key: string; area: Area; title: string; detail: string; feedback?: string | null; action: ReactNode };
 
 const AREAS: Record<Area, { label: string; icon: LucideIcon; tab?: string }> = {
+  offboarding: {label:'Employee offboarding',icon:UserRoundPlus},
   onboarding: {label:'Employee onboarding',icon:UserRoundPlus},
   users: { label: 'New users', icon: UserRoundPlus },
   leave: { label: 'Leave', icon: CalendarCheck2 },
@@ -75,8 +76,10 @@ export default function MyWorkPage() {
     .sort((a, b) => a.start_date.localeCompare(b.start_date))[0];
 
   const tasks: Task[] = [
+    ...(waiting.myOffboarding.data??[]).filter(item=>item.actions.length>0).map(item=>({key:`my-exit-${item.entity_id}`,area:'offboarding' as const,title:'Your employee handover',detail:item.state,action:<Go to={`/hrms/my-offboarding/${item.entity_id}`}>Complete form</Go>})),
     ...waiting.employeeWork.filter(item=>item.actions.length>0).map(item=>({key:`e-${item.entity_id}-${item.workflow_id}`,area:'onboarding' as const,title:item.title,feedback:item.verifier_feedback,
       detail:joined(item.workflow_label,item.current_state,item.feedback_status==='resolved'?'Previous feedback resolved by HR':item.feedback_status==='submitted'?'Corrections submitted, awaiting HR review':'',item.due_date?`Due ${day(item.due_date)}`:''),action:<EmployeeWorkflowActions key={item.current_state} item={item}/>})),
+    ...(waiting.offboarding.data??[]).map(item=>({key:`exit-${item.entity_id}`,area:'offboarding' as const,title:item.summary_fields.identifier||'Employee exit',detail:item.current_state,action:<Go to={`/hrms/workflows?workflow=${encodeURIComponent(item.machine_name)}&case=${item.entity_id}`}>Open</Go>})),
     ...(waiting.userApprovals.data ?? []).map(person => ({ key: `u-${person.id}`, area: 'users' as const, title: person.full_name, detail: joined('New account', person.email),
       action: <Go to="/settings?tab=users">Review</Go> })),
     ...waiting.pendingLeave.map(item => ({ key: `l-${item.entity_id}`, area: 'leave' as const, title: item.employee_name,
@@ -138,6 +141,8 @@ export default function MyWorkPage() {
           : <div className="hrms-task-empty"><Illustration name="all-clear" animate={motion} className="hrms-task-empty-art" /><h3>{current === 'all' ? 'You’re all caught up' : `Nothing waiting in ${AREAS[current as Area].label}`}</h3><p>{current === 'all' ? 'New approvals and tasks for your role will appear here.' : 'New items will appear here as soon as they need you.'}</p></div>}
         <Pager paged={paged} noun={current === 'all' ? 'tasks' : AREAS[current as Area].label.toLowerCase()} />
       </section>
+      {(waiting.myOffboarding.data??[]).map(item=><section key={item.entity_id} className="hrms-lk-card p-6"><h2 className="font-semibold">Your offboarding</h2><p className="my-3">{item.state}</p><Go to={`/hrms/my-offboarding/${item.entity_id}`}>View progress</Go></section>)}
+      {waiting.myOffboarding.isError&&<p role="alert">Unable to load your offboarding status. <button onClick={()=>void waiting.myOffboarding.refetch()}>Retry</button></p>}
       {waiting.employeeWork.filter(item=>item.is_own_onboarding).map(item=><section key={`status-${item.entity_id}-${item.workflow_id}`} className="hrms-lk-card p-6" aria-label="Your onboarding status">
         <h2 className="font-semibold">Your onboarding</h2>
         <p className="mt-2">{item.current_state}</p>

@@ -3,6 +3,25 @@ from .errors import AppError
 from .service import LEAVE, LEAVE_FIELDS, LeaveApprovers, name
 
 
+def employee_workflow_rows(platform, actor):
+    """Use the same permission-scoped native tracker as HR Cockpit, including terminal work."""
+    from .policy import capabilities
+    from .employee_work import onboarding_tracker
+    if 'onboarding:view' not in capabilities(actor):
+        return []
+    return [dict(
+        entity_id=item['entity_id'], entity_type='HRMS.Employee',
+        title=item['title'], identifier=item['identifier'],
+        current_state=item['current_state'], state_label=item['current_state'],
+        is_terminal=item['completed'], workflow_label=item['workflow_label'],
+        owner_name=item.get('assigned_to') or item.get('started_by') or '',
+        next_action=', '.join(a.get('label') or a['trigger'] for a in item['actions']),
+        progress='', due_date=item['due_date'], employee_work=item,
+        workflow_configuration=item.get('workflow_configuration'),
+        leave=None, leave_view=None,
+    ) for item in onboarding_tracker(platform, actor)]
+
+
 def workflow_rows(service, actor):
     rows = []
     employees = service.employees()

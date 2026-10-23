@@ -17,6 +17,12 @@ def configuration_route(method, path, organization_id):
         return True
     if root == 'config':
         return True
+    if path == 'llm/models':
+        return method == 'GET'
+    if path == 'workflow-enrollments':
+        # Native agent canvases read the same enrollments as native tools.
+        # Keep tenant-admin authorization and the human token; never open writes.
+        return method == 'GET'
     if root == 'workflow-state-machines':
         return 'enrollments' not in parts and 'entities' not in parts and 'transitions' not in parts
     if root == 'organizations':
@@ -24,6 +30,13 @@ def configuration_route(method, path, organization_id):
     if root == 'integrations':
         return not (len(parts) > 2 and parts[1] == 'organizations' and parts[2] != organization_id)
     if root == 'agent' and len(parts) > 1:
+        # Native agent execution is an explicitly authorized tenant-admin surface.
+        # Forward the human token; native agent/tool permissions remain authoritative.
+        if method == 'POST' and (path in {'agent/runs', 'agent/async_runs'} or
+                (len(parts) == 4 and parts[1] == 'runs' and parts[3] in {'resume', 'cancel'})):
+            return True
+        if len(parts) == 3 and parts[1] == 'sessions' and method in {'PATCH', 'DELETE'}:
+            return True
         return parts[1] == 'definitions' or (method == 'GET' and parts[1] in {'runs', 'sessions', 'tools', 'models'})
     if root == 'remote-mcp':
         return method == 'GET' or (parts[-1] not in {'invoke', 'call'})

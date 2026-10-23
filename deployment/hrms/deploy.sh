@@ -26,6 +26,9 @@ for service in platform-db hrms-app-db; do
     gzip -t "$backup/$service.sql.gz"
   fi
 done
+# Prevent queued actions from using the previous email transport during deployment.
+"${compose[@]}" stop platform-worker
+"${compose[@]}" up -d --no-deps mailpit
 # Migrations may run at platform startup. Do not automatically roll back schemas.
 trap 'echo "Deployment failed. Previous release pointer retained. Inspect HRMS only; database restore requires an explicit recovery decision." >&2' ERR
 # Preserve files written by the native default local provider before replacing its container.
@@ -39,7 +42,10 @@ if [ -n "$current_api" ]; then
     fi'
 fi
 "${compose[@]}" up -d --no-deps --wait --wait-timeout 300 platform-api
-"${compose[@]}" run --rm --no-deps platform-install
+"${compose[@]}" run --rm -T --no-deps platform-install < /dev/null
+# Read the email-mode payload and credentials from encrypted stdin, before any worker starts.
+"${compose[@]}" run --rm -T --no-deps platform-install python -m hrms_app.configure_email
+"${compose[@]}" up -d --no-deps platform-worker
 "${compose[@]}" up -d --no-deps --wait --wait-timeout 180 hrms-app platform-web
 "${compose[@]}" exec -T platform-web wget -q -O /dev/null http://127.0.0.1/health
 "${compose[@]}" exec -T platform-web wget -q -O /dev/null http://127.0.0.1/login

@@ -127,6 +127,8 @@ def reconcile_employee(service, workflow, enrollment, tags):
         if record["organization_id"] != p.org:
             raise AppError(403, "Employee organization mismatch")
         data = record["data"]
+        if data.get('employment_status') in {'offboarded', 'inactive'}:
+            return  # An unfinished onboarding must not recreate access after departure.
         op = service.journal.operation(
             db, actor, "employee-account:" + eid, {"entity_id": eid}
         )

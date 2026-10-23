@@ -57,6 +57,7 @@ jobs:
           SHA: ${{ github.sha }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          HRMS_EMAIL_MODE: ${{ vars.HRMS_EMAIL_MODE || 'capture' }}
           EMAIL_ENABLED: ${{ secrets.EMAIL_ENABLED }}
           EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
           SMTP_HOST: ${{ secrets.SMTP_HOST }}
@@ -78,8 +79,6 @@ jobs:
           # OAuth credentials travel over encrypted stdin, never release artifacts or arguments.
           python3 -c 'import json, os; print(json.dumps({k: os.environ.get(k, "") for k in ("GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET")}))' | \
             ssh "${opts[@]}" -p "$PORT" "$USER@$HOST" "python3 /opt/newtuple-hrms/releases/$SHA/configure_google.py"
-          ssh "${opts[@]}" -p "$PORT" "$USER@$HOST" "bash /opt/newtuple-hrms/releases/$SHA/deploy.sh $SHA"
-          # Pass email credentials only over SSH stdin, never command arguments or artifacts.
-          python3 -c 'import json, os; print(json.dumps({k: os.environ.get(k, "") for k in ("EMAIL_ENABLED", "EMAIL_FROM", "SMTP_HOST", "SMTP_PORT", "SMTP_USERNAME", "SMTP_PASSWORD")}))' | \
-            ssh "${opts[@]}" -p "$PORT" "$USER@$HOST" \
-              "IMAGE_TAG=$SHA docker compose --project-name newtuple-hrms-production --env-file /opt/newtuple-hrms/production.env -f /opt/newtuple-hrms/releases/$SHA/compose.yml run --rm -T --no-deps platform-install python -m hrms_app.configure_email"
+          # Configure email inside deployment before the action worker starts.
+          python3 -c 'import json, os; print(json.dumps({k: os.environ.get(k, "") for k in ("HRMS_EMAIL_MODE", "EMAIL_ENABLED", "EMAIL_FROM", "SMTP_HOST", "SMTP_PORT", "SMTP_USERNAME", "SMTP_PASSWORD")}))' | \
+            ssh "${opts[@]}" -p "$PORT" "$USER@$HOST" "bash /opt/newtuple-hrms/releases/$SHA/deploy.sh $SHA"

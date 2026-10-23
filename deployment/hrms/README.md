@@ -191,3 +191,31 @@ then install the template, maintainer and systemd units in their paths above.
 Do not replace shared-edge configuration or stop its existing apps.
 
 Native permission and Employee picklist installation are checkpointed/idempotent. Existing native forms and workflow pins are preserved. A read-only native configuration and administrator-access check must pass before the release pointer advances. Production data and configuration are never replaced by local data.
+
+
+## HR-only UAT email: capture first, live later
+
+The release pipeline defaults `HRMS_EMAIL_MODE` (GitHub environment/repository variable) to **capture**. It configures the tenant's existing native SMTP integration through public APIs to use the private `mailpit:1025` service. Existing live SMTP secrets are ignored in capture mode. Native workflow assignments and templates are unchanged; only the mail transport changes. This is deployment-managed configuration: do not change SMTP in Settings while capture mode is selected, as the next deployment reapplies capture.
+
+Mailpit has no relay or forwarding configured. SMTP has no host port. Its web UI binds only to server loopback port **18025**, not the public network. Messages persist in the `mailpit_data` volume, with retention capped at 1,000 messages / 14 days. This inbox contains mail for all test recipients, including employee and Office Admin accounts. HR must use designated test identities to complete their assigned forms; reading a captured email does not complete the workflow task.
+
+### Start UAT
+
+1. Set GitHub variable `HRMS_EMAIL_MODE=capture` (also the default). Release via the existing main-branch deployment process; this code change does not itself modify the remote server.
+2. Deployment starts Mailpit, stops the action worker, installs configuration, validates capture SMTP, and only then restarts the worker. If email configuration fails, deployment stops with the worker stopped rather than processing through the previous transport.
+3. An authorized server user can open an SSH tunnel:
+   `ssh -N -L 18025:127.0.0.1:18025 <authorized-user>@62.238.103.67`
+4. Open http://localhost:18025 while the tunnel is running. Arrange a restricted SSH forwarding account for Shilpa, or separately provision an authenticated HTTPS mailbox hostname. Do not expose port 18025 publicly or share deployment SSH credentials.
+5. Trigger a test offer/offboarding notification and inspect the recipient, subject, body and attachment in Mailpit. Verify no real recipient inbox receives it. Local development remains on http://localhost:8025.
+
+### Switch at the end of UAT
+
+1. Finish/cancel pending UAT notification jobs through native administration before switching. Queued or failed jobs may use the currently configured SMTP server on their next run. Captured Mailpit messages are never replayed automatically.
+2. Set `HRMS_EMAIL_MODE=live`, `EMAIL_ENABLED=true`, and the existing secrets `EMAIL_FROM`, `SMTP_HOST`, `SMTP_PORT` (465 or 587), `SMTP_USERNAME`, `SMTP_PASSWORD` in GitHub. Use a dedicated permitted sender. Missing/invalid credentials fail the deployment; there is no silent fallback to live or capture.
+3. Run the normal release pipeline. Credentials travel only over SSH stdin; SMTP authentication is validated before configuration is saved and the worker starts. Configuration does not send a test email.
+4. Trigger one new notification to a designated UAT tester and confirm actual delivery before wider testing. Mailpit remains private for reviewing earlier captured messages.
+5. To return to capture, set the variable back to `capture` and redeploy. Live credentials remain in GitHub secrets, so they can be used again without storing them in the capture integration.
+
+Manual deployments must also supply the email configuration JSON on stdin to `deploy.sh`; for capture, use `printf '%s' '{"HRMS_EMAIL_MODE":"capture"}' | bash deploy.sh <release-sha>`. Never put live SMTP passwords in shell arguments/history. This changes email delivery only; HR-only application access must still be configured through native Users/Roles.
+
+Mailpit runtime options: https://mailpit.axllent.org/docs/configuration/runtime-options/

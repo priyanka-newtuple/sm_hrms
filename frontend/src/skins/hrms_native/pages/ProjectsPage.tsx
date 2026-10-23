@@ -1,3 +1,4 @@
+import { RecordTabs } from '../components/record/RecordTabs';
 import { createRequestId } from '../requestId';
 import { BriefcaseBusiness, Plus, Search, Users } from 'lucide-react';
 import { useHrmsCapabilities } from '../capabilities';
@@ -163,6 +164,7 @@ export function ProjectDetail({entityId}:{entityId:string}) {
   const source=item.kind==='HRMS.ProjectChange'?project:board?.allocations.find(a=>a.id===item.data.allocation_id);
   const proposed=item.data.proposed as Data|undefined;
   return <section className="hrms-brand hrms-project-detail"><div><h2 className="hrms-case-name">{item.project_name}</h2><p className="text-sm text-muted-foreground">{configured?.state_label ?? label(item.state)} · Revision {Number(item.data.revision??0)}</p></div>
+    <RecordTabs key={entityId} entityId={entityId} scope="projects">
     <WorkflowStages entityId={entityId} />
     <ReadableData data={item.data} />
     {proposed && <div className="hrms-surface hrms-table-scroll"><table className="hrms-people-table"><caption className="p-3 text-left font-medium">Current and proposed values</caption><thead><tr><th className="p-2">Field</th><th className="p-2">Current</th><th className="p-2">Proposed</th></tr></thead><tbody>{Object.entries(proposed).filter(([k])=>!k.endsWith('_id')).map(([k,v])=><tr key={k} className="border-t"><td className="p-2">{label(k)}</td><td className="p-2">{String(source?.data[k]??'—')}</td><td className="p-2">{String(v)}</td></tr>)}</tbody></table></div>}
@@ -170,7 +172,7 @@ export function ProjectDetail({entityId}:{entityId:string}) {
     {!action && <div className="flex flex-wrap gap-2">{item.actions.map(a=><Button key={a} variant="primary" onClick={()=>setAction(a)}>{transitionLabel(configured,a)}</Button>)}{!item.actions.length && <p className="text-sm text-muted-foreground">No action is available to you at this stage.</p>}</div>}
     {action && <ProjectAction key={`${item.id}:${action}`} item={item} action={action} done={()=>setAction(null)} />}
     {item.kind==='HRMS.Project' && <><h3 className="font-semibold">Team and allocations</h3>{board?.allocations.filter(a=>a.data.project_id===item.id).map(a=><p key={a.id} className="text-sm"><Link className="hrms-text-link" to={`/hrms/workflows?case=${a.id}`}>{val(a.data,'employee_name')} · {val(a.data,'project_role_name')} · {val(a.data,'percentage')}% · {label(a.state)}</Link></p>)}<h3 className="font-semibold">Approval history</h3>{board?.requests.filter(r=>r.data.project_id===item.id).map(r=><p key={r.id} className="text-sm"><Link className="hrms-text-link" to={`/hrms/workflows?case=${r.id}`}>{r.kind==='HRMS.ProjectChange'?'Project':'Allocation'} · {label(val(r.data,'kind'))} · {label(r.state)} · Approver: {val(r.data,'approver_name')}</Link></p>)}</>}
-  </section>;
+  </RecordTabs></section>;
 }
 
 

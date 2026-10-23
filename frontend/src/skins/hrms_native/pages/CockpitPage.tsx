@@ -1,3 +1,6 @@
+import OffboardingPage from './OffboardingPage';
+import CreateOffer from './CreateOffer';
+import { RecordTabs } from '../components/record/RecordTabs';
 import { OnboardingTracker } from './OnboardingTracker';
 import AddEmployee from './AddEmployee';
 import { ConfiguredInputs, ConfiguredForm, useFormSchema, formValues } from '../forms/ConfiguredForm';
@@ -94,12 +97,12 @@ export default function CockpitPage({entityId}:{entityId?:string}) {
  if(caps.isError)return <p role="alert">Could not load HR access. <button onClick={()=>void caps.refetch()}>Try again</button></p>;
  const allowed=(cap:string)=>caps.data?.capabilities.includes(cap)??false;
  // Work from home lives on its own page; its approvals are on My Tasks.
- const areas=[...(allowed('onboarding:view')?[{id:'onboarding',label:'Onboarding'}]:[]),...(allowed('cockpit:view')?[{id:'publishing',label:'Content & publishing'}]:[]),...(allowed('onboarding:view')?[{id:'offboarding',label:'Offboarding'}]:[])];
+ const areas=[...(allowed('cockpit:view')?[{id:'offers',label:'Offers'}]:[]),...(allowed('onboarding:view')?[{id:'onboarding',label:'Onboarding'}]:[]),...(allowed('employee:exit')?[{id:'offboarding',label:'Offboarding'}]:[]),...(allowed('cockpit:view')?[{id:'publishing',label:'Content & publishing'}]:[])];
  if(!areas.length)return <p className="p-6">HR Cockpit is not available to your role.</p>;
  const area=areas.find(a=>a.id===params.get('area'))?.id??areas[0].id;
- const tabs=<Segmented variant="underline" label="HR Cockpit areas" value={area} onChange={id=>setParams({area:id})} segments={areas.map(a=>({id:a.id,label:a.label,badge:a.id==='offboarding'?'Soon':undefined}))}/>;
+ const tabs=<Segmented variant="underline" label="HR Cockpit areas" value={area} onChange={id=>setParams({area:id})} segments={areas.map(a=>({id:a.id,label:a.label,badge:undefined}))}/>;
  if(area==='publishing')return <ContentCockpit tabs={tabs}/>;
- return <main className="hrms-workspace-page"><PageHero title="HR Cockpit" intro={area==='offboarding'?'Employee offboarding is coming soon.':'Coordinate onboarding and help new colleagues settle in.'} illustration="cockpit" tabs={tabs}/>{area==='onboarding'?<><section className="hrms-surface p-6"><h2 className="hrms-section-heading">Onboarding</h2><p className="mb-4">Add a new employee to your organization.</p><AddEmployee/></section><OnboardingTracker/></>:<section className="hrms-surface p-6"><h2 className="hrms-section-heading">Offboarding</h2><p className="text-sm text-muted-foreground">Coming soon</p><p className="mt-3">Employee exit workflows will be available here.</p></section>}</main>;
+ return <main className="hrms-workspace-page"><PageHero title="HR Cockpit" intro={area==='offers'?'Create offers and follow their approval and acceptance progress.':area==='offboarding'?'Coordinate employee exits, handover and final clearances.':'Coordinate onboarding and help new colleagues settle in.'} illustration="cockpit" tabs={tabs}/>{area==='offers'?<CreateOffer/>:area==='onboarding'?<OnboardingTracker actions={<AddEmployee buttonClassName="hrms-lk-add"/>}/>:<OffboardingPage/>}</main>;
 }
 
 function ContentCockpit({entityId,tabs}:{entityId?:string;tabs?:React.ReactNode}) {
@@ -156,6 +159,7 @@ function ContentCockpit({entityId,tabs}:{entityId?:string;tabs?:React.ReactNode}
   {item&&board&&<section className="hrms-content-detail">
    {!entityId&&<button className="hrms-outline-button hrms-content-back" onClick={()=>{setSelected(null);setEditing(false);}}>Back to content</button>}
    <div className="hrms-surface hrms-content-summary"><h2 className="hrms-case-name">{item.data.title}</h2><div className="hrms-heading-actions"><span className="hrms-status" data-state={notLive(item)?'closed':item.state}>{statusText(item)}</span><span className="hrms-muted">Audience: {item.data.audience} · Approver: {item.data.approver_name||'—'}</span></div></div>
+   <RecordTabs key={item.entity_id} entityId={item.entity_id} scope="content">
    <WorkflowStages entityId={item.entity_id}/><h2 className="hrms-section-heading">Publication preview</h2><ContentCard item={item.data}/>
    {editing?<Editor key={item.entity_id} kind={item.kind} item={item} board={board} done={()=>setEditing(false)}/>:<div className="hrms-heading-actions">{item.actions.map(a=><button type="button" className="hrms-primary-button" key={a} disabled={act.isPending||pending!==null} onClick={()=>{if(a==='edit'){setEditing(true);return;}if(a==='change_approver'){setNewApprover('');return;}const p={id:item.entity_id,action:a,revision:Number(item.data.revision??0),key:createRequestId()};setPending(p);act.mutate(p);}}>{item.workflow_configuration.transitions.find(t=>t.trigger===a&&t.from_state===item.state)?.label??label(a)}</button>)}</div>}
    {newApprover!==null&&<form className="hrms-heading-actions" onSubmit={e=>{e.preventDefault();const p={id:item.entity_id,action:'change_approver',revision:Number(item.data.revision??0),key:createRequestId(),data:{approver_id:newApprover}};setPending(p);act.mutate(p);}}>
@@ -165,6 +169,6 @@ function ContentCockpit({entityId,tabs}:{entityId?:string;tabs?:React.ReactNode}
    {act.isError&&<div role="alert" className="hrms-notice hrms-notice--error"><p>{getApiErrorMessage(act.error)}</p>{pending&&<button className="hrms-outline-button" onClick={()=>act.mutate(pending)}>Retry action</button>}{pending&&<button className="hrms-outline-button" onClick={()=>{setPending(null);act.reset();}}>Dismiss</button>}</div>}
    {caps.data?.capabilities.includes('cockpit:publish')&&<AddedSteps entityId={item.entity_id}/>}
    <Link className="hrms-text-link" to={`/hrms/workflows?case=${item.entity_id}`}>View in Workflows <ArrowUpRight size={15}/></Link>
-  </section>}
+  </RecordTabs></section>}
  </main>;
 }

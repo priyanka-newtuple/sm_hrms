@@ -35,6 +35,28 @@ def smtp_payload(values):
     }
 
 
+def deployment_payload(values):
+    """UAT captures by default; real delivery requires an explicit live selection."""
+    mode = str(values.get('HRMS_EMAIL_MODE') or 'capture').strip().lower()
+    if mode == 'capture':
+        return {
+            'display_name': 'UAT inbox — captured, not delivered',
+            'validate': True, 'set_default': True,
+            'config': {'smtp_host': 'mailpit', 'smtp_port': 1025,
+                       'smtp_use_tls': False, 'from_email': 'myhub@newtuple.com',
+                       'from_name': 'MyHub UAT'},
+            'secrets': {'username': 'uat', 'password': 'capture'},
+        }
+    if mode != 'live':
+        raise ValueError('HRMS_EMAIL_MODE must be capture or live')
+    payload = smtp_payload(values)
+    if payload is None:
+        raise ValueError('Live mode requires EMAIL_ENABLED and complete SMTP credentials')
+    if payload['config']['smtp_host'].lower() in {'mailpit', 'local-mail', 'localhost', '127.0.0.1'}:
+        raise ValueError('Live mode requires the real SMTP provider')
+    return payload
+
+
 def configure(api, payload):
     if payload is None:
         return False
@@ -54,14 +76,14 @@ def configure(api, payload):
 def main():
     api = None
     try:
-        payload = smtp_payload(json.load(sys.stdin))
+        payload = deployment_payload(json.load(sys.stdin))
         if payload is None:
             print('Email secret synchronization skipped; existing email settings are unchanged.')
             return 0
         api = PlatformClient(os.environ['PLATFORM_API_URL'], os.environ['HRMS_ORGANIZATION_ID'],
                              os.environ['HRMS_INSTALL_EMAIL'], os.environ['HRMS_INSTALL_PASSWORD'])
         configure(api, payload)
-        print('SMTP integration saved and authentication validated. No email was sent.')
+        print('Email mode configured and SMTP validated. No email was sent by configuration.')
         return 0
     except Exception:
         # Upstream validation errors may contain credential fragments; do not echo them in CI.

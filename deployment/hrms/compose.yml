@@ -1,5 +1,26 @@
 name: newtuple-hrms-production
 services:
+  mailpit:
+    image: axllent/mailpit:v1.27
+    environment:
+      MP_DATABASE: /data/mailpit.db
+      MP_LABEL: MyHub UAT — captured mail
+      MP_MAX_MESSAGES: '1000'
+      MP_MAX_AGE: 14d
+      MP_SMTP_AUTH_ACCEPT_ANY: 'true'
+      MP_SMTP_AUTH_ALLOW_INSECURE: 'true'
+      MP_DISABLE_VERSION_CHECK: 'true'
+    ports:
+    - '127.0.0.1:${HRMS_MAILPIT_PORT:-18025}:8025'
+    volumes:
+    - mailpit_data:/data
+    restart: unless-stopped
+    mem_limit: 128m
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
   platform-db:
     image: postgres:16-alpine
     environment:
@@ -50,7 +71,7 @@ services:
     mem_limit: 96m
   platform-api:
     image: sm-hrms-platform:${IMAGE_TAG:?Release SHA required}
-    environment:
+    environment: &platform_environment
       ENV_FILE: /nonexistent-platform-env
       POSTGRES_HOST: platform-db
       POSTGRES_PORT: '5432'
@@ -109,6 +130,25 @@ services:
     volumes:
     - platform_uploads:/app/backend/uploads
     mem_limit: 900m
+  platform-worker:
+    image: sm-hrms-platform:${IMAGE_TAG:?Release SHA required}
+    command: ["python", "worker_main.py"]
+    environment:
+      <<: *platform_environment
+      ACTION_RUNS_WORKER_ENABLED: "true"
+      WORKER_MODE: "true"
+      WORKER_SKIP_MIGRATIONS: "true"
+    volumes: ["platform_uploads:/app/backend/uploads"]
+    depends_on:
+      platform-install:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    mem_limit: 900m
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
   platform-install:
     image: sm-hrms-application:${IMAGE_TAG:?Release SHA required}
     environment:
@@ -140,6 +180,8 @@ services:
   platform-web:
     image: sm-hrms-platform-web:${IMAGE_TAG:?Release SHA required}
     depends_on:
+      platform-worker:
+        condition: service_started
       hrms-app:
         condition: service_healthy
     logging:
@@ -205,6 +247,7 @@ services:
     restart: unless-stopped
     mem_limit: 256m
 volumes:
+  mailpit_data: {}
   hrms_platform_db: {}
   hrms_application_db: {}
   platform_uploads: {}

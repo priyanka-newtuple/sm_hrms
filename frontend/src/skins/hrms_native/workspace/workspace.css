@@ -350,3 +350,59 @@
 @media (prefers-reduced-motion:reduce) {
   .hrms-ws-shell *, .hrms-ws-shell *::before { animation:none!important; transition:none!important; }
 }
+
+/* HRMS presentation of native, version-pinned workflow stages. */
+.hrms-swimlanes { min-width:0; overflow:hidden; border:1px solid #dce5f3; border-radius:24px; background:white; }
+.hrms-swimlane-toolbar { display:flex; flex-wrap:wrap; align-items:end; gap:20px; padding:24px; border-bottom:1px solid #e8edf5; color:#52627c; font-size:13px; }
+.hrms-swimlane-toolbar label { display:grid; gap:8px; font-weight:600; }
+.hrms-swimlane-toolbar select,.hrms-swimlane-toolbar input { min-height:42px; border:1px solid #dce5f3; border-radius:12px; padding:8px 12px; background:white; color:#142a50; font-weight:400; max-width:100%; }
+.hrms-swimlane-search { flex:1; min-width:200px; }
+.hrms-swimlane-search span { display:flex; gap:8px; align-items:center; }
+.hrms-swimlane-scroll { display:flex; gap:18px; overflow-x:auto; padding:24px; align-items:stretch; min-height:420px; }
+.hrms-swimlane { flex:0 0 285px; background:#f5f8fd; border:1px solid #dce5f3; border-radius:18px; padding:16px; }
+.hrms-swimlane header { display:flex; gap:8px; align-items:center; min-height:44px; }
+.hrms-swimlane h3 { flex:1; font-size:14px; font-weight:600; color:#112650; }
+.hrms-swimlane-dot { width:7px; height:7px; flex-shrink:0; background:#0047ab; border-radius:50%; }
+.hrms-swimlane-count { border-radius:20px; padding:3px 9px; background:white; color:#0047ab; font-size:12px; }
+.hrms-swimlane-terminal { display:flex; gap:5px; align-items:center; color:#087f5b; font-size:11px; margin:4px 0 12px; }
+.hrms-swimlane-cards { display:grid; gap:12px; margin-top:16px; }
+.hrms-swimlane-card { display:grid; width:100%; text-align:left; gap:10px; padding:16px; background:white; border:1px solid #dce5f3; border-radius:14px; color:#172b50; box-shadow:0 2px 4px #0b245008; }
+.hrms-swimlane-card:hover { border-color:#0047ab; box-shadow:0 4px 12px #0047ab12; }
+.hrms-swimlane-card:focus-visible { outline:2px solid #0047ab; outline-offset:3px; }
+.hrms-swimlane-card small { color:#60728f; font-size:11px; }
+.hrms-swimlane-card strong { font-size:15px; font-weight:600; }
+.hrms-swimlane-card span { display:flex; align-items:center; gap:7px; font-size:12px; }
+.hrms-swimlane-card p { font-size:12px; color:#52627c; }
+.hrms-swimlane-open { color:#0047ab; }
+.hrms-swimlane-empty { border:1px dashed #d4deec; border-radius:12px; padding:22px 8px; text-align:center; color:#70809b; font-size:12px; }
+
+.hrms-workflow-nav {display:grid;gap:3px;padding:0 10px 8px 30px;}
+.hrms-workflow-nav a {padding:8px 12px;border-radius:10px;color:#52627f;font-size:13px;}
+.hrms-workflow-nav a:hover,.hrms-workflow-nav a[aria-current="page"] {background:#eaf2ff;color:#0047ab;}
+.hrms-workflows-page {--primary:#0047ab;--cobalt:#0047ab;}
+.hrms-workflows-page .hrms-swimlane {min-width:300px;}
+
+/* Compact, single-row workflow toolbar. Narrow screens scroll within the card. */
+.hrms-workflow-toolbar { display:flex; align-items:center; flex-wrap:nowrap; gap:6px; padding:12px 14px; margin-bottom:16px; overflow-x:auto; }
+.hrms-workflow-toolbar-top,.hrms-workflow-toolbar-views,.hrms-workflow-toolbar-filters,.hrms-workflow-toolbar-actions { display:contents; }
+.hrms-workflow-toolbar .hrms-lk-select,.hrms-workflow-toolbar .hrms-lk-search { height:36px; border-color:#dce5f3; border-radius:10px; font-size:12px; flex-shrink:0; }
+.hrms-workflow-toolbar .hrms-lk-select > span { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; }
+.hrms-workflow-toolbar .hrms-lk-select select { width:100%; max-width:none; padding-left:10px; font-size:12px; }
+.hrms-workflow-toolbar-top > .hrms-lk-select { width:158px; }
+.hrms-workflow-toolbar-filters > .hrms-lk-select { width:104px; }
+.hrms-workflow-toolbar .hrms-lk-search { flex:1 0 120px; min-width:120px; max-width:none; padding-left:10px; }
+.hrms-workflow-toolbar .hrms-lk-search input { font-size:12px; width:100%; }
+.hrms-workflow-toolbar .hrms-lk-seg--pill { flex-shrink:0; border-color:#dce5f3; border-radius:10px; background:#f4f7fd; }
+.hrms-workflow-toolbar .hrms-lk-seg--pill button { height:28px; padding:0 8px; gap:4px; font-size:12px; }
+.hrms-workflow-toolbar .hrms-lk-seg--pill button[aria-pressed=true] { color:#0047ab; }
+.hrms-workflow-toolbar .hrms-lk-seg--pill button svg { width:13px; height:13px; }
+.hrms-workflow-export { flex-shrink:0; }
+.hrms-workflow-export > button,.hrms-workflow-toolbar-filters > .hrms-outline-button,.hrms-workflow-toolbar-actions > .hrms-primary-button { height:36px; min-height:36px; padding:7px 12px; gap:6px; font-size:12px; white-space:nowrap; flex-shrink:0; }
+.hrms-workflow-export > button { border:1px solid #d3def1; border-radius:999px; background:white; color:#102452; font-weight:600; box-shadow:none; }
+.hrms-workflow-export > button:hover { background:#f1f6ff; border-color:#a8c1e8; }
+
+.hrms-workflow-chevron { margin-left:auto; color:#71809a; transition:transform .2s ease; }
+.hrms-workflow-board-heading { display:flex; align-items:center; flex-wrap:wrap; gap:12px; padding:16px 24px; border-bottom:1px solid #e5ebf5; }
+.hrms-workflow-board-icon { display:grid; place-items:center; width:34px; height:34px; border-radius:10px; background:#edf3ff; color:#0047ab; }
+.hrms-workflow-board-heading h2 { margin:0; color:#102452; font-size:15px; font-weight:600; }
+.hrms-workflow-board-meta { color:#71809a; font-size:13px; font-weight:400; }

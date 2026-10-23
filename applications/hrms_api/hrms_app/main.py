@@ -24,7 +24,7 @@ from .requests import (EmployeeCreateRequest, EmployeeExitRequest, EmployeeOpera
 from .responses import EmployeeListItem, LeaveCreateResponse, LeaveListItem
 from .service import HrmsService
 from .employee_access import setup_access
-from .workflow_view import workflow_rows
+from .workflow_view import workflow_rows, employee_workflow_rows
 from .performance import PerformanceService
 from .performance_contracts import Action as PerformanceAction
 from .cockpit import CockpitService, Command as CockpitCommand
@@ -36,6 +36,14 @@ from .assets import AssetService, AssetCommand
 
 class EmployeeAccessRequest(BaseModel):
     idempotency_key: str = Field(min_length=8, max_length=128)
+
+
+class OfferCommand(BaseModel):
+    idempotency_key: str = Field(min_length=8, max_length=128)
+    machine_name: str = ''
+    expected_hash: str = ''
+    values: dict = Field(default_factory=dict)
+    trigger: str = ''
 
 
 class EmployeeWorkflowAction(BaseModel):
@@ -70,6 +78,13 @@ def create_app(platform=None, journal=None):
     cockpit = CockpitService(platform, journal)
     wfh = WfhService(service)
     assets = AssetService(service)
+    from .offer_documents import OfferDocuments, digest
+    offers = OfferDocuments(platform, journal)
+    from .offboarding import OffboardingService
+    offboarding = OffboardingService(service)
+    from .offboarding_participation import EmployeeOffboarding
+    employee_offboarding = EmployeeOffboarding(offboarding)
+
 
     @asynccontextmanager
     async def lifespan(app):
@@ -111,6 +126,88 @@ def create_app(platform=None, journal=None):
             if not allowed:
                 raise AppError(403, 'Complete your onboarding before accessing other modules')
         return current
+
+    @app.get('/v1/api/hrms/my-offboarding')
+    def my_offboarding(current=Depends(actor)):
+        return employee_offboarding.rows(current)
+
+    @app.get('/v1/api/hrms/my-offboarding/{entity_id}')
+    def my_offboarding_detail(entity_id: UUID, current=Depends(actor)):
+        return employee_offboarding.detail(current,str(entity_id))
+
+    @app.post('/v1/api/hrms/my-offboarding/{entity_id}')
+    def my_offboarding_command(entity_id: UUID, payload: OfferCommand, current=Depends(actor)):
+        return employee_offboarding.command(current,str(entity_id),payload.model_dump())
+
+    @app.get('/v1/api/hrms/offboarding/assignees')
+    def offboarding_assignees(current=Depends(actor)):
+        return offboarding.assignees(current)
+
+    @app.get('/v1/api/hrms/offboarding/config')
+    def offboarding_config(current=Depends(actor)):
+        return offboarding.config(current)
+
+    @app.get('/v1/api/hrms/offboarding/inbox')
+    def offboarding_inbox(current=Depends(actor)):
+        return offboarding.inbox(current)
+
+    @app.get('/v1/api/hrms/offboarding')
+    def offboarding_list(current=Depends(actor)):
+        return offboarding.rows(current)
+
+    @app.post('/v1/api/hrms/offboarding')
+    def offboarding_create(payload: OfferCommand, current=Depends(actor)):
+        return offboarding.save(current, payload.model_dump())
+
+    @app.get('/v1/api/hrms/offboarding/{entity_id}')
+    def offboarding_detail(entity_id: UUID, current=Depends(actor)):
+        return offboarding.detail(current, str(entity_id))
+
+    @app.get('/v1/api/hrms/offboarding/{entity_id}/related')
+    def offboarding_related(entity_id: UUID, current=Depends(actor)):
+        return offboarding.related(current, str(entity_id))
+
+    @app.put('/v1/api/hrms/offboarding/{entity_id}')
+    def offboarding_save(entity_id: UUID, payload: OfferCommand, current=Depends(actor)):
+        return offboarding.save(current, payload.model_dump(), str(entity_id))
+
+    @app.post('/v1/api/hrms/offboarding/{entity_id}/actions')
+    def offboarding_action(entity_id: UUID, payload: OfferCommand, current=Depends(actor)):
+        result = offboarding.act(current, str(entity_id), payload.model_dump())
+        if payload.trigger == 'confirm_departure':
+            item = offboarding.detail(current, str(entity_id))
+            follow_directory(current, item['values']['employee_id'], left=True)
+        return result
+
+    @app.get('/v1/api/hrms/offers/config')
+    def offer_config(machine_name: str, current=Depends(actor)):
+        return offers.config(current, machine_name)
+
+    @app.post('/v1/api/hrms/offers')
+    def create_offer(payload: OfferCommand, current=Depends(actor)):
+        return offers.save(current, payload.model_dump())
+
+    @app.get('/v1/api/hrms/offers/{entity_id}')
+    def offer_detail(entity_id: UUID, current=Depends(actor)):
+        item = offers.detail(current, str(entity_id))
+        return {**item, 'values_hash': digest(item['values'])}
+
+    @app.put('/v1/api/hrms/offers/{entity_id}')
+    def save_offer(entity_id: UUID, payload: OfferCommand, current=Depends(actor)):
+        return offers.save(current, payload.model_dump(), str(entity_id))
+
+    @app.post('/v1/api/hrms/offers/{entity_id}/preview')
+    def preview_offer(entity_id: UUID, payload: OfferCommand, current=Depends(actor)):
+        return offers.generate(current, str(entity_id), payload.model_dump())
+
+    @app.get('/v1/api/hrms/offers/{entity_id}/pdf')
+    def offer_pdf(entity_id: UUID, current=Depends(actor)):
+        return Response(offers.download(current, str(entity_id)), media_type='application/pdf',
+                        headers={'Cache-Control': 'no-store', 'Content-Disposition': 'inline; filename="Offer.pdf"'})
+
+    @app.post('/v1/api/hrms/offers/{entity_id}/actions')
+    def offer_action(entity_id: UUID, payload: OfferCommand, current=Depends(actor)):
+        return offers.transition(current, str(entity_id), payload.model_dump())
 
     @app.get('/v1/api/hrms/employee-work/{entity_id}/assets')
     def employee_assets(entity_id: UUID, workflow_id: UUID, current=Depends(actor)):
@@ -278,9 +375,10 @@ def create_app(platform=None, journal=None):
     @app.get('/v1/api/hrms/workflows')
     def workflows(current=Depends(actor)):
         from .workflow_config import configured_workflow_rows
+        from .offers import offer_workflow_rows
         # One record without a usable enrollment must not hide everyone's other work.
         return configured_workflow_rows(platform, workflow_rows(service, current) + performance.workflows(current) + projects.workflows(current) + cockpit.workflows(current) + wfh.workflows(current),
-                                        skip_unenrolled=True)
+                                        skip_unenrolled=True) + employee_workflow_rows(platform, current) + offer_workflow_rows(platform, current) + offboarding.workflows(current)
 
     @app.get('/v1/api/hrms/projects')
     def project_dashboard(current=Depends(actor)):
@@ -370,13 +468,53 @@ def create_app(platform=None, journal=None):
     def decide(entity_id: UUID, payload: Decision, current=Depends(actor)):
         return service.decide_leave(current, str(entity_id), payload.trigger, payload.idempotency_key)
 
+    def collaboration_access(current, entity_id, scope):
+        from .employee_work import employee_enrollments
+        from .record_collaboration import authorize_record
+        sources = {
+            'employee': lambda: employee_enrollments(platform, current),
+            'projects': lambda: projects.workflows(current),
+            'performance': lambda: performance.workflows(current),
+            'content': lambda: cockpit.workflows(current),
+            'wfh': lambda: wfh.workflows(current),
+            'leave': lambda: workflow_rows(service, current),
+            'assets': lambda: assets.board(current)['items'],
+            'offboarding': lambda: offboarding.rows(current),
+        }
+        if scope not in sources:
+            raise AppError(404, 'Unknown record scope')
+        authorize_record(platform, current, str(entity_id), sources[scope]())
+
+    @app.get('/v1/api/hrms/records/{entity_id}/{scope}/activity')
+    def record_activity(entity_id: UUID, scope: str, limit: int = Query(50, ge=1, le=200),
+                        offset: int = Query(0, ge=0), current=Depends(actor)):
+        collaboration_access(current, entity_id, scope)
+        return platform.request('GET', '/audit-events', token=current.token,
+                                params={'entity_id': str(entity_id), 'limit': limit, 'offset': offset})
+
+    @app.api_route('/v1/api/hrms/records/{entity_id}/{scope}/comments', methods=['GET', 'POST'])
+    @app.api_route('/v1/api/hrms/records/{entity_id}/{scope}/comments/{comment_id}', methods=['PATCH', 'DELETE'])
+    @app.api_route('/v1/api/hrms/records/{entity_id}/{scope}/comments/{comment_id}/{operation}', methods=['GET', 'POST'])
+    async def record_comments(entity_id: UUID, scope: str, request: Request,
+                              comment_id: UUID | None = None, operation: str | None = None,
+                              current=Depends(actor)):
+        from starlette.concurrency import run_in_threadpool
+        from .record_collaboration import comment_path
+        if operation and (operation not in {'replies', 'like'} or (operation == 'like' and request.method != 'POST')):
+            raise AppError(404, 'Unknown comment operation')
+        await run_in_threadpool(collaboration_access, current, entity_id, scope)
+        path = await run_in_threadpool(comment_path, platform, current, str(entity_id),
+                                      str(comment_id) if comment_id else None, operation)
+        return await _proxy(platform, request, path.lstrip('/'), current.token)
+
     # Explicit read/auth facade: no catch-all mutation proxy. Core task/record/transition,
-    # bulk-import, agent and configuration mutations cannot bypass HRMS business rules.
+    # bulk-import mutations cannot bypass HRMS business rules. Native agent execution
+    # is available only through the explicitly authorized tenant Settings surface.
     public_gets = {'auth/status', 'invitations/validate'}
     auth_posts = {'auth/login', 'auth/refresh', 'auth/logout', 'auth/forgot-password',
                   'auth/reset-password', 'invitations/accept'}
     private_gets = {'auth/me', 'users/me/organizations', 'organizations/current', 'roles/my-permissions',
-                    'workflow-state-machines', 'permissions'}
+                    'workflow-state-machines', 'permissions', 'users/search'}
 
     @app.api_route('/v1/api/{path:path}', methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE'])
     async def facade(path: str, request: Request):
@@ -395,7 +533,18 @@ def create_app(platform=None, journal=None):
             from .employee_work import authorize_employee_file
             from starlette.concurrency import run_in_threadpool
             current = await run_in_threadpool(platform.actor, token)
-            await run_in_threadpool(authorize_employee_file, platform, current, request.method, path, dict(request.query_params))
+            if not await run_in_threadpool(offboarding.authorize_file, current, request.method, path, dict(request.query_params)):
+                await run_in_threadpool(authorize_employee_file, platform, current, request.method, path, dict(request.query_params))
+        elif request.method == 'POST' and (path == 'entity-records' or
+                (path.startswith('workflow-state-machines/') and path.endswith('/enrollments'))):
+            from .offers import authorize_offer_request
+            from starlette.concurrency import run_in_threadpool
+            current = await run_in_threadpool(platform.actor, token)
+            try:
+                payload = await request.json()
+            except (JSONDecodeError, UnicodeDecodeError) as exc:
+                raise AppError(400, 'Invalid JSON request body') from exc
+            await run_in_threadpool(authorize_offer_request, platform, current, path, payload)
         elif configuration_route(request.method, path, platform.org):
             from starlette.concurrency import run_in_threadpool
             current = await run_in_threadpool(platform.actor, token)
@@ -408,7 +557,13 @@ def create_app(platform=None, journal=None):
                         payload = await request.json()
                     except (JSONDecodeError, UnicodeDecodeError) as exc:
                         raise AppError(400, 'Invalid JSON request body') from exc
-            authorize_configuration(current, request.query_params, payload)
+            from .offers import offer_metadata_access
+            if request.method == 'GET' and offer_metadata_access(current, path):
+                if any(value != current.organization_id for key in ('organization_id', 'org_id')
+                       for value in request.query_params.getlist(key)):
+                    raise AppError(403, 'Offer configuration is restricted to your organization')
+            else:
+                authorize_configuration(current, request.query_params, payload)
         else:
             raise AppError(403, 'Use the HRMS application action for this operation')
         # Preserve upstream authentication status/content without leaking service credentials.
@@ -452,8 +607,9 @@ async def _proxy(platform, request, path, token):
     headers = {'content-type': request.headers.get('content-type', 'application/json')}
     if token:
         headers['authorization'] = f'Bearer {token}'
+    options = {'timeout': 120} if request.method == 'POST' and path.startswith('agent/') else {}
     response = await run_in_threadpool(platform.http.request, request.method, path,
-                                     params=list(request.query_params.multi_items()), content=content, headers=headers)
+                                     params=list(request.query_params.multi_items()), content=content, headers=headers, **options)
     return Response(response.content, status_code=response.status_code,
                     media_type=response.headers.get('content-type', 'application/json'))
 
