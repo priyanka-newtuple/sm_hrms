@@ -19,13 +19,13 @@ const labelForRole = (role: string) => ({
 }[role] ?? role);
 
 const joiningDate = (value?: string | null) => {
-  if (!value) return '—';
+  if (!value) return 'â€”';
   const date = new Date(`${value.slice(0, 10)}T00:00:00`);
-  return Number.isNaN(date.getTime()) ? '—' : date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  return Number.isNaN(date.getTime()) ? 'â€”' : date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 const skillsLabel = (value: unknown) => Array.isArray(value)
-  ? value.filter(item => typeof item === 'string' && item.trim()).join(', ') || '—'
-  : typeof value === 'string' && value.trim() ? value : '—';
+  ? value.filter(item => typeof item === 'string' && item.trim()).join(', ') || 'â€”'
+  : typeof value === 'string' && value.trim() ? value : 'â€”';
 
 // Keep stored exit values compatible with access rules; show Inactive in the directory.
 const isInactive = (employee: Employee) => ['offboarded', 'inactive'].includes(employee.employment_status);

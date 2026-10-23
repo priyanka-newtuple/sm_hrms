@@ -28,7 +28,7 @@ export default function CommentThread({ entityId, workflowId, scope }: CommentTh
     clearError,
   } = useComments({ entityId, workflowId, scope });
 
-  if (loading) return <p role="status">Loading comments…</p>;
+  if (loading) return <p role="status">Loading commentsâ€¦</p>;
   if (loadError) return <div role="alert"><p>{loadError}</p><button type="button" className="hrms-outline-button" onClick={retryLoad}>Retry</button></div>;
   return (
     <div className="flex flex-col gap-4">
