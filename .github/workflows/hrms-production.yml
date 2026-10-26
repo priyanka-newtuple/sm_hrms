@@ -27,7 +27,7 @@ jobs:
           docker build -f applications/hrms_api/platform.Dockerfile -t sm-hrms-platform:$SHA .
           docker build --build-arg HRMS_RELEASE_SHA=$SHA -t sm-hrms-application:$SHA applications/hrms_api
           docker run --rm sm-hrms-application:$SHA python -m pytest tests -q
-          docker run --rm -v "$PWD/deployment/hrms:/deployment:ro" sm-hrms-application:$SHA python -m pytest /deployment/tests -q -p no:cacheprovider
+          docker run --rm -v "$PWD/deployment/hrms:/deployment:ro" -v "$PWD/applications/hrms_api/platform.Dockerfile:/platform.Dockerfile:ro" sm-hrms-application:$SHA python -m pytest /deployment/tests -q -p no:cacheprovider
           docker build --build-arg HRMS_RELEASE_SHA=$SHA -f frontend/Dockerfile.platform -t sm-hrms-platform-web:$SHA frontend
           mkdir release
           docker run --rm -v "$PWD/configuration/hrms:/configuration:ro" sm-hrms-application:$SHA \
