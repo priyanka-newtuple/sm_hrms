@@ -102,6 +102,12 @@ class NativeConfiguration:
                 row = subset(row, FIELDS[kind])
                 row['definition']['machine_key'] = match
                 row['definition'].pop('method_schemas', None)
+                # Native publication regenerates method-derived fields from the
+                # pinned methods. Transporting this cached projection causes
+                # stale dropdowns and false differences after dependency repins.
+                schema = row['definition'].get('entity_schema', {})
+                if 'fields' in schema:
+                    schema['fields'] = [f for f in schema['fields'] if not f.get('source_states')]
         elif kind == 'field':
             rows = self.listing('/field-library/fields', paged=True)
             row = self.unique(rows, lambda r: r['identity']['field_key'] == match, match)

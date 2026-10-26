@@ -64,6 +64,15 @@ class NativeAPI:
         raise AssertionError((verb, route))
 
 
+def test_workflow_snapshot_excludes_native_generated_field_projection():
+    api = NativeAPI()
+    api.workflow['definition']['entity_schema'] = {'entity_type': 'Employee', 'fields': [
+        {'field': 'manual', 'source_states': []},
+        {'field': 'name', 'source_states': ['Draft'], 'enum_values': ['stale']}]}
+    payload, _ = NativeConfiguration(api).read({'kind': 'workflow', 'match': 'Employee'})
+    assert payload['definition']['entity_schema']['fields'] == [{'field': 'manual', 'source_states': []}]
+
+
 def test_changed_field_repins_method_and_workflow_without_touching_enrollment():
     api = NativeAPI()
     native = NativeConfiguration(api)
