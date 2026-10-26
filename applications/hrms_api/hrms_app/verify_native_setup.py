@@ -35,6 +35,12 @@ def main():
             response = client.get('/hrms/capabilities')
             response.raise_for_status()
             assert 'platform:configure' in response.json()['capabilities'], 'Super Admin configuration access missing'
+            if os.environ.get('HRMS_EMAIL_MODE') == 'capture' and os.environ.get('HRMS_UAT_INBOX_ENABLED') == 'true':
+                status = client.get('/hrms/uat-mail/status')
+                status.raise_for_status()
+                assert status.json().get('enabled'), 'Super Admin UAT inbox access missing'
+                client.get('/hrms/uat-mail/messages').raise_for_status()
+                print('UAT inbox verification passed: admin access and Mailpit connectivity')
             response = client.get('/hrms/employees/form-options')
             response.raise_for_status()
             options = response.json()

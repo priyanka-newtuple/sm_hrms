@@ -8,7 +8,7 @@ def grants(roles, organization_id='org'):
     if 'superadmin' in roles:
         result.update({'settings:access', 'user:write'})
     if {'superadmin','hrms_hr_full'} & set(roles):
-        result.update({'user:read','user:write',permission_key(organization_id,'onboarding:review')})
+        result.update({'user:read','user:write'})
     if roles:
         result.add(permission_key(organization_id,'onboarding:participate'))
         result.add(permission_key(organization_id, 'asset:view'))

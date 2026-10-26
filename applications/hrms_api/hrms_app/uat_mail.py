@@ -14,7 +14,7 @@ def enabled(actor, organization):
             and os.environ.get('HRMS_EMAIL_MODE') == 'capture'
             and actor.organization_id == organization
             and bool(actor.roles & {'superadmin', 'hrms_hr_full'})
-            and 'onboarding:review' in capabilities(actor))
+            and 'onboarding:manage' in capabilities(actor))
 
 
 def authorize(actor, organization):

@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from hrms_app.main import create_app
 from hrms_app.platform import Actor
 from native_permissions import grants
+from hrms_app.uat_mail import enabled
 
 
 @pytest.fixture
@@ -67,3 +68,15 @@ def test_inbox_requires_login(mailbox):
     client, calls = mailbox
     assert client.get('/v1/api/hrms/uat-mail/messages').status_code == 401
     assert not calls
+
+
+@pytest.mark.parametrize('role', ['superadmin', 'hrms_hr_full'])
+def test_inbox_honors_configured_management_permission(monkeypatch, role):
+    monkeypatch.setenv('HRMS_EMAIL_MODE', 'capture')
+    monkeypatch.setenv('HRMS_UAT_INBOX_ENABLED', 'true')
+    permissions = grants({role})
+    assert 'tenant.org.hrms.onboarding:review' not in permissions
+    actor = Actor('user', 'org', 'HR', frozenset({role}), permissions)
+    assert enabled(actor, 'org')
+    restricted = permissions - {'tenant.org.hrms.onboarding:manage'}
+    assert not enabled(Actor('user', 'org', 'HR', frozenset({role}), restricted), 'org')
