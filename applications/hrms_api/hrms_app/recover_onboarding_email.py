@@ -16,10 +16,15 @@ class RecoveryBlocked(ValueError):
 
 def capture_configuration(api):
     items = api.call('GET', f'/integrations/organizations/{api.org}')['items']
-    providers = {'smtp', 'ses', 'azure_communication', 'microsoft_graph_email'}
-    configured = [i for i in items if i['provider'] in providers and i.get('configured')]
-    if len(configured) != 1 or configured[0]['provider'] != 'smtp':
-        raise RecoveryBlocked('Recovery requires SMTP as the only configured email provider')
+    defaults = api.call('GET', f'/integrations/organizations/{api.org}/defaults')
+    if defaults.get('organization_id') != api.org or not any(
+        d['capability'] == 'communication' and d['provider'] == 'smtp'
+        for d in defaults['items']
+    ):
+        raise RecoveryBlocked('Recovery requires SMTP as the tenant default email provider')
+    configured = [i for i in items if i['provider'] == 'smtp' and i.get('configured')]
+    if len(configured) != 1:
+        raise RecoveryBlocked('Recovery requires a configured SMTP integration')
     config = configured[0].get('config', {})
     if config.get('smtp_host') != 'mailpit' or int(config.get('smtp_port', 0)) != 1025:
         raise RecoveryBlocked('Recovery requires the private Mailpit capture destination')

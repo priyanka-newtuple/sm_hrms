@@ -1663,7 +1663,7 @@ class AuthServiceManager:
                 db.query(User)
                 .filter(
                     User.organization_id == organization_id,
-                    User.role == UserRole.ADMIN.value,
+                    User.role.in_([UserRole.ADMIN.value, UserRole.SUPERADMIN.value]),
                     User.status == UserStatus.ACTIVE.value,
                 )
                 .all()

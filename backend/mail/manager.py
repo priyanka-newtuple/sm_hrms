@@ -29,6 +29,7 @@ from mail.models.response import (
     EmailTestResponse,
 )
 from mail.services import EmailMessage, auto_services, get_service
+from mail.services.base import load_default_email_provider
 from user.db_models import Organization
 
 if TYPE_CHECKING:
@@ -188,7 +189,10 @@ class MailServiceManager:
         provider: EmailProvider | str | None = None,
     ) -> EmailSendResult:
         recipients = [to] if isinstance(to, str) else to
-        services = [get_service(provider)] if provider else auto_services()
+        # Explicit caller choice takes precedence. Otherwise honor Settings.
+        # A configured default must never fall back to a different provider.
+        selected = provider or load_default_email_provider(db, org_id)
+        services = [get_service(selected)] if selected else auto_services()
         for service in services:
             if service is None:
                 continue

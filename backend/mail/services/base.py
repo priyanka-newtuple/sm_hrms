@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 
 from common.encryption import get_encryption_service
 from common.logger import logger
-from integrations.db_models import OrganizationIntegrationModel
+from integrations.db_models import IntegrationCapabilityDefaultModel, OrganizationIntegrationModel
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -71,6 +71,17 @@ def load_org_integration(
     except Exception as exc:
         logger.error("Failed to load %s integration for org=%s: %s", provider_name, org_id, exc)
         return None
+
+
+def load_default_email_provider(db: Session | None, org_id: str) -> str | None:
+    """Honor the tenant communication default; fail closed on lookup errors."""
+    if db is None:
+        return None
+    row = db.query(IntegrationCapabilityDefaultModel).filter(
+        IntegrationCapabilityDefaultModel.organization_id == org_id,
+        IntegrationCapabilityDefaultModel.capability == "communication",
+    ).first()
+    return row.provider if row is not None else None
 
 
 class EmailServiceBase(ABC):

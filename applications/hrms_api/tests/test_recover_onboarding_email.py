@@ -10,8 +10,11 @@ class API:
         self.sent = []
         self.host = 'mailpit'
         self.status = 'active'
+        self.default = 'smtp'
 
     def call(self, method, path):
+        if path.endswith('/defaults'):
+            return {'organization_id': self.org, 'items': [{'capability': 'communication', 'provider': self.default}]}
         return {'items': [{'provider': 'smtp', 'configured': True, 'config': {'smtp_host': self.host, 'smtp_port': 1025}}]}
 
     def record(self, eid):
@@ -37,7 +40,7 @@ def test_generic_success_is_not_delivery(monkeypatch):
     assert not recover(API(), {'created_user_id': 'user'}, 'employee', lambda _: {'old'})['new_email_captured']
 
 
-@pytest.mark.parametrize('change', ['live_host', 'pending', 'foreign_handoff'])
+@pytest.mark.parametrize('change', ['live_host', 'pending', 'foreign_handoff', 'live_default'])
 def test_refuses_unsafe_or_unapproved_recovery(change):
     api = API()
     progress = {'created_user_id': 'user'}
@@ -45,6 +48,8 @@ def test_refuses_unsafe_or_unapproved_recovery(change):
         api.host = 'smtp.example.com'
     elif change == 'pending':
         api.status = 'pending'
+    elif change == 'live_default':
+        api.default = 'azure_communication'
     else:
         progress['created_user_id'] = 'someone-else'
     with pytest.raises(ValueError):

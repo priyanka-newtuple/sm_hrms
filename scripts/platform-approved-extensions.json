@@ -1,5 +1,5 @@
 {
-  "authorization": "2026-10-12: User explicitly approved generic tenant-scoped native permission registration, native editor support and onboarding approval preservation to remove duplicate HRMS authorization. All other core files retain the original baseline.",
+  "authorization": "2026-10-12: User explicitly approved generic tenant-scoped native permission registration, native editor support and onboarding approval preservation to remove duplicate HRMS authorization. All other core files retain the original baseline. 2026-10-26: User explicitly approved native email default-provider routing and active tenant Super Admin approval notifications, with regression tests.",
   "files": {
     "backend/alembic/versions/2026_10_12_0001_tenant_permission_catalog.py": "e276be7d03e892383fd13c94f1c001888f37572706b44bdf9416a1ffd7b7865f",
     "backend/permissions/controller.py": "be1cf39fda891e9e5c065ad9ac3bffb90bebe484b43b6414f3ac71ec70ebe918",
@@ -16,6 +16,10 @@
     "frontend/src/lib/permissions-data.test.ts": "b97f1d756892e2adece84da8ce8ffa13e3134a3268cf8bc215e34ae625706969",
     "frontend/src/lib/permissions-data.ts": "5dc74a9024fa33b885bc844127ee95510fa7894d9ea8302ddd45595fa8e13548",
     "frontend/src/pages/settings/components/role/detail/permissions-tab.tsx": "003e46c76f38130abc2ae67a23956cb85781d033f45637aee40c9b97ee551368",
-    "frontend/src/pages/settings/components/role/detail/role-detail-content.tsx": "b30de8ffa45e8acff13961b166fc2947ab51127b128400cf34bc689940bc4b97"
+    "frontend/src/pages/settings/components/role/detail/role-detail-content.tsx": "b30de8ffa45e8acff13961b166fc2947ab51127b128400cf34bc689940bc4b97",
+    "backend/mail/services/base.py": "05355dbf3f3bf2c15cb3cc4c21f18f691571786ef93b431ea68aaf55fa29e758",
+    "backend/mail/manager.py": "888a86173d9700c5f54ec9b89dc613b90d4473d31cb46828a886c35a1de1cd09",
+    "backend/auth/manager.py": "4adfb05dd462c7a808f16c6dcdaaeccc66162c99f589a7557b9e3209958f5762",
+    "backend/tests/test_email_delivery_routing.py": "ee7b4097688d08b8e8b7a2e9e1bbf6096798ebfe9d07b6224cb13231fd09a630"
   }
 }
