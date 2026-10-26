@@ -17,6 +17,9 @@ exec < /dev/null
 test -s "$email_payload" || { echo 'Email configuration input is missing; redeploy from the release pipeline.' >&2; exit 1; }
 test -f "$base/production.env"
 sha256sum -c SHA256SUMS
+inbox_switches=$(python3 "$release/configure_uat_inbox.py" < "$email_payload")
+read -r HRMS_EMAIL_MODE HRMS_UAT_INBOX_ENABLED <<< "$inbox_switches"
+export HRMS_EMAIL_MODE HRMS_UAT_INBOX_ENABLED
 export IMAGE_TAG="$sha"
 compose=(docker compose --project-name newtuple-hrms-production --env-file "$base/production.env" -f "$release/compose.yml")
 "${compose[@]}" config --quiet
@@ -59,6 +62,8 @@ else
   "${compose[@]}" run --rm -T --no-deps platform-install < /dev/null
 fi
 # Read the email-mode payload and credentials from encrypted stdin, before any worker starts.
+# Apply the inbox off switch before live SMTP can be enabled, including on failed releases.
+"${compose[@]}" up -d --no-deps --wait --wait-timeout 180 hrms-app
 "${compose[@]}" run --rm -T --no-deps platform-install python -m hrms_app.configure_email < "$email_payload"
 "${compose[@]}" up -d --no-deps platform-worker
 "${compose[@]}" up -d --no-deps --wait --wait-timeout 180 hrms-app platform-web

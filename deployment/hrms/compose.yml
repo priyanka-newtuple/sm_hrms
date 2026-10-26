@@ -218,6 +218,8 @@ services:
   hrms-app:
     image: sm-hrms-application:${IMAGE_TAG:?Release SHA required}
     environment:
+      HRMS_EMAIL_MODE: ${HRMS_EMAIL_MODE:-capture}
+      HRMS_UAT_INBOX_ENABLED: ${HRMS_UAT_INBOX_ENABLED:-false}
       GOOGLE_REDIRECT_URI: ${HRMS_PUBLIC_URL:?required}/auth/google/callback
       PLATFORM_API_URL: http://platform-api:8000/v1/api
       HRMS_ORGANIZATION_ID: ${HRMS_ORGANIZATION_ID:?required}

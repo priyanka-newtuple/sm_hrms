@@ -7,6 +7,7 @@ import { PublicLayout } from './components/Brand';
 import './brand.css';
 import './workspace/workspace.css';
 import CockpitPage from './pages/CockpitPage';
+import UatInbox from './pages/UatInbox';
 import PublishedContent from './pages/PublishedContent';
 import { lazy, Suspense, useEffect, useMemo, type ReactNode } from 'react';
 
@@ -161,6 +162,7 @@ export default function App() {
       <Route path="/hrms/my-work" element={<MyWorkPage />} />
 
       <Route path="/hrms/cockpit" element={<CockpitPage />} />
+      <Route path="/hrms/uat-inbox" element={<UatInbox />} />
       <Route path="/hrms/content" element={<PublishedContent />} />
       <Route path="/hrms/customers" element={<CustomersPage />} />
       <Route path="/hrms/assets" element={<AssetsPage />} />

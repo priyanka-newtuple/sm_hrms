@@ -273,6 +273,9 @@ def create_app(platform=None, journal=None):
                 'releases': release_status(journal.dsn, current.organization_id),
                 'live_drift_checked': False}
 
+    from .uat_mail import routes as uat_mail_routes
+    uat_mail_routes(app, actor, getattr(platform, 'org', None))
+
     @app.get('/v1/api/hrms/assets')
     def asset_inventory(current=Depends(actor)):
         return assets.board(current)

@@ -1,0 +1,14 @@
+---
+title: "UAT email inbox inside HRMS"
+date: "2026-10-26"
+tags: ["Feature"]
+description: "HR testers can inspect captured emails using their existing HRMS login."
+---
+
+When enabled for UAT, HR Cockpit includes an email inbox for authorized HR Full and Super Admin testers.
+
+- Search captured emails, check recipients, preview messages and download attachments.
+- Use existing HRMS login and HTTPS; no terminal commands or separate mailbox password.
+- Captured messages are not delivered to real recipients. Workflow actions still require the intended test account.
+- Deployment can disable the inbox with `HRMS_UAT_INBOX_ENABLED=false`. Live email mode always disables it.
+- Native notifications and Mailpit storage remain unchanged; no public Mailpit ports or relay actions are added.

@@ -40,8 +40,8 @@ jobs:
             cp configuration/hrms/release.json release/configuration.json
           fi
           docker save sm-hrms-platform:$SHA sm-hrms-application:$SHA sm-hrms-platform-web:$SHA | gzip > release/images.tar.gz
-          cp deployment/hrms/compose.yml deployment/hrms/deploy.sh deployment/hrms/configure_google.py deployment/hrms/prepare_release.py release/
-          cd release && sha256sum images.tar.gz compose.yml deploy.sh configure_google.py prepare_release.py > SHA256SUMS
+          cp deployment/hrms/compose.yml deployment/hrms/deploy.sh deployment/hrms/configure_google.py deployment/hrms/configure_uat_inbox.py deployment/hrms/prepare_release.py release/
+          cd release && sha256sum images.tar.gz compose.yml deploy.sh configure_google.py configure_uat_inbox.py prepare_release.py > SHA256SUMS
           if [[ -f configuration.json ]]; then sha256sum configuration.json >> SHA256SUMS; fi
       - uses: actions/upload-artifact@v4
         with:
@@ -69,6 +69,7 @@ jobs:
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           HRMS_EMAIL_MODE: ${{ vars.HRMS_EMAIL_MODE || 'capture' }}
+          HRMS_UAT_INBOX_ENABLED: ${{ vars.HRMS_UAT_INBOX_ENABLED || 'false' }}
           EMAIL_ENABLED: ${{ secrets.EMAIL_ENABLED }}
           EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
           SMTP_HOST: ${{ secrets.SMTP_HOST }}
@@ -94,5 +95,5 @@ jobs:
           python3 -c 'import json, os; print(json.dumps({k: os.environ.get(k, "") for k in ("GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET")}))' | \
             ssh "${opts[@]}" -p "$PORT" "$USER@$HOST" "python3 /opt/newtuple-hrms/releases/$SHA/configure_google.py"
           # Configure email inside deployment before the action worker starts.
-          python3 -c 'import json, os; print(json.dumps({k: os.environ.get(k, "") for k in ("HRMS_EMAIL_MODE", "EMAIL_ENABLED", "EMAIL_FROM", "SMTP_HOST", "SMTP_PORT", "SMTP_USERNAME", "SMTP_PASSWORD")}))' | \
+          python3 -c 'import json, os; print(json.dumps({k: os.environ.get(k, "") for k in ("HRMS_EMAIL_MODE", "HRMS_UAT_INBOX_ENABLED", "EMAIL_ENABLED", "EMAIL_FROM", "SMTP_HOST", "SMTP_PORT", "SMTP_USERNAME", "SMTP_PASSWORD")}))' | \
             ssh "${opts[@]}" -p "$PORT" "$USER@$HOST" "bash /opt/newtuple-hrms/releases/$SHA/deploy.sh $SHA"

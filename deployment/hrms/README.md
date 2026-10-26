@@ -54,6 +54,33 @@ runtime environment is mode 600 and never included in uploaded build artifacts.
 
 ## Runtime environment
 
+### UAT email inbox in HRMS
+
+Set GitHub variable `HRMS_UAT_INBOX_ENABLED=true` in the `hrms-production`
+environment (or repository) and deploy main. With `HRMS_EMAIL_MODE=capture`,
+HR Full and Super Admin users holding the native `onboarding:review` grant get
+an **UAT email inbox** link in HR Cockpit. It opens `/hrms/uat-inbox` on the
+existing HTTPS site using their HRMS login. No second hostname, certificate,
+shared mailbox password, SSH tunnel or proxy changes are needed.
+
+This is a shared test mailbox for the deployment's configured tenant. It includes
+all test recipients, including account links and offer attachments; do not enable
+it on a shared multi-tenant Mailpit server. Employee and Office Admin accounts
+cannot access it. Native SMTP configuration, notification templates and workflows
+are unchanged. HR tests employee actions using designated test identities.
+
+The viewer allows searching, reading and downloading attachments, not sending,
+relaying or deleting messages. HTML previews are sandboxed with scripts and
+external resources blocked. Mailpit web and SMTP ports remain private; mailbox
+responses are not cached. Messages retain the existing 14-day/1,000-message cap.
+
+To disable, set `HRMS_UAT_INBOX_ENABLED=false` and rerun **HRMS production**.
+Setting `HRMS_EMAIL_MODE=live` also forces it off, even if the flag remains true.
+Variables take effect on deployment, not immediately when edited in GitHub.
+The deployment applies the access switch before configuring live SMTP. Stored
+captured emails are preserved; disabling the viewer does not delete the volume.
+`configure_uat_inbox.py` validates these switches on the VM automatically.
+
 Generate fresh secrets, never copy `.hrms.local.env`:
 
 - HRMS_DB_PASSWORD, HRMS_APP_DB_PASSWORD: URL-safe database passwords.

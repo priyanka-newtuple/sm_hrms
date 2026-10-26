@@ -1,4 +1,5 @@
 import OffboardingPage from './OffboardingPage';
+import { UatInboxLink } from './UatInbox';
 import CreateOffer from './CreateOffer';
 import { RecordTabs } from '../components/record/RecordTabs';
 import { OnboardingTracker } from './OnboardingTracker';
@@ -100,7 +101,7 @@ export default function CockpitPage({entityId}:{entityId?:string}) {
  const areas=[...(allowed('cockpit:view')?[{id:'offers',label:'Offers'}]:[]),...(allowed('onboarding:view')?[{id:'onboarding',label:'Onboarding'}]:[]),...(allowed('employee:exit')?[{id:'offboarding',label:'Offboarding'}]:[]),...(allowed('cockpit:view')?[{id:'publishing',label:'Content & publishing'}]:[])];
  if(!areas.length)return <p className="p-6">HR Cockpit is not available to your role.</p>;
  const area=areas.find(a=>a.id===params.get('area'))?.id??areas[0].id;
- const tabs=<Segmented variant="underline" label="HR Cockpit areas" value={area} onChange={id=>setParams({area:id})} segments={areas.map(a=>({id:a.id,label:a.label,badge:undefined}))}/>;
+ const tabs=<><Segmented variant="underline" label="HR Cockpit areas" value={area} onChange={id=>setParams({area:id})} segments={areas.map(a=>({id:a.id,label:a.label,badge:undefined}))}/><UatInboxLink/></>;
  if(area==='publishing')return <ContentCockpit tabs={tabs}/>;
  return <main className="hrms-workspace-page"><PageHero title="HR Cockpit" intro={area==='offers'?'Create offers and follow their approval and acceptance progress.':area==='offboarding'?'Coordinate employee exits, handover and final clearances.':'Coordinate onboarding and help new colleagues settle in.'} illustration="cockpit" tabs={tabs}/>{area==='offers'?<CreateOffer/>:area==='onboarding'?<OnboardingTracker actions={<AddEmployee buttonClassName="hrms-lk-add"/>}/>:<OffboardingPage/>}</main>;
 }
