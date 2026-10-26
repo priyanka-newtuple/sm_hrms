@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       restart_api:
-        description: Restart only the HRMS native API after a stopped promotion
+        description: Restart only an unhealthy HRMS native API
         type: boolean
         default: false
 permissions:
@@ -39,13 +39,24 @@ jobs:
           [[ "$release" == "$base/releases/"* ]]
           export IMAGE_TAG=${release##*/}
           [[ "$IMAGE_TAG" =~ ^[a-f0-9]{40}$ ]]
+          api=$(docker ps -q --filter label=com.docker.compose.project=newtuple-hrms-production --filter label=com.docker.compose.service=platform-api)
+          docker inspect --format '{{json .State.Health}}' "$api" < /dev/null
+          database=$(docker ps -q --filter label=com.docker.compose.project=newtuple-hrms-production --filter label=com.docker.compose.service=platform-db)
+          docker exec "$database" sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT state, wait_event_type, wait_event, count(*), max(now()-xact_start) AS oldest_transaction FROM pg_stat_activity WHERE datname=current_database() GROUP BY state,wait_event_type,wait_event"' < /dev/null
           if [[ "$1" == true ]]; then
             exec 9>"$base/deploy.lock"; flock -n 9
             test -z "$(docker ps -q --filter label=com.docker.compose.project=newtuple-hrms-production --filter label=com.docker.compose.service=platform-install)"
-            docker compose --project-name newtuple-hrms-production --env-file "$base/production.env" -f "$release/compose.yml" run --rm -T --no-deps platform-install python -c 'import os,psycopg; db=psycopg.connect(os.environ["HRMS_APP_DATABASE_URL"]); rows=db.execute("SELECT state FROM hrms_configuration_releases WHERE organization_id=%s AND package_name=%s",(os.environ["HRMS_ORGANIZATION_ID"],"hrms-core")).fetchall(); assert len(rows)==1 and rows[0][0]["status"]=="failed"; db.close()' < /dev/null
+            docker compose --project-name newtuple-hrms-production --env-file "$base/production.env" -f "$release/compose.yml" run --rm -T --no-deps platform-install python -c 'import os,psycopg; db=psycopg.connect(os.environ["HRMS_APP_DATABASE_URL"]); rows=db.execute("SELECT state FROM hrms_configuration_releases WHERE organization_id=%s AND package_name=%s",(os.environ["HRMS_ORGANIZATION_ID"],"hrms-core")).fetchall(); assert len(rows)==1 and rows[0][0]["status"] in ("failed","applied"); db.close()' < /dev/null
             api=$(docker ps -q --filter label=com.docker.compose.project=newtuple-hrms-production --filter label=com.docker.compose.service=platform-api)
             test -n "$api"
+            test "$(docker inspect --format '{{.State.Health.Status}}' "$api")" = unhealthy
             docker restart "$api" < /dev/null
+            for attempt in $(seq 1 30); do
+              [[ "$(docker inspect --format '{{.State.Health.Status}}' "$api")" == healthy ]] && break
+              sleep 2
+            done
+            test "$(docker inspect --format '{{.State.Health.Status}}' "$api")" = healthy
+            docker compose --project-name newtuple-hrms-production --env-file "$base/production.env" -f "$release/compose.yml" run --rm -T --no-deps platform-install python -m hrms_app.verify_native_setup < /dev/null
           fi
           docker ps --filter label=com.docker.compose.project=newtuple-hrms-production --format '{{.Names}} {{.Status}}' < /dev/null
           docker stats --no-stream --format '{{.Name}} {{.CPUPerc}} {{.MemUsage}}' $(docker ps -q --filter label=com.docker.compose.project=newtuple-hrms-production) < /dev/null
