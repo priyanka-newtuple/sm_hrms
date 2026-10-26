@@ -1,6 +1,7 @@
 import pytest
 
-from hrms_app.recover_onboarding_email import recover
+from hrms_app.recover_onboarding_email import recover, employee_id_for_reference
+from types import SimpleNamespace
 
 
 class API:
@@ -26,6 +27,11 @@ class API:
     def request(self, method, path, **kwargs):
         self.sent.append((method, path, kwargs))
         return {'message': 'generic response'}
+
+
+def test_resolves_native_summary_entity_id():
+    api = SimpleNamespace(records=lambda *args: [{'entity_id': 'entity', 'display_name': 'EMP-0004', 'data': {}}])
+    assert employee_id_for_reference(api, 'EMP-0004') == 'entity'
 
 
 def test_requires_actual_new_capture():

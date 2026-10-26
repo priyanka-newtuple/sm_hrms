@@ -51,16 +51,21 @@ def recover(api, progress, entity_id, mailbox):
     return {'setup_request_accepted': True, 'new_email_captured': False}
 
 
+def employee_id_for_reference(api, employee_ref):
+    records = [r for r in api.records('HRMS.Employee', ['identifier'])
+               if (r['data'].get('identifier') or r.get('display_name')) == employee_ref]
+    if len(records) != 1:
+        raise RecoveryBlocked('Employee reference must resolve exactly once in this tenant')
+    return records[0]['entity_id']
+
+
 def main():
     if os.environ.get('HRMS_EMAIL_MODE') != 'capture':
         raise RecoveryBlocked('This recovery is available only in capture mode')
     employee_ref = sys.argv[1]
     api = PlatformClient(os.environ['PLATFORM_API_URL'], os.environ['HRMS_ORGANIZATION_ID'], os.environ['HRMS_INSTALL_EMAIL'], os.environ['HRMS_INSTALL_PASSWORD'])
     try:
-        records = [r for r in api.records('HRMS.Employee', ['identifier']) if r['data'].get('identifier') == employee_ref]
-        if len(records) != 1:
-            raise RecoveryBlocked('Employee reference must resolve exactly once in this tenant')
-        entity_id = records[0]['id']
+        entity_id = employee_id_for_reference(api, employee_ref)
         with psycopg.connect(os.environ['HRMS_APP_DATABASE_URL']) as db:
             row = db.execute('SELECT progress FROM operations WHERE organization_id=%s AND operation_key=%s', (api.org, 'employee-account:' + entity_id)).fetchone()
         if not row:
