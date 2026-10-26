@@ -78,6 +78,41 @@ def adopt_reviewed(native, package, reviewed, journal):
     return apply(native, package, plan, journal)
 
 
+def resume_reviewed(native, package, reviewed, journal):
+    """Resume a failed, certain checkpoint only after an exact fresh review."""
+    state = journal.read()
+    if (state.get('status') != 'failed' or state.get('pending') is not None
+            or state.get('package_checksum') != digest(package)):
+        raise ConfigurationError('Recovery requires the same failed package with no uncertain write')
+    objects = validate(package)
+    fresh, actual, identities = inspection(native, package, {'baseline': {}})
+    if fresh != reviewed:
+        raise ConfigurationError('Recovery review is stale or invalid')
+    by_key = {o['key']: o for o in objects}
+    for key in state.get('completed', []):
+        if key not in by_key:
+            raise ConfigurationError('Unknown completed checkpoint')
+        value, _ = native.read(by_key[key])
+        if value != resolve(by_key[key]['payload'], identities):
+            raise ConfigurationError('A completed configuration changed; recovery stopped')
+    native.preflight(objects, identities)
+    checked, _, _ = inspection(native, package, {'baseline': {}})
+    if checked != reviewed:
+        raise ConfigurationError('Destination changed during recovery checks')
+    history = deepcopy(state.get('recovery_history', []))
+    history.append({'review': deepcopy(reviewed), 'baseline': deepcopy(state.get('baseline', {})),
+                    'completed': list(state.get('completed', [])),
+                    'reviewed_at': datetime.now(timezone.utc).isoformat()})
+    journal.save({**state, 'status': 'recovery_reviewed', 'baseline': deepcopy(actual),
+                  'recovery_history': history})
+    plan, _, _ = inspection(native, package, journal.read())
+    # A fully completed checkpoint is finalized by reconcile, including all pins.
+    if all(op['decision'] == 'unchanged' for op in plan['operations']):
+        journal.save({**journal.read(), 'status': 'failed'})
+        return reconcile(native, package, journal)
+    return apply(native, package, plan, journal)
+
+
 def apply(native, package, plan, journal):
     """Apply a previously reviewed exact plan; uncertain writes require reconciliation.
 

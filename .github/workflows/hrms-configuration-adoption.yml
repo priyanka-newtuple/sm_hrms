@@ -2,6 +2,10 @@ name: HRMS reviewed configuration adoption
 on:
   workflow_dispatch:
     inputs:
+      resume:
+        description: Resume a failed checkpoint with no uncertain write after fresh comparison
+        type: boolean
+        default: false
       comparison_run:
         description: Successful reviewed comparison run for this exact commit
         required: true
@@ -44,6 +48,7 @@ jobs:
           HOST: ${{ vars.HRMS_DEPLOY_HOST }}
           USER: ${{ vars.HRMS_DEPLOY_USER }}
           PORT: ${{ vars.HRMS_DEPLOY_PORT }}
+          RESUME: ${{ inputs.resume }}
         run: |
           set -euo pipefail
           [[ "$HOST" =~ ^[a-zA-Z0-9.-]+$ && "$USER" =~ ^[a-z_][a-z0-9_-]*$ && "$PORT" =~ ^[0-9]+$ ]]
@@ -53,9 +58,12 @@ jobs:
           chmod 600 ~/.ssh/hrms ~/.ssh/known_hosts
           trap 'rm -f ~/.ssh/hrms' EXIT
           python3 - <<'PY' > /tmp/hrms-adopt.sh
-          import json, pathlib, shlex
+          import json, pathlib, shlex, os
           code = pathlib.Path('deployment/hrms/adopt_configuration.py').read_text()
+          runner = pathlib.Path('applications/hrms_api/hrms_app/configuration_promotion.py').read_text()
+          code = 'import hrms_app.configuration_promotion as promotion\nexec(' + repr(runner) + ', promotion.__dict__)\n' + code
           payload = json.dumps({'package': json.loads(pathlib.Path('configuration/hrms/production-candidate.json').read_text()),
+                                'resume': os.environ['RESUME'] == 'true',
                                 'review': json.loads(pathlib.Path('reviewed/comparison.json').read_text())['plan']})
           print('set -euo pipefail; umask 077')
           print('base=/opt/newtuple-hrms')

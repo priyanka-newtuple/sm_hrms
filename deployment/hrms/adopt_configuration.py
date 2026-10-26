@@ -5,7 +5,7 @@ import sys
 
 from hrms_app.configuration_native import NativeConfiguration
 from hrms_app.configuration_package import ConfigurationError
-from hrms_app.configuration_promotion import Journal, adopt_reviewed, inspection
+from hrms_app.configuration_promotion import Journal, adopt_reviewed, inspection, resume_reviewed
 from hrms_app.platform import PlatformClient
 
 
@@ -19,7 +19,8 @@ def main():
         native = NativeConfiguration(api)
         journal = Journal(os.environ['HRMS_APP_DATABASE_URL'], api.org, package['name'])
         with journal.locked():
-            state = adopt_reviewed(native, package, inputs['review'], journal)
+            operation = resume_reviewed if inputs.get('resume') else adopt_reviewed
+            state = operation(native, package, inputs['review'], journal)
             plan, _, _ = inspection(native, package, state)
             if any(op['decision'] != 'unchanged' for op in plan['operations']):
                 raise ConfigurationError('Post-adoption verification detected drift')
