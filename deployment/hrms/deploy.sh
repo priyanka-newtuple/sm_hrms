@@ -8,6 +8,13 @@ release="$base/releases/$sha"
 cd "$release"
 exec 9>"$base/deploy.lock"
 flock -n 9 || { echo 'Another HRMS deployment is running'; exit 1; }
+# Consume SSH stdin before Docker exec/run commands can drain the email JSON.
+# The file is private (umask 077) and is removed on both success and failure.
+email_payload=$(mktemp "$base/.email-payload.XXXXXX")
+trap 'rm -f -- "$email_payload"' EXIT
+cat > "$email_payload"
+exec < /dev/null
+test -s "$email_payload" || { echo 'Email configuration input is missing; redeploy from the release pipeline.' >&2; exit 1; }
 test -f "$base/production.env"
 sha256sum -c SHA256SUMS
 export IMAGE_TAG="$sha"
@@ -44,7 +51,7 @@ fi
 "${compose[@]}" up -d --no-deps --wait --wait-timeout 300 platform-api
 "${compose[@]}" run --rm -T --no-deps platform-install < /dev/null
 # Read the email-mode payload and credentials from encrypted stdin, before any worker starts.
-"${compose[@]}" run --rm -T --no-deps platform-install python -m hrms_app.configure_email
+"${compose[@]}" run --rm -T --no-deps platform-install python -m hrms_app.configure_email < "$email_payload"
 "${compose[@]}" up -d --no-deps platform-worker
 "${compose[@]}" up -d --no-deps --wait --wait-timeout 180 hrms-app platform-web
 "${compose[@]}" exec -T platform-web wget -q -O /dev/null http://127.0.0.1/health

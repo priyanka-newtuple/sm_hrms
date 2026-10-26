@@ -7,6 +7,7 @@ from email.utils import parseaddr
 from pydantic import EmailStr, TypeAdapter
 
 from .platform import PlatformClient
+from .errors import AppError
 
 
 def smtp_payload(values):
@@ -57,26 +58,48 @@ def deployment_payload(values):
     return payload
 
 
+class EmailConfigurationError(RuntimeError):
+    """Only constant, credential-free diagnostics may be included here."""
+
+
 def configure(api, payload):
     if payload is None:
         return False
     # service_token verifies that installer credentials authenticate in the expected tenant.
-    api.service_token()
+    try:
+        api.service_token()
+    except AppError as exc:
+        raise EmailConfigurationError(f'Installer authentication failed (HTTP {exc.status}).') from None
     path = f'/integrations/organizations/{api.org}/smtp'
-    validation = api.call('POST', path + '/validate', json={
-        'config': payload['config'], 'secrets': payload['secrets']})
+    try:
+        validation = api.call('POST', path + '/validate', json={
+            'config': payload['config'], 'secrets': payload['secrets']})
+    except AppError as exc:
+        raise EmailConfigurationError(f'SMTP validation API failed (HTTP {exc.status}).') from None
     if not validation.get('valid'):
-        raise RuntimeError('SMTP authentication validation failed')
-    result = api.call('PUT', path, json=payload)
+        raise EmailConfigurationError('SMTP validation rejected the connection. Check Mailpit reachability in capture mode or provider credentials in live mode.')
+    try:
+        result = api.call('PUT', path, json=payload)
+    except AppError as exc:
+        raise EmailConfigurationError(f'Saving SMTP integration failed (HTTP {exc.status}).') from None
     if result.get('organization_id') != api.org or not result.get('configured'):
-        raise RuntimeError('SMTP configuration was not confirmed in the expected tenant')
+        raise EmailConfigurationError('SMTP configuration was not confirmed in the expected tenant.')
     return True
 
 
 def main():
     api = None
     try:
-        payload = deployment_payload(json.load(sys.stdin))
+        try:
+            values = json.load(sys.stdin)
+            if not isinstance(values, dict):
+                raise ValueError()
+        except (ValueError, TypeError):
+            raise EmailConfigurationError('Email deployment input is missing or invalid JSON. Redeploy from the release pipeline.') from None
+        try:
+            payload = deployment_payload(values)
+        except (ValueError, TypeError):
+            raise EmailConfigurationError('Email mode or SMTP settings are invalid. Capture mode needs no live SMTP secrets; live mode requires complete TLS SMTP settings.') from None
         if payload is None:
             print('Email secret synchronization skipped; existing email settings are unchanged.')
             return 0
@@ -85,6 +108,9 @@ def main():
         configure(api, payload)
         print('Email mode configured and SMTP validated. No email was sent by configuration.')
         return 0
+    except EmailConfigurationError as exc:
+        print(f'Email configuration failed: {exc}', file=sys.stderr)
+        return 1
     except Exception:
         # Upstream validation errors may contain credential fragments; do not echo them in CI.
         print('Email configuration failed. Check email secrets and SMTP authentication in Settings.', file=sys.stderr)

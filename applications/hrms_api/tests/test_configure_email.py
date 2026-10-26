@@ -86,3 +86,29 @@ def test_explicit_live_mode_uses_validated_real_credentials():
 def test_invalid_mode_or_unconfigured_live_fails_closed(values):
     with pytest.raises(ValueError):
         deployment_payload(values)
+
+
+@pytest.mark.parametrize('raw', ['', 'not-json', '[]'])
+def test_missing_or_invalid_pipeline_input_has_safe_diagnostic(monkeypatch, capsys, raw):
+    import io
+    from hrms_app import configure_email as module
+    monkeypatch.setattr(module.sys, 'stdin', io.StringIO(raw))
+    monkeypatch.setattr(module, 'PlatformClient', lambda *a: pytest.fail('Must reject before API access'))
+    assert module.main() == 1
+    assert 'input is missing or invalid JSON' in capsys.readouterr().err
+
+
+@pytest.mark.parametrize('stage', ['authenticate', 'POST', 'PUT'])
+def test_upstream_errors_report_stage_without_credential_text(stage):
+    from hrms_app.configure_email import EmailConfigurationError
+    from hrms_app.errors import AppError
+    class FailingApi(Api):
+        def service_token(self):
+            if stage=='authenticate': raise AppError(403, 'sensitive-secret-marker')
+        def call(self, method, path, **kwargs):
+            if method==stage: raise AppError(403, 'sensitive-secret-marker')
+            return super().call(method,path,**kwargs)
+    with pytest.raises(EmailConfigurationError) as error:
+        configure(FailingApi(), deployment_payload({}))
+    assert 'HTTP 403' in str(error.value)
+    assert 'sensitive-secret-marker' not in str(error.value)

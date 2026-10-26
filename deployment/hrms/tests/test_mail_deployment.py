@@ -18,3 +18,13 @@ def test_transport_configured_before_worker_starts():
     assert script.index('stop platform-worker') < script.index('hrms_app.configure_email')
     assert script.index('hrms_app.configure_email') < script.index('up -d --no-deps platform-worker')
     assert 'platform-install < /dev/null' in script
+
+
+def test_email_stdin_is_secured_before_any_docker_consumers():
+    script = (ROOT / 'deploy.sh').read_text()
+    capture = script.index('cat > "$email_payload"')
+    assert script.index('umask 077') < script.index('email_payload=$(mktemp') < capture
+    assert capture < script.index('exec < /dev/null') < script.index('docker load')
+    assert capture < script.index('exec -T "$service"')
+    assert 'hrms_app.configure_email < "$email_payload"' in script
+    assert "trap 'rm -f -- \"$email_payload\"' EXIT" in script
