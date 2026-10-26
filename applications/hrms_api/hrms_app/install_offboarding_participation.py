@@ -65,13 +65,25 @@ def install(api, dsn, workflow):
         graph.pop('method_schemas',None)
         validation=api.call('POST','/workflow-state-machines/validate',json={'machine_name':workflow['machine_name'],'definition':graph})
         if not validation.get('can_publish'):raise AppError(422,str(validation['validation_report']))
-        drafts=api.call('GET','/workflow-state-machines',params={'scope':'draft','machine_name':workflow['machine_name']})['draft_items']
-        draft=next(iter(drafts),None) or api.call('POST',f"/workflow-state-machines/{workflow['machine_name']}/draft")
-        # Only publish the assembled addition; old versions/enrollments remain intact.
-        updated=api.call('POST',f"/workflow-state-machines/{draft['id']}/publish",json={'definition':graph,'canvas_metadata':workflow.get('canvas_metadata')})['state_machine']
+        # A failed role update may follow a successful publish. Reuse that version
+        # on retry rather than publishing an identical workflow again.
+        previous=deepcopy(workflow['definition'])
+        previous.pop('method_schemas',None)
+        if graph == previous:
+            updated=workflow
+        else:
+            drafts=api.call('GET','/workflow-state-machines',params={'scope':'draft','machine_name':workflow['machine_name']})['draft_items']
+            draft=next(iter(drafts),None) or api.call('POST',f"/workflow-state-machines/{workflow['machine_name']}/draft")
+            # Old versions/enrollments remain intact.
+            updated=api.call('POST',f"/workflow-state-machines/{draft['id']}/publish",json={'definition':graph,'canvas_metadata':workflow.get('canvas_metadata')})['state_machine']
         for role in api.call('GET','/roles'):
             if role['name'] not in {'superadmin','hrms_hr_full','hrms_application_service'}:continue
             r=api.call('GET',f"/roles/{role['id']}")
+            # Existing human workflow revocations must survive feature upgrades.
+            if updated['machine_name'] not in {p['machine_name'] for p in r['workflow_permissions']}:
+                if role['name']=='hrms_application_service':
+                    raise AppError(409, 'Install base offboarding workflow access before participation permissions')
+                continue
             fieldkeys={f['field'] for f in routing+SECTIONS['Employee handover']}
             fields=[{k:p[k] for k in ('entity_type','field_name','can_view','can_edit','mask_value')} for p in r['field_permissions'] if p['entity_type']!=ENTITY or p['field_name'] not in fieldkeys]
             fields += [dict(entity_type=ENTITY,field_name=k,can_view=True,can_edit=role['name']=='hrms_application_service' or k not in {'offboarding_employee_user_id',*[f['field'] for f in SECTIONS['Employee handover']]},mask_value=False) for k in fieldkeys]

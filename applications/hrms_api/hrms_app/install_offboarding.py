@@ -62,8 +62,6 @@ def install(api, dsn):
         if not draft:
             draft=api.call('POST','/workflow-state-machines/draft',json={'name':'Employee offboarding'})
         workflow=api.call('POST',f"/workflow-state-machines/{draft['id']}/publish",json={'definition':graph})['state_machine']
-    from .install_offboarding_participation import install as install_participation
-    workflow=install_participation(api,dsn,workflow)
     machine=workflow['machine_name']
     catalog=api.call('GET','/workflow-state-machines',params={'scope':'all'})
     existing_machines={w['machine_name'] for w in catalog['published_items']+catalog['draft_items']}
@@ -92,6 +90,9 @@ def install(api, dsn):
             transitions += [{'machine_name':machine,'transition_key':t['key']} for t in workflow['definition']['transitions'] if service or t['trigger']!='submit_employee_handover']
             api.call('PUT',f"/roles/{role['id']}",json={'entity_permissions':entities,'field_permissions':fields,'workflow_permissions':workflows,'transition_permissions':transitions})
         db.execute('INSERT INTO hrms_feature_setup VALUES (%s,%s) ON CONFLICT DO NOTHING',(api.org,'offboarding-v1'))
+    # Native transition grants require workflow access. Install base grants first.
+    from .install_offboarding_participation import install as install_participation
+    install_participation(api,dsn,workflow)
 
 
 if __name__=='__main__':
