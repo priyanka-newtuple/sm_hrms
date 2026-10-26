@@ -41,6 +41,8 @@ jobs:
           [[ "$IMAGE_TAG" =~ ^[a-f0-9]{40}$ ]]
           api=$(docker ps -q --filter label=com.docker.compose.project=newtuple-hrms-production --filter label=com.docker.compose.service=platform-api)
           docker inspect --format '{{json .State.Health}}' "$api" < /dev/null
+          docker events --since 3h --until "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --filter container="$api" --filter event=oom --format '{{.Time}} {{.Action}}' < /dev/null
+          docker exec "$api" sh -c 'if [ -r /sys/fs/cgroup/memory.events ]; then cat /sys/fs/cgroup/memory.events; fi' < /dev/null
           database=$(docker ps -q --filter label=com.docker.compose.project=newtuple-hrms-production --filter label=com.docker.compose.service=platform-db)
           docker exec "$database" sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT state, wait_event_type, wait_event, count(*), max(now()-xact_start) AS oldest_transaction FROM pg_stat_activity WHERE datname=current_database() GROUP BY state,wait_event_type,wait_event"' < /dev/null
           if [[ "$1" == true ]]; then
