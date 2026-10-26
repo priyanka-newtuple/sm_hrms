@@ -33,7 +33,8 @@ jobs:
           python3 - <<'PY' > /tmp/hrms-compare.sh
           import pathlib, shlex
           code = pathlib.Path('deployment/hrms/compare_configuration.py').read_text()
-          package = pathlib.Path('configuration/hrms/candidate.json').read_text()
+          candidate = pathlib.Path('configuration/hrms/production-candidate.json')
+          package = (candidate if candidate.exists() else pathlib.Path('configuration/hrms/candidate.json')).read_text()
           print('set -euo pipefail')
           print('base=/opt/newtuple-hrms')
           print('exec 9>"$base/deploy.lock"; flock -n 9')

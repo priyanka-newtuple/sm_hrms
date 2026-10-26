@@ -5,7 +5,7 @@ import pytest
 
 from hrms_app.configuration_package import (ConfigurationError, digest, make_plan, portable,
                                             reference, resolve, validate, verify_plan)
-from hrms_app.configuration_promotion import apply, inspection, reconcile
+from hrms_app.configuration_promotion import adopt_reviewed, apply, inspection, reconcile
 from hrms_app.configuration_native import NativeConfiguration
 
 
@@ -140,6 +140,40 @@ def test_conflict_never_writes():
         apply(native, package(), plan, journal)
     assert not native.writes
     assert not journal.writes
+
+
+def test_reviewed_adoption_preserves_before_values_and_uses_verified_apply():
+    before = obj(options=['production'])
+    native, journal = FakeNative({'Departments': before}), MemoryJournal()
+    plan, _, _ = inspection(native, package(), journal.read())
+    result = adopt_reviewed(native, package(), plan, journal)
+    assert result['status'] == 'applied'
+    assert journal.writes[0]['baseline']['Departments'] == before
+    assert journal.writes[0]['adoption_review'] == plan
+    assert native.writes == ['Departments']
+
+
+def test_reviewed_adoption_rejects_drift_and_already_managed_packages():
+    native, journal = FakeNative({'Departments': obj(options=['production'])}), MemoryJournal()
+    plan, _, _ = inspection(native, package(), journal.read())
+    native.rows['Departments'] = obj(options=['new edit'])
+    with pytest.raises(ConfigurationError, match='stale'):
+        adopt_reviewed(native, package(), plan, journal)
+    assert not native.writes and not journal.writes
+    journal.state['status'] = 'failed'
+    with pytest.raises(ConfigurationError, match='unmanaged'):
+        adopt_reviewed(native, package(), plan, journal)
+
+
+def test_reviewed_adoption_preflight_failure_has_no_writes():
+    native, journal = FakeNative(), MemoryJournal()
+    plan, _, _ = inspection(native, package(), journal.read())
+    def reject(*args):
+        raise ConfigurationError('Unsupported migration')
+    native.preflight = reject
+    with pytest.raises(ConfigurationError, match='Unsupported'):
+        adopt_reviewed(native, package(), plan, journal)
+    assert not native.writes and not journal.writes
 
 
 def test_lost_response_requires_verified_reconciliation_not_duplicate_write():

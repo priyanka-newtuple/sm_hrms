@@ -1,0 +1,80 @@
+name: HRMS reviewed configuration adoption
+on:
+  workflow_dispatch:
+    inputs:
+      comparison_run:
+        description: Successful reviewed comparison run for this exact commit
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: hrms-production
+  cancel-in-progress: false
+jobs:
+  adopt:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: hrms-production
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch exact reviewed comparison
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REVIEW_RUN: ${{ inputs.comparison_run }}
+          RELEASE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$REVIEW_RUN" =~ ^[0-9]+$ ]]
+          gh run view "$REVIEW_RUN" --json headSha,conclusion,workflowName > review-run.json
+          python3 - <<'PY'
+          import json, os
+          run = json.load(open('review-run.json'))
+          assert run['headSha'] == os.environ['RELEASE_SHA'], 'Review belongs to a different commit'
+          assert run['conclusion'] == 'success', 'Comparison did not succeed'
+          assert run['workflowName'] == 'HRMS configuration comparison', 'Unexpected comparison workflow'
+          PY
+          gh run download "$REVIEW_RUN" -n hrms-configuration-comparison -D reviewed
+      - name: Apply reviewed initial configuration
+        env:
+          SSH_KEY: ${{ secrets.HRMS_DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.HRMS_DEPLOY_KNOWN_HOSTS }}
+          HOST: ${{ vars.HRMS_DEPLOY_HOST }}
+          USER: ${{ vars.HRMS_DEPLOY_USER }}
+          PORT: ${{ vars.HRMS_DEPLOY_PORT }}
+        run: |
+          set -euo pipefail
+          [[ "$HOST" =~ ^[a-zA-Z0-9.-]+$ && "$USER" =~ ^[a-z_][a-z0-9_-]*$ && "$PORT" =~ ^[0-9]+$ ]]
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/hrms
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/hrms ~/.ssh/known_hosts
+          trap 'rm -f ~/.ssh/hrms' EXIT
+          python3 - <<'PY' > /tmp/hrms-adopt.sh
+          import json, pathlib, shlex
+          code = pathlib.Path('deployment/hrms/adopt_configuration.py').read_text()
+          payload = json.dumps({'package': json.loads(pathlib.Path('configuration/hrms/production-candidate.json').read_text()),
+                                'review': json.loads(pathlib.Path('reviewed/comparison.json').read_text())['plan']})
+          print('set -euo pipefail; umask 077')
+          print('base=/opt/newtuple-hrms')
+          print('exec 9>"$base/deploy.lock"; flock -n 9')
+          print('release=$(readlink -f "$base/current")')
+          print('[[ "$release" == "$base/releases/"* ]]')
+          print('export IMAGE_TAG=${release##*/}')
+          print('[[ "$IMAGE_TAG" =~ ^[a-f0-9]{40}$ ]]')
+          print('compose=(docker compose --project-name newtuple-hrms-production --env-file "$base/production.env" -f "$release/compose.yml")')
+          print('backup="$base/backups/$(date -u +%Y%m%dT%H%M%SZ)-configuration-adoption"; mkdir -p "$backup"')
+          print('for service in platform-db hrms-app-db; do "${compose[@]}" exec -T "$service" sh -c \'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"\' | gzip > "$backup/$service.sql.gz"; gzip -t "$backup/$service.sql.gz"; done')
+          print('printf %s ' + shlex.quote(payload) + ' | "${compose[@]}" run --rm -T --no-deps platform-install python -c ' + shlex.quote(code))
+          print('"${compose[@]}" run --rm -T --no-deps platform-install python -m hrms_app.verify_native_setup < /dev/null >&2')
+          PY
+          ssh -i ~/.ssh/hrms -o BatchMode=yes -o StrictHostKeyChecking=yes -p "$PORT" "$USER@$HOST" 'bash -s' < /tmp/hrms-adopt.sh > adoption.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hrms-configuration-adoption
+          path: adoption.json
+          if-no-files-found: warn
+          retention-days: 7

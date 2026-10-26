@@ -51,6 +51,33 @@ def inspection(native, package, state):
     return make_plan(package, actual, baseline, native.api.org), actual, identities
 
 
+def adopt_reviewed(native, package, reviewed, journal):
+    """Record an explicitly reviewed initial snapshot, then use normal promotion.
+
+    The review binds the tenant, every before/after hash and the entire snapshot.
+    This is not a force mode: stale reviews, existing releases and unsupported
+    migrations are rejected before recording the adoption or writing native data.
+    """
+    state = journal.read()
+    if state.get('baseline') or state.get('status') != 'not_applied':
+        raise ConfigurationError('Initial adoption is only allowed for an unmanaged package')
+    fresh, actual, identities = inspection(native, package, state)
+    if fresh != reviewed or any(op['decision'] not in {'adopt', 'create', 'conflict'}
+                               for op in fresh['operations']):
+        raise ConfigurationError('Initial adoption review is stale or invalid')
+    native.preflight(validate(package), identities)
+    checked, _, _ = inspection(native, package, state)
+    if checked != reviewed:
+        raise ConfigurationError('Destination changed during initial adoption checks')
+    state = {**state, 'status': 'adopted', 'baseline': deepcopy(actual),
+             'adoption_review': deepcopy(reviewed),
+             'bindings': {key: identity['id'] for key, identity in identities.items()
+                          if key.startswith('method:') and identity}}
+    journal.save(state)
+    plan, _, _ = inspection(native, package, state)
+    return apply(native, package, plan, journal)
+
+
 def apply(native, package, plan, journal):
     """Apply a previously reviewed exact plan; uncertain writes require reconciliation.
 
