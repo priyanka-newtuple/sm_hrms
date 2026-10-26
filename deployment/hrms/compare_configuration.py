@@ -6,14 +6,14 @@ import httpx
 from collections import Counter
 
 from hrms_app.configuration_native import NativeConfiguration
-from hrms_app.configuration_package import ConfigurationError, validate
+from hrms_app.configuration_package import ConfigurationError, validate, resolve
 from hrms_app.configuration_promotion import inspection
 from hrms_app.platform import PlatformClient
 
 
 class ReadOnlyPlatform(PlatformClient):
     def request(self, method, path, **kwargs):
-        if method != 'GET' and (method, path) != ('POST', '/auth/login'):
+        if method != 'GET' and (method, path) not in {('POST', '/auth/login'), ('POST', '/workflow-state-machines/validate')}:
             raise RuntimeError('Configuration comparison cannot write native data')
         return super().request(method, path, **kwargs)
 
@@ -40,14 +40,29 @@ def main():
     try:
         api.service_token()
         native = InspectedConfiguration(api)
-        plan, actual, _ = inspection(native, package, {'baseline': {}})
+        plan, actual, identities = inspection(native, package, {'baseline': {}})
+        # Read only our own journal; validation is a native non-mutating endpoint.
+        import psycopg
+        with psycopg.connect(os.environ['HRMS_APP_DATABASE_URL']) as db:
+            row = db.execute('SELECT state FROM hrms_configuration_releases WHERE organization_id=%s AND package_name=%s',
+                             (api.org, package['name'])).fetchone()
+        pending = (row[0].get('pending') if row else None)
+        diagnostic = None
+        if pending and pending.get('draft_id'):
+            draft = native.get('/workflow-state-machines/' + pending['draft_id'])
+            item = next(o for o in package['objects'] if o['key'] == pending['key'])
+            graph = resolve(item['payload'], identities)['definition']
+            graph['machine_key'] = pending['machine_name']
+            diagnostic = {'pending': pending, 'draft_status': draft.get('status'),
+                          'validation': api.call('POST', '/workflow-state-machines/validate',
+                                                json={'machine_name': pending['machine_name'], 'definition': graph})}
         desired = {item['key']: item for item in package['objects']}
         differences = [{'key': op['key'], 'production': actual.get(op['key']),
                         'desired': desired[op['key']]} for op in plan['operations']
                        if op['decision'] == 'conflict']
         print(json.dumps({'comparison': 'initial adoption; no baseline modified',
                           'summary': dict(Counter(item['decision'] for item in plan['operations'])),
-                          'plan': plan, 'differences': differences}, indent=2))
+                          'plan': plan, 'differences': differences, 'pending_diagnostic': diagnostic}, indent=2))
     except ConfigurationError as exc:
         print(json.dumps({'blocked': True, 'reason': str(exc)}))
         raise SystemExit(2) from None
