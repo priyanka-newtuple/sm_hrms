@@ -1,6 +1,11 @@
 name: HRMS configuration status
 on:
   workflow_dispatch:
+    inputs:
+      restart_api:
+        description: Restart only the HRMS native API after a stopped promotion
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:
@@ -17,6 +22,7 @@ jobs:
           HOST: ${{ vars.HRMS_DEPLOY_HOST }}
           USER: ${{ vars.HRMS_DEPLOY_USER }}
           PORT: ${{ vars.HRMS_DEPLOY_PORT }}
+          RESTART_API: ${{ inputs.restart_api }}
         run: |
           set -euo pipefail
           [[ "$HOST" =~ ^[a-zA-Z0-9.-]+$ && "$USER" =~ ^[a-z_][a-z0-9_-]*$ && "$PORT" =~ ^[0-9]+$ ]]
@@ -25,13 +31,22 @@ jobs:
           printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/hrms ~/.ssh/known_hosts
           trap 'rm -f ~/.ssh/hrms' EXIT
-          ssh -i ~/.ssh/hrms -o BatchMode=yes -o StrictHostKeyChecking=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=6 -p "$PORT" "$USER@$HOST" 'bash -s' <<'REMOTE' > status.txt
+          [[ "$RESTART_API" == true || "$RESTART_API" == false ]]
+          ssh -i ~/.ssh/hrms -o BatchMode=yes -o StrictHostKeyChecking=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=6 -p "$PORT" "$USER@$HOST" "bash -s -- '$RESTART_API'" <<'REMOTE' > status.txt
           set -euo pipefail
           base=/opt/newtuple-hrms
           release=$(readlink -f "$base/current")
           [[ "$release" == "$base/releases/"* ]]
           export IMAGE_TAG=${release##*/}
           [[ "$IMAGE_TAG" =~ ^[a-f0-9]{40}$ ]]
+          if [[ "$1" == true ]]; then
+            exec 9>"$base/deploy.lock"; flock -n 9
+            test -z "$(docker ps -q --filter label=com.docker.compose.project=newtuple-hrms-production --filter label=com.docker.compose.service=platform-install)"
+            docker compose --project-name newtuple-hrms-production --env-file "$base/production.env" -f "$release/compose.yml" run --rm -T --no-deps platform-install python -c 'import os,psycopg; db=psycopg.connect(os.environ["HRMS_APP_DATABASE_URL"]); rows=db.execute("SELECT state FROM hrms_configuration_releases WHERE organization_id=%s AND package_name=%s",(os.environ["HRMS_ORGANIZATION_ID"],"hrms-core")).fetchall(); assert len(rows)==1 and rows[0][0]["status"]=="failed"; db.close()' < /dev/null
+            api=$(docker ps -q --filter label=com.docker.compose.project=newtuple-hrms-production --filter label=com.docker.compose.service=platform-api)
+            test -n "$api"
+            docker restart "$api" < /dev/null
+          fi
           docker ps --filter label=com.docker.compose.project=newtuple-hrms-production --format '{{.Names}} {{.Status}}' < /dev/null
           docker stats --no-stream --format '{{.Name}} {{.CPUPerc}} {{.MemUsage}}' $(docker ps -q --filter label=com.docker.compose.project=newtuple-hrms-production) < /dev/null
           api=$(docker ps -q --filter label=com.docker.compose.project=newtuple-hrms-production --filter label=com.docker.compose.service=platform-api)
