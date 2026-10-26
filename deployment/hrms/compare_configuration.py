@@ -52,7 +52,7 @@ def main():
     except Exception as exc:
         import traceback
         print(json.dumps({'blocked': True, 'reason': 'Native configuration could not be read; check access and deployed adapter compatibility.',
-                          'error_type': type(exc).__name__, 'status': getattr(exc, 'status', None),
+                          'error_type': type(exc).__name__, 'cause_type': type(exc.__cause__).__name__, 'status': getattr(exc, 'status', None),
                           'object': getattr(locals().get('native'), 'current_key', None),
                           'route': getattr(locals().get('native'), 'last_route', None),
                           'frames': [{'file': f.filename.rsplit('/', 1)[-1], 'line': f.lineno, 'function': f.name}
