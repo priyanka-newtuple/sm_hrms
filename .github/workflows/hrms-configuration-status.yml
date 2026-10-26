@@ -34,6 +34,8 @@ jobs:
           [[ "$IMAGE_TAG" =~ ^[a-f0-9]{40}$ ]]
           docker ps --filter label=com.docker.compose.project=newtuple-hrms-production --format '{{.Names}} {{.Status}}' < /dev/null
           docker stats --no-stream --format '{{.Name}} {{.CPUPerc}} {{.MemUsage}}' $(docker ps -q --filter label=com.docker.compose.project=newtuple-hrms-production) < /dev/null
+          api=$(docker ps -q --filter label=com.docker.compose.project=newtuple-hrms-production --filter label=com.docker.compose.service=platform-api)
+          docker logs --since 30m --tail 1500 "$api" 2>&1 | python3 -c 'import sys,re; lines=sys.stdin.readlines(); selected=[line.strip() for line in lines if re.search(r"File .+line [0-9]+|Traceback|GET /health|POST /v1/api/auth/login",line)]; print("\n".join(selected[-35:]))'
           docker compose --project-name newtuple-hrms-production --env-file "$base/production.env" -f "$release/compose.yml" run --rm -T --no-deps platform-install python -c 'import os,json,psycopg; db=psycopg.connect(os.environ["HRMS_APP_DATABASE_URL"]); rows=db.execute("SELECT package_name, state, updated_at FROM hrms_configuration_releases WHERE organization_id=%s",(os.environ["HRMS_ORGANIZATION_ID"],)).fetchall(); print(json.dumps([dict(name=n,status=s.get("status"),checksum=s.get("package_checksum"),completed=len(s.get("completed",[])),pending=s.get("pending"),updated_at=str(t)) for n,s,t in rows])); db.close()' < /dev/null
           REMOTE
       - uses: actions/upload-artifact@v4
