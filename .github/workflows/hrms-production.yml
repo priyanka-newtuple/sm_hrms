@@ -27,11 +27,12 @@ jobs:
           docker build -f applications/hrms_api/platform.Dockerfile -t sm-hrms-platform:$SHA .
           docker build -t sm-hrms-application:$SHA applications/hrms_api
           docker run --rm sm-hrms-application:$SHA python -m pytest tests -q
+          docker run --rm -v "$PWD/deployment/hrms:/deployment:ro" sm-hrms-application:$SHA python -m pytest /deployment/tests -q -p no:cacheprovider
           docker build -f frontend/Dockerfile.platform -t sm-hrms-platform-web:$SHA frontend
           mkdir release
           docker save sm-hrms-platform:$SHA sm-hrms-application:$SHA sm-hrms-platform-web:$SHA | gzip > release/images.tar.gz
-          cp deployment/hrms/compose.yml deployment/hrms/deploy.sh deployment/hrms/configure_google.py release/
-          cd release && sha256sum images.tar.gz compose.yml deploy.sh configure_google.py > SHA256SUMS
+          cp deployment/hrms/compose.yml deployment/hrms/deploy.sh deployment/hrms/configure_google.py deployment/hrms/prepare_release.py release/
+          cd release && sha256sum images.tar.gz compose.yml deploy.sh configure_google.py prepare_release.py > SHA256SUMS
       - uses: actions/upload-artifact@v4
         with:
           name: hrms-${{ github.sha }}
@@ -74,7 +75,10 @@ jobs:
           chmod 600 ~/.ssh/hrms ~/.ssh/known_hosts
           trap 'rm -f ~/.ssh/hrms' EXIT
           opts=(-i ~/.ssh/hrms -o BatchMode=yes -o StrictHostKeyChecking=yes)
-          ssh "${opts[@]}" -p "$PORT" "$USER@$HOST" "mkdir -p /opt/newtuple-hrms/releases/$SHA"
+          # Stream cleanup over SSH: it can run even when the server cannot accept an archive.
+          upload_bytes=$(du -cb release/* | tail -1 | cut -f1)
+          [[ "$upload_bytes" =~ ^[0-9]+$ ]]
+          ssh "${opts[@]}" -p "$PORT" "$USER@$HOST" "flock -n /opt/newtuple-hrms/deploy.lock python3 - '$SHA' '$upload_bytes'" < release/prepare_release.py
           scp "${opts[@]}" -P "$PORT" release/* "$USER@$HOST:/opt/newtuple-hrms/releases/$SHA/"
           # OAuth credentials travel over encrypted stdin, never release artifacts or arguments.
           python3 -c 'import json, os; print(json.dumps({k: os.environ.get(k, "") for k in ("GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET")}))' | \

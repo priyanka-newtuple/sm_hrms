@@ -219,3 +219,12 @@ Mailpit has no relay or forwarding configured. SMTP has no host port. Its web UI
 Manual deployments must also supply the email configuration JSON on stdin to `deploy.sh`; for capture, use `printf '%s' '{"HRMS_EMAIL_MODE":"capture"}' | bash deploy.sh <release-sha>`. Never put live SMTP passwords in shell arguments/history. This changes email delivery only; HR-only application access must still be configured through native Users/Roles.
 
 Mailpit runtime options: https://mailpit.axllent.org/docs/configuration/runtime-options/
+
+
+### Automatic release archive retention
+
+Before each artifact upload, the pipeline streams `prepare_release.py` over SSH under the HRMS deployment lock. It removes only `images.tar.gz` from obsolete SHA-named HRMS release directories. It always retains current and previous-release archives, the incoming release and the three newest archived releases. Release manifests and scripts remain for troubleshooting. Symlinked directories and archives are not deleted; invalid release pointers stop cleanup.
+
+No database volumes, database contents, uploaded documents, Mailpit mail, private environment files or database backups are deleted. No Docker prune is used. Docker images and backups still require capacity monitoring and an independently agreed retention policy.
+
+After cleanup, upload proceeds only when free space exceeds the complete artifact size plus 3 GiB of headroom. This is a minimum guard, not an estimate of all Docker extraction or growing database backup requirements. If space is still insufficient, deployment fails with an explicit storage message before uploading or changing services. Expand storage or separately review retained images/backups; do not erase databases to resolve a deployment-space problem.
