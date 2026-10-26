@@ -1,0 +1,39 @@
+name: HRMS UAT setup email recovery
+on:
+  workflow_dispatch:
+    inputs:
+      employee_ref:
+        description: Employee reference with an approved onboarding account (EMP-0004)
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: hrms-production
+  cancel-in-progress: false
+jobs:
+  recover:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: hrms-production
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Request native setup email and verify Mailpit capture
+        env:
+          SSH_KEY: ${{ secrets.HRMS_DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.HRMS_DEPLOY_KNOWN_HOSTS }}
+          HOST: ${{ vars.HRMS_DEPLOY_HOST }}
+          USER: ${{ vars.HRMS_DEPLOY_USER }}
+          PORT: ${{ vars.HRMS_DEPLOY_PORT }}
+          EMPLOYEE_REF: ${{ inputs.employee_ref }}
+        run: |
+          set -euo pipefail
+          [[ "$HOST" =~ ^[a-zA-Z0-9.-]+$ && "$USER" =~ ^[a-z_][a-z0-9_-]*$ && "$PORT" =~ ^[0-9]+$ && "$EMPLOYEE_REF" =~ ^EMP-[0-9]+$ ]]
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/hrms
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/hrms ~/.ssh/known_hosts
+          trap 'rm -f ~/.ssh/hrms' EXIT
+          # Pipe only reviewed source code; credentials stay in the existing VM environment.
+          ssh -i ~/.ssh/hrms -o BatchMode=yes -o StrictHostKeyChecking=yes -p "$PORT" "$USER@$HOST" "bash -c 'set -euo pipefail; base=/opt/newtuple-hrms; exec 9>\"\$base/deploy.lock\"; flock -n 9; release=\$(readlink -f \"\$base/current\"); [[ \"\$release\" == \"\$base/releases/\"* ]]; export IMAGE_TAG=\${release##*/}; [[ \"\$IMAGE_TAG\" =~ ^[a-f0-9]{40}$ ]]; application=\$(docker ps -q --filter label=com.docker.compose.project=newtuple-hrms-production --filter label=com.docker.compose.service=hrms-app); export HRMS_EMAIL_MODE=\$(docker exec \"\$application\" printenv HRMS_EMAIL_MODE); [[ \"\$HRMS_EMAIL_MODE\" == capture ]]; script=\$(mktemp \"\$base/recover-email.XXXXXX.py\"); trap '\''rm -f \"\$script\"'\'' EXIT; cat > \"\$script\"; docker compose --project-name newtuple-hrms-production --env-file \"\$base/production.env\" -f \"\$release/compose.yml\" run --rm -T --no-deps -e HRMS_EMAIL_MODE -v \"\$script:/app/hrms_app/recover_onboarding_email.py:ro\" platform-install python -m hrms_app.recover_onboarding_email $EMPLOYEE_REF < /dev/null'" < applications/hrms_api/hrms_app/recover_onboarding_email.py
