@@ -1,0 +1,43 @@
+name: HRMS configuration status
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  status:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: hrms-production
+    timeout-minutes: 10
+    steps:
+      - name: Read promotion journal and running installer status
+        env:
+          SSH_KEY: ${{ secrets.HRMS_DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.HRMS_DEPLOY_KNOWN_HOSTS }}
+          HOST: ${{ vars.HRMS_DEPLOY_HOST }}
+          USER: ${{ vars.HRMS_DEPLOY_USER }}
+          PORT: ${{ vars.HRMS_DEPLOY_PORT }}
+        run: |
+          set -euo pipefail
+          [[ "$HOST" =~ ^[a-zA-Z0-9.-]+$ && "$USER" =~ ^[a-z_][a-z0-9_-]*$ && "$PORT" =~ ^[0-9]+$ ]]
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/hrms
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/hrms ~/.ssh/known_hosts
+          trap 'rm -f ~/.ssh/hrms' EXIT
+          ssh -i ~/.ssh/hrms -o BatchMode=yes -o StrictHostKeyChecking=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=6 -p "$PORT" "$USER@$HOST" 'bash -s' <<'REMOTE' > status.txt
+          set -euo pipefail
+          base=/opt/newtuple-hrms
+          release=$(readlink -f "$base/current")
+          [[ "$release" == "$base/releases/"* ]]
+          export IMAGE_TAG=${release##*/}
+          [[ "$IMAGE_TAG" =~ ^[a-f0-9]{40}$ ]]
+          docker ps --filter label=com.docker.compose.project=newtuple-hrms-production --format '{{.Names}} {{.Status}}' < /dev/null
+          docker compose --project-name newtuple-hrms-production --env-file "$base/production.env" -f "$release/compose.yml" run --rm -T --no-deps platform-install python -c 'import os,json,psycopg; db=psycopg.connect(os.environ["HRMS_APP_DATABASE_URL"]); rows=db.execute("SELECT package_name, state, updated_at FROM hrms_configuration_releases WHERE organization_id=%s",(os.environ["HRMS_ORGANIZATION_ID"],)).fetchall(); print(json.dumps([dict(name=n,status=s.get("status"),checksum=s.get("package_checksum"),completed=len(s.get("completed",[])),pending=s.get("pending"),updated_at=str(t)) for n,s,t in rows])); db.close()' < /dev/null
+          REMOTE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hrms-configuration-status
+          path: status.txt
+          retention-days: 3

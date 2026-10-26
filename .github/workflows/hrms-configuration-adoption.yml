@@ -70,7 +70,7 @@ jobs:
           print('printf %s ' + shlex.quote(payload) + ' | "${compose[@]}" run --rm -T --no-deps platform-install python -c ' + shlex.quote(code))
           print('"${compose[@]}" run --rm -T --no-deps platform-install python -m hrms_app.verify_native_setup < /dev/null >&2')
           PY
-          ssh -i ~/.ssh/hrms -o BatchMode=yes -o StrictHostKeyChecking=yes -p "$PORT" "$USER@$HOST" 'bash -s' < /tmp/hrms-adopt.sh > adoption.json
+          ssh -i ~/.ssh/hrms -o BatchMode=yes -o StrictHostKeyChecking=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=6 -p "$PORT" "$USER@$HOST" 'bash -s' < /tmp/hrms-adopt.sh > adoption.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
