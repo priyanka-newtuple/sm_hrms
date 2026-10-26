@@ -6266,6 +6266,16 @@
             "value_source": null
           },
           {
+            "action": "create",
+            "allowed": true,
+            "condition_value": null,
+            "entity_field": null,
+            "entity_type": "hrms_offer",
+            "operator": null,
+            "read_filter": null,
+            "value_source": null
+          },
+          {
             "action": "edit",
             "allowed": true,
             "condition_value": null,
@@ -6286,6 +6296,16 @@
             "value_source": null
           },
           {
+            "action": "edit",
+            "allowed": true,
+            "condition_value": null,
+            "entity_field": null,
+            "entity_type": "hrms_offer",
+            "operator": null,
+            "read_filter": null,
+            "value_source": null
+          },
+          {
             "action": "view",
             "allowed": true,
             "condition_value": null,
@@ -6301,6 +6321,16 @@
             "condition_value": null,
             "entity_field": null,
             "entity_type": "HRMS.Offboarding",
+            "operator": null,
+            "read_filter": null,
+            "value_source": null
+          },
+          {
+            "action": "view",
+            "allowed": true,
+            "condition_value": null,
+            "entity_field": null,
+            "entity_type": "hrms_offer",
             "operator": null,
             "read_filter": null,
             "value_source": null
@@ -7090,6 +7120,62 @@
               "attribute": "machine_name"
             },
             "transition_key": "submit_for_approval_0"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:hrms_offer",
+              "attribute": "machine_name"
+            },
+            "transition_key": "approved__to__sent"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:hrms_offer",
+              "attribute": "machine_name"
+            },
+            "transition_key": "changes requested__to__created"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:hrms_offer",
+              "attribute": "machine_name"
+            },
+            "transition_key": "created__to__review"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:hrms_offer",
+              "attribute": "machine_name"
+            },
+            "transition_key": "review__to__approved"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:hrms_offer",
+              "attribute": "machine_name"
+            },
+            "transition_key": "review__to__changes requested"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:hrms_offer",
+              "attribute": "machine_name"
+            },
+            "transition_key": "sent__to__accepted"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:hrms_offer",
+              "attribute": "machine_name"
+            },
+            "transition_key": "sent__to__declined"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:hrms_offer",
+              "attribute": "machine_name"
+            },
+            "transition_key": "sent__to__offer expired"
           }
         ],
         "workflow_permissions": [
@@ -7102,6 +7188,12 @@
           {
             "machine_name": {
               "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            }
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:hrms_offer",
               "attribute": "machine_name"
             }
           }
@@ -7149,6 +7241,16 @@
             "value_source": null
           },
           {
+            "action": "create",
+            "allowed": true,
+            "condition_value": null,
+            "entity_field": null,
+            "entity_type": "hrms_offer",
+            "operator": null,
+            "read_filter": null,
+            "value_source": null
+          },
+          {
             "action": "edit",
             "allowed": true,
             "condition_value": null,
@@ -7169,6 +7271,16 @@
             "value_source": null
           },
           {
+            "action": "edit",
+            "allowed": true,
+            "condition_value": null,
+            "entity_field": null,
+            "entity_type": "hrms_offer",
+            "operator": null,
+            "read_filter": null,
+            "value_source": null
+          },
+          {
             "action": "view",
             "allowed": true,
             "condition_value": null,
@@ -7184,6 +7296,16 @@
             "condition_value": null,
             "entity_field": null,
             "entity_type": "HRMS.Offboarding",
+            "operator": null,
+            "read_filter": null,
+            "value_source": null
+          },
+          {
+            "action": "view",
+            "allowed": true,
+            "condition_value": null,
+            "entity_field": null,
+            "entity_type": "hrms_offer",
             "operator": null,
             "read_filter": null,
             "value_source": null
@@ -7903,6 +8025,62 @@
               "attribute": "machine_name"
             },
             "transition_key": "submit_for_approval_0"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:hrms_offer",
+              "attribute": "machine_name"
+            },
+            "transition_key": "approved__to__sent"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:hrms_offer",
+              "attribute": "machine_name"
+            },
+            "transition_key": "changes requested__to__created"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:hrms_offer",
+              "attribute": "machine_name"
+            },
+            "transition_key": "created__to__review"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:hrms_offer",
+              "attribute": "machine_name"
+            },
+            "transition_key": "review__to__approved"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:hrms_offer",
+              "attribute": "machine_name"
+            },
+            "transition_key": "review__to__changes requested"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:hrms_offer",
+              "attribute": "machine_name"
+            },
+            "transition_key": "sent__to__accepted"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:hrms_offer",
+              "attribute": "machine_name"
+            },
+            "transition_key": "sent__to__declined"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:hrms_offer",
+              "attribute": "machine_name"
+            },
+            "transition_key": "sent__to__offer expired"
           }
         ],
         "workflow_permissions": [
@@ -7915,6 +8093,12 @@
           {
             "machine_name": {
               "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            }
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:hrms_offer",
               "attribute": "machine_name"
             }
           }
@@ -7952,7 +8136,37 @@
             "value_source": null
           },
           {
+            "action": "create",
+            "allowed": true,
+            "condition_value": null,
+            "entity_field": null,
+            "entity_type": "hrms_offer",
+            "operator": null,
+            "read_filter": null,
+            "value_source": null
+          },
+          {
             "action": "edit",
+            "allowed": true,
+            "condition_value": null,
+            "entity_field": null,
+            "entity_type": "HRMS.Offboarding",
+            "operator": null,
+            "read_filter": null,
+            "value_source": null
+          },
+          {
+            "action": "edit",
+            "allowed": true,
+            "condition_value": null,
+            "entity_field": null,
+            "entity_type": "hrms_offer",
+            "operator": null,
+            "read_filter": null,
+            "value_source": null
+          },
+          {
+            "action": "view",
             "allowed": true,
             "condition_value": null,
             "entity_field": null,
@@ -7966,7 +8180,7 @@
             "allowed": true,
             "condition_value": null,
             "entity_field": null,
-            "entity_type": "HRMS.Offboarding",
+            "entity_type": "hrms_offer",
             "operator": null,
             "read_filter": null,
             "value_source": null
@@ -8350,12 +8564,74 @@
               "attribute": "machine_name"
             },
             "transition_key": "submit_for_approval_0"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:hrms_offer",
+              "attribute": "machine_name"
+            },
+            "transition_key": "approved__to__sent"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:hrms_offer",
+              "attribute": "machine_name"
+            },
+            "transition_key": "changes requested__to__created"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:hrms_offer",
+              "attribute": "machine_name"
+            },
+            "transition_key": "created__to__review"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:hrms_offer",
+              "attribute": "machine_name"
+            },
+            "transition_key": "review__to__approved"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:hrms_offer",
+              "attribute": "machine_name"
+            },
+            "transition_key": "review__to__changes requested"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:hrms_offer",
+              "attribute": "machine_name"
+            },
+            "transition_key": "sent__to__accepted"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:hrms_offer",
+              "attribute": "machine_name"
+            },
+            "transition_key": "sent__to__declined"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:hrms_offer",
+              "attribute": "machine_name"
+            },
+            "transition_key": "sent__to__offer expired"
           }
         ],
         "workflow_permissions": [
           {
             "machine_name": {
               "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            }
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:hrms_offer",
               "attribute": "machine_name"
             }
           }

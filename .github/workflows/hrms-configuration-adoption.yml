@@ -66,7 +66,7 @@ jobs:
           print('[[ "$IMAGE_TAG" =~ ^[a-f0-9]{40}$ ]]')
           print('compose=(docker compose --project-name newtuple-hrms-production --env-file "$base/production.env" -f "$release/compose.yml")')
           print('backup="$base/backups/$(date -u +%Y%m%dT%H%M%SZ)-configuration-adoption"; mkdir -p "$backup"')
-          print('for service in platform-db hrms-app-db; do "${compose[@]}" exec -T "$service" sh -c \'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"\' | gzip > "$backup/$service.sql.gz"; gzip -t "$backup/$service.sql.gz"; done')
+          print('for service in platform-db hrms-app-db; do "${compose[@]}" exec -T "$service" sh -c \'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"\' < /dev/null | gzip > "$backup/$service.sql.gz"; gzip -t "$backup/$service.sql.gz"; done')
           print('printf %s ' + shlex.quote(payload) + ' | "${compose[@]}" run --rm -T --no-deps platform-install python -c ' + shlex.quote(code))
           print('"${compose[@]}" run --rm -T --no-deps platform-install python -m hrms_app.verify_native_setup < /dev/null >&2')
           PY

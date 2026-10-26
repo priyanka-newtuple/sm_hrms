@@ -54,3 +54,20 @@ def test_incoming_release_is_protected(tmp_path,monkeypatch):
     r=setup(tmp_path,monkeypatch)
     assert m.prepare(tmp_path,f'{3:040x}',10,reserve_bytes=100)==0
     assert (r/f'{3:040x}'/'images.tar.gz').exists()
+
+
+def test_image_cleanup_is_hrms_only_and_protects_all_containers(monkeypatch):
+    calls = []
+    def output(args, **kwargs):
+        if args[1:3] == ['ps', '-aq']: return 'stopped-container\n'
+        if args[1] == 'inspect': return 'sha256:used\n'
+        return '\n'.join([
+            'sm-hrms-platform ' + 'a'*40 + ' sha256:rollback',
+            'sm-hrms-application ' + 'b'*40 + ' sha256:used',
+            'sm-hrms-platform-web ' + 'c'*40 + ' sha256:unused',
+            'another-product ' + 'd'*40 + ' sha256:other',
+            'sm-hrms-platform latest sha256:local'])
+    monkeypatch.setattr(m.subprocess, 'check_output', output)
+    monkeypatch.setattr(m.subprocess, 'run', lambda args, **kwargs: calls.append(args) or SimpleNamespace(returncode=0))
+    m.remove_unused_hrms_images({'a'*40})
+    assert calls == [['docker', 'image', 'rm', 'sm-hrms-platform-web:' + 'c'*40]]
