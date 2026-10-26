@@ -6,7 +6,7 @@ import httpx
 from collections import Counter
 
 from hrms_app.configuration_native import NativeConfiguration
-from hrms_app.configuration_package import ConfigurationError, validate, resolve
+from hrms_app.configuration_package import ConfigurationError, validate, resolve, digest
 from hrms_app.configuration_promotion import inspection
 from hrms_app.platform import PlatformClient
 
@@ -53,7 +53,7 @@ def main():
             item = next(o for o in package['objects'] if o['key'] == pending['key'])
             graph = resolve(item['payload'], identities)['definition']
             graph['machine_key'] = pending['machine_name']
-            diagnostic = {'pending': pending, 'draft_status': draft.get('status'),
+            diagnostic = {'pending': pending, 'draft_checksum': digest(draft), 'draft_version': draft.get('version'),
                           'validation': api.call('POST', '/workflow-state-machines/validate',
                                                 json={'machine_name': pending['machine_name'], 'definition': graph})}
         desired = {item['key']: item for item in package['objects']}

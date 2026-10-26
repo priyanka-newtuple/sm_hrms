@@ -283,7 +283,14 @@ class NativeConfiguration:
                 draft = call('POST', '/workflow-state-machines/' + path(identity['machine_name']) + '/draft')
             else:
                 # Native publication performs full validation for the newly allocated family.
-                draft = call('POST', '/workflow-state-machines/draft', json={'name': graph['name']})
+                recovery = getattr(self, 'recovery_drafts', {}).get(obj['key'])
+                if recovery:
+                    from .configuration_package import digest
+                    draft = self.get('/workflow-state-machines/' + path(recovery['id']))
+                    if draft.get('version') != 0 or digest(draft) != recovery['checksum']:
+                        raise ConfigurationError('Reviewed workflow draft changed before publication')
+                else:
+                    draft = call('POST', '/workflow-state-machines/draft', json={'name': graph['name']})
                 graph['machine_key'] = draft['machine_name']
             checkpoint({'draft_id': draft['id'], 'machine_name': draft['machine_name']})
             call('POST', '/workflow-state-machines/' + path(draft['id']) + '/publish',

@@ -2999,7 +2999,7 @@
             "ownership": null,
             "placeholder": null,
             "position": 0,
-            "required": false,
+            "required": true,
             "source_entity_type": null,
             "source_field_key": null,
             "version_id": {
@@ -3017,7 +3017,7 @@
             "ownership": null,
             "placeholder": null,
             "position": 1,
-            "required": false,
+            "required": true,
             "source_entity_type": null,
             "source_field_key": null,
             "version_id": {
@@ -6343,6 +6343,13 @@
         ],
         "field_permissions": [
           {
+            "can_edit": false,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "identifier",
+            "mask_value": false
+          },
+          {
             "can_edit": true,
             "can_view": true,
             "entity_type": "HRMS.Employee",
@@ -6970,6 +6977,293 @@
             "can_view": true,
             "entity_type": "HRMS.Offboarding",
             "field_name": "withdrawal_verified",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "base_location",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "basic_percent",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "bonus_payment_terms",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "bonus_tenure_months",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "career_start_date",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "ctc",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "current_address_line_1",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "current_address_line_2",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "current_city",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "current_country",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "current_postal_code",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "current_state",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "designation",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "duties",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "first_name",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "hra_percent",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "joining_bonus",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "joining_date",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "last_name",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "lta_percent",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "middle_name",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "notice_period",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "offer_date",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "offer_document_hash",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "offer_pdf",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "offer_revision",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "offer_template_hash",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "offer_template_id",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "permanent_address_line_1",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "permanent_address_line_2",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "permanent_city",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "permanent_country",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "permanent_postal_code",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "permanent_state",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "personal_email",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "probation_months",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "probation_notice",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "reporting_manager",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "salutation",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "signatory_name",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "special_percent",
             "mask_value": false
           }
         ],
@@ -7633,6 +7927,13 @@
             "mask_value": false
           },
           {
+            "can_edit": false,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "identifier",
+            "mask_value": false
+          },
+          {
             "can_edit": true,
             "can_view": true,
             "entity_type": "HRMS.Employee",
@@ -7910,6 +8211,293 @@
             "can_view": true,
             "entity_type": "HRMS.Offboarding",
             "field_name": "supporting_documents",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "base_location",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "basic_percent",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "bonus_payment_terms",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "bonus_tenure_months",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "career_start_date",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "ctc",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "current_address_line_1",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "current_address_line_2",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "current_city",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "current_country",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "current_postal_code",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "current_state",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "designation",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "duties",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "first_name",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "hra_percent",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "joining_bonus",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "joining_date",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "last_name",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "lta_percent",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "middle_name",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "notice_period",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "offer_date",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "offer_document_hash",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "offer_pdf",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "offer_revision",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "offer_template_hash",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "offer_template_id",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "permanent_address_line_1",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "permanent_address_line_2",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "permanent_city",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "permanent_country",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "permanent_postal_code",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "permanent_state",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "personal_email",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "probation_months",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "probation_notice",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "reporting_manager",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "salutation",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "signatory_name",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "special_percent",
             "mask_value": false
           }
         ],
@@ -8277,6 +8865,13 @@
             "mask_value": false
           },
           {
+            "can_edit": false,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "identifier",
+            "mask_value": false
+          },
+          {
             "can_edit": true,
             "can_view": true,
             "entity_type": "HRMS.Offboarding",
@@ -8477,6 +9072,293 @@
             "can_view": true,
             "entity_type": "HRMS.Offboarding",
             "field_name": "supporting_documents",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "base_location",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "basic_percent",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "bonus_payment_terms",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "bonus_tenure_months",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "career_start_date",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "ctc",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "current_address_line_1",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "current_address_line_2",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "current_city",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "current_country",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "current_postal_code",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "current_state",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "designation",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "duties",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "first_name",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "hra_percent",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "joining_bonus",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "joining_date",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "last_name",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "lta_percent",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "middle_name",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "notice_period",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "offer_date",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "offer_document_hash",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "offer_pdf",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "offer_revision",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "offer_template_hash",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "offer_template_id",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "permanent_address_line_1",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "permanent_address_line_2",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "permanent_city",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "permanent_country",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "permanent_postal_code",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "permanent_state",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "personal_email",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "probation_months",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "probation_notice",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "reporting_manager",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "salutation",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "signatory_name",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "hrms_offer",
+            "field_name": "special_percent",
             "mask_value": false
           }
         ],

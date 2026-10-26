@@ -2,6 +2,9 @@ name: HRMS reviewed configuration adoption
 on:
   workflow_dispatch:
     inputs:
+      original_revision:
+        description: Original package commit for a reviewed corrective recovery (optional)
+        type: string
       resume:
         description: Resume a failed checkpoint with no uncertain write after fresh comparison
         type: boolean
@@ -24,6 +27,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Fetch exact reviewed comparison
         env:
           GH_TOKEN: ${{ github.token }}
@@ -49,6 +54,7 @@ jobs:
           USER: ${{ vars.HRMS_DEPLOY_USER }}
           PORT: ${{ vars.HRMS_DEPLOY_PORT }}
           RESUME: ${{ inputs.resume }}
+          ORIGINAL_REVISION: ${{ inputs.original_revision }}
         run: |
           set -euo pipefail
           [[ "$HOST" =~ ^[a-zA-Z0-9.-]+$ && "$USER" =~ ^[a-z_][a-z0-9_-]*$ && "$PORT" =~ ^[0-9]+$ ]]
@@ -58,12 +64,22 @@ jobs:
           chmod 600 ~/.ssh/hrms ~/.ssh/known_hosts
           trap 'rm -f ~/.ssh/hrms' EXIT
           python3 - <<'PY' > /tmp/hrms-adopt.sh
-          import json, pathlib, shlex, os
+          import json, pathlib, shlex, os, subprocess, re
           code = pathlib.Path('deployment/hrms/adopt_configuration.py').read_text()
           runner = pathlib.Path('applications/hrms_api/hrms_app/configuration_promotion.py').read_text()
           code = 'import hrms_app.configuration_promotion as promotion\nexec(' + repr(runner) + ', promotion.__dict__)\n' + code
+          adapter = pathlib.Path('applications/hrms_api/hrms_app/configuration_native.py').read_text()
+          code = 'import hrms_app.configuration_native as native\nexec(' + repr(adapter) + ', native.__dict__)\n' + code
+          original = None
+          revision = os.environ.get('ORIGINAL_REVISION', '')
+          if revision:
+              assert re.fullmatch('[a-f0-9]{40}', revision)
+              original = json.loads(subprocess.check_output(['git', 'show', revision + ':configuration/hrms/production-candidate.json']))
+          comparison = json.loads(pathlib.Path('reviewed/comparison.json').read_text())
           payload = json.dumps({'package': json.loads(pathlib.Path('configuration/hrms/production-candidate.json').read_text()),
                                 'resume': os.environ['RESUME'] == 'true',
+                                'original_package': original,
+                                'draft_review': (comparison.get('pending_diagnostic') or {}).get('draft_checksum'),
                                 'review': json.loads(pathlib.Path('reviewed/comparison.json').read_text())['plan']})
           print('set -euo pipefail; umask 077')
           print('base=/opt/newtuple-hrms')

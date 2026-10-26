@@ -20,7 +20,9 @@ def main():
         journal = Journal(os.environ['HRMS_APP_DATABASE_URL'], api.org, package['name'])
         with journal.locked():
             operation = resume_reviewed if inputs.get('resume') else adopt_reviewed
-            state = operation(native, package, inputs['review'], journal)
+            state = (operation(native, package, inputs['review'], journal,
+                               original_package=inputs.get('original_package'), draft_review=inputs.get('draft_review'))
+                     if inputs.get('resume') else operation(native, package, inputs['review'], journal))
             plan, _, _ = inspection(native, package, state)
             if any(op['decision'] != 'unchanged' for op in plan['operations']):
                 raise ConfigurationError('Post-adoption verification detected drift')

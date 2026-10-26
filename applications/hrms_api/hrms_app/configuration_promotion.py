@@ -78,17 +78,33 @@ def adopt_reviewed(native, package, reviewed, journal):
     return apply(native, package, plan, journal)
 
 
-def resume_reviewed(native, package, reviewed, journal):
+def resume_reviewed(native, package, reviewed, journal, original_package=None, draft_review=None):
     """Resume a failed, certain checkpoint only after an exact fresh review."""
     state = journal.read()
-    if (state.get('status') != 'failed' or state.get('pending') is not None
-            or state.get('package_checksum') != digest(package)):
+    original_package = original_package or package
+    if (state.get('status') != 'failed'
+            or state.get('package_checksum') != digest(original_package)):
         raise ConfigurationError('Recovery requires the same failed package with no uncertain write')
     objects = validate(package)
+    original_objects = validate(original_package)
+    owned_drafts = deepcopy(state.get('owned_drafts', {}))
+    pending = state.get('pending')
+    if pending:
+        if not pending.get('draft_id') or not draft_review:
+            raise ConfigurationError('An uncertain write requires separate reconciliation')
+        item = next((o for o in original_objects if o['key'] == pending['key']), None)
+        if not item or item['kind'] != 'workflow':
+            raise ConfigurationError('Only a verified unpublished workflow draft can be recovered')
+        current, _ = native.read(item)
+        draft = native.get('/workflow-state-machines/' + pending['draft_id'])
+        if (current is not None or pending['before'] != digest(None) or draft.get('version') != 0
+                or draft.get('machine_name') != pending['machine_name'] or digest(draft) != draft_review):
+            raise ConfigurationError('Workflow draft changed or was published; recovery stopped')
+        owned_drafts[item['key']] = {'id': pending['draft_id'], 'checksum': draft_review}
     fresh, actual, identities = inspection(native, package, {'baseline': {}})
     if fresh != reviewed:
         raise ConfigurationError('Recovery review is stale or invalid')
-    by_key = {o['key']: o for o in objects}
+    by_key = {o['key']: o for o in original_objects}
     for key in state.get('completed', []):
         if key not in by_key:
             raise ConfigurationError('Unknown completed checkpoint')
@@ -101,10 +117,11 @@ def resume_reviewed(native, package, reviewed, journal):
         raise ConfigurationError('Destination changed during recovery checks')
     history = deepcopy(state.get('recovery_history', []))
     history.append({'review': deepcopy(reviewed), 'baseline': deepcopy(state.get('baseline', {})),
+                    'original_package_checksum': digest(original_package), 'pending': deepcopy(pending),
                     'completed': list(state.get('completed', [])),
                     'reviewed_at': datetime.now(timezone.utc).isoformat()})
     journal.save({**state, 'status': 'recovery_reviewed', 'baseline': deepcopy(actual),
-                  'recovery_history': history})
+                  'recovery_history': history, 'pending': None, 'owned_drafts': owned_drafts})
     plan, _, _ = inspection(native, package, journal.read())
     # A fully completed checkpoint is finalized by reconcile, including all pins.
     if all(op['decision'] == 'unchanged' for op in plan['operations']):
@@ -121,6 +138,7 @@ def apply(native, package, plan, journal):
     window; rechecks detect intervening edits but cannot make native writes atomic.
     """
     state = journal.read()
+    native.recovery_drafts = deepcopy(state.get('owned_drafts', {}))
     objects = validate(package)
     fresh, actual, identities = inspection(native, package, state)
     if state.get('status') in {'applying', 'failed'}:
