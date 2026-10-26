@@ -28,7 +28,7 @@ missing, and 22 differed. It is not safe to copy that snapshot unchanged.
 - Preserve role capabilities, unrelated grants, user memberships and runtime data.
 
 `configuration/hrms/production-candidate.json` records this merge separately from
-the captured local candidate. It is not yet the activated `release.json`.
+the captured local candidate. The same reviewed package is activated as `release.json`.
 
 ## Execution controls
 
@@ -47,3 +47,24 @@ to their existing workflow versions. Interrupted writes require reconciliation.
 After successful adoption, the verified package can become `release.json` so
 future deployments use the managed promoter instead of competing legacy seed
 installers. Unsupported Settings categories remain outside this release scope.
+
+## Production adoption result
+
+All 147 definitions were applied and read back on 26 October 2026 by run
+40312763940. Package checksum:
+`5533bf1421ce1ac4325556f6687268a8dd4beef153cb58c147692576277bef06`.
+The initial run stopped on native API login timeout; a restart of only the API
+restored access. Reviewed recovery retained completed writes and reused the exact
+unpublished Add Employee draft. Native validation caught conflicting first/last
+name requirements between registration and completed details; both now require
+these names. Existing workflow versions and records were not migrated.
+
+Offer field grants were added to HR Full, Super Admin and the HRMS service role,
+preserving unrelated permissions. The post-adoption smoke check incorrectly
+rejected the reusable Final HR Sign-off method (native supports unrestricted
+shared methods); it now verifies actual workflow-to-method references instead.
+The production release must pass that corrected smoke check before completion.
+
+Future deployments promote the committed release with three-way drift checks.
+This does not copy all local Settings automatically: unsupported categories,
+environment credentials and business records remain outside this package.

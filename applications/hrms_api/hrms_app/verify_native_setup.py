@@ -7,15 +7,25 @@ from .form_config import configured_form
 from .platform import PlatformClient
 
 
+def verify_workflow_methods(methods, workflows):
+    # Native methods may be reusable across entities (empty entity_types).
+    # Validate the actual workflow links instead of rejecting shared methods.
+    method_ids = {m['method_id'] for m in methods}
+    for workflow in workflows:
+        for state in workflow['definition']['states']:
+            refs = state.get('method_refs') or []
+            assert refs, 'Workflow state without native form'
+            assert all(ref['method_id'] in method_ids for ref in refs), 'Workflow references a missing native form'
+
+
 def main():
     api = PlatformClient(os.environ['PLATFORM_API_URL'], os.environ['HRMS_ORGANIZATION_ID'],
                          os.environ['HRMS_INSTALL_EMAIL'], os.environ['HRMS_INSTALL_PASSWORD'])
     try:
         methods = api.call('GET', '/method-library/methods', params={'limit': 200})['items']
         assert methods, 'Native Forms are missing'
-        assert all(m.get('entity_types') for m in methods), 'A native form is missing its entity association'
         workflows = [w for w in api.call('GET', '/workflow-state-machines', params={'scope': 'published'})['published_items'] if w['is_active']]
-        assert all(all(s.get('method_refs') for s in w['definition']['states']) for w in workflows), 'Workflow state without native form'
+        verify_workflow_methods(methods, workflows)
         employee = configured_form(api, 'HRMS.Employee')
         fields = {f['field']: f for f in employee['fields']}
         project = configured_form(api, 'HRMS.Project')
