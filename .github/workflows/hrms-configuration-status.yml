@@ -40,6 +40,7 @@ jobs:
           export IMAGE_TAG=${release##*/}
           [[ "$IMAGE_TAG" =~ ^[a-f0-9]{40}$ ]]
           api=$(docker ps -q --filter label=com.docker.compose.project=newtuple-hrms-production --filter label=com.docker.compose.service=platform-api)
+          docker logs --since 45m --tail 5000 "$api" 2>&1 | python3 -c 'import sys,json; data=sys.stdin.read(); markers={"missing_approval_template":"no notification.new_user template", "missing_admin_recipients":"no admin emails provided", "missing_mail_service":"mail service not available", "smtp_validated":"SMTP credentials validated successfully", "smtp_send_failed":"Failed to send email", "deferred_send_exception":"deferred send_email failed", "notification_exception":"notify_admins_new_user failed"}; print(json.dumps({key:data.count(marker) for key,marker in markers.items()}))'
           docker inspect --format '{{json .State.Health}}' "$api" < /dev/null
           docker events --since 3h --until "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --filter container="$api" --filter event=oom --format '{{.Time}} {{.Action}}' < /dev/null
           docker exec "$api" sh -c 'if [ -r /sys/fs/cgroup/memory.events ]; then cat /sys/fs/cgroup/memory.events; fi' < /dev/null
