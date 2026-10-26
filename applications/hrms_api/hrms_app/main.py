@@ -14,7 +14,7 @@ from .errors import AppError
 from .google_auth import google_auth
 from .journal import Journal
 from .platform import PlatformClient
-from .policy import capabilities
+from .policy import capabilities, require
 from .settings_gateway import configuration_route, authorize_configuration
 from .field_access import changes_forms, sync_service_access
 from .extra_steps import ExtraSteps
@@ -31,7 +31,7 @@ from .cockpit import CockpitService, Command as CockpitCommand
 from .projects import ProjectsService
 from .project_contracts import Action as ProjectAction
 from .wfh import WfhService, PolicyInput, RequestInput, DecisionInput
-from .assets import AssetService, AssetCommand
+from .assets import AssetService, AssetCommand, AssetBatchCommand
 
 
 class EmployeeAccessRequest(BaseModel):
@@ -214,6 +214,22 @@ def create_app(platform=None, journal=None):
         from .onboarding_assets import board
         return board(assets, current, str(entity_id), str(workflow_id))
 
+    @app.post('/v1/api/hrms/employee-work/{entity_id}/assets/assign')
+    def employee_assign_assets(entity_id: UUID, workflow_id: UUID, payload: AssetBatchCommand, current=Depends(actor)):
+        from .onboarding_assets import context, evidence, ASSET_FIELD
+        require(current, 'asset:manage')
+        _, actionable = context(assets.platform, current, str(entity_id), str(workflow_id))
+        if not actionable:
+            raise AppError(403, 'Asset issuance is not available at your current workflow step')
+        if payload.data.get('issued_employee_id') != str(entity_id):
+            raise AppError(422, 'Choose the employee on this onboarding record')
+        result = assets.assign_many(current, payload)
+        if result.get('started') is False:
+            return result
+        assets.platform.request('PUT', f'/entity-records/{entity_id}', token=current.token,
+            json={'data': {ASSET_FIELD: evidence(assets.platform, str(entity_id))}})
+        return result
+
     @app.post('/v1/api/hrms/employee-work/{entity_id}/assets/{asset_id}')
     def employee_issue_asset(entity_id: UUID, asset_id: UUID, workflow_id: UUID, payload: AssetCommand, current=Depends(actor)):
         from .onboarding_assets import issue
@@ -258,6 +274,14 @@ def create_app(platform=None, journal=None):
         if payload.action != 'create':
             raise AppError(422, 'Use an asset ID to edit or issue')
         return assets.execute(current, None, payload)
+
+    @app.get('/v1/api/hrms/assets/pending-assignments')
+    def pending_asset_assignments(current=Depends(actor)):
+        return assets.pending_batches(current)
+
+    @app.post('/v1/api/hrms/assets/assign')
+    def asset_assign(payload: AssetBatchCommand, current=Depends(actor)):
+        return assets.assign_many(current, payload)
 
     @app.post('/v1/api/hrms/assets/{entity_id}/actions')
     def asset_action(entity_id: UUID, payload: AssetCommand, current=Depends(actor)):

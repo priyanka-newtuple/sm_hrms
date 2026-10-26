@@ -1,3 +1,4 @@
+import { canOpenModule, type PermissionModule } from './moduleAccess';
 import MyOffboardingPage from './pages/MyOffboardingPage';
 import CustomersPage from './pages/CustomersPage';
 import AssetsPage from './pages/AssetsPage';
@@ -83,6 +84,14 @@ function Layout() {
   return <WorkspaceShell />;
 }
 
+function ModuleAccess({module, children}: {module: PermissionModule; children: ReactNode}) {
+  const caps = useHrmsCapabilities();
+  if (caps.isPending) return <p className="p-6" role="status">Loading permissions…</p>;
+  if (caps.isError) return <div className="p-6" role="alert">Could not load permissions. <button onClick={() => void caps.refetch()}>Retry</button></div>;
+  if (!canOpenModule(module, caps.data)) return <Navigate to="/hrms/my-work" replace />;
+  return children;
+}
+
 function NativeAgentMode() {
   const { permissions, loading } = usePermissions();
   const caps = useHrmsCapabilities();
@@ -144,9 +153,9 @@ export default function App() {
 
       <Route path="/hrms/onboarding" element={<OnboardingManagement />} />
 
-      <Route path="/hrms/leave" element={<LeaveRequestsPage />} />
+      <Route path="/hrms/leave" element={<ModuleAccess module="leave"><LeaveRequestsPage /></ModuleAccess>} />
 
-      <Route path="/hrms/performance" element={<PerformancePage />} />
+      <Route path="/hrms/performance" element={<ModuleAccess module="performance"><PerformancePage /></ModuleAccess>} />
 
       <Route path="/hrms/my-offboarding/:id" element={<MyOffboardingPage />} />
       <Route path="/hrms/my-work" element={<MyWorkPage />} />

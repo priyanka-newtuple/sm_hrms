@@ -1,3 +1,4 @@
+import { canOpenModule } from '../moduleAccess';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { ChevronDown, CornerDownLeft, LogOut } from 'lucide-react';
@@ -250,11 +251,9 @@ export function WorkspaceShell() {
       ...(allowed('employee:read') ? [{ path: '/hrms/employees', label: 'Org Directory', icon: UsersIcon, keywords: 'employees directory people staff' }] : []),
     ] },
     { label: 'Self Service', items: [
-      ...(caps.data?.employee_profile === false ? [] : [{ path: '/hrms/leave', label: 'Leave Requests', icon: CalendarDaysIcon, keywords: 'time off vacation holiday' }]),
+      ...(!canOpenModule('leave', caps.data) ? [] : [{ path: '/hrms/leave', label: 'Leave Requests', icon: CalendarDaysIcon, keywords: 'time off vacation holiday' }]),
       ...(allowed('wfh:view') ? [{ path: '/hrms/work-from-home', label: 'Work from Home', icon: CalendarDaysIcon, keywords: 'remote work location calendar' }] : []),
-      { path: '/hrms/performance', label: 'Performance', icon: TrendingUpIcon, keywords: 'goals reviews feedback cycle' },
-      { path: '/hrms/travel', label: 'Travel Request', icon: BriefcaseBusinessIcon, comingSoon: true },
-      { path: '/hrms/helpdesk', label: 'Helpdesk', icon: BookTextIcon, comingSoon: true, keywords: 'reimbursements assets workplace documents letters' },
+      ...(canOpenModule('performance', caps.data) ? [{ path: '/hrms/performance', label: 'Performance', icon: TrendingUpIcon, keywords: 'goals reviews feedback cycle' }] : []),
     ] },
     { label: 'Delivery', items: allowed('project:view') ? [
       { path: '/hrms/customers', label: 'Customers', icon: UsersIcon, keywords: 'clients contacts accounts' },

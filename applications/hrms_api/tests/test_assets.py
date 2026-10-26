@@ -14,7 +14,8 @@ from test_performance import Platform, Journal, actor
 class AssetJournal(Journal):
     def execute(self, sql, params):
         return SimpleNamespace(fetchone=lambda: next(((k,) for k, o in self.ops.items()
-            if k != params[1] and o.result is None and o.progress.get('asset_plan')), None))
+            if k != params[1] and o.result is None and o.progress.get('asset_plan')
+            and (params[2] is None or o.progress.get('asset_target') == params[2] or 'asset_target' not in o.progress)), None))
 
 
 @pytest.fixture
@@ -144,3 +145,87 @@ def test_same_employee_can_receive_multiple_assets(system):
     for aid in (first,second):
         command(s,'issue',{'issued_employee_id':'employee-one','issued_date':'2026-01-01'},aid,key='issue-'+aid)
     assert len(s.board(actor('one','hrms_employee'))['items'])==2
+
+
+def batch(s, ids, key='batch-operation', who=None, **data):
+    from hrms_app.assets import AssetBatchCommand
+    return s.assign_many(who or actor('admin', 'superadmin'), AssetBatchCommand(
+        asset_ids=ids, idempotency_key=key, data={'issued_employee_id':'employee-one',
+        'issued_date':'2026-01-01', **data}))
+
+
+def pair(s):
+    return [create(s), command(s, 'create', {'asset_tag':'NT-002', 'asset_name':'Monitor',
+        'asset_category':'Monitor', 'asset_condition':'Good'}, key='second-create')['entity_id']]
+
+
+def test_batch_partial_failure_retry_and_replay(system):
+    s,p,j=system
+    ids=pair(s)
+    p.fail_trigger='issue'
+    result=batch(s,ids)
+    assert [r['status'] for r in result['items']]==['incomplete','assigned']
+    assert batch(s,ids)['complete']
+    count=len(j.audits)
+    assert batch(s,ids)['complete']
+    assert len(j.audits)==count
+    assert len(s.board(actor('one','hrms_employee'))['items'])==2
+
+
+def test_batch_preflight_rejects_without_any_assignments(system):
+    s,p,_=system
+    ids=pair(s)
+    p.rows[ids[1]]['state']='issued'
+    result=batch(s,ids)
+    assert result['started'] is False
+    assert p.rows[ids[0]]['state']=='available'
+    assert not p.rows[ids[0]]['data'].get('issued_employee_id')
+    assert batch(s,[ids[0],'foreign-asset'],key='foreign-batch')['started'] is False
+
+
+def test_batch_permissions_duplicates_and_key_binding(system):
+    s,_,_=system
+    ids=pair(s)
+    with pytest.raises(AppError):batch(s,ids,who=actor('one','hrms_employee'))
+    with pytest.raises(AppError):batch(s,[ids[0],ids[0]])
+    assert batch(s,ids)['complete']
+    with pytest.raises(AppError):batch(s,ids,issued_employee_id='employee-two')
+
+
+def test_unfinished_issue_does_not_block_unrelated_asset(system):
+    s,p,_=system
+    a,b=pair(s)
+    p.fail_trigger='issue'
+    with pytest.raises(AppError):
+        command(s,'issue',{'issued_employee_id':'employee-one','issued_date':'2026-01-01'},a,key='failed-issue')
+    command(s,'issue',{'issued_employee_id':'employee-two','issued_date':'2026-01-01'},b,key='other-issue')
+    assert p.rows[b]['state']=='issued'
+
+
+def test_batch_invalid_input_can_be_corrected_before_writes(system):
+    s,p,_=system
+    ids=pair(s)
+    result=batch(s,ids,issued_date='not-a-date')
+    assert result['started'] is False
+    assert all(p.rows[i]['state']=='available' for i in ids)
+    assert batch(s,ids,key='corrected-batch')['complete']
+
+
+def test_pending_batches_scope_and_permission(system):
+    from contextlib import contextmanager
+    s,_,_=system
+    calls=[]
+    class DB:
+        def execute(self, sql, params):
+            calls.append((sql,params))
+            return SimpleNamespace(fetchall=lambda: [({'idempotency_key':'saved-batch'},)])
+    @contextmanager
+    def lock(org):
+        assert org=='org'
+        yield DB()
+    s.journal=SimpleNamespace(lock=lock)
+    with pytest.raises(AppError):s.pending_batches(actor('one','hrms_employee'))
+    assert not calls
+    assert s.pending_batches(actor('admin','superadmin'))['items']==[{'idempotency_key':'saved-batch'}]
+    assert calls[0][1]==('org','admin')
+    assert 'organization_id=%s AND actor_id=%s' in calls[0][0]
