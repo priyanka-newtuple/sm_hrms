@@ -2,6 +2,7 @@
 import json
 import os
 import sys
+import httpx
 from collections import Counter
 
 from hrms_app.configuration_native import NativeConfiguration
@@ -35,6 +36,7 @@ def main():
     validate(package)
     api = ReadOnlyPlatform(os.environ['PLATFORM_API_URL'], os.environ['HRMS_ORGANIZATION_ID'],
                            os.environ['HRMS_INSTALL_EMAIL'], os.environ['HRMS_INSTALL_PASSWORD'])
+    api.http.timeout = httpx.Timeout(120)
     try:
         api.service_token()
         native = InspectedConfiguration(api)
