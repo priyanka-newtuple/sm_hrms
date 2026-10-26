@@ -17,6 +17,19 @@ class ReadOnlyPlatform(PlatformClient):
         return super().request(method, path, **kwargs)
 
 
+class InspectedConfiguration(NativeConfiguration):
+    current_key = None
+    last_route = None
+
+    def read(self, obj):
+        self.current_key = obj['key']
+        return super().read(obj)
+
+    def get(self, route, **kwargs):
+        self.last_route = route
+        return super().get(route, **kwargs)
+
+
 def main():
     package = json.load(sys.stdin)
     validate(package)
@@ -24,7 +37,8 @@ def main():
                            os.environ['HRMS_INSTALL_EMAIL'], os.environ['HRMS_INSTALL_PASSWORD'])
     try:
         api.service_token()
-        plan, actual, _ = inspection(NativeConfiguration(api), package, {'baseline': {}})
+        native = InspectedConfiguration(api)
+        plan, actual, _ = inspection(native, package, {'baseline': {}})
         desired = {item['key']: item for item in package['objects']}
         differences = [{'key': op['key'], 'production': actual.get(op['key']),
                         'desired': desired[op['key']]} for op in plan['operations']
@@ -35,8 +49,14 @@ def main():
     except ConfigurationError as exc:
         print(json.dumps({'blocked': True, 'reason': str(exc)}))
         raise SystemExit(2) from None
-    except Exception:
-        print(json.dumps({'blocked': True, 'reason': 'Native configuration could not be read; check access and deployed adapter compatibility.'}))
+    except Exception as exc:
+        import traceback
+        print(json.dumps({'blocked': True, 'reason': 'Native configuration could not be read; check access and deployed adapter compatibility.',
+                          'error_type': type(exc).__name__, 'status': getattr(exc, 'status', None),
+                          'object': getattr(locals().get('native'), 'current_key', None),
+                          'route': getattr(locals().get('native'), 'last_route', None),
+                          'frames': [{'file': f.filename.rsplit('/', 1)[-1], 'line': f.lineno, 'function': f.name}
+                                     for f in traceback.extract_tb(exc.__traceback__)[-5:]]}))
         raise SystemExit(2) from None
     finally:
         api.close()
