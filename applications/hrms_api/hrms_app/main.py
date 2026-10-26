@@ -265,6 +265,14 @@ def create_app(platform=None, journal=None):
     def health():
         return {'status': 'ok', 'service': 'hrms-application'}
 
+    @app.get('/v1/api/hrms/configuration-release')
+    def configuration_release(current=Depends(actor)):
+        require(current, 'platform:configure')
+        from .configuration_promotion import release_status
+        return {'application_revision': os.environ.get('HRMS_RELEASE_SHA', 'development'),
+                'releases': release_status(journal.dsn, current.organization_id),
+                'live_drift_checked': False}
+
     @app.get('/v1/api/hrms/assets')
     def asset_inventory(current=Depends(actor)):
         return assets.board(current)

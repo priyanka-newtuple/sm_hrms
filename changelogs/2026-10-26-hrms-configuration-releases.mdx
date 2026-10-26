@@ -1,0 +1,15 @@
+---
+title: "Safer HRMS configuration releases"
+date: "2026-10-26"
+tags: ["Improvement", "Feature"]
+description: "Review configuration differences before promoting HR workflows between environments."
+---
+
+HRMS configuration can now be exported and compared before a reviewed release is applied.
+
+- Promote supported workflow, form, template, relationship and scoped permission definitions through native platform APIs.
+- Stop on conflicting destination edits or unresolved dependencies instead of overwriting them.
+- Preserve employee records, workflow history, uploaded documents and environment credentials.
+- See interface/application versions and the last recorded configuration release in Settings → Organization.
+
+Initial environment comparison and adoption are required before automatic configuration promotion is enabled. Settings changes do not automatically become Git commits.

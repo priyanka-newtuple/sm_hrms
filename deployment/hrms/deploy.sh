@@ -49,7 +49,15 @@ if [ -n "$current_api" ]; then
     fi'
 fi
 "${compose[@]}" up -d --no-deps --wait --wait-timeout 300 platform-api
-"${compose[@]}" run --rm -T --no-deps platform-install < /dev/null
+if [[ -f "$release/configuration.json" ]]; then
+  # Managed configuration has one writer. Do not run legacy seed installers first:
+  # they could change production before the three-way drift comparison.
+  "${compose[@]}" run --rm -T --no-deps -v "$release:/configuration:ro" platform-install \
+    python -m hrms_app.configuration_cli deploy --package /configuration/configuration.json < /dev/null
+else
+  echo 'No approved configuration release is bundled; native Settings are not automatically synchronized.'
+  "${compose[@]}" run --rm -T --no-deps platform-install < /dev/null
+fi
 # Read the email-mode payload and credentials from encrypted stdin, before any worker starts.
 "${compose[@]}" run --rm -T --no-deps platform-install python -m hrms_app.configure_email < "$email_payload"
 "${compose[@]}" up -d --no-deps platform-worker

@@ -4,6 +4,8 @@ COPY package*.json ./
 RUN npm ci
 COPY . .
 ENV VITE_SKIN_ID=newtuple-hrms-native
+ARG HRMS_RELEASE_SHA=development
+ENV VITE_HRMS_RELEASE_SHA=$HRMS_RELEASE_SHA
 ENV VITE_API_BASE_URL=/v1/api
 ENV CUSTOMER_SKINS_PATH=/app/src/skins/hrms_native/customer-skins.ts
 RUN sed -i 's|/src/main.tsx|/src/skins/hrms_native/main.tsx|' index.html

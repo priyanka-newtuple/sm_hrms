@@ -25,14 +25,24 @@ jobs:
         run: |
           set -euo pipefail
           docker build -f applications/hrms_api/platform.Dockerfile -t sm-hrms-platform:$SHA .
-          docker build -t sm-hrms-application:$SHA applications/hrms_api
+          docker build --build-arg HRMS_RELEASE_SHA=$SHA -t sm-hrms-application:$SHA applications/hrms_api
           docker run --rm sm-hrms-application:$SHA python -m pytest tests -q
           docker run --rm -v "$PWD/deployment/hrms:/deployment:ro" sm-hrms-application:$SHA python -m pytest /deployment/tests -q -p no:cacheprovider
-          docker build -f frontend/Dockerfile.platform -t sm-hrms-platform-web:$SHA frontend
+          docker build --build-arg HRMS_RELEASE_SHA=$SHA -f frontend/Dockerfile.platform -t sm-hrms-platform-web:$SHA frontend
           mkdir release
+          docker run --rm -v "$PWD/configuration/hrms:/configuration:ro" sm-hrms-application:$SHA \
+            python -m hrms_app.configuration_cli validate --package /configuration/candidate.json
+          # Native Settings configuration is a separate, reviewed release artifact.
+          # Absence means legacy installation; never treat an empty package as synced.
+          if [[ -f configuration/hrms/release.json ]]; then
+            docker run --rm -v "$PWD/configuration/hrms:/configuration:ro" sm-hrms-application:$SHA \
+              python -m hrms_app.configuration_cli validate --package /configuration/release.json
+            cp configuration/hrms/release.json release/configuration.json
+          fi
           docker save sm-hrms-platform:$SHA sm-hrms-application:$SHA sm-hrms-platform-web:$SHA | gzip > release/images.tar.gz
           cp deployment/hrms/compose.yml deployment/hrms/deploy.sh deployment/hrms/configure_google.py deployment/hrms/prepare_release.py release/
           cd release && sha256sum images.tar.gz compose.yml deploy.sh configure_google.py prepare_release.py > SHA256SUMS
+          if [[ -f configuration.json ]]; then sha256sum configuration.json >> SHA256SUMS; fi
       - uses: actions/upload-artifact@v4
         with:
           name: hrms-${{ github.sha }}
