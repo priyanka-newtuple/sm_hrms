@@ -1,0 +1,57 @@
+name: HRMS configuration comparison
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: hrms-production
+  cancel-in-progress: false
+jobs:
+  compare:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: hrms-production
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compare native production configuration (read only)
+        env:
+          SSH_KEY: ${{ secrets.HRMS_DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.HRMS_DEPLOY_KNOWN_HOSTS }}
+          HOST: ${{ vars.HRMS_DEPLOY_HOST }}
+          USER: ${{ vars.HRMS_DEPLOY_USER }}
+          PORT: ${{ vars.HRMS_DEPLOY_PORT }}
+        run: |
+          set -euo pipefail
+          [[ "$HOST" =~ ^[a-zA-Z0-9.-]+$ && "$USER" =~ ^[a-z_][a-z0-9_-]*$ && "$PORT" =~ ^[0-9]+$ ]]
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/hrms
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/hrms ~/.ssh/known_hosts
+          trap 'rm -f ~/.ssh/hrms' EXIT
+          # Stream code and the reviewed candidate; do not install files on the host.
+          python3 - <<'PY' > /tmp/hrms-compare.sh
+          import pathlib, shlex
+          code = pathlib.Path('deployment/hrms/compare_configuration.py').read_text()
+          package = pathlib.Path('configuration/hrms/candidate.json').read_text()
+          print('set -euo pipefail')
+          print('base=/opt/newtuple-hrms')
+          print('exec 9>"$base/deploy.lock"; flock -n 9')
+          print('release=$(readlink -f "$base/current")')
+          print('[[ "$release" == "$base/releases/"* ]]')
+          print('export IMAGE_TAG=${release##*/}')
+          print('[[ "$IMAGE_TAG" =~ ^[a-f0-9]{40}$ ]]')
+          print('printf %s ' + shlex.quote(package) + ' | docker compose --project-name newtuple-hrms-production --env-file "$base/production.env" -f "$release/compose.yml" run --rm -T --no-deps platform-install python -c ' + shlex.quote(code))
+          PY
+          ssh -i ~/.ssh/hrms -o BatchMode=yes -o StrictHostKeyChecking=yes -p "$PORT" "$USER@$HOST" 'bash -s' < /tmp/hrms-compare.sh > comparison.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hrms-configuration-comparison
+          path: comparison.json
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Report
+        if: always()
+        run: |
+          echo 'Download hrms-configuration-comparison for the result. This job does not deploy or apply configuration.' >> "$GITHUB_STEP_SUMMARY"
