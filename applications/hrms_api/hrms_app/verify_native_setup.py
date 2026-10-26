@@ -26,6 +26,9 @@ def main():
         assert methods, 'Native Forms are missing'
         workflows = [w for w in api.call('GET', '/workflow-state-machines', params={'scope': 'published'})['published_items'] if w['is_active']]
         verify_workflow_methods(methods, workflows)
+        from .onboarding_bindings import resolve
+        resolve(api)
+        assert any(r['name'] == 'hrms_onboarding_employee' for r in api.call('GET', '/roles')), 'Restricted onboarding role missing'
         employee = configured_form(api, 'HRMS.Employee')
         fields = {f['field']: f for f in employee['fields']}
         project = configured_form(api, 'HRMS.Project')

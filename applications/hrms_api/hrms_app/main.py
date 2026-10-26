@@ -92,8 +92,13 @@ def create_app(platform=None, journal=None):
         stopping = asyncio.Event()
         async def sync_accounts():
             from .employee_lifecycle import reconcile
+            from .onboarding_bindings import initialize
+            bindings_ready = False
             while not stopping.is_set():
                 try:
+                    if not bindings_ready:
+                        await asyncio.to_thread(initialize, platform)
+                        bindings_ready = True
                     await asyncio.to_thread(reconcile, service)
                 except Exception:
                     logging.getLogger(__name__).exception('Employee account synchronization failed')
