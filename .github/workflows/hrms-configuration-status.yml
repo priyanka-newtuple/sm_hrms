@@ -102,6 +102,14 @@ jobs:
                       measure('mailpit_detail', lambda: client.get('http://mailpit:8025/api/v1/message/'+message_id))
                       measure('hrms_detail', lambda: client.get('http://hrms-app:8000/v1/api/hrms/uat-mail/messages/'+message_id, headers=headers))
                       measure('public_hrms_detail', lambda: client.get('https://myhub.62-238-103-67.sslip.io/v1/api/hrms/uat-mail/messages/'+message_id, headers=headers))
+          target = next((u for u in api.users() if u.get('email', '').lower() == 'shilpa.mishra@newtuple.com'), None)
+          if target:
+              print(json.dumps({'account_check': {k: target.get(k) for k in ('status', 'auth_type', 'role', 'created_at', 'updated_at', 'last_login')}}), flush=True)
+              for event in ('AUTH_PASSWORD_CHANGED', 'AUTH_LOGIN_SUCCESS', 'AUTH_LOGIN_FAILED'):
+                  history = api.call('GET', '/audit-events', params={'user_id': target['id'], 'event_type': event, 'limit': 20})
+                  print(json.dumps({'account_event': event, 'total': history.get('total'), 'events': [{'timestamp': r.get('event_timestamp'), 'source': r.get('source')} for r in history.get('items', [])]}), flush=True)
+          else:
+              print(json.dumps({'account_check': 'not_found'}), flush=True)
           api.close()
           PY
           REMOTE
