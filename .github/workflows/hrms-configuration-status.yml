@@ -10,7 +10,7 @@ permissions:
   contents: read
 jobs:
   status:
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || (github.ref == 'refs/heads/feat/onboarding-native-journey' && !inputs.restart_api)
     runs-on: ubuntu-latest
     environment: hrms-production
     timeout-minutes: 10
@@ -73,6 +73,35 @@ jobs:
           api=$(docker ps -q --filter label=com.docker.compose.project=newtuple-hrms-production --filter label=com.docker.compose.service=platform-api)
           docker logs --since 30m --tail 1500 "$api" 2>&1 | python3 -c 'import sys,re; lines=sys.stdin.readlines(); selected=[line.strip() for line in lines if re.search(r"File .+line [0-9]+|Traceback|GET /health|POST /v1/api/auth/login",line)]; print("\n".join(selected[-35:]))'
           docker compose --project-name newtuple-hrms-production --env-file "$base/production.env" -f "$release/compose.yml" run --rm -T --no-deps platform-install python -c 'import os,json,psycopg; db=psycopg.connect(os.environ["HRMS_APP_DATABASE_URL"]); rows=db.execute("SELECT package_name, state, updated_at FROM hrms_configuration_releases WHERE organization_id=%s",(os.environ["HRMS_ORGANIZATION_ID"],)).fetchall(); print(json.dumps([dict(name=n,status=s.get("status"),checksum=s.get("package_checksum"),completed=len(s.get("completed",[])),pending=s.get("pending"),updated_at=str(t)) for n,s,t in rows])); db.close()' < /dev/null
+          docker compose --project-name newtuple-hrms-production --env-file "$base/production.env" -f "$release/compose.yml" run --rm -T --no-deps platform-install python - <<'PY'
+          import os, json, time, httpx
+          from hrms_app.platform import PlatformClient
+          def measure(label, call):
+              start = time.monotonic()
+              try:
+                  response = call()
+                  print(json.dumps({'timing': label, 'ms': round((time.monotonic()-start)*1000), 'status': response.status_code, 'bytes': len(response.content)}), flush=True)
+                  return response
+              except Exception:
+                  print(json.dumps({'timing': label, 'ms': round((time.monotonic()-start)*1000), 'error': 'request_failed'}), flush=True)
+                  return None
+          api = PlatformClient(os.environ['PLATFORM_API_URL'], os.environ['HRMS_ORGANIZATION_ID'], os.environ['HRMS_INSTALL_EMAIL'], os.environ['HRMS_INSTALL_PASSWORD'])
+          token = api.service_token()
+          headers = {'Authorization': 'Bearer '+token}
+          with httpx.Client(timeout=35, follow_redirects=False) as client:
+              mail = measure('mailpit_list', lambda: client.get('http://mailpit:8025/api/v1/messages'))
+              items = mail.json().get('messages', []) if mail is not None and mail.status_code == 200 else []
+              message_id = items[0]['ID'] if items else None
+              for sample in range(3):
+                  for path in ('auth/me', 'roles/my-permissions', 'users/me/organizations'):
+                      measure('native_'+path, lambda: client.get(os.environ['PLATFORM_API_URL'].rstrip('/')+'/'+path, headers=headers))
+                  measure('hrms_list', lambda: client.get('http://hrms-app:8000/v1/api/hrms/uat-mail/messages', headers=headers))
+                  if message_id:
+                      measure('mailpit_detail', lambda: client.get('http://mailpit:8025/api/v1/message/'+message_id))
+                      measure('hrms_detail', lambda: client.get('http://hrms-app:8000/v1/api/hrms/uat-mail/messages/'+message_id, headers=headers))
+                      measure('public_hrms_detail', lambda: client.get('https://myhub.62-238-103-67.sslip.io/v1/api/hrms/uat-mail/messages/'+message_id, headers=headers))
+          api.close()
+          PY
           REMOTE
       - uses: actions/upload-artifact@v4
         if: always()
