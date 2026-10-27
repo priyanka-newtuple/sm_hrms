@@ -93,6 +93,8 @@ jobs:
               items = mail.json().get('messages', []) if mail is not None and mail.status_code == 200 else []
               message_id = items[0]['ID'] if items else None
               for sample in range(3):
+                  for endpoint in ('capabilities', 'employee-work', 'cockpit', 'assets', 'offboarding/inbox', 'projects', 'performance'):
+                      measure('screen_'+endpoint, lambda: client.get('http://hrms-app:8000/v1/api/hrms/'+endpoint, headers=headers))
                   for path in ('auth/me', 'roles/my-permissions', 'users/me/organizations'):
                       measure('native_'+path, lambda: client.get(os.environ['PLATFORM_API_URL'].rstrip('/')+'/'+path, headers=headers))
                   measure('hrms_list', lambda: client.get('http://hrms-app:8000/v1/api/hrms/uat-mail/messages', headers=headers))
