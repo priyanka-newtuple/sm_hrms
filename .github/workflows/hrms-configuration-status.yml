@@ -2,6 +2,10 @@ name: HRMS configuration status
 on:
   workflow_dispatch:
     inputs:
+      resolve_asset_draft:
+        description: Archive an Asset draft only if identical to the published workflow
+        type: boolean
+        default: false
       recover_asset:
         description: Recover only the reviewed bulk asset entity configuration
         type: boolean
@@ -34,6 +38,7 @@ jobs:
           HOST: ${{ vars.HRMS_DEPLOY_HOST }}
           USER: ${{ vars.HRMS_DEPLOY_USER }}
           PORT: ${{ vars.HRMS_DEPLOY_PORT }}
+          RESOLVE_ASSET_DRAFT: ${{ inputs.resolve_asset_draft }}
           RECOVER_ASSET: ${{ inputs.recover_asset }}
           RESTART_API: ${{ inputs.restart_api }}
           RESUME_WORKER: ${{ inputs.resume_worker }}
@@ -47,16 +52,17 @@ jobs:
           chmod 600 ~/.ssh/hrms ~/.ssh/known_hosts
           trap 'rm -f ~/.ssh/hrms' EXIT
           [[ "$RESTART_API" == true || "$RESTART_API" == false ]]
-          ssh -i ~/.ssh/hrms -o BatchMode=yes -o StrictHostKeyChecking=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=6 -p "$PORT" "$USER@$HOST" "bash -s -- '$RESTART_API' '$RESUME_WORKER' '$ARCHIVE_EQUIVALENT_DRAFT' '$RECOVER_ASSET'" <<'REMOTE' > status.txt
+          ssh -i ~/.ssh/hrms -o BatchMode=yes -o StrictHostKeyChecking=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=6 -p "$PORT" "$USER@$HOST" "bash -s -- '$RESTART_API' '$RESUME_WORKER' '$ARCHIVE_EQUIVALENT_DRAFT' '$RECOVER_ASSET' '$RESOLVE_ASSET_DRAFT'" <<'REMOTE' > status.txt
           set -euo pipefail
           base=/opt/newtuple-hrms
           release=$(readlink -f "$base/current")
           [[ "$release" == "$base/releases/"* ]]
           export IMAGE_TAG=${release##*/}
           [[ "$IMAGE_TAG" =~ ^[a-f0-9]{40}$ ]]
+          export HRMS_RESOLVE_ASSET_DRAFT=${5:-false}
           export HRMS_RECOVER_ASSET=${4:-false}
           export HRMS_ARCHIVE_EQUIVALENT_DRAFT=${3:-false}
-          if [[ "$HRMS_ARCHIVE_EQUIVALENT_DRAFT" == true || "$HRMS_RECOVER_ASSET" == true ]]; then
+          if [[ "$HRMS_ARCHIVE_EQUIVALENT_DRAFT" == true || "$HRMS_RECOVER_ASSET" == true || "$HRMS_RESOLVE_ASSET_DRAFT" == true ]]; then
             exec 7>"$base/deploy.lock"; flock -n 7
           fi
           if [[ "${2:-false}" == true ]]; then
@@ -100,7 +106,7 @@ jobs:
           api=$(docker ps -q --filter label=com.docker.compose.project=newtuple-hrms-production --filter label=com.docker.compose.service=platform-api)
           docker logs --since 30m --tail 1500 "$api" 2>&1 | python3 -c 'import sys,re; lines=sys.stdin.readlines(); selected=[line.strip() for line in lines if re.search(r"File .+line [0-9]+|Traceback|PATCH /v1/api/entity-types",line)]; print("\n".join(selected[-35:]))'
           docker compose --project-name newtuple-hrms-production --env-file "$base/production.env" -f "$release/compose.yml" run --rm -T --no-deps platform-install python -c 'import os,json,psycopg; db=psycopg.connect(os.environ["HRMS_APP_DATABASE_URL"]); rows=db.execute("SELECT package_name, state, updated_at FROM hrms_configuration_releases WHERE organization_id=%s",(os.environ["HRMS_ORGANIZATION_ID"],)).fetchall(); print(json.dumps([dict(name=n,status=s.get("status"),checksum=s.get("package_checksum"),completed=len(s.get("completed",[])),pending=s.get("pending"),updated_at=str(t)) for n,s,t in rows])); db.close()' < /dev/null
-          docker compose --project-name newtuple-hrms-production --env-file "$base/production.env" -f "$release/compose.yml" run --rm -T --no-deps -e HRMS_ARCHIVE_EQUIVALENT_DRAFT -e HRMS_RECOVER_ASSET -v "$base/releases/dadeaf98f698b0c03e8ba3de28f373a58701a077:/asset-release:ro" platform-install python - <<'PY'
+          docker compose --project-name newtuple-hrms-production --env-file "$base/production.env" -f "$release/compose.yml" run --rm -T --no-deps -e HRMS_ARCHIVE_EQUIVALENT_DRAFT -e HRMS_RECOVER_ASSET -e HRMS_RESOLVE_ASSET_DRAFT -v "$base/releases/dadeaf98f698b0c03e8ba3de28f373a58701a077:/asset-release:ro" platform-install python - <<'PY'
           import os, json, time, httpx
           from hrms_app.platform import PlatformClient
           def measure(label, call):
@@ -116,6 +122,30 @@ jobs:
           token = api.service_token()
           asset = api.call('GET', '/entity-types/HRMS.Asset')
           print(json.dumps({'asset_tag_required': [f.get('required') for f in asset['schema_definition']['fields'] if f['field']=='asset_tag']}), flush=True)
+          if os.environ.get('HRMS_RESOLVE_ASSET_DRAFT') == 'true':
+              from copy import deepcopy
+              from hrms_app.configuration_package import digest
+              def normalize(graph):
+                  graph=deepcopy(graph)
+                  for transition in graph.get('transitions',[]):
+                      if 'from_state' in transition:
+                          source=transition.pop('from_state')
+                          assert 'from' not in transition or transition['from']==source
+                          transition['from']=source
+                  return graph
+              active=[w for w in api.call('GET','/workflow-state-machines',params={'scope':'published'})['published_items'] if w['entity_type']=='HRMS.Asset' and w['is_active']]
+              assert len(active)==1
+              workflow=active[0]
+              drafts=api.call('GET','/workflow-state-machines',params={'scope':'draft','machine_name':workflow['machine_name']})['draft_items']
+              for draft in drafts:
+                  draft=api.call('GET','/workflow-state-machines/'+draft['id'])
+                  equivalent=normalize(draft['definition'])==normalize(workflow['definition']) and (draft.get('canvas_metadata') or {})==(workflow.get('canvas_metadata') or {})
+                  print(json.dumps({'asset_draft':draft['id'],'equivalent':equivalent,'version':draft.get('version')}),flush=True)
+                  assert equivalent and draft.get('version')==0, 'Asset draft contains distinct edits; preserve it'
+                  assert digest(api.call('GET','/workflow-state-machines/'+draft['id']))==digest(draft)
+                  assert digest(api.call('GET','/workflow-state-machines/'+workflow['id']))==digest(workflow)
+                  api.call('DELETE','/workflow-state-machines/'+draft['id'])
+                  print(json.dumps({'redundant_asset_draft_archived':draft['id']}),flush=True)
           if os.environ.get('HRMS_RECOVER_ASSET') == 'true':
               from hrms_app.configuration_native import NativeConfiguration
               from hrms_app.configuration_promotion import Journal, reconcile
