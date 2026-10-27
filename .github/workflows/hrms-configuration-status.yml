@@ -122,7 +122,7 @@ jobs:
           token = api.service_token()
           asset = api.call('GET', '/entity-types/HRMS.Asset')
           print(json.dumps({'asset_tag_required': [f.get('required') for f in asset['schema_definition']['fields'] if f['field']=='asset_tag']}), flush=True)
-          if os.environ.get('HRMS_RESOLVE_ASSET_DRAFT') == 'true':
+          if True:
               from copy import deepcopy
               from hrms_app.configuration_package import digest
               def normalize(graph):
@@ -135,12 +135,14 @@ jobs:
                   return graph
               active=[w for w in api.call('GET','/workflow-state-machines',params={'scope':'published'})['published_items'] if w['entity_type']=='HRMS.Asset' and w['is_active']]
               assert len(active)==1
-              workflow=active[0]
+              workflow=api.call('GET','/workflow-state-machines/'+active[0]['id'])
               drafts=api.call('GET','/workflow-state-machines',params={'scope':'draft','machine_name':workflow['machine_name']})['draft_items']
               for draft in drafts:
                   draft=api.call('GET','/workflow-state-machines/'+draft['id'])
                   equivalent=normalize(draft['definition'])==normalize(workflow['definition']) and (draft.get('canvas_metadata') or {})==(workflow.get('canvas_metadata') or {})
                   print(json.dumps({'asset_draft':draft['id'],'equivalent':equivalent,'version':draft.get('version')}),flush=True)
+                  if os.environ.get('HRMS_RESOLVE_ASSET_DRAFT') != 'true':
+                      continue
                   assert equivalent and draft.get('version')==0, 'Asset draft contains distinct edits; preserve it'
                   assert digest(api.call('GET','/workflow-state-machines/'+draft['id']))==digest(draft)
                   assert digest(api.call('GET','/workflow-state-machines/'+workflow['id']))==digest(workflow)
