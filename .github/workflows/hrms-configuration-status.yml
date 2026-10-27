@@ -106,6 +106,20 @@ jobs:
                       measure('mailpit_detail', lambda: client.get('http://mailpit:8025/api/v1/message/'+message_id))
                       measure('hrms_detail', lambda: client.get('http://hrms-app:8000/v1/api/hrms/uat-mail/messages/'+message_id, headers=headers))
                       measure('public_hrms_detail', lambda: client.get('https://myhub.62-238-103-67.sslip.io/v1/api/hrms/uat-mail/messages/'+message_id, headers=headers))
+          active = [w for w in api.call('GET', '/workflow-state-machines', params={'scope':'published'})['published_items'] if w.get('entity_type') == 'HRMS.Employee' and w.get('is_active')]
+          def asset_requirements(w):
+              return [bool(f.get('required')) for t in w['definition'].get('transitions', []) for f in t.get('required_fields', []) if f.get('field') == 'issued_asset_references']
+          print(json.dumps({'active_employee_asset_requirements': [asset_requirements(w) for w in active]}), flush=True)
+          page = api.call('GET', '/workflow-enrollments', params={'entity_type_name':'HRMS.Employee','limit':200})
+          versions = {}
+          pinned_required = 0
+          for row in page['items']:
+              if row['workflow_id'] not in versions:
+                  versions[row['workflow_id']] = api.call('GET', '/workflow-state-machines/'+row['workflow_id'])
+              w = versions[row['workflow_id']]
+              terminal = any(s['name'] == row['current_state'] and s.get('is_terminal') for s in w['definition'].get('states', []))
+              pinned_required += int(not terminal and any(asset_requirements(w)))
+          print(json.dumps({'enrollments_with_required_asset_version':pinned_required,'has_more':page['has_more']}), flush=True)
           target = next((u for u in api.users() if u.get('email', '').lower() == 'shilpa.mishra@newtuple.com'), None)
           if target:
               print(json.dumps({'account_check': {k: target.get(k) for k in ('status', 'auth_type', 'role', 'created_at', 'updated_at', 'last_login')}}), flush=True)
