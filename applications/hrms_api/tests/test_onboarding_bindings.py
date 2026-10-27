@@ -18,8 +18,14 @@ class Platform:
     def call(self, method, path, **kwargs):
         if method == 'POST':
             self.writes.append(kwargs['json'])
-            self.roles.append({'name': kwargs['json']['name']})
+            self.roles.append({'id': 'onboarding-role', **deepcopy(kwargs['json'])})
             return {}
+        if path == '/roles/onboarding-role':
+            if method == 'PUT':
+                self.writes.append(kwargs['json'])
+                self.roles[0].update(deepcopy(kwargs['json']))
+                return {}
+            return deepcopy(self.roles[0])
         if path == '/method-library/methods':
             return {'organization_id': self.org, 'total': len(self.methods), 'items': deepcopy(self.methods)}
         if path == '/roles':
@@ -77,3 +83,21 @@ def test_only_creates_missing_role_with_profile_actions_and_no_approval_grant():
     assert role['transition_permissions'] == [{'machine_name': 'employee', 'transition_key': 'submit_profile'}]
     assert not next(f for f in role['field_permissions'] if f['field_name'] == 'account_approved')['can_edit']
     assert not any(p['permission_key'] in {'user:write', 'settings:access'} for p in role['permissions'])
+    assert {'workflow:read', 'workflow:write'} <= {p['permission_key'] for p in role['permissions']}
+
+
+def test_repairs_only_missing_runtime_permission_and_is_idempotent():
+    platform = Platform()
+    install(platform)
+    role = platform.roles[0]
+    role['permissions'] = [p for p in role['permissions'] if p['permission_key'] != 'workflow:write']
+    role['permissions'].append({'permission_key': 'custom:read'})
+    before = deepcopy(role)
+    platform.writes.clear()
+    install(platform)
+    install(platform)
+    assert len(platform.writes) == 1
+    assert set(platform.writes[0]) == {'permissions'}
+    assert {p['permission_key'] for p in role['permissions']} == {p['permission_key'] for p in before['permissions']} | {'workflow:write'}
+    for key in ('field_permissions', 'workflow_permissions', 'transition_permissions', 'entity_permissions'):
+        assert role[key] == before[key]
