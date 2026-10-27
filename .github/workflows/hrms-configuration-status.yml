@@ -2,6 +2,10 @@ name: HRMS configuration status
 on:
   workflow_dispatch:
     inputs:
+      recover_asset:
+        description: Recover only the reviewed bulk asset entity configuration
+        type: boolean
+        default: false
       archive_equivalent_draft:
         description: Archive only the verified redundant Employee draft
         type: boolean
@@ -30,6 +34,7 @@ jobs:
           HOST: ${{ vars.HRMS_DEPLOY_HOST }}
           USER: ${{ vars.HRMS_DEPLOY_USER }}
           PORT: ${{ vars.HRMS_DEPLOY_PORT }}
+          RECOVER_ASSET: ${{ inputs.recover_asset }}
           RESTART_API: ${{ inputs.restart_api }}
           RESUME_WORKER: ${{ inputs.resume_worker }}
           ARCHIVE_EQUIVALENT_DRAFT: ${{ inputs.archive_equivalent_draft }}
@@ -42,13 +47,14 @@ jobs:
           chmod 600 ~/.ssh/hrms ~/.ssh/known_hosts
           trap 'rm -f ~/.ssh/hrms' EXIT
           [[ "$RESTART_API" == true || "$RESTART_API" == false ]]
-          ssh -i ~/.ssh/hrms -o BatchMode=yes -o StrictHostKeyChecking=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=6 -p "$PORT" "$USER@$HOST" "bash -s -- '$RESTART_API' '$RESUME_WORKER' '$ARCHIVE_EQUIVALENT_DRAFT'" <<'REMOTE' > status.txt
+          ssh -i ~/.ssh/hrms -o BatchMode=yes -o StrictHostKeyChecking=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=6 -p "$PORT" "$USER@$HOST" "bash -s -- '$RESTART_API' '$RESUME_WORKER' '$ARCHIVE_EQUIVALENT_DRAFT' '$RECOVER_ASSET'" <<'REMOTE' > status.txt
           set -euo pipefail
           base=/opt/newtuple-hrms
           release=$(readlink -f "$base/current")
           [[ "$release" == "$base/releases/"* ]]
           export IMAGE_TAG=${release##*/}
           [[ "$IMAGE_TAG" =~ ^[a-f0-9]{40}$ ]]
+          export HRMS_RECOVER_ASSET=${4:-false}
           export HRMS_ARCHIVE_EQUIVALENT_DRAFT=${3:-false}
           if [[ "$HRMS_ARCHIVE_EQUIVALENT_DRAFT" == true ]]; then
             exec 7>"$base/deploy.lock"; flock -n 7
@@ -94,7 +100,7 @@ jobs:
           api=$(docker ps -q --filter label=com.docker.compose.project=newtuple-hrms-production --filter label=com.docker.compose.service=platform-api)
           docker logs --since 30m --tail 1500 "$api" 2>&1 | python3 -c 'import sys,re; lines=sys.stdin.readlines(); selected=[line.strip() for line in lines if re.search(r"File .+line [0-9]+|Traceback|PATCH /v1/api/entity-types",line)]; print("\n".join(selected[-35:]))'
           docker compose --project-name newtuple-hrms-production --env-file "$base/production.env" -f "$release/compose.yml" run --rm -T --no-deps platform-install python -c 'import os,json,psycopg; db=psycopg.connect(os.environ["HRMS_APP_DATABASE_URL"]); rows=db.execute("SELECT package_name, state, updated_at FROM hrms_configuration_releases WHERE organization_id=%s",(os.environ["HRMS_ORGANIZATION_ID"],)).fetchall(); print(json.dumps([dict(name=n,status=s.get("status"),checksum=s.get("package_checksum"),completed=len(s.get("completed",[])),pending=s.get("pending"),updated_at=str(t)) for n,s,t in rows])); db.close()' < /dev/null
-          docker compose --project-name newtuple-hrms-production --env-file "$base/production.env" -f "$release/compose.yml" run --rm -T --no-deps -e HRMS_ARCHIVE_EQUIVALENT_DRAFT platform-install python - <<'PY'
+          docker compose --project-name newtuple-hrms-production --env-file "$base/production.env" -f "$release/compose.yml" run --rm -T --no-deps -e HRMS_ARCHIVE_EQUIVALENT_DRAFT -e HRMS_RECOVER_ASSET -v "$base/releases/dadeaf98f698b0c03e8ba3de28f373a58701a077:/asset-release:ro" platform-install python - <<'PY'
           import os, json, time, httpx
           from hrms_app.platform import PlatformClient
           def measure(label, call):
@@ -110,6 +116,39 @@ jobs:
           token = api.service_token()
           asset = api.call('GET', '/entity-types/HRMS.Asset')
           print(json.dumps({'asset_tag_required': [f.get('required') for f in asset['schema_definition']['fields'] if f['field']=='asset_tag']}), flush=True)
+          if os.environ.get('HRMS_RECOVER_ASSET') == 'true':
+              from hrms_app.configuration_native import NativeConfiguration
+              from hrms_app.configuration_promotion import Journal, reconcile
+              from hrms_app.configuration_package import digest, resolve, validate
+              from hrms_app.errors import AppError
+              package=json.load(open('/asset-release/configuration.json'))
+              assert digest(package)=='a636ff6b68eac2bdf0c5147162f9b4b8cf8a770c37c57c477137e89369bf9ac0'
+              journal=Journal(os.environ['HRMS_APP_DATABASE_URL'],api.org,package['name'])
+              with journal.locked():
+                  state=journal.read()
+                  assert state['status']=='failed' and state['package_checksum']==digest(package)
+                  assert state['pending']['key']=='entity:HRMS.Asset' and not state['completed']
+                  native=NativeConfiguration(api)
+                  native.bindings=state.get('bindings',{})
+                  objects=validate(package)
+                  actual,identities=native.snapshot(objects)
+                  target=next(o for o in objects if o['key']=='entity:HRMS.Asset')
+                  for obj in objects:
+                      raw,_=native.read(obj)
+                      desired=resolve(obj['payload'],identities)
+                      if obj['key']==target['key']:
+                          assert raw==desired or digest(raw)==state['pending']['before']
+                      else:
+                          assert raw==desired, 'Unrelated configuration differs; stop recovery'
+                  raw,identity=native.read(target)
+                  if raw!=resolve(target['payload'],identities):
+                      try:
+                          native.write(target,resolve(target['payload'],identities),identity,lambda _:None)
+                      except AppError as exc:
+                          print(json.dumps({'asset_update_status':exc.status,'asset_update_detail':exc.detail}),flush=True)
+                          raise SystemExit(2)
+                  reconcile(native,package,journal)
+                  print(json.dumps({'asset_promotion_reconciled':True}),flush=True)
           headers = {'Authorization': 'Bearer '+token}
           with httpx.Client(timeout=35, follow_redirects=False) as client:
               mail = measure('mailpit_list', lambda: client.get('http://mailpit:8025/api/v1/messages'))
