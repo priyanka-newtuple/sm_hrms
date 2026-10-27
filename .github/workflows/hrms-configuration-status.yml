@@ -2,6 +2,10 @@ name: HRMS configuration status
 on:
   workflow_dispatch:
     inputs:
+      resume_worker:
+        description: Resume the existing HRMS worker after a stopped deployment
+        type: boolean
+        default: false
       restart_api:
         description: Restart only an unhealthy HRMS native API
         type: boolean
@@ -23,6 +27,7 @@ jobs:
           USER: ${{ vars.HRMS_DEPLOY_USER }}
           PORT: ${{ vars.HRMS_DEPLOY_PORT }}
           RESTART_API: ${{ inputs.restart_api }}
+          RESUME_WORKER: ${{ inputs.resume_worker }}
         run: |
           set -euo pipefail
           [[ "$HOST" =~ ^[a-zA-Z0-9.-]+$ && "$USER" =~ ^[a-z_][a-z0-9_-]*$ && "$PORT" =~ ^[0-9]+$ ]]
@@ -32,13 +37,20 @@ jobs:
           chmod 600 ~/.ssh/hrms ~/.ssh/known_hosts
           trap 'rm -f ~/.ssh/hrms' EXIT
           [[ "$RESTART_API" == true || "$RESTART_API" == false ]]
-          ssh -i ~/.ssh/hrms -o BatchMode=yes -o StrictHostKeyChecking=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=6 -p "$PORT" "$USER@$HOST" "bash -s -- '$RESTART_API'" <<'REMOTE' > status.txt
+          ssh -i ~/.ssh/hrms -o BatchMode=yes -o StrictHostKeyChecking=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=6 -p "$PORT" "$USER@$HOST" "bash -s -- '$RESTART_API' '$RESUME_WORKER'" <<'REMOTE' > status.txt
           set -euo pipefail
           base=/opt/newtuple-hrms
           release=$(readlink -f "$base/current")
           [[ "$release" == "$base/releases/"* ]]
           export IMAGE_TAG=${release##*/}
           [[ "$IMAGE_TAG" =~ ^[a-f0-9]{40}$ ]]
+          if [[ "${2:-false}" == true ]]; then
+            exec 8>"$base/deploy.lock"; flock -n 8
+            worker=$(docker ps -aq --filter label=com.docker.compose.project=newtuple-hrms-production --filter label=com.docker.compose.service=platform-worker)
+            [[ "$worker" =~ ^[a-f0-9]+$ ]]
+            docker start "$worker" < /dev/null
+            flock -u 8
+          fi
           api=$(docker ps -q --filter label=com.docker.compose.project=newtuple-hrms-production --filter label=com.docker.compose.service=platform-api)
           docker logs --since 45m --tail 5000 "$api" 2>&1 | python3 -c 'import sys,json; data=sys.stdin.read(); markers={"missing_approval_template":"no notification.new_user template", "missing_admin_recipients":"no admin emails provided", "missing_mail_service":"mail service not available", "smtp_validated":"SMTP credentials validated successfully", "smtp_send_failed":"Unexpected error sending email via SMTP", "smtp_auth_failed":"SMTP authentication failed", "smtp_exception":"SMTP error:", "smtp_sent":"Email sent successfully via SMTP", "smtp_load_failed":"Failed to load smtp integration", "missing_notifications_manager":"notifications_manager not set", "deferred_send_exception":"deferred send_email failed", "notification_exception":"notify_admins_new_user failed"}; print(json.dumps({key:data.count(marker) for key,marker in markers.items()}))'
           docker inspect --format '{{json .State.Health}}' "$api" < /dev/null
@@ -110,6 +122,11 @@ jobs:
           def asset_requirements(w):
               return [bool(f.get('required')) for t in w['definition'].get('transitions', []) for f in t.get('required_fields', []) if f.get('field') == 'issued_asset_references']
           print(json.dumps({'active_employee_asset_requirements': [asset_requirements(w) for w in active]}), flush=True)
+          for w in active:
+              drafts = api.call('GET', '/workflow-state-machines', params={'scope':'draft','machine_name':w['machine_name']})['draft_items']
+              for draft in drafts:
+                  d = api.call('GET', '/workflow-state-machines/'+draft['id'])
+                  print(json.dumps({'employee_draft': {'id':d['id'],'updated_at':d.get('updated_at'),'definition_matches_active':d['definition']==w['definition'],'different_sections':[k for k in set(d['definition'])|set(w['definition']) if d['definition'].get(k)!=w['definition'].get(k)],'asset_requirements':asset_requirements(d)}}),flush=True)
           page = api.call('GET', '/workflow-enrollments', params={'entity_type_name':'HRMS.Employee','limit':200})
           versions = {}
           pinned_required = 0
