@@ -38,6 +38,18 @@ def main():
             response = client.get('/hrms/capabilities')
             response.raise_for_status()
             assert 'platform:configure' in response.json()['capabilities'], 'Super Admin configuration access missing'
+            if os.environ.get('HRMS_ASSET_EMPLOYEE_RELATION'):
+                work = client.get('/hrms/employee-work')
+                work.raise_for_status()
+                checked = 0
+                for item in work.json():
+                    form = client.get(f"/hrms/employee-work/{item['entity_id']}/form", params={'workflow_id': item['workflow_id']})
+                    form.raise_for_status()
+                    data = form.json()
+                    if any(f['field'] == 'issued_asset_references' for f in data['fields']):
+                        assert data.get('asset_section'), 'Onboarding asset section is disabled in the running application'
+                        checked += 1
+                print(f'Onboarding asset section verification passed: {checked} current forms')
             if os.environ.get('HRMS_EMAIL_MODE') == 'capture' and os.environ.get('HRMS_UAT_INBOX_ENABLED') == 'true':
                 status = client.get('/hrms/uat-mail/status')
                 status.raise_for_status()
