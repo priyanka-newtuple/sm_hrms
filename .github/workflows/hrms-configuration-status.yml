@@ -126,6 +126,13 @@ jobs:
               drafts = api.call('GET', '/workflow-state-machines', params={'scope':'draft','machine_name':w['machine_name']})['draft_items']
               for draft in drafts:
                   d = api.call('GET', '/workflow-state-machines/'+draft['id'])
+                  old = {t['key']:t for t in w['definition'].get('transitions', [])}
+                  for t in d['definition'].get('transitions', []):
+                      before = old.get(t['key'], {})
+                      if before != t:
+                          fields = {f['field']:f for f in before.get('required_fields', [])}
+                          changes = [{'field':f['field'],'before':fields.get(f['field'],{}).get('required'),'after':f.get('required')} for f in t.get('required_fields', []) if fields.get(f['field'])!=f]
+                          print(json.dumps({'draft_transition_change':{'key':t['key'],'different_properties':[k for k in set(t)|set(before) if t.get(k)!=before.get(k)],'required_field_changes':changes}}),flush=True)
                   print(json.dumps({'employee_draft': {'id':d['id'],'updated_at':d.get('updated_at'),'definition_matches_active':d['definition']==w['definition'],'different_sections':[k for k in set(d['definition'])|set(w['definition']) if d['definition'].get(k)!=w['definition'].get(k)],'asset_requirements':asset_requirements(d)}}),flush=True)
           page = api.call('GET', '/workflow-enrollments', params={'entity_type_name':'HRMS.Employee','limit':200})
           versions = {}
