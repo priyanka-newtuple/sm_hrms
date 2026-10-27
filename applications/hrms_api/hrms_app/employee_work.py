@@ -1,6 +1,7 @@
 """Employee workflow inbox projected from native, human-authorized enrollments."""
 
 import os
+from concurrent.futures import ThreadPoolExecutor
 
 from .errors import AppError
 
@@ -96,11 +97,15 @@ def employee_enrollments(platform, actor):
 
 def employee_work(platform, actor):
     result = []
+    workflows = {}
     grants = transition_grants(platform, actor)
     for row in employee_enrollments(platform, actor):
-        workflow = platform.request(
-            "GET", f"/workflow-state-machines/{row['workflow_id']}", token=actor.token
-        )
+        # Reuse only within this human-authorized request, never across users or polls.
+        if row['workflow_id'] not in workflows:
+            workflows[row['workflow_id']] = platform.request(
+                "GET", f"/workflow-state-machines/{row['workflow_id']}", token=actor.token
+            )
+        workflow = workflows[row['workflow_id']]
         permitted = {
             t["trigger"]
             for t in workflow["definition"]["transitions"]
@@ -206,7 +211,16 @@ def employee_form(platform, actor, entity_id, workflow_id):
     )
     if not enrollment:
         raise AppError(404, "Employee workflow is not available")
-    record = platform.request("GET", f"/entity-records/{entity_id}", token=actor.token)
+    # These independent reads retain the human token and fresh native permissions.
+    # Fetch concurrently after enrollment access is established, rather than making
+    # the form wait for three consecutive platform round trips.
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        pending = [pool.submit(platform.request, 'GET', path, token=actor.token) for path in (
+            f'/entity-records/{entity_id}',
+            f'/workflow-state-machines/{workflow_id}',
+            '/roles/my-permissions',
+        )]
+        record, workflow, permissions = [future.result() for future in pending]
     if record["organization_id"] != actor.organization_id:
         raise AppError(403, "Employee belongs to another organization")
     if (
@@ -214,12 +228,8 @@ def employee_form(platform, actor, entity_id, workflow_id):
         and record["data"].get("platform_user_id") != actor.user_id
     ):
         raise AppError(403, "You can access only your own onboarding")
-    workflow = platform.request(
-        "GET", f"/workflow-state-machines/{workflow_id}", token=actor.token
-    )
     definition = workflow["definition"]
     form = state_form(platform, workflow, enrollment["current_state"])
-    permissions = platform.request("GET", "/roles/my-permissions", token=actor.token)
     grants = {
         g["field_name"]: g
         for g in permissions.get("field_permissions", [])

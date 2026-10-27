@@ -75,6 +75,54 @@ def test_foreign_tenant_result_is_rejected():
         employee_work(p, a)
 
 
+def test_inbox_fetches_each_workflow_once_per_request():
+    from copy import deepcopy
+
+    p, a, calls = setup()
+    original = p.request
+
+    def request(method, path, **kwargs):
+        response = original(method, path, **kwargs)
+        if path == '/workflow-enrollments':
+            second = deepcopy(response['items'][0])
+            second['entity_id'] = 'second-employee'
+            response['items'].append(second)
+        return response
+
+    p.request = request
+    assert len(employee_work(p, a)) == 2
+    assert sum(path == '/workflow-state-machines/workflow' for _, path, _ in calls) == 1
+    employee_work(p, a)
+    assert sum(path == '/workflow-state-machines/workflow' for _, path, _ in calls) == 2
+
+
+def test_form_reads_independent_data_concurrently_with_human_access():
+    from threading import Barrier
+    from hrms_app.employee_work import employee_form
+
+    p, a, _ = setup()
+    original = p.request
+    barrier = Barrier(3)
+    responses = {
+        '/entity-records/employee': {'organization_id': 'org', 'data': {}},
+        '/workflow-state-machines/workflow': {'definition': {}},
+        '/roles/my-permissions': {'field_permissions': []},
+    }
+
+    def request(method, path, **kwargs):
+        assert kwargs['token'] == a.token
+        if path in responses:
+            barrier.wait(timeout=5)
+            return responses[path]
+        return original(method, path, **kwargs)
+
+    p.request = request
+    assert employee_form(p, a, 'employee', 'workflow')['values'] == {}
+    responses['/entity-records/employee']['organization_id'] = 'other'
+    with pytest.raises(AppError, match='another organization'):
+        employee_form(p, a, 'employee', 'workflow')
+
+
 def test_wrong_workflow_or_trigger_cannot_be_executed():
     p, a, calls = setup()
     with pytest.raises(AppError):
