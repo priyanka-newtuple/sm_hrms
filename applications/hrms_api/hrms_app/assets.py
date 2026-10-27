@@ -135,7 +135,7 @@ class AssetService:
             {'asset_id': entity_id, **command.model_dump(mode='json')})
         if op.result is not None:
             return op.result
-        pending = db.execute("SELECT operation_key FROM operations WHERE organization_id=%s AND operation_key<>%s AND result IS NULL AND progress->'asset_plan' IS NOT NULL AND progress->'asset_plan' <> 'null'::jsonb AND (progress->>'asset_target'=%s OR %s IS NULL OR progress->>'asset_target' IS NULL) LIMIT 1",
+        pending = db.execute("SELECT operation_key FROM operations WHERE organization_id=%s AND operation_key<>%s AND result IS NULL AND progress->'asset_plan' IS NOT NULL AND progress->'asset_plan' <> 'null'::jsonb AND (progress->>'asset_target'=%s OR %s::text IS NULL OR progress->>'asset_target' IS NULL) LIMIT 1",
             (actor.organization_id, command.idempotency_key, entity_id, entity_id)).fetchone()
         if pending:
             raise AppError(409, 'An operation on this asset is incomplete. Retry it before changing this asset.')
