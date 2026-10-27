@@ -94,7 +94,11 @@ jobs:
               message_id = items[0]['ID'] if items else None
               for sample in range(3):
                   for endpoint in ('capabilities', 'employee-work', 'cockpit', 'assets', 'offboarding/inbox', 'projects', 'performance'):
-                      measure('screen_'+endpoint, lambda: client.get('http://hrms-app:8000/v1/api/hrms/'+endpoint, headers=headers))
+                      result = measure('screen_'+endpoint, lambda: client.get('http://hrms-app:8000/v1/api/hrms/'+endpoint, headers=headers))
+                      if endpoint == 'assets' and sample == 0 and result is not None and result.status_code == 200:
+                          from collections import Counter
+                          inventory = result.json()
+                          print(json.dumps({'asset_availability': {'can_manage': inventory.get('can_manage'), 'total': len(inventory['items']), 'states': dict(Counter(r['state'] for r in inventory['items'])), 'assignable': sum('issue' in r['actions'] for r in inventory['items']), 'assigned': sum(bool(r['data'].get('issued_employee_id')) for r in inventory['items'])}}), flush=True)
                   for path in ('auth/me', 'roles/my-permissions', 'users/me/organizations'):
                       measure('native_'+path, lambda: client.get(os.environ['PLATFORM_API_URL'].rstrip('/')+'/'+path, headers=headers))
                   measure('hrms_list', lambda: client.get('http://hrms-app:8000/v1/api/hrms/uat-mail/messages', headers=headers))
