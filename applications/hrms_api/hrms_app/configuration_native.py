@@ -231,7 +231,7 @@ class NativeConfiguration:
         kind, match = obj['kind'], obj['match']
         call, existing = self.api.call, bool(identity)
         if kind == 'entity':
-            call('PATCH' if existing else 'POST', '/entity-types/' + path(match) if existing else '/entity-types', json=payload)
+            call('PUT' if existing else 'POST', '/entity-types/' + path(match) if existing else '/entity-types', json=payload)
         elif kind == 'named_relation':
             if existing:
                 raise ConfigurationError('Named relationship updates are not supported')

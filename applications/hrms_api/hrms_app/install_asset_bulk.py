@@ -31,7 +31,7 @@ def install(api):
             field['required'] = False
             changed = True
     if changed:
-        api.call('PATCH', '/entity-types/' + ASSET, json={'schema_definition': schema})
+        api.call('PUT', '/entity-types/' + ASSET, json={'schema_definition': schema})
     if legacy:
         fields = deepcopy(legacy['fields'])
         for field in fields:

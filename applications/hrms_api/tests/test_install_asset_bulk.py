@@ -37,3 +37,24 @@ def test_conflicts_fail_before_writes(conflict):
     if conflict=='shared':api.method['identity']['entity_types'].append('Other')
     with pytest.raises(AppError):migrate_method_form(api)
     assert all(m=='GET' for m,p,k in api.calls)
+
+
+def test_entity_update_uses_native_put_contract(monkeypatch):
+    from hrms_app.configuration_native import NativeConfiguration
+    from hrms_app.install_asset_bulk import install
+    calls=[]
+    class EntityApi:
+        def call(self, method, path, **kwargs):
+            calls.append((method,path,kwargs))
+            if method=='GET':
+                return {'schema_definition':{'identifier_template':'AST-{{seq}}','fields':[{'field':'asset_tag','required':True}]}}
+            assert method=='PUT' and path=='/entity-types/HRMS.Asset'
+            return {}
+    api=EntityApi()
+    native=NativeConfiguration(api)
+    native.write({'kind':'entity','match':'HRMS.Asset'}, {'name':'HRMS.Asset'}, {'id':'asset'}, lambda _:None)
+    monkeypatch.setattr('hrms_app.install_asset_bulk.configured_form',lambda *args:{'fields':[{'field':'asset_tag','required':False}]})
+    install(api)
+    writes=[c for c in calls if c[0]!='GET']
+    assert len(writes)==2
+    assert writes[-1][2]['json']['schema_definition']['fields'][0]['required'] is False
