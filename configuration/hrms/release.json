@@ -10078,7 +10078,7 @@
                 },
                 {
                   "field": "issued_asset_references",
-                  "required": true,
+                  "required": false,
                   "type": "text"
                 }
               ],

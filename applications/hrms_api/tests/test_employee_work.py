@@ -69,6 +69,34 @@ def test_unfilled_required_fields_do_not_hide_the_task():
     assert employee_work(p, a)[0]["actions"][0]["trigger"] == "next"
 
 
+@pytest.mark.parametrize('required', [False, True])
+def test_asset_requirement_follows_native_configuration(monkeypatch, required):
+    import hrms_app.onboarding_assets as assets
+
+    p, a, calls = setup()
+    original = p.request
+    monkeypatch.setattr(assets, 'enabled', lambda: True)
+    monkeypatch.setattr(assets, 'evidence', lambda *args: '')
+
+    def request(method, path, **kwargs):
+        response = original(method, path, **kwargs)
+        if path.startswith('/workflow-state-machines/'):
+            response['definition']['transitions'][0]['required_fields'] = [
+                {'field': 'issued_asset_references', 'required': required, 'type': 'text'}]
+        return response
+
+    p.request = request
+    if required:
+        with pytest.raises(AppError, match='Issue the required asset'):
+            transition_employee(p, a, 'employee', 'workflow', 'next', 'optional-assets')
+        assert not any(method == 'POST' for method, _, _ in calls)
+    else:
+        transition_employee(p, a, 'employee', 'workflow', 'next', 'optional-assets')
+        assert calls[-1][0] == 'POST'
+        assert any(method == 'PUT' and kwargs['json']['data'] == {'issued_asset_references': ''}
+                   for method, _, kwargs in calls)
+
+
 def test_foreign_tenant_result_is_rejected():
     p, a, _ = setup(org="other")
     with pytest.raises(AppError):
