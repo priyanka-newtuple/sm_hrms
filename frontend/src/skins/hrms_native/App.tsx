@@ -50,7 +50,7 @@ const LoginPage = lazy(() => import('./pages/BrandedLoginPage'));
 
 const ForgotPasswordPage = lazy(() => import('../../pages/auth/Forgot-Password'));
 
-const ResetPasswordPage = lazy(() => import('../../pages/auth/Reset-Password'));
+const ResetPasswordPage = lazy(() => import('./login/ResetPasswordPage'));
 
 const GoogleCallbackPage = lazy(() => import('./login/GoogleCallbackPage'));
 
