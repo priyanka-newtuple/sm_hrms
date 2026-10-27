@@ -27,6 +27,19 @@ class AssetBatchCommand(BaseModel):
     idempotency_key: str = Field(min_length=8, max_length=128)
 
 
+class AssetUnit(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    serial_number: str = Field(default='', max_length=250)
+    asset_tag: str = Field(default='', max_length=250)
+
+
+class AssetCreateBatchCommand(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    data: dict
+    units: list[AssetUnit] = Field(min_length=1, max_length=50)
+    idempotency_key: str = Field(min_length=8, max_length=128)
+
+
 ISSUE_FIELDS = {'issued_employee_id', 'issued_date', 'issued_by', 'issue_note'}
 INTERNAL = {'identifier', 'hrms_operation_key'}
 
@@ -62,8 +75,8 @@ class AssetService:
                     if any(t['trigger'] == 'issue' or t.get('to_state') == 'issued' for t in available.get('available_transitions', [])):
                         actions.append('issue')
             # Employees see issuance details, never private inventory notes or custom fields.
-            visible = {k: v for k, v in data.items() if k not in INTERNAL} if manager else {
-                k: data.get(k) for k in ('asset_tag', 'asset_name', 'asset_category', 'serial_number', 'manufacturer', 'model', 'issued_date', 'issue_note')}
+            visible = {k: v for k, v in data.items() if k not in INTERNAL - {'identifier'}} if manager else {
+                k: data.get(k) for k in ('identifier', 'asset_tag', 'asset_name', 'asset_category', 'serial_number', 'manufacturer', 'model', 'issued_date', 'issue_note')}
             items.append({'id': row['entity_id'], 'data': visible, 'state': state or 'not_started',
                 'employee_name': names.get(data.get('issued_employee_id'), ''), 'actions': actions})
         return {'items': items, 'can_manage': manager, 'employees': [
@@ -91,8 +104,8 @@ class AssetService:
                 if field.get('type') == 'enum' and value not in (field.get('enum_values') or []):
                     raise AppError(422, f'{key} must be one of the configured picklist options')
                 result[key] = _typed(key, field, value)
-        if not result.get('asset_tag') or not result.get('asset_name'):
-            raise AppError(422, 'Asset tag and name are required')
+        if not result.get('asset_name'):
+            raise AppError(422, 'Asset name is required')
         if result.get('purchase_date') and result.get('warranty_expiry') and result['warranty_expiry'] < result['purchase_date']:
             raise AppError(422, 'Warranty expiry cannot precede purchase date')
         return result
@@ -165,7 +178,11 @@ class AssetService:
             row = self.service._create_once(op, 'asset', ASSET, {**data, 'hrms_operation_key': marker},
                 actor.user_id, rows, marker)
             entity_id = row['entity_id']
-            self.platform.enroll(entity_id, 'hrms_asset')
+            if not op.progress.get('asset_enrolled'):
+                # Recover a lost enrollment response without enrolling the item twice.
+                if entity_id not in self.platform.states('hrms_asset'):
+                    self.platform.enroll(entity_id, 'hrms_asset')
+                op.checkpoint(asset_enrolled=True)
         else:
             self.platform.call('PUT', f'/entity-records/{entity_id}', json={'data': data})
             if command.action == 'issue':
@@ -185,6 +202,59 @@ class AssetService:
         result = {'entity_id': entity_id}
         op.finish(result)
         return result
+
+    def create_many(self, actor, command):
+        require(actor, 'asset:manage')
+        if {'serial_number', 'asset_tag'} & set(command.data):
+            raise AppError(422, 'Enter serial numbers and existing tags separately for each item')
+        with self.journal.lock(actor.organization_id) as db:
+            op = self.journal.operation(db, actor, command.idempotency_key,
+                {'asset_creation_batch': command.model_dump(mode='json')})
+            if op.result is not None:
+                return op.result
+            if not op.progress.get('creation_plan'):
+                rows = self.rows()
+                seen = {key: {str(r['data'].get(key) or '').strip().casefold() for r in rows}
+                        for key in ('asset_tag', 'serial_number')}
+                plan = []
+                for index, unit in enumerate(command.units):
+                    try:
+                        data = self.inventory_data({**command.data, **unit.model_dump(exclude_defaults=True)}, {})
+                        for key in seen:
+                            value = str(data.get(key) or '').strip().casefold()
+                            if value and value in seen[key]:
+                                raise AppError(409, f'Duplicate {key.replace("_", " ")}')
+                            seen[key].add(value)
+                    except AppError as exc:
+                        return {'complete': False, 'started': False, 'total': len(command.units),
+                                'items': [{'item': index + 1, 'status': 'incomplete', 'message': exc.detail}]}
+                    plan.append(data)
+                op.checkpoint(creation_plan=plan, creation_request=command.model_dump(mode='json'))
+            results = []
+            for index, data in enumerate(op.progress['creation_plan']):
+                key = 'asset-create:' + hashlib.sha256(f'{command.idempotency_key}:{index}'.encode()).hexdigest()
+                try:
+                    result = self._execute(db, actor, None, AssetCommand(
+                        action='create', data=data, idempotency_key=key))
+                    record = self.platform.record(result['entity_id'])
+                    results.append({'item': index + 1, 'status': 'created', **result,
+                                    'identifier': record['data'].get('identifier')})
+                except AppError as exc:
+                    results.append({'item': index + 1, 'status': 'incomplete', 'message': exc.detail})
+                    # Stop on uncertain outcomes; retry the same child before later items.
+                    break
+            result = {'complete': len(results) == len(command.units) and all(r['status'] == 'created' for r in results),
+                      'total': len(command.units), 'items': results}
+            if result['complete']:
+                op.finish(result)
+            return result
+
+    def pending_creations(self, actor):
+        require(actor, 'asset:manage')
+        with self.journal.lock(actor.organization_id) as db:
+            rows = db.execute("SELECT progress->'creation_request' FROM operations WHERE organization_id=%s AND actor_id=%s AND result IS NULL AND progress->'creation_request' IS NOT NULL ORDER BY updated_at DESC LIMIT 20",
+                              (actor.organization_id, actor.user_id)).fetchall()
+            return {'items': [r[0] for r in rows]}
 
     def pending_batches(self, actor):
         require(actor, 'asset:manage')

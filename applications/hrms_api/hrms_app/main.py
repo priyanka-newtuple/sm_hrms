@@ -31,7 +31,7 @@ from .cockpit import CockpitService, Command as CockpitCommand
 from .projects import ProjectsService
 from .project_contracts import Action as ProjectAction
 from .wfh import WfhService, PolicyInput, RequestInput, DecisionInput
-from .assets import AssetService, AssetCommand, AssetBatchCommand
+from .assets import AssetService, AssetCommand, AssetBatchCommand, AssetCreateBatchCommand
 
 
 class EmployeeAccessRequest(BaseModel):
@@ -294,6 +294,14 @@ def create_app(platform=None, journal=None):
     @app.get('/v1/api/hrms/assets/pending-assignments')
     def pending_asset_assignments(current=Depends(actor)):
         return assets.pending_batches(current)
+
+    @app.post('/v1/api/hrms/assets/batch-create')
+    def asset_batch_create(payload: AssetCreateBatchCommand, current=Depends(actor)):
+        return assets.create_many(current, payload)
+
+    @app.get('/v1/api/hrms/assets/pending-creations')
+    def pending_asset_creations(current=Depends(actor)):
+        return assets.pending_creations(current)
 
     @app.post('/v1/api/hrms/assets/assign')
     def asset_assign(payload: AssetBatchCommand, current=Depends(actor)):

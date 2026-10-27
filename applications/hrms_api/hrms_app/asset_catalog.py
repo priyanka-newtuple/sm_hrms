@@ -5,7 +5,7 @@ TYPES = frozenset({ASSET})
 
 def asset_packs(pack):
     return (pack(entity_type=ASSET, label='Asset', identifier_prefix='AST', fields=(
-        {'field': 'asset_tag', 'type': 'string', 'required': True},
+        {'field': 'asset_tag', 'type': 'string', 'required': False},
         {'field': 'asset_name', 'type': 'string', 'required': True},
         {'field': 'asset_category', 'type': 'enum', 'required': True},
         {'field': 'serial_number', 'type': 'string'},

@@ -3,7 +3,7 @@ import { UatInboxLink } from './UatInbox';
 import CreateOffer from './CreateOffer';
 import { RecordTabs } from '../components/record/RecordTabs';
 import { OnboardingTracker } from './OnboardingTracker';
-import AddEmployee from './AddEmployee';
+import AddEmployee, { EmployeeCreatedNotice, type CreatedEmployee } from './AddEmployee';
 import { ConfiguredInputs, ConfiguredForm, useFormSchema, formValues } from '../forms/ConfiguredForm';
 import { createRequestId } from '../requestId';
 import { FileText, BookOpen, CalendarDays, BriefcaseBusiness, Users, Plus, ArrowUpRight, ChevronRight } from 'lucide-react';
@@ -91,6 +91,7 @@ function Editor({kind,item,board,done}:{kind:string;item?:Item;board:Board;done:
  return <ConfiguredForm entityType={kind}><form className="hrms-surface hrms-people-form hrms-content-editor" onSubmit={e=>{e.preventDefault();setSubmitted(values() as Data);save.mutate();}}><h2 className="hrms-section-heading">{item?'Edit draft':'Create content'}</h2><fieldset disabled={save.isPending||submitted!==null} className="grid gap-4 sm:grid-cols-2"><ConfiguredInputs values={data} onChange={v=>setData(v as Data)} exclude={[...internal]} adapters={{approver_id:{options:board.approvers},hiring_manager_id:{options:board.people},job_description_id:{options:board.items.filter(r=>r.kind==='HRMS.JobDescription'&&r.state==='published'&&!r.superseded).map(r=>({id:r.entity_id,name:String(r.data.title)}))}}}/></fieldset>{!board.approvers.length&&<p role="alert">An independent active approver is required. Configure cockpit approvers under Settings → Roles.</p>}{save.isError&&<p role="alert" className="text-destructive">{getApiErrorMessage(save.error)}. Retry keeps the same request.</p>}<div className="hrms-form-actions">{save.isError && (save.error as {status?:number}).status===422 && <Button className="hrms-outline-button" type="button" variant="outline" onClick={()=>{setSubmitted(null);setKey(createRequestId());save.reset();}}>Correct draft</Button>}<Button className="hrms-primary-button" variant="primary" disabled={save.isPending||!board.approvers.length} type="submit">{save.isError?'Retry save':'Save draft'}</Button><Button className="hrms-outline-button" type="button" variant="outline" disabled={save.isPending} onClick={done}>Cancel</Button></div><p className="text-sm text-muted-foreground">Public content and linked documents will be visible without signing in. Save as a draft, preview, then submit for independent approval.</p></form></ConfiguredForm>;
 }
 export default function CockpitPage({entityId}:{entityId?:string}) {
+ const [createdEmployee,setCreatedEmployee]=useState<CreatedEmployee|null>(null);
  const [params,setParams]=useSearchParams();
  const caps=useHrmsCapabilities();
  if(entityId)return <ContentCockpit entityId={entityId}/>;
@@ -103,7 +104,7 @@ export default function CockpitPage({entityId}:{entityId?:string}) {
  const area=areas.find(a=>a.id===params.get('area'))?.id??areas[0].id;
  const tabs=<><Segmented variant="underline" label="HR Cockpit areas" value={area} onChange={id=>setParams({area:id})} segments={areas.map(a=>({id:a.id,label:a.label,badge:undefined}))}/><UatInboxLink/></>;
  if(area==='publishing')return <ContentCockpit tabs={tabs}/>;
- return <main className="hrms-workspace-page"><PageHero title="HR Cockpit" intro={area==='offers'?'Create offers and follow their approval and acceptance progress.':area==='offboarding'?'Coordinate employee exits, handover and final clearances.':'Coordinate onboarding and help new colleagues settle in.'} illustration="cockpit" tabs={tabs}/>{area==='offers'?<CreateOffer/>:area==='onboarding'?<OnboardingTracker actions={<AddEmployee buttonClassName="hrms-lk-add"/>}/>:<OffboardingPage/>}</main>;
+ return <main className="hrms-workspace-page"><PageHero title="HR Cockpit" intro={area==='offers'?'Create offers and follow their approval and acceptance progress.':area==='offboarding'?'Coordinate employee exits, handover and final clearances.':'Coordinate onboarding and help new colleagues settle in.'} illustration="cockpit" tabs={tabs}/>{area==='offers'?<CreateOffer/>:area==='onboarding'?<OnboardingTracker actions={<AddEmployee buttonClassName="hrms-lk-add" onCreated={setCreatedEmployee}/>} notice={createdEmployee && <div className="mb-4"><EmployeeCreatedNotice created={createdEmployee}/></div>}/>:<OffboardingPage/>}</main>;
 }
 
 function ContentCockpit({entityId,tabs}:{entityId?:string;tabs?:React.ReactNode}) {

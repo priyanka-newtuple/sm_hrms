@@ -180,6 +180,8 @@ def install():
     api.call('PUT', f"/roles/users/{user['id']}/role", json={'role_id': role['id']})
     from .install_offboarding import install as install_offboarding
     install_offboarding(api, os.environ['HRMS_APP_DATABASE_URL'])
+    from .install_asset_bulk import install as install_asset_bulk
+    install_asset_bulk(api)
     # Verify real authentication and tenant context before reporting installation success.
     runtime = PlatformClient(os.environ['PLATFORM_API_URL'], org, email, os.environ['HRMS_SERVICE_PASSWORD'])
     runtime.service_token()

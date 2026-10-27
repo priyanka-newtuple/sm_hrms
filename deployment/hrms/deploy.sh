@@ -64,6 +64,7 @@ fi
 # Read the email-mode payload and credentials from encrypted stdin, before any worker starts.
 "${compose[@]}" run --rm -T --no-deps platform-install python -m hrms_app.install_onboarding_bridge < /dev/null
 "${compose[@]}" run --rm -T --no-deps platform-install python -m hrms_app.install_onboarding_assets < /dev/null
+"${compose[@]}" run --rm -T --no-deps platform-install python -m hrms_app.install_asset_bulk < /dev/null
 # Apply the inbox off switch before live SMTP can be enabled, including on failed releases.
 "${compose[@]}" up -d --no-deps --wait --wait-timeout 180 hrms-app
 "${compose[@]}" run --rm -T --no-deps platform-install python -m hrms_app.configure_email < "$email_payload"

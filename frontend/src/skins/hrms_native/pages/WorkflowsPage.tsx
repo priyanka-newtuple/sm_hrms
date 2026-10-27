@@ -28,7 +28,7 @@ import { PerformanceDetail } from './PerformancePage';
 import { PageHero } from '../components/PageHero';
 import { EmployeeWorkflowActions } from '../workflows/EmployeeWorkflowActions';
 import type { EmployeeWork } from '../workspace/useWaitingActions';
-import AddEmployee from './AddEmployee';
+import AddEmployee, { EmployeeCreatedNotice, type CreatedEmployee } from './AddEmployee';
 import ExportDropdown from '@/pages/Pipeline/components/ExportDropdown';
 import { FilterSelect, SearchField, Segmented } from '../components/ListKit';
 import PipelineCalendarView from '@/pages/Pipeline/components/PipelineCalendarView';
@@ -74,6 +74,7 @@ const FIELDS: ColumnField[] = [
 const DEFAULT_FIELDS = ['employee_name', 'identifier', 'workflow', 'owner', 'next_action', 'state'];
 
 export default function WorkflowsPage() {
+  const [createdEmployee, setCreatedEmployee] = useState<CreatedEmployee | null>(null);
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [entityType, setEntityType] = useState('');
@@ -154,9 +155,10 @@ export default function WorkflowsPage() {
       </div>
         <div className="hrms-workflow-toolbar-actions">
           <div className="hrms-workflow-export"><ExportDropdown entities={list.filtered} schemaFields={FIELDS} workflowName={workflow?.name ?? 'Workflow'}/></div>
-          {workflow?.entity_type==='HRMS.Employee' && <AddEmployee/>}
+          {workflow?.entity_type==='HRMS.Employee' && <AddEmployee onCreated={setCreatedEmployee}/>}
         </div>
     </section>
+    {workflow?.entity_type==='HRMS.Employee' && <EmployeeCreatedNotice created={createdEmployee}/>}
     {workflow && (view==='board' ? <WorkflowSwimlanes rows={visibleRows} model={model} hideTerminal={hideTerminal} onOpen={setSelectedId}/> : view==='calendar' ? <PipelineCalendarView model={model} entities={list.filtered} onEntityClick={setSelectedId}/> : <Card className="hrms-surface hrms-workflow-directory">
       <PipelineListToolbar title="Workflow directory" filteredCount={list.totalCount} totalCount={workflowRows.length} entityType="workflow"
         search={list.search} onSearchChange={list.setSearch} stateFilter={list.stateFilter} onStateFilterChange={list.setStateFilter}

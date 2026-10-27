@@ -13,7 +13,7 @@
           "fields": [
             {
               "field": "asset_tag",
-              "required": true,
+              "required": false,
               "type": "string"
             },
             {

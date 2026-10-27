@@ -23,12 +23,19 @@ interface Employee {
   uses_google_sign_in: boolean;
 }
 interface Options { departments: string[]; designations: string[]; department_labels?: Record<string, string>; designation_labels?: Record<string, string>; roles: string[]; role_labels: Record<string, string> }
-interface CreatedEmployee {
+export interface CreatedEmployee {
   employee: Employee;
   account_status: string;
 }
 
-export default function AddEmployee({buttonClassName = ''}: {buttonClassName?: string} = {}) {
+export function EmployeeCreatedNotice({created}: {created: CreatedEmployee | null}) {
+  return created ? <div role="status" className="hrms-notice">
+    <strong>{created.employee.full_name} ({created.employee.employee_code}) was added.</strong>{' '}
+    {created.account_status === 'not_created' ? 'Registration saved. Continue the configured workflow from My Tasks.' : `Account status: ${created.account_status}. Review the account in Settings → Users.`}
+  </div> : null;
+}
+
+export default function AddEmployee({buttonClassName = '', onCreated}: {buttonClassName?: string; onCreated?: (created: CreatedEmployee | null) => void} = {}) {
   const { data: capabilities } = useHrmsCapabilities();
   const canCreate = capabilities?.capabilities.includes('employee:create') ?? false;
   const queryClient = useQueryClient();
@@ -63,6 +70,7 @@ export default function AddEmployee({buttonClassName = ''}: {buttonClassName?: s
     onSuccess: (result) => {
       setError(''); setShowForm(false); setKey(createRequestId());
       setCreated(result);
+      onCreated?.(result);
       void queryClient.invalidateQueries({ queryKey: ['hrms'] });
     },
     onError: (cause) => setError(getApiErrorMessage(cause)),
@@ -71,11 +79,8 @@ export default function AddEmployee({buttonClassName = ''}: {buttonClassName?: s
 
   if (!canCreate) return null;
   return <>
-    <button type="button" className={`hrms-primary-button ${buttonClassName}`} onClick={() => { setCreated(null); setShowForm(true); }}><Plus size={16} /> Add employee</button>
-    {created && <div role="status" className="hrms-notice">
-      <strong>{created.employee.full_name} ({created.employee.employee_code}) was added.</strong>{' '}
-      {created.account_status === 'not_created' ? 'Registration saved. Continue the configured workflow from My Tasks.' : `Account status: ${created.account_status}. Review the account in Settings → Users.`}
-    </div>}
+    <button type="button" className={`hrms-primary-button ${buttonClassName}`} onClick={() => { setCreated(null); onCreated?.(null); setShowForm(true); }}><Plus size={16} /> Add employee</button>
+    {!onCreated && <EmployeeCreatedNotice created={created}/>}
     <Sheet open={showForm} onOpenChange={setShowForm}>
       <SheetContent className="hrms-brand hrms-employee-form overflow-y-auto data-[side=right]:w-full data-[side=right]:sm:max-w-2xl">
         <SheetHeader><p className="hrms-eyebrow">GROW THE TEAM</p><SheetTitle>Add Employee</SheetTitle><p className="hrms-form-intro">Enter the employee details. New accounts require approval before sign-in.</p></SheetHeader>

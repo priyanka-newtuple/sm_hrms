@@ -229,3 +229,81 @@ def test_pending_batches_scope_and_permission(system):
     assert s.pending_batches(actor('admin','superadmin'))['items']==[{'idempotency_key':'saved-batch'}]
     assert calls[0][1]==('org','admin')
     assert 'organization_id=%s AND actor_id=%s' in calls[0][0]
+
+
+def test_bulk_create_and_replay(system):
+    from hrms_app.assets import AssetCreateBatchCommand
+    s, p, j = system
+    original = p.create_record
+    def create_native(kind, data, owner):
+        return original(kind, {**data, 'identifier': f'AST-{len(p.rows)}'}, owner)
+    p.create_record = create_native
+    cmd = AssetCreateBatchCommand(data={'asset_name': 'Monitor', 'asset_category':'Monitor', 'asset_condition':'Good'}, units=[{}, {}, {}], idempotency_key='bulk-create-1')
+    result = s.create_many(actor('admin', 'superadmin'), cmd)
+    assert result['complete'] and len(result['items']) == 3
+    assert len({r['identifier'] for r in result['items']}) == 3
+    assert s.create_many(actor('admin', 'superadmin'), cmd) == result
+    assert len(p.records(ASSET, [])) == 3
+    assert len(j.audits) == 3
+
+
+def test_bulk_duplicate_validated_before_any_creation(system):
+    from hrms_app.assets import AssetCreateBatchCommand
+    s, p, _ = system
+    cmd = AssetCreateBatchCommand(data={'asset_name': 'Monitor', 'asset_category':'Monitor', 'asset_condition':'Good'}, units=[{'serial_number':'ABC'}, {'serial_number':' abc '}], idempotency_key='bulk-duplicate')
+    result = s.create_many(actor('admin', 'superadmin'), cmd)
+    assert result['started'] is False
+    assert p.records(ASSET, []) == []
+
+
+def test_bulk_retry_completed_children_not_duplicated(system):
+    from hrms_app.assets import AssetCreateBatchCommand
+    s, p, j = system
+    original = p.create_record
+    attempts = []
+    def failing(kind, data, owner):
+        attempts.append(data)
+        if len(attempts) == 2:
+            raise AppError(422, 'Temporary rejection')
+        return original(kind, data, owner)
+    p.create_record = failing
+    cmd = AssetCreateBatchCommand(data={'asset_name':'Monitor', 'asset_category':'Monitor', 'asset_condition':'Good'}, units=[{},{}], idempotency_key='bulk-retry-1')
+    who = actor('admin','superadmin')
+    result = s.create_many(who, cmd)
+    assert not result['complete']
+    assert len(p.records(ASSET, [])) == 1
+    assert s.create_many(who, cmd)['complete']
+    assert len(p.records(ASSET, [])) == 2
+    assert len(j.audits) == 2
+
+
+def test_bulk_forbidden_and_quantity_bounds(system):
+    from hrms_app.assets import AssetCreateBatchCommand
+    from pydantic import ValidationError
+    s, p, _ = system
+    for units in ([], [{}]*51):
+        with pytest.raises(ValidationError):
+            AssetCreateBatchCommand(data={},units=units,idempotency_key='bulk-bounds')
+    cmd = AssetCreateBatchCommand(data={'asset_name':'Monitor', 'asset_category':'Monitor', 'asset_condition':'Good'}, units=[{}], idempotency_key='bulk-forbidden')
+    with pytest.raises(AppError):
+        s.create_many(actor('one','hrms_employee'),cmd)
+    assert p.records(ASSET, []) == []
+
+
+def test_bulk_recovers_lost_create_response(system):
+    from hrms_app.assets import AssetCreateBatchCommand
+    s,p,j=system
+    original=p.create_record
+    attempts=[]
+    def lost(kind,data,owner):
+        result=original(kind,data,owner)
+        attempts.append(result)
+        if len(attempts)==1:raise AppError(502,'Response lost')
+        return result
+    p.create_record=lost
+    cmd=AssetCreateBatchCommand(data={'asset_name':'Monitor','asset_category':'Monitor','asset_condition':'Good'},units=[{},{}],idempotency_key='bulk-lost-response')
+    who=actor('admin','superadmin')
+    assert not s.create_many(who,cmd)['complete']
+    assert s.create_many(who,cmd)['complete']
+    assert len(p.records(ASSET,[]))==2
+    assert len(attempts)==2
