@@ -56,7 +56,7 @@ jobs:
           [[ "$IMAGE_TAG" =~ ^[a-f0-9]{40}$ ]]
           export HRMS_RECOVER_ASSET=${4:-false}
           export HRMS_ARCHIVE_EQUIVALENT_DRAFT=${3:-false}
-          if [[ "$HRMS_ARCHIVE_EQUIVALENT_DRAFT" == true ]]; then
+          if [[ "$HRMS_ARCHIVE_EQUIVALENT_DRAFT" == true || "$HRMS_RECOVER_ASSET" == true ]]; then
             exec 7>"$base/deploy.lock"; flock -n 7
           fi
           if [[ "${2:-false}" == true ]]; then
@@ -143,7 +143,7 @@ jobs:
                   raw,identity=native.read(target)
                   if raw!=resolve(target['payload'],identities):
                       try:
-                          native.write(target,resolve(target['payload'],identities),identity,lambda _:None)
+                          api.call('PUT','/entity-types/HRMS.Asset',json=resolve(target['payload'],identities))
                       except AppError as exc:
                           print(json.dumps({'asset_update_status':exc.status,'asset_update_detail':exc.detail}),flush=True)
                           raise SystemExit(2)
