@@ -171,6 +171,12 @@ def transition_employee(
     if item is None or trigger not in {a["trigger"] for a in item["actions"]}:
         raise AppError(403, "This employee workflow action is not available to you")
     selected = next(a for a in item["actions"] if a["trigger"] == trigger)
+    from .onboarding_account_link import approval_step
+    approval_workflow = platform.request('GET', '/workflow-state-machines/' + workflow_id, token=actor.token)
+    if approval_step(approval_workflow, item['current_state']):
+        record = platform.request('GET', '/entity-records/' + entity_id, token=actor.token)
+        if not record['data'].get('platform_user_id'):
+            raise AppError(409, 'The employee account is not linked yet. An administrator must review and link any existing account before continuing.')
     if any(f["field"] == "hr_verification_notes" and f.get("required")
            for f in selected.get("required_fields", [])):
         form = employee_form(platform, actor, entity_id, workflow_id)
@@ -301,6 +307,9 @@ def employee_form(platform, actor, entity_id, workflow_id):
     )
     form["workflow_id"] = workflow_id
     form["entity_id"] = entity_id
+    from .onboarding_account_link import approval_step, candidate
+    if approval_step(workflow, enrollment['current_state']):
+        form['existing_account'] = candidate(platform, actor, record)
     return form
 
 

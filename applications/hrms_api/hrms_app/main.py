@@ -57,6 +57,11 @@ class EmployeeFormSave(BaseModel):
     values: dict = Field(default_factory=dict)
 
 
+class EmployeeAccountLink(BaseModel):
+    workflow_id: UUID
+    user_id: UUID
+
+
 class Decision(BaseModel):
     trigger: str
     idempotency_key: str = Field(min_length=8, max_length=128)
@@ -260,6 +265,11 @@ def create_app(platform=None, journal=None):
     def employee_work_form(entity_id: UUID, workflow_id: UUID, current=Depends(actor)):
         from .employee_work import employee_form
         return employee_form(platform, current, str(entity_id), str(workflow_id))
+
+    @app.post('/v1/api/hrms/employee-work/{entity_id}/existing-account')
+    def employee_link_account(entity_id: UUID, payload: EmployeeAccountLink, current=Depends(actor)):
+        from .onboarding_account_link import link
+        return link(service, current, str(entity_id), str(payload.workflow_id), str(payload.user_id))
 
     @app.put('/v1/api/hrms/employee-work/{entity_id}/form')
     def employee_work_save(entity_id: UUID, payload: EmployeeFormSave, current=Depends(actor)):

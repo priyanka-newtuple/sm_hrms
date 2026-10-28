@@ -199,18 +199,19 @@ def reconcile_employee(service, workflow, enrollment, tags):
             if identity["status"] != "active":
                 return
             # Native approval can grant Viewer; replace it with the restricted onboarding role.
-            if not op.progress.get("restricted_role_set"):
+            existing_account = op.progress.get("existing_account_id") == identity['id']
+            if not existing_account and not op.progress.get("restricted_role_set"):
                 p.call(
                     "PUT",
                     f"/roles/users/{identity['id']}/role",
                     json={"role_id": roles[ONBOARDING_ROLE]["id"]},
                 )
                 op.checkpoint(restricted_role_set=True)
-            if not op.progress.get("invitation_requested"):
+            if not existing_account and not op.progress.get("invitation_requested"):
                 op.checkpoint(invitation_requested=True)
                 p.request("POST", "/auth/forgot-password", json={"email": email})
                 op.checkpoint(invitation_sent=True)
-            if not op.progress.get("invitation_sent"):
+            if not existing_account and not op.progress.get("invitation_sent"):
                 raise AppError(
                     409, "Invitation outcome needs reconciliation before proceeding"
                 )
@@ -235,6 +236,8 @@ def reconcile_employee(service, workflow, enrollment, tags):
                 },
             )
         elif COMPLETE_TAG in tags and identity and identity["status"] == "active":
+            if op.progress.get('existing_account_id') == identity['id']:
+                return  # Explicitly linked existing users retain their native role memberships.
             intended = roles.get(data.get("hrms_role"))
             if not intended or intended["name"] in {
                 ONBOARDING_ROLE,

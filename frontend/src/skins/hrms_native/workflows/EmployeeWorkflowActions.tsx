@@ -8,7 +8,7 @@ import { ConfiguredInputs, NativeFormFields, type Field } from '../forms/Configu
 import { createRequestId } from '../requestId';
 import type { EmployeeWork } from '../workspace/useWaitingActions';
 
-type Form = {feedback_status?:'requested'|'submitted'|'resolved'|null;previous_feedback?:string|null;asset_section?:boolean;name:string; fields:Field[]; previous_fields:Field[]; values:Record<string,unknown>; current_state:string; verifier_feedback?:string|null};
+type Form = {existing_account?:{user_id:string;email:string;active:boolean}|null;feedback_status?:'requested'|'submitted'|'resolved'|null;previous_feedback?:string|null;asset_section?:boolean;name:string; fields:Field[]; previous_fields:Field[]; values:Record<string,unknown>; current_state:string; verifier_feedback?:string|null};
 export function EmployeeWorkflowActions({item,readOnly=false,open:controlledOpen,onOpenChange}:{
   item:EmployeeWork;readOnly?:boolean;open?:boolean;onOpenChange?:(open:boolean)=>void;
 }) {
@@ -42,6 +42,9 @@ export function EmployeeWorkflowActions({item,readOnly=false,open:controlledOpen
     if(trigger) await request(`/hrms/employee-work/${item.entity_id}/actions`,{
       method:'POST',body:JSON.stringify({workflow_id:item.workflow_id,trigger,idempotency_key:key})});
   },onSuccess:()=>{setValues(null);setKey(createRequestId());setOpen(false);void client.invalidateQueries({queryKey:['hrms']});},onError:()=>{void client.invalidateQueries({queryKey:['hrms']});}});
+  const linkAccount=useMutation({mutationFn:()=>request(`/hrms/employee-work/${item.entity_id}/existing-account`,{
+    method:'POST',body:JSON.stringify({workflow_id:item.workflow_id,user_id:form.data?.existing_account?.user_id})}),
+    onSuccess:()=>{setValues(null);void client.invalidateQueries({queryKey:['hrms']});}});
   return <>{controlledOpen===undefined&&<button type="button" className="hrms-outline-button" onClick={()=>setOpen(true)}>{readOnly?'View details':'Open task'}</button>}
     <Sheet open={open} onOpenChange={setOpen}><SheetContent className="hrms-brand hrms-employee-form overflow-y-auto data-[side=right]:w-full data-[side=right]:sm:max-w-3xl">
       <SheetHeader><SheetTitle>{item.title}</SheetTitle><p>{form.data?.current_state??item.current_state}</p></SheetHeader>
@@ -56,8 +59,15 @@ export function EmployeeWorkflowActions({item,readOnly=false,open:controlledOpen
         {form.data.previous_feedback&&<details><summary>Previous feedback · Resolved by HR</summary><p className="whitespace-pre-wrap break-words mt-2">{form.data.previous_feedback}</p><p className="hrms-muted mt-2">HR approved the details and moved onboarding forward. No correction action is pending.</p></details>}
         {!!form.data.previous_fields.length&&<details><summary>Previously entered details</summary><div className="grid gap-4 sm:grid-cols-2 mt-4"><NativeFormFields fields={form.data.previous_fields}><ConfiguredInputs entityId={item.entity_id} values={form.data.values} onChange={()=>{}}/></NativeFormFields></div></details>}
         {form.data.asset_section&&<OnboardingAssets employeeId={item.entity_id} workflowId={item.workflow_id} employeeName={item.title} readOnly={readOnly||!item.actions.length}/>}
+        {form.data.existing_account&&<section className="rounded-xl border border-blue-200 bg-blue-50 p-4" aria-label="Existing account">
+          <h3 className="font-semibold">An account already exists</h3>
+          <p>{form.data.existing_account.email} {form.data.existing_account.active?'is active but is not linked to this employee.':'is not active. Review its status in Settings → Users before linking.'}</p>
+          <p>Confirm that this is the employee’s account. Linking preserves its current access and password. Onboarding will continue after the account check.</p>
+          {!readOnly&&form.data.existing_account.active&&<button type="button" className="hrms-primary-button mt-3" disabled={linkAccount.isPending||linkAccount.isSuccess} onClick={()=>linkAccount.mutate()}>{linkAccount.isPending?'Linking…':'Confirm and link existing account'}</button>}
+          {linkAccount.isError&&<p role="alert">{getApiErrorMessage(linkAccount.error)}</p>}
+        </section>}
         <h3>{form.data.name}</h3><div className="grid gap-4 sm:grid-cols-2"><NativeFormFields fields={(readOnly?form.data.fields.map(f=>({...f,read_only:true})):form.data.fields).filter(f=>!form.data?.asset_section||f.field!=='issued_asset_references')}><ConfiguredInputs entityId={item.entity_id} values={values??form.data.values} onChange={v=>{setValues(v);setKey(createRequestId());}}/></NativeFormFields></div>
-        {!readOnly&&work.isSuccess&&current&&<div className="flex flex-wrap gap-3"><button className="hrms-outline-button" disabled={action.isPending} type="submit">Save details</button>
+        {!readOnly&&!form.data.existing_account&&work.isSuccess&&current&&<div className="flex flex-wrap gap-3"><button className="hrms-outline-button" disabled={action.isPending} type="submit">Save details</button>
         {current.actions.map(step=><button key={step.trigger} type="button" className="hrms-primary-button" disabled={action.isPending} onClick={()=>action.mutate(step.trigger)}>{step.label||step.to_state}</button>)}</div>}
       </form>}
       {action.isError&&<p role="alert" className="text-red-700">{getApiErrorMessage(action.error)}</p>}
