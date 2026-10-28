@@ -1,7 +1,7 @@
 import OrganizationSettings from './OrganizationSettings';
 import { Building2 } from 'lucide-react';
 import { lazy, Suspense, type ReactNode } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Navigate, useSearchParams } from 'react-router-dom';
 import { useHrmsCapabilities } from '../capabilities';
 import { usePermissions } from '../../../core/hooks/usePermissions';
 import SettingsSidebar from '../../../pages/settings/components/SettingsSidebar';
@@ -14,7 +14,8 @@ import { PageHero } from '../components/PageHero';
 export function ConfigurationGuard({children}: {children: ReactNode}) {
   const caps = useHrmsCapabilities();
   if (caps.isLoading) return <p className="p-6">Loading settings permissions…</p>;
-  if (!caps.data?.capabilities.includes('platform:configure')) return <p role="alert" className="p-6">Settings are available only to Super Admin.</p>;
+  if (caps.isError) return <div role="alert" className="p-6">We couldn’t check your access. <button type="button" className="hrms-outline-button" onClick={() => void caps.refetch()}>Try again</button></div>;
+  if (!caps.data?.capabilities.includes('platform:configure')) return <Navigate to="/hrms/my-work" replace />;
   return <>{children}</>;
 }
 
