@@ -2,6 +2,10 @@ name: HRMS configuration status
 on:
   workflow_dispatch:
     inputs:
+      archive_accidental_employee:
+        description: Archive only the verified accidental Shilpa EMP-0008 registration
+        type: boolean
+        default: false
       reload_web:
         description: Validate and reload only the HRMS web proxy after an application restart
         type: boolean
@@ -48,6 +52,7 @@ jobs:
           RESUME_WORKER: ${{ inputs.resume_worker }}
           ARCHIVE_EQUIVALENT_DRAFT: ${{ inputs.archive_equivalent_draft }}
           RELOAD_WEB: ${{ inputs.reload_web }}
+          ARCHIVE_ACCIDENTAL_EMPLOYEE: ${{ inputs.archive_accidental_employee }}
         run: |
           set -euo pipefail
           [[ "$HOST" =~ ^[a-zA-Z0-9.-]+$ && "$USER" =~ ^[a-z_][a-z0-9_-]*$ && "$PORT" =~ ^[0-9]+$ ]]
@@ -57,13 +62,41 @@ jobs:
           chmod 600 ~/.ssh/hrms ~/.ssh/known_hosts
           trap 'rm -f ~/.ssh/hrms' EXIT
           [[ "$RESTART_API" == true || "$RESTART_API" == false ]]
-          ssh -i ~/.ssh/hrms -o BatchMode=yes -o StrictHostKeyChecking=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=6 -p "$PORT" "$USER@$HOST" "bash -s -- '$RESTART_API' '$RESUME_WORKER' '$ARCHIVE_EQUIVALENT_DRAFT' '$RECOVER_ASSET' '$RESOLVE_ASSET_DRAFT' '$RELOAD_WEB'" <<'REMOTE' > status.txt
+          ssh -i ~/.ssh/hrms -o BatchMode=yes -o StrictHostKeyChecking=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=6 -p "$PORT" "$USER@$HOST" "bash -s -- '$RESTART_API' '$RESUME_WORKER' '$ARCHIVE_EQUIVALENT_DRAFT' '$RECOVER_ASSET' '$RESOLVE_ASSET_DRAFT' '$RELOAD_WEB' '$ARCHIVE_ACCIDENTAL_EMPLOYEE'" <<'REMOTE' > status.txt
           set -euo pipefail
           base=/opt/newtuple-hrms
           release=$(readlink -f "$base/current")
           [[ "$release" == "$base/releases/"* ]]
           export IMAGE_TAG=${release##*/}
           [[ "$IMAGE_TAG" =~ ^[a-f0-9]{40}$ ]]
+          if [[ "${7:-false}" == true ]]; then
+            exec 9>"$base/deploy.lock"; flock -n 9
+            docker compose --project-name newtuple-hrms-production --env-file "$base/production.env" -f "$release/compose.yml" run --rm -T --no-deps platform-install python - <<'PY'
+          import os,json
+          from hrms_app.platform import PlatformClient
+          api=PlatformClient(os.environ['PLATFORM_API_URL'],os.environ['HRMS_ORGANIZATION_ID'],os.environ['HRMS_INSTALL_EMAIL'],os.environ['HRMS_INSTALL_PASSWORD'])
+          target='235f6d86-de4a-4109-8a5c-01382bff0db1'
+          keep='c34e46f5-ee39-4c57-a7cf-8bf0c4ecc67c'
+          record=api.record(target)
+          original=api.record(keep)
+          assert record['data']['employee_code']=='EMP-0008'
+          assert record['data']['first_name']=='Shilpa'
+          assert not record['data'].get('work_email') and not record['data'].get('platform_user_id')
+          assert original['data']['employee_code']=='EMP-0004' and original['data'].get('platform_user_id')
+          page=api.call('GET','/workflow-enrollments',params={'entity_type_name':'HRMS.Employee','limit':200})
+          assert not page['has_more']
+          assert [r['current_state'] for r in page['items'] if r['entity_id']==target]==['Employee Registration']
+          assert [r['current_state'] for r in page['items'] if r['entity_id']==keep]==['Onboarding Completed']
+          archived=api.call('DELETE','/entity-records/'+target)
+          assert archived.get('archived_at'), 'Archive was not confirmed'
+          remaining=api.records('HRMS.Employee',['employee_code'])
+          assert not any(r['entity_id']==target for r in remaining)
+          assert api.record(keep)['data']==original['data'], 'Completed record changed'
+          print(json.dumps({'archived':'EMP-0008','preserved':'EMP-0004','completed_record_unchanged':True}))
+          api.close()
+          PY
+            exit 0
+          fi
           if [[ "${6:-false}" == true ]]; then
             exec 6>"$base/deploy.lock"; flock -n 6
             web=$(docker ps -q --filter label=com.docker.compose.project=newtuple-hrms-production --filter label=com.docker.compose.service=platform-web)
