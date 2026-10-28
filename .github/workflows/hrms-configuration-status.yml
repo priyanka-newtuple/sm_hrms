@@ -2,6 +2,10 @@ name: HRMS configuration status
 on:
   workflow_dispatch:
     inputs:
+      reset_sanjay:
+        description: Delete only the explicitly authorized Sanjay UAT account and employee after backups
+        type: boolean
+        default: false
       resolve_asset_draft:
         description: Archive an Asset draft only if identical to the published workflow
         type: boolean
@@ -43,6 +47,7 @@ jobs:
           RESTART_API: ${{ inputs.restart_api }}
           RESUME_WORKER: ${{ inputs.resume_worker }}
           ARCHIVE_EQUIVALENT_DRAFT: ${{ inputs.archive_equivalent_draft }}
+          RESET_SANJAY: ${{ inputs.reset_sanjay }}
         run: |
           set -euo pipefail
           [[ "$HOST" =~ ^[a-zA-Z0-9.-]+$ && "$USER" =~ ^[a-z_][a-z0-9_-]*$ && "$PORT" =~ ^[0-9]+$ ]]
@@ -52,13 +57,78 @@ jobs:
           chmod 600 ~/.ssh/hrms ~/.ssh/known_hosts
           trap 'rm -f ~/.ssh/hrms' EXIT
           [[ "$RESTART_API" == true || "$RESTART_API" == false ]]
-          ssh -i ~/.ssh/hrms -o BatchMode=yes -o StrictHostKeyChecking=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=6 -p "$PORT" "$USER@$HOST" "bash -s -- '$RESTART_API' '$RESUME_WORKER' '$ARCHIVE_EQUIVALENT_DRAFT' '$RECOVER_ASSET' '$RESOLVE_ASSET_DRAFT'" <<'REMOTE' > status.txt
+          ssh -i ~/.ssh/hrms -o BatchMode=yes -o StrictHostKeyChecking=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=6 -p "$PORT" "$USER@$HOST" "bash -s -- '$RESTART_API' '$RESUME_WORKER' '$ARCHIVE_EQUIVALENT_DRAFT' '$RECOVER_ASSET' '$RESOLVE_ASSET_DRAFT' '$RESET_SANJAY'" <<'REMOTE' > status.txt
           set -euo pipefail
           base=/opt/newtuple-hrms
           release=$(readlink -f "$base/current")
           [[ "$release" == "$base/releases/"* ]]
           export IMAGE_TAG=${release##*/}
           [[ "$IMAGE_TAG" =~ ^[a-f0-9]{40}$ ]]
+          if [[ "${6:-false}" == true ]]; then
+            exec 6>"$base/deploy.lock"; flock -n 6
+            umask 077
+            backup="$base/backups/sanjay-reset-$(date -u +%Y%m%dT%H%M%SZ)"
+            mkdir -p "$backup"
+            db=$(docker ps -q --filter label=com.docker.compose.project=newtuple-hrms-production --filter label=com.docker.compose.service=platform-db)
+            appdb=$(docker ps -q --filter label=com.docker.compose.project=newtuple-hrms-production --filter label=com.docker.compose.service=hrms-app-db)
+            [[ "$db" =~ ^[a-f0-9]+$ && "$appdb" =~ ^[a-f0-9]+$ ]]
+            running=()
+            for service in hrms-app platform-worker platform-api; do
+              container=$(docker ps -q --filter label=com.docker.compose.project=newtuple-hrms-production --filter label=com.docker.compose.service="$service")
+              [[ "$container" =~ ^[a-f0-9]+$ ]]
+              running+=("$container")
+            done
+            trap 'docker start "${running[@]}" >/dev/null' EXIT
+            docker stop "${running[@]}" >/dev/null
+            docker exec "$db" sh -c 'pg_dump -Fc -U "$POSTGRES_USER" -d "$POSTGRES_DB"' > "$backup/platform.dump"
+            docker exec "$appdb" sh -c 'pg_dump -Fc -U "$POSTGRES_USER" -d "$POSTGRES_DB"' > "$backup/application.dump"
+            test -s "$backup/platform.dump" && test -s "$backup/application.dump"
+            docker exec -i "$db" pg_restore --list < "$backup/platform.dump" > /dev/null
+            docker exec -i "$appdb" pg_restore --list < "$backup/application.dump" > /dev/null
+            sha256sum "$backup/"*.dump > "$backup/SHA256SUMS"
+            echo "Recovery backups verified: $backup"
+            docker exec -i "$db" sh -c 'psql -X -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' <<'RESET_SQL'
+          BEGIN;
+          SET LOCAL lock_timeout='10s';
+          DO $$ DECLARE t record; n bigint; uid text := 'ec2c7c09-b574-4912-90ee-8cdda09ac5c5'; eid text := 'f75b3101-f37e-4b7a-ae9e-f8467ab5aa76'; org text := '8845f847-0846-4347-b53a-59b4f928e5bb'; BEGIN
+            IF (SELECT count(*) FROM modular_backend.users WHERE id=uid AND organization_id=org AND lower(email)='sanjay@newtuple.com' AND full_name='Sanjay Sunar')<>1 THEN RAISE EXCEPTION 'Target account changed; aborting'; END IF;
+            IF (SELECT count(*) FROM modular_backend_runtime.entities WHERE entity_id=eid AND organization_id=org AND lower(data->>'work_email')='sanjay@newtuple.com')<>1 THEN RAISE EXCEPTION 'Target employee changed; aborting'; END IF;
+            FOR t IN SELECT table_schema,table_name FROM information_schema.tables WHERE table_type='BASE TABLE' AND table_schema NOT IN ('information_schema','pg_catalog') LOOP
+              EXECUTE format('SELECT count(*) FROM %I.%I x WHERE to_jsonb(x)::text LIKE ANY($1)',t.table_schema,t.table_name) INTO n USING ARRAY['%'||uid||'%','%'||eid||'%','%sanjay@newtuple.com%'];
+              IF n>0 AND t.table_schema||'.'||t.table_name <> ALL(ARRAY['modular_backend.users','modular_backend.user_roles','modular_backend.user_organizations','modular_backend.refresh_tokens','modular_backend.action_runs','modular_backend_audit.audit_events','modular_backend_runtime.entities','modular_backend_runtime.entity_state']) THEN RAISE EXCEPTION 'Unreviewed dependency %.%: %',t.table_schema,t.table_name,n; END IF;
+            END LOOP;
+            IF EXISTS(SELECT 1 FROM modular_backend_runtime.entities x WHERE entity_id<>eid AND to_jsonb(x)::text LIKE ANY(ARRAY['%'||uid||'%','%'||eid||'%','%sanjay@newtuple.com%'])) THEN RAISE EXCEPTION 'Another business record references Sanjay'; END IF;
+            IF EXISTS(SELECT 1 FROM modular_backend.user_organizations WHERE user_id=uid AND organization_id<>org) THEN RAISE EXCEPTION 'Account belongs to another tenant too'; END IF;
+            DELETE FROM modular_backend.action_runs WHERE organization_id=org AND entity_id=eid;
+            DELETE FROM modular_backend_runtime.entity_state WHERE organization_id=org AND entity_id=eid;
+            DELETE FROM modular_backend_runtime.entities WHERE organization_id=org AND entity_id=eid;
+            DELETE FROM modular_backend_audit.audit_events x WHERE organization_id=org AND (entity_id=eid OR user_id=uid OR actor_id=uid OR to_jsonb(x)::text LIKE '%sanjay@newtuple.com%');
+            DELETE FROM modular_backend.users WHERE organization_id=org AND id=uid AND lower(email)='sanjay@newtuple.com';
+            GET DIAGNOSTICS n=ROW_COUNT;
+            IF n<>1 THEN RAISE EXCEPTION 'Expected exactly one deleted account'; END IF;
+            IF EXISTS(SELECT 1 FROM modular_backend.users WHERE lower(email)='sanjay@newtuple.com') OR EXISTS(SELECT 1 FROM modular_backend_runtime.entities WHERE entity_id=eid) THEN RAISE EXCEPTION 'Reset verification failed'; END IF;
+          END $$;
+          COMMIT;
+          RESET_SQL
+            docker exec -i "$appdb" sh -c 'psql -X -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' <<'RESET_APP_SQL'
+          BEGIN;
+          DELETE FROM operations x WHERE organization_id='8845f847-0846-4347-b53a-59b4f928e5bb' AND to_jsonb(x)::text LIKE ANY(ARRAY['%f75b3101-f37e-4b7a-ae9e-f8467ab5aa76%','%ec2c7c09-b574-4912-90ee-8cdda09ac5c5%']);
+          DELETE FROM action_audit WHERE organization_id='8845f847-0846-4347-b53a-59b4f928e5bb' AND target_id='f75b3101-f37e-4b7a-ae9e-f8467ab5aa76';
+          COMMIT;
+          RESET_APP_SQL
+            docker start "${running[@]}" >/dev/null
+            trap - EXIT
+            for container in "${running[@]}"; do
+              for attempt in $(seq 1 30); do
+                state=$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$container")
+                [[ "$state" == healthy || "$state" == running ]] && break
+                sleep 2
+              done
+              [[ "$state" == healthy || "$state" == running ]]
+            done
+            echo 'Sanjay account and employee reset completed; application services healthy.'
+            exit 0
+          fi
           export HRMS_RESOLVE_ASSET_DRAFT=${5:-false}
           export HRMS_RECOVER_ASSET=${4:-false}
           export HRMS_ARCHIVE_EQUIVALENT_DRAFT=${3:-false}
