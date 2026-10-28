@@ -279,6 +279,10 @@ jobs:
               terminal = any(s['name'] == row['current_state'] and s.get('is_terminal') for s in w['definition'].get('states', []))
               pinned_required += int(not terminal and any(asset_requirements(w)))
           print(json.dumps({'enrollments_with_required_asset_version':pinned_required,'has_more':page['has_more']}), flush=True)
+          for employee in api.records('HRMS.Employee', ['first_name', 'employee_code', 'work_email', 'platform_user_id']):
+              data = employee.get('data', {})
+              if str(data.get('first_name', '')).strip().lower() == 'shilpa':
+                  print(json.dumps({'shilpa_enrollment_diagnosis': {'employee_id': employee['entity_id'], 'employee_code': data.get('employee_code'), 'work_email': data.get('work_email'), 'linked_user_id': data.get('platform_user_id'), 'enrollments': [{'state':r['current_state'],'workflow_id':r['workflow_id']} for r in page['items'] if r['entity_id']==employee['entity_id']]}}), flush=True)
           sanjay_users = [u for u in api.users() if u.get('email', '').strip().lower() == 'sanjay@newtuple.com']
           for employee in api.records('HRMS.Employee', ['first_name', 'work_email', 'platform_user_id', 'account_approved']):
               data = employee.get('data', {})
