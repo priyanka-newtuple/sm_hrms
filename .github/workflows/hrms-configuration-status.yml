@@ -78,6 +78,20 @@ jobs:
           docker events --since 3h --until "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --filter container="$api" --filter event=oom --format '{{.Time}} {{.Action}}' < /dev/null
           docker exec "$api" sh -c 'if [ -r /sys/fs/cgroup/memory.events ]; then cat /sys/fs/cgroup/memory.events; fi' < /dev/null
           database=$(docker ps -q --filter label=com.docker.compose.project=newtuple-hrms-production --filter label=com.docker.compose.service=platform-db)
+          docker exec -i "$database" sh -c 'psql -X -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' <<'SQL'
+          BEGIN READ ONLY;
+          SELECT json_build_object('sanjay_user',id,'organization_id',organization_id,'auth_type',auth_type) FROM modular_backend.users WHERE lower(email)='sanjay@newtuple.com';
+          DO $$ DECLARE t record; n bigint; cols text; BEGIN
+          FOR t IN SELECT table_schema,table_name FROM information_schema.tables WHERE table_type='BASE TABLE' AND table_schema NOT IN ('information_schema','pg_catalog') LOOP
+            EXECUTE format('SELECT count(*) FROM %I.%I x WHERE to_jsonb(x)::text LIKE ANY($1)',t.table_schema,t.table_name) INTO n USING ARRAY['%ec2c7c09-b574-4912-90ee-8cdda09ac5c5%','%f75b3101-f37e-4b7a-ae9e-f8467ab5aa76%','%sanjay@newtuple.com%'];
+            IF n>0 THEN
+              SELECT string_agg(column_name,',') INTO cols FROM information_schema.columns WHERE table_schema=t.table_schema AND table_name=t.table_name;
+              RAISE NOTICE 'RESET_REVIEW %.% count=% columns=%',t.table_schema,t.table_name,n,cols;
+            END IF;
+          END LOOP; END $$;
+          SELECT conrelid::regclass AS dependent,pg_get_constraintdef(oid) FROM pg_constraint WHERE contype='f' AND confrelid='modular_backend.users'::regclass;
+          ROLLBACK;
+          SQL
           docker exec "$database" sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT state, wait_event_type, wait_event, count(*), max(now()-xact_start) AS oldest_transaction FROM pg_stat_activity WHERE datname=current_database() GROUP BY state,wait_event_type,wait_event"' < /dev/null
           if [[ "$1" == true ]]; then
             exec 9>"$base/deploy.lock"; flock -n 9
