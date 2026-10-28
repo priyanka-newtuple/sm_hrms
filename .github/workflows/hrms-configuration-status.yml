@@ -2,6 +2,10 @@ name: HRMS configuration status
 on:
   workflow_dispatch:
     inputs:
+      reload_web:
+        description: Validate and reload only the HRMS web proxy after an application restart
+        type: boolean
+        default: false
       resolve_asset_draft:
         description: Archive an Asset draft only if identical to the published workflow
         type: boolean
@@ -43,6 +47,7 @@ jobs:
           RESTART_API: ${{ inputs.restart_api }}
           RESUME_WORKER: ${{ inputs.resume_worker }}
           ARCHIVE_EQUIVALENT_DRAFT: ${{ inputs.archive_equivalent_draft }}
+          RELOAD_WEB: ${{ inputs.reload_web }}
         run: |
           set -euo pipefail
           [[ "$HOST" =~ ^[a-zA-Z0-9.-]+$ && "$USER" =~ ^[a-z_][a-z0-9_-]*$ && "$PORT" =~ ^[0-9]+$ ]]
@@ -52,13 +57,31 @@ jobs:
           chmod 600 ~/.ssh/hrms ~/.ssh/known_hosts
           trap 'rm -f ~/.ssh/hrms' EXIT
           [[ "$RESTART_API" == true || "$RESTART_API" == false ]]
-          ssh -i ~/.ssh/hrms -o BatchMode=yes -o StrictHostKeyChecking=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=6 -p "$PORT" "$USER@$HOST" "bash -s -- '$RESTART_API' '$RESUME_WORKER' '$ARCHIVE_EQUIVALENT_DRAFT' '$RECOVER_ASSET' '$RESOLVE_ASSET_DRAFT'" <<'REMOTE' > status.txt
+          ssh -i ~/.ssh/hrms -o BatchMode=yes -o StrictHostKeyChecking=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=6 -p "$PORT" "$USER@$HOST" "bash -s -- '$RESTART_API' '$RESUME_WORKER' '$ARCHIVE_EQUIVALENT_DRAFT' '$RECOVER_ASSET' '$RESOLVE_ASSET_DRAFT' '$RELOAD_WEB'" <<'REMOTE' > status.txt
           set -euo pipefail
           base=/opt/newtuple-hrms
           release=$(readlink -f "$base/current")
           [[ "$release" == "$base/releases/"* ]]
           export IMAGE_TAG=${release##*/}
           [[ "$IMAGE_TAG" =~ ^[a-f0-9]{40}$ ]]
+          if [[ "${6:-false}" == true ]]; then
+            exec 6>"$base/deploy.lock"; flock -n 6
+            web=$(docker ps -q --filter label=com.docker.compose.project=newtuple-hrms-production --filter label=com.docker.compose.service=platform-web)
+            application=$(docker ps -q --filter label=com.docker.compose.project=newtuple-hrms-production --filter label=com.docker.compose.service=hrms-app)
+            [[ "$web" =~ ^[a-f0-9]+$ && "$application" =~ ^[a-f0-9]+$ ]]
+            test "$(docker inspect --format '{{.State.Health.Status}}' "$application")" = healthy
+            docker exec "$web" getent hosts hrms-app
+            docker logs --since 30m --tail 500 "$web" 2>&1 | python3 -c 'import sys,re; s=sys.stdin.read(); print("proxy_connection_refused_count:",s.count("connect() failed")); print("upstream_addresses:",sorted(set(re.findall(r"upstream: .http://([0-9.]+):8000",s))))'
+            docker exec "$web" nginx -t
+            docker exec "$web" nginx -s reload
+            for attempt in $(seq 1 10); do
+              if docker exec "$web" wget -q -O /dev/null http://127.0.0.1/health; then break; fi
+              sleep 1
+            done
+            docker exec "$web" wget -q -O /dev/null http://127.0.0.1/health
+            echo 'HRMS web proxy reload and end-to-end health check passed.'
+            exit 0
+          fi
           export HRMS_RESOLVE_ASSET_DRAFT=${5:-false}
           export HRMS_RECOVER_ASSET=${4:-false}
           export HRMS_ARCHIVE_EQUIVALENT_DRAFT=${3:-false}
