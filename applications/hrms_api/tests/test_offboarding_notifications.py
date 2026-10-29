@@ -117,3 +117,15 @@ def test_reconcile_cursor_retries_failed_scan_and_deduplicates(monkeypatch):
     module.reconcile(p,j); module.reconcile(p,j)
     assert cursor.progress['through']
     assert len(p.rows)==2
+
+
+@pytest.mark.parametrize('consent', [None, 'Yes'])
+def test_staged_workflow_uses_work_email_until_employee_consents(consent):
+    p, j = Platform(), Journal()
+    args = list(inputs())
+    args[2]['definition']['initial_state'] = 'Offboarding Initiated'
+    args[1]['data'].update(offboarding_employee_user_id='employee', notification_email_confirmed=consent)
+    p.users = lambda: [{'id': 'employee', 'email': 'work@example.test'}]
+    dispatch(p, j, *args)
+    recipients = {r['data']['recipient'] for r in p.rows}
+    assert recipients == {'hr@example.test', 'employee@example.test' if consent else 'work@example.test'}

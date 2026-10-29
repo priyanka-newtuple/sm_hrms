@@ -65,3 +65,14 @@ The participant view contains only employee name/code, case identifier, confirme
 The production comparison retained legacy handover fields and datetime types. A production draft was identical to its published definition after normalizing native from/from_state serialization; only such unchanged drafts may be reused. Edited drafts still block publication.
 
 Native publication removes obsolete transition grants even when older enrollments remain version-pinned. The HRMS configuration adapter now records those grants, verifies the exact native cascade, and restores access for existing cases through public role APIs. An unexpected concurrent permission edit stops promotion. The reviewed package retains legacy transition keys alongside the new stage grants. Native core remains unchanged.
+
+
+## Stage-specific forms revision (v3)
+
+The reviewed release package now publishes six stages: Offboarding Initiated → Employee Checklist → HR Review → Exit Interview → Pending Clearance → Completed. New native method versions determine the visible fields at each stage. Existing enrollments remain pinned to their existing workflow version; this change does not migrate live records.
+
+HR initiation contains ten routing and departure fields. Personal contact email and consent belong exclusively to the employee checklist. Initial notifications use the linked account email; a confirmed personal email is used subsequently. Native email transport configuration (including Mailpit capture mode) is unchanged.
+
+Exit Interview is HR-owned and has exactly one field, exit_interview_notes. Notes are required to finish that stage and to finalize offboarding. The employee interview questionnaire and interview-completion question are not included in new forms. Native departure confirmation is a self-transition in this version so access removal does not bypass the interview/review stages.
+
+HR can expand previously entered information as read-only, filtered by native field permissions. Employee and participant projections never include HR interview notes. HR cannot supply the employee's contact consent. Stage identity uses the hrms:stage-forms-v3 marker, so display names can be adjusted in native configuration.
