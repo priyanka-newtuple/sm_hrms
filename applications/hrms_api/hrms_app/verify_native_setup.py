@@ -12,6 +12,18 @@ def verify_workflow_methods(methods, workflows):
     # Validate the actual workflow links instead of rejecting shared methods.
     method_ids = {m['method_id'] for m in methods}
     for workflow in workflows:
+        if workflow.get('entity_type') == 'HRMS.OffboardingNotice':
+            # Private delivery envelopes have native mail actions, not human forms.
+            graph = workflow['definition']
+            states = {state['name']: state for state in graph['states']}
+            assert set(states) == {'Queued', 'Delivered'}, 'Invalid notification workflow stages'
+            actions = states['Queued'].get('on_state_actions', [])
+            assert len(actions) == 1 and actions[0]['kind'] == 'mail.send_email', 'Notification mail action missing'
+            assert actions[0].get('outcome_triggers') == {'sent': 'sent'}, 'Notification completion trigger missing'
+            assert 'terminal' in states['Delivered'].get('tags', []), 'Notification terminal stage missing'
+            assert any(t['trigger'] == 'sent' and t.get('from', t.get('from_state')) == 'Queued' and t['to_state'] == 'Delivered'
+                       for t in graph['transitions']), 'Notification delivery transition missing'
+            continue
         for state in workflow['definition']['states']:
             refs = state.get('method_refs') or []
             assert refs, 'Workflow state without native form'
