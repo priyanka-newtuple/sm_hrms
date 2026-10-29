@@ -101,3 +101,19 @@ def test_adapter_reuses_only_exact_reviewed_draft():
     with pytest.raises(ConfigurationError):
         native.write(item, {'definition': {'name': 'Employee'}}, {}, lambda _: None)
     assert not calls
+
+
+@pytest.mark.parametrize('changed', [False, True])
+def test_pending_intent_can_resume_only_when_native_object_is_unchanged(changed):
+    p, native, journal, _ = checkpoint()
+    journal.state['pending'] = {'key': 'Second', 'before': digest(None)}
+    if changed:
+        native.rows['Second'] = obj('Second', options=['unexpected'])
+    review, _, _ = inspection(native, p, journal.read())
+    if changed:
+        with pytest.raises(ConfigurationError, match='Pending configuration changed'):
+            resume_reviewed(native, p, review, journal)
+        assert not journal.writes and not native.writes
+    else:
+        assert resume_reviewed(native, p, review, journal)['status'] == 'applied'
+        assert native.writes == ['Second']

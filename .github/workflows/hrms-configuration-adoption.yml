@@ -84,7 +84,8 @@ jobs:
           revision = os.environ.get('ORIGINAL_REVISION', '')
           if revision:
               assert re.fullmatch('[a-f0-9]{40}', revision)
-              original = json.loads(subprocess.check_output(['git', 'show', revision + ':configuration/hrms/production-candidate.json']))
+              original_path = 'configuration/hrms/release.json' if os.environ['RELEASE_PACKAGE'] == 'true' else 'configuration/hrms/production-candidate.json'
+              original = json.loads(subprocess.check_output(['git', 'show', revision + ':' + original_path]))
           comparison = json.loads(pathlib.Path('reviewed/comparison.json').read_text())
           accept_drift = os.environ['ACCEPT_DRIFT'] == 'true'
           assert not (accept_drift and (os.environ['RESUME'] == 'true' or revision)), 'Choose one recovery mode'
