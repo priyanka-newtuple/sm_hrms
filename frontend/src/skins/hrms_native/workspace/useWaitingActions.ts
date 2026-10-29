@@ -28,7 +28,7 @@ export function useWaitingActions() {
   const leaveApprovals = useQuery({ queryKey: ['hrms', 'leave', 'approvals', 'pending'], queryFn: () => request<LeaveItem[]>('/hrms/leave-requests?view=approvals&state=pending&limit=200'), retry: retryUnlessForbidden,
     enabled: caps.isFetched && caps.data?.employee_profile !== false });
   const employeeWork = useQuery({queryKey:['hrms','employee-work'], queryFn:()=>request<EmployeeWork[]>('/hrms/employee-work'), retry:retryUnlessForbidden,refetchInterval:30_000});
-  const myOffboarding=useQuery({queryKey:['hrms','my-offboarding'],queryFn:()=>request<MyExit[]>('/hrms/my-offboarding'),enabled:caps.isFetched&&caps.data?.employee_profile!==false,retry:retryUnlessForbidden});
+  const myOffboarding=useQuery({queryKey:['hrms','my-offboarding'],queryFn:()=>request<MyExit[]>('/hrms/my-offboarding'),enabled:caps.isFetched,retry:retryUnlessForbidden,refetchInterval:30_000});
   const offboarding = useQuery({queryKey:['hrms','offboarding-inbox'],queryFn:()=>request<{entity_id:string;machine_name:string;current_state:string;summary_fields:Record<string,string>}[]>('/hrms/offboarding/inbox'),enabled:has('employee:exit'),retry:retryUnlessForbidden});
   const cockpit = useCockpitBoard();
   const projects = useProjects();

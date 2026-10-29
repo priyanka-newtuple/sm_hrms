@@ -1,6 +1,11 @@
 name: HRMS configuration comparison
 on:
   workflow_dispatch:
+    inputs:
+      release_package:
+        description: Compare the approved release package against its recorded baseline
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
@@ -8,7 +13,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   compare:
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/fix/offboarding-checklist-release'
     runs-on: ubuntu-latest
     environment: hrms-production
     timeout-minutes: 15
@@ -16,6 +21,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Compare native production configuration (read only)
         env:
+          RELEASE_PACKAGE: ${{ inputs.release_package }}
           SSH_KEY: ${{ secrets.HRMS_DEPLOY_SSH_KEY }}
           KNOWN_HOSTS: ${{ secrets.HRMS_DEPLOY_KNOWN_HOSTS }}
           HOST: ${{ vars.HRMS_DEPLOY_HOST }}
@@ -31,10 +37,10 @@ jobs:
           trap 'rm -f ~/.ssh/hrms' EXIT
           # Stream code and the reviewed candidate; do not install files on the host.
           python3 - <<'PY' > /tmp/hrms-compare.sh
-          import pathlib, shlex
+          import pathlib, shlex, os
           code = pathlib.Path('deployment/hrms/compare_configuration.py').read_text()
           candidate = pathlib.Path('configuration/hrms/production-candidate.json')
-          package = (candidate if candidate.exists() else pathlib.Path('configuration/hrms/candidate.json')).read_text()
+          package = (pathlib.Path('configuration/hrms/release.json') if os.environ['RELEASE_PACKAGE'] == 'true' else candidate if candidate.exists() else pathlib.Path('configuration/hrms/candidate.json')).read_text()
           print('set -euo pipefail')
           print('base=/opt/newtuple-hrms')
           print('exec 9>"$base/deploy.lock"; flock -n 9')

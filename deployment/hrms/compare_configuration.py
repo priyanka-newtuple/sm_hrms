@@ -40,13 +40,16 @@ def main():
     try:
         api.service_token()
         native = InspectedConfiguration(api)
-        plan, actual, identities = inspection(native, package, {'baseline': {}})
         # Read only our own journal; validation is a native non-mutating endpoint.
         import psycopg
         with psycopg.connect(os.environ['HRMS_APP_DATABASE_URL']) as db:
             row = db.execute('SELECT state FROM hrms_configuration_releases WHERE organization_id=%s AND package_name=%s',
                              (api.org, package['name'])).fetchone()
-        pending = (row[0].get('pending') if row else None)
+        state = row[0] if row else {'baseline': {}}
+        native.bindings = state.get('bindings', {})
+        plan, actual, identities = inspection(native, package, state)
+        native.preflight(validate(package), identities)
+        pending = state.get('pending')
         diagnostic = None
         if pending and pending.get('draft_id'):
             draft = native.get('/workflow-state-machines/' + pending['draft_id'])
@@ -60,7 +63,7 @@ def main():
         differences = [{'key': op['key'], 'production': actual.get(op['key']),
                         'desired': desired[op['key']]} for op in plan['operations']
                        if op['decision'] == 'conflict']
-        print(json.dumps({'comparison': 'initial adoption; no baseline modified',
+        print(json.dumps({'comparison': 'read-only comparison; no baseline modified',
                           'summary': dict(Counter(item['decision'] for item in plan['operations'])),
                           'plan': plan, 'differences': differences, 'pending_diagnostic': diagnostic}, indent=2))
     except ConfigurationError as exc:

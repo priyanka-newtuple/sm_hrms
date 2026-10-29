@@ -112,11 +112,24 @@ def create_app(platform=None, journal=None):
                 except TimeoutError:
                     pass
         worker = asyncio.create_task(sync_accounts())
+        async def sync_exit_notifications():
+            from .offboarding_notifications import reconcile
+            while not stopping.is_set():
+                try:
+                    await asyncio.to_thread(reconcile, platform, journal)
+                except Exception:
+                    logging.getLogger(__name__).exception('Offboarding notification synchronization failed')
+                try:
+                    await asyncio.wait_for(stopping.wait(), timeout=30)
+                except TimeoutError:
+                    pass
+        notification_worker = asyncio.create_task(sync_exit_notifications())
         try:
             yield
         finally:
             stopping.set()
             await worker
+            await notification_worker
             platform.close()
 
     app = FastAPI(title='HRMS Application API', version='1.0.0', lifespan=lifespan)
