@@ -213,17 +213,17 @@
             {
               "description": "Date notified",
               "field": "notified_date",
-              "type": "date"
+              "type": "datetime"
             },
             {
               "description": "Requested last working day",
               "field": "requested_last_day",
-              "type": "date"
+              "type": "datetime"
             },
             {
               "description": "Confirmed last working day",
               "field": "confirmed_last_day",
-              "type": "date"
+              "type": "datetime"
             },
             {
               "description": "Exit reason",
@@ -696,6 +696,38 @@
               "field": "exit_acknowledgment",
               "required": false,
               "type": "boolean"
+            },
+            {
+              "description": "Exit approver",
+              "field": "offboarding_approver_id",
+              "required": true,
+              "type": "string"
+            },
+            {
+              "description": "Work handover details",
+              "field": "employee_handover_notes",
+              "required": true,
+              "type": "text"
+            },
+            {
+              "description": "Assets to return / return arrangements",
+              "field": "employee_asset_notes",
+              "required": true,
+              "type": "text"
+            },
+            {
+              "description": "Questions or assistance needed",
+              "field": "employee_questions",
+              "type": "text"
+            },
+            {
+              "description": "I have provided my handover information",
+              "enum_values": [
+                "Yes"
+              ],
+              "field": "employee_handover_confirmed",
+              "required": true,
+              "type": "enum"
             }
           ],
           "identifier_template": "EXT-{{seq}}"
