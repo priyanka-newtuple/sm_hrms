@@ -292,9 +292,13 @@ class NativeConfiguration:
                 else:
                     draft = call('POST', '/workflow-state-machines/draft', json={'name': graph['name']})
                 graph['machine_key'] = draft['machine_name']
-            checkpoint({'draft_id': draft['id'], 'machine_name': draft['machine_name']})
+            from .configuration_workflow_grants import capture, restore
+            old = self.get('/workflow-state-machines/' + identity['id'])['definition'] if existing else {}
+            retained = capture(self, draft['machine_name'], old, graph)
+            checkpoint({'draft_id': draft['id'], 'machine_name': draft['machine_name'], 'retained_transition_grants': retained})
             call('POST', '/workflow-state-machines/' + path(draft['id']) + '/publish',
                  json={'definition': graph, 'canvas_metadata': payload.get('canvas_metadata')})
+            restore(self, retained)
         elif kind == 'role':
             current = self.get('/roles/' + path(identity['id']))
             merged = {}

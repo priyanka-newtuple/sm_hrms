@@ -53,6 +53,17 @@ def main():
             native.preflight(validate(package), identities)
         except ConfigurationError as exc:
             preflight_error = {'reason': str(exc), 'object': native.current_key}
+        draft_review = None
+        if preflight_error and preflight_error['reason'] == 'Existing workflow draft must be resolved before promotion':
+            target = next(o for o in package['objects'] if o['key'] == preflight_error['object'])
+            _, identity = native.read(target)
+            published = native.get('/workflow-state-machines/' + identity['id'])
+            drafts = native.get('/workflow-state-machines', params={'scope':'draft','machine_name':identity['machine_name']})['draft_items']
+            draft_review = []
+            for summary in drafts:
+                draft = native.get('/workflow-state-machines/' + summary['id'])
+                draft_review.append({'id': draft['id'], 'definition_matches_published': draft['definition'] == published['definition'],
+                                     'canvas_matches_published': draft.get('canvas_metadata') == published.get('canvas_metadata')})
         pending = state.get('pending')
         diagnostic = None
         if pending and pending.get('draft_id'):
@@ -69,7 +80,7 @@ def main():
                        if op['decision'] == 'conflict']
         print(json.dumps({'comparison': 'read-only comparison; no baseline modified',
                           'summary': dict(Counter(item['decision'] for item in plan['operations'])),
-                          'plan': plan, 'differences': differences, 'pending_diagnostic': diagnostic, 'preflight_error': preflight_error}, indent=2))
+                          'plan': plan, 'differences': differences, 'pending_diagnostic': diagnostic, 'preflight_error': preflight_error, 'draft_review': draft_review}, indent=2))
     except ConfigurationError as exc:
         print(json.dumps({'blocked': True, 'reason': str(exc)}))
         raise SystemExit(2) from None

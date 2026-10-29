@@ -7888,6 +7888,167 @@
           },
           {
             "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "approve_exit_3"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "approve_withdrawal_10"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "begin_clearance"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "cancel_request_7"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "cancel_request_8"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "cancel_request_9"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "complete_offboarding"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "complete_offboarding_6"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "confirm_departure_4"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "departure_0"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "departure_1"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "departure_2"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "departure_3"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "employee_handover_return"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "employee_handover_submit"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "reopen_checklist"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "request_changes_2"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "request_checklist_corrections"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "resubmit_1"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "start_checklist"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "start_final_clearance_5"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "submit_checklist"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "submit_for_approval_0"
+          },
+          {
+            "machine_name": {
               "$ref": "workflow:hrms_offer",
               "attribute": "machine_name"
             },
@@ -7941,76 +8102,6 @@
               "attribute": "machine_name"
             },
             "transition_key": "sent__to__offer expired"
-          },
-          {
-            "machine_name": {
-              "$ref": "workflow:HRMS.Offboarding",
-              "attribute": "machine_name"
-            },
-            "transition_key": "begin_clearance"
-          },
-          {
-            "machine_name": {
-              "$ref": "workflow:HRMS.Offboarding",
-              "attribute": "machine_name"
-            },
-            "transition_key": "complete_offboarding"
-          },
-          {
-            "machine_name": {
-              "$ref": "workflow:HRMS.Offboarding",
-              "attribute": "machine_name"
-            },
-            "transition_key": "departure_0"
-          },
-          {
-            "machine_name": {
-              "$ref": "workflow:HRMS.Offboarding",
-              "attribute": "machine_name"
-            },
-            "transition_key": "departure_1"
-          },
-          {
-            "machine_name": {
-              "$ref": "workflow:HRMS.Offboarding",
-              "attribute": "machine_name"
-            },
-            "transition_key": "departure_2"
-          },
-          {
-            "machine_name": {
-              "$ref": "workflow:HRMS.Offboarding",
-              "attribute": "machine_name"
-            },
-            "transition_key": "departure_3"
-          },
-          {
-            "machine_name": {
-              "$ref": "workflow:HRMS.Offboarding",
-              "attribute": "machine_name"
-            },
-            "transition_key": "reopen_checklist"
-          },
-          {
-            "machine_name": {
-              "$ref": "workflow:HRMS.Offboarding",
-              "attribute": "machine_name"
-            },
-            "transition_key": "request_checklist_corrections"
-          },
-          {
-            "machine_name": {
-              "$ref": "workflow:HRMS.Offboarding",
-              "attribute": "machine_name"
-            },
-            "transition_key": "start_checklist"
-          },
-          {
-            "machine_name": {
-              "$ref": "workflow:HRMS.Offboarding",
-              "attribute": "machine_name"
-            },
-            "transition_key": "submit_checklist"
           }
         ],
         "workflow_permissions": [
@@ -9346,6 +9437,146 @@
           },
           {
             "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "approve_exit_3"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "approve_withdrawal_10"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "begin_clearance"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "cancel_request_7"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "cancel_request_8"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "cancel_request_9"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "complete_offboarding"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "complete_offboarding_6"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "confirm_departure_4"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "departure_0"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "departure_1"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "departure_2"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "departure_3"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "employee_handover_return"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "reopen_checklist"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "request_changes_2"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "request_checklist_corrections"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "resubmit_1"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "start_final_clearance_5"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "submit_for_approval_0"
+          },
+          {
+            "machine_name": {
               "$ref": "workflow:hrms_offer",
               "attribute": "machine_name"
             },
@@ -9399,62 +9630,6 @@
               "attribute": "machine_name"
             },
             "transition_key": "sent__to__offer expired"
-          },
-          {
-            "machine_name": {
-              "$ref": "workflow:HRMS.Offboarding",
-              "attribute": "machine_name"
-            },
-            "transition_key": "begin_clearance"
-          },
-          {
-            "machine_name": {
-              "$ref": "workflow:HRMS.Offboarding",
-              "attribute": "machine_name"
-            },
-            "transition_key": "complete_offboarding"
-          },
-          {
-            "machine_name": {
-              "$ref": "workflow:HRMS.Offboarding",
-              "attribute": "machine_name"
-            },
-            "transition_key": "departure_0"
-          },
-          {
-            "machine_name": {
-              "$ref": "workflow:HRMS.Offboarding",
-              "attribute": "machine_name"
-            },
-            "transition_key": "departure_1"
-          },
-          {
-            "machine_name": {
-              "$ref": "workflow:HRMS.Offboarding",
-              "attribute": "machine_name"
-            },
-            "transition_key": "departure_2"
-          },
-          {
-            "machine_name": {
-              "$ref": "workflow:HRMS.Offboarding",
-              "attribute": "machine_name"
-            },
-            "transition_key": "departure_3"
-          },
-          {
-            "machine_name": {
-              "$ref": "workflow:HRMS.Offboarding",
-              "attribute": "machine_name"
-            },
-            "transition_key": "reopen_checklist"
-          },
-          {
-            "machine_name": {
-              "$ref": "workflow:HRMS.Offboarding",
-              "attribute": "machine_name"
-            },
-            "transition_key": "request_checklist_corrections"
           }
         ],
         "workflow_permissions": [
@@ -10424,6 +10599,146 @@
         "transition_permissions": [
           {
             "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "approve_exit_3"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "approve_withdrawal_10"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "begin_clearance"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "cancel_request_7"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "cancel_request_8"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "cancel_request_9"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "complete_offboarding"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "complete_offboarding_6"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "confirm_departure_4"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "departure_0"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "departure_1"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "departure_2"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "departure_3"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "employee_handover_return"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "reopen_checklist"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "request_changes_2"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "request_checklist_corrections"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "resubmit_1"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "start_final_clearance_5"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "submit_for_approval_0"
+          },
+          {
+            "machine_name": {
               "$ref": "workflow:hrms_offer",
               "attribute": "machine_name"
             },
@@ -10477,62 +10792,6 @@
               "attribute": "machine_name"
             },
             "transition_key": "sent__to__offer expired"
-          },
-          {
-            "machine_name": {
-              "$ref": "workflow:HRMS.Offboarding",
-              "attribute": "machine_name"
-            },
-            "transition_key": "begin_clearance"
-          },
-          {
-            "machine_name": {
-              "$ref": "workflow:HRMS.Offboarding",
-              "attribute": "machine_name"
-            },
-            "transition_key": "complete_offboarding"
-          },
-          {
-            "machine_name": {
-              "$ref": "workflow:HRMS.Offboarding",
-              "attribute": "machine_name"
-            },
-            "transition_key": "departure_0"
-          },
-          {
-            "machine_name": {
-              "$ref": "workflow:HRMS.Offboarding",
-              "attribute": "machine_name"
-            },
-            "transition_key": "departure_1"
-          },
-          {
-            "machine_name": {
-              "$ref": "workflow:HRMS.Offboarding",
-              "attribute": "machine_name"
-            },
-            "transition_key": "departure_2"
-          },
-          {
-            "machine_name": {
-              "$ref": "workflow:HRMS.Offboarding",
-              "attribute": "machine_name"
-            },
-            "transition_key": "departure_3"
-          },
-          {
-            "machine_name": {
-              "$ref": "workflow:HRMS.Offboarding",
-              "attribute": "machine_name"
-            },
-            "transition_key": "reopen_checklist"
-          },
-          {
-            "machine_name": {
-              "$ref": "workflow:HRMS.Offboarding",
-              "attribute": "machine_name"
-            },
-            "transition_key": "request_checklist_corrections"
           }
         ],
         "workflow_permissions": [
