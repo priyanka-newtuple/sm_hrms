@@ -8,7 +8,6 @@ from urllib.parse import urlsplit
 
 from .errors import AppError
 from .policy import require, capabilities
-from .employee_access import identity_roles, may_manage
 from .offboarding_catalog import ENTITY, MACHINE, SYSTEM_FIELDS
 from .offer_documents import digest
 from .employee_work import transition_grants
@@ -110,8 +109,6 @@ class OffboardingService:
             raise AppError(404, 'Employee not found')
         uid = r['data'].get('platform_user_id')
         identity = next((u for u in self.platform.users() if u['id'] == uid), None) if uid else None
-        if identity and not may_manage(actor, identity_roles(self.platform, actor, identity)):
-            raise AppError(403, 'Only Super Admin can manage an exit for a privileged account')
         return r, identity
 
     def rows(self, actor):

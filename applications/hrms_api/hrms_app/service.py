@@ -10,7 +10,7 @@ from .form_values import editable_values
 from .custom_fields import check_custom, custom_keys, custom_values
 from .errors import AppError
 from .form_config import active_workflow, configured_form
-from .employee_access import identity_roles, may_manage
+from .employee_access import identity_roles
 from .onboarding_template import DEFAULT_ONBOARDING_STEPS, REPORTING_MANAGER, TEMPLATES
 from .policy import capabilities, require
 
@@ -322,8 +322,6 @@ class HrmsService:
                 raise AppError(400, 'The last working day cannot be before the joining date')
             user_id = employee['data'].get('platform_user_id')
             identity = next((u for u in self.platform.users() if u['id'] == user_id), None) if user_id else None
-            if identity and not may_manage(actor, identity_roles(self.platform, actor, identity)):
-                raise AppError(403, 'Only Super Admin can record the exit of a privileged account')
             leaving = never_joined or request.last_working_day <= datetime.now(UTC).date()
             record = self.platform.record(employee_id)['data']
             editable_values(self.platform, EMPLOYEE, {k:v for k,v in request.model_dump(mode='json',exclude_unset=True).items() if k!='idempotency_key'}, current={'last_working_day':record.get('last_working_day'),'reason':record.get('exit_reason'),'note':record.get('exit_note')}, aliases={'exit_reason':'reason','exit_note':'note'}, excluded={f['field'] for f in configured_form(self.platform, EMPLOYEE)['fields'] if f['field'] not in {'last_working_day','exit_reason','exit_note'}})

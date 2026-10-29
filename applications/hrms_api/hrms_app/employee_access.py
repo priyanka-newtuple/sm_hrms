@@ -3,7 +3,7 @@ import os
 from urllib.parse import urlsplit
 
 from .errors import AppError
-from .policy import capabilities, require
+from .policy import require
 
 
 def identity_roles(platform, actor, identity):
@@ -11,13 +11,6 @@ def identity_roles(platform, actor, identity):
     if any(r['organization_id'] != actor.organization_id for r in rows):
         raise AppError(403, 'Account roles belong to another organization')
     return {r['role_name'] for r in rows}
-
-
-def may_manage(actor, roles):
-    # Offboarding can suspend ordinary accounts; approving new accounts is Super Admin only.
-    return (bool(roles) and ('superadmin' in actor.roles or
-            ('employee:exit' in capabilities(actor) and roles <= {'hrms_employee'})))
-
 
 
 def setup_access(service, actor, employee_id, operation_key):
