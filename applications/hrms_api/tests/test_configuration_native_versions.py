@@ -95,3 +95,24 @@ def test_changed_field_repins_method_and_workflow_without_touching_enrollment():
     plan, _, _ = inspection(native, package, journal.read())
     apply(native, package, plan, journal)
     assert api.writes == writes
+
+
+def test_only_serialization_equivalent_draft_can_be_reused():
+    import pytest
+    from hrms_app.configuration_package import ConfigurationError
+    api=NativeAPI()
+    api.workflow['definition']['transitions']=[{'key':'next','from':'Draft','to_state':'Done'}]
+    draft=deepcopy(api.workflow);draft['id']='existing-draft'
+    draft['definition']['transitions'][0]['from_state']=draft['definition']['transitions'][0].pop('from')
+    original=api.call
+    def call(verb,route,**kw):
+        if route=='/workflow-state-machines' and kw['params']['scope']=='draft':return {'draft_items':[{'id':'existing-draft'}]}
+        if route=='/workflow-state-machines/existing-draft':return deepcopy(draft)
+        return original(verb,route,**kw)
+    api.call=call
+    native=NativeConfiguration(api)
+    identity={'id':'workflow-row-1','machine_name':'workflow-dest'}
+    assert native.reusable_workflow_draft(identity)['id']=='existing-draft'
+    draft['definition']['transitions'][0]['to_state']='Different'
+    with pytest.raises(ConfigurationError,match='Edited workflow draft'):native.reusable_workflow_draft(identity)
+    assert not api.writes

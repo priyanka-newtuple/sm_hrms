@@ -1,6 +1,6 @@
 # Five-stage native offboarding checklist
 
-Implemented 29 October 2026. Not deployed to production.
+Implemented 29 October 2026. Production rollout uses the guarded main release pipeline.
 
 ## Native configuration
 
@@ -58,3 +58,10 @@ Production requires the reviewed native configuration package, service audit/tem
 My Tasks includes a View progress card for the employee and the case's native current, configured future, and historical individual assignees. Progress cards remain visible when another person owns the current step and do not increase pending-action counts. The native pinned workflow and native assignment audit events determine participation; no broad role-based record access is added. Historical audit entries must match the tenant and record.
 
 The participant view contains only employee name/code, case identifier, confirmed last day and current stage. Employee answers, confidential feedback and HR evidence are excluded. Actual actions remain in the authorized task flow. Progress refreshes every 30 seconds while the page is visible; employee edits suspend detail refresh to preserve unsaved answers. Account deactivation still ends application access.
+
+
+## Release compatibility checks
+
+The production comparison retained legacy handover fields and datetime types. A production draft was identical to its published definition after normalizing native from/from_state serialization; only such unchanged drafts may be reused. Edited drafts still block publication.
+
+Native publication removes obsolete transition grants even when older enrollments remain version-pinned. The HRMS configuration adapter now records those grants, verifies the exact native cascade, and restores access for existing cases through public role APIs. An unexpected concurrent permission edit stops promotion. The reviewed package retains legacy transition keys alongside the new stage grants. Native core remains unchanged.
