@@ -222,10 +222,12 @@ def test_a_resignation_can_be_withdrawn_during_notice():
     assert not result['on_notice'] and result['last_working_day'] is None
 
 
-def test_exits_of_privileged_accounts_need_super_admin():
-    with pytest.raises(AppError) as error:
-        service(StaffPlatform(dev_roles=('hrms_hr_full',))).exit_employee(hr(), 'dev', exit_request(0))
-    assert error.value.status == 403
+@pytest.mark.parametrize('roles', [('hrms_hr_full',), ('hrms_office_admin',), ('hrms_employee', 'viewer'), ('superadmin',)])
+def test_exit_permission_is_not_overridden_by_target_role_names(roles):
+    platform = StaffPlatform(dev_roles=roles)
+    result = service(platform).exit_employee(hr(), 'dev', exit_request(0))
+    assert result['employment_status'] == 'offboarded'
+    assert platform.status['dev-user'] == 'suspended'
 
 
 def test_the_last_working_day_cannot_precede_joining():

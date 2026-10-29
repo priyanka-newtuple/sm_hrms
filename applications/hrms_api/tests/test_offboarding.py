@@ -26,6 +26,37 @@ class Journal:
     def audit(self, *args): pass
 
 
+@pytest.mark.parametrize('target_role', ['hrms_employee', 'hrms_office_admin', 'hrms_hr_full', 'superadmin'])
+def test_employee_lookup_uses_native_access_not_target_role_name(target_role):
+    employee_id = '11111111-1111-4111-8111-111111111111'
+    actor = Actor('hr', 'org', 'human', frozenset({'hrms_hr_full'}),
+                  frozenset({permission_key('org', 'employee:exit')}))
+    record = {'organization_id': 'org', 'entity_type_id': 'employee-type',
+              'data': {'platform_user_id': 'user'}}
+    identity = {'id': 'user', 'role': target_role}
+    calls = []
+    def request(method, path, **kwargs):
+        assert kwargs['token'] == 'human'
+        calls.append(path)
+        if path == f'/entity-records/{employee_id}':
+            return record
+        assert path == '/entity-types/HRMS.Employee'
+        return {'entity_type_id': 'employee-type'}
+    platform = SimpleNamespace(request=request, users=lambda: [identity])
+    off = OffboardingService(SimpleNamespace(platform=platform, journal=None))
+    assert off.employee(actor, employee_id) == (record, identity)
+    assert len(calls) == 2
+    denied = Actor('hr', 'org', 'human', actor.roles, frozenset())
+    with pytest.raises(AppError, match='permission'):
+        off.employee(denied, employee_id)
+    assert len(calls) == 2
+    def reject(*args, **kwargs):
+        raise AppError(403, 'Native record access denied')
+    platform.request = reject
+    with pytest.raises(AppError, match='Native record access denied'):
+        off.employee(actor, employee_id)
+
+
 @pytest.fixture
 def case(monkeypatch):
     monkeypatch.setattr('hrms_app.offboarding.transition_grants',lambda *a:None)
