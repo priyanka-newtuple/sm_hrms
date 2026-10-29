@@ -11553,7 +11553,110 @@
           "description": null,
           "entity_schema": {
             "entity_type": "HRMS.Offboarding",
-            "fields": []
+            "fields": [
+              {
+                "field": "checklist_verified",
+                "type": "text",
+                "required": false,
+                "nullable": true,
+                "default": null,
+                "enum_values": [],
+                "picklist_id": null,
+                "picklist_id_2": null,
+                "enum_values_2": [],
+                "enum_labels_2": [],
+                "extensions": null,
+                "extension_label": null,
+                "step1_label": null,
+                "step1_description": null,
+                "step2_label": null,
+                "step2_description": null,
+                "step3_label": null,
+                "step3_description": null,
+                "description": "Submission validated",
+                "ownership": null,
+                "source": null,
+                "editable": null,
+                "col_span": null,
+                "auto_number_config": null,
+                "currency_config": null,
+                "document_config": null,
+                "placeholder": null,
+                "table_config": null,
+                "calc": null,
+                "style_config": null,
+                "read_only": null,
+                "source_states": []
+              },
+              {
+                "field": "departure_verified",
+                "type": "text",
+                "required": false,
+                "nullable": true,
+                "default": null,
+                "enum_values": [],
+                "picklist_id": null,
+                "picklist_id_2": null,
+                "enum_values_2": [],
+                "enum_labels_2": [],
+                "extensions": null,
+                "extension_label": null,
+                "step1_label": null,
+                "step1_description": null,
+                "step2_label": null,
+                "step2_description": null,
+                "step3_label": null,
+                "step3_description": null,
+                "description": "HRMS access removed",
+                "ownership": null,
+                "source": null,
+                "editable": null,
+                "col_span": null,
+                "auto_number_config": null,
+                "currency_config": null,
+                "document_config": null,
+                "placeholder": null,
+                "table_config": null,
+                "calc": null,
+                "style_config": null,
+                "read_only": null,
+                "source_states": []
+              },
+              {
+                "field": "clearance_verified",
+                "type": "text",
+                "required": false,
+                "nullable": true,
+                "default": null,
+                "enum_values": [],
+                "picklist_id": null,
+                "picklist_id_2": null,
+                "enum_values_2": [],
+                "enum_labels_2": [],
+                "extensions": null,
+                "extension_label": null,
+                "step1_label": null,
+                "step1_description": null,
+                "step2_label": null,
+                "step2_description": null,
+                "step3_label": null,
+                "step3_description": null,
+                "description": "Clearances verified",
+                "ownership": null,
+                "source": null,
+                "editable": null,
+                "col_span": null,
+                "auto_number_config": null,
+                "currency_config": null,
+                "document_config": null,
+                "placeholder": null,
+                "table_config": null,
+                "calc": null,
+                "style_config": null,
+                "read_only": null,
+                "source_states": []
+              }
+            ]
           },
           "entity_type": "HRMS.Offboarding",
           "initial_state": "Offboarding Initiated",
@@ -11902,11 +12005,6 @@
                   "field": "final_notes",
                   "required": true,
                   "type": "text"
-                },
-                {
-                  "field": "exit_interview_notes",
-                  "type": "text",
-                  "required": true
                 }
               ],
               "to_state": "Completed",
@@ -11929,13 +12027,7 @@
               "label": "Confirm departure",
               "post_transition_tasks": [],
               "pre_transition_tasks": [],
-              "required_fields": [
-                {
-                  "field": "change_reason",
-                  "required": true,
-                  "type": "text"
-                }
-              ],
+              "required_fields": [],
               "to_state": "Offboarding Initiated",
               "trigger": "confirm_departure"
             },
@@ -11956,13 +12048,7 @@
               "label": "Confirm departure",
               "post_transition_tasks": [],
               "pre_transition_tasks": [],
-              "required_fields": [
-                {
-                  "field": "change_reason",
-                  "required": true,
-                  "type": "text"
-                }
-              ],
+              "required_fields": [],
               "to_state": "Employee Checklist",
               "trigger": "confirm_departure"
             },
@@ -16071,6 +16157,24 @@
             "source_field_key": null,
             "version_id": {
               "$ref": "field:final_notes",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Change / cancellation reason",
+            "library_field_id": {
+              "$ref": "field:change_reason",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 14,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:change_reason",
               "attribute": "version_id"
             }
           }

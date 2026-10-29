@@ -43,3 +43,15 @@ def test_hr_cannot_fill_employee_contact_and_old_forms_remain_versioned():
         grants = [f for f in obj['payload']['field_permissions'] if f['entity_type'] == 'HRMS.Offboarding' and f['field_name'] in {'employee_notification_email', 'notification_email_confirmed'}]
         assert grants and all(not f['can_edit'] for f in grants)
     assert 'method:Exit checklist v2 · Exit administration' in objects
+
+
+def test_native_transition_fields_resolve_in_the_source_stage():
+    objects = package()
+    graph = objects['workflow:HRMS.Offboarding']['payload']['definition']
+    global_fields = {f['field'] for f in graph['entity_schema']['fields'] if not f.get('source_states')}
+    states = {s['name']: set(fields(objects, s)) | global_fields for s in graph['states']}
+    for transition in graph['transitions']:
+        referenced = {f['field'] for f in transition['required_fields']}
+        referenced |= {g['field'] for g in transition['guards'] if g.get('field')}
+        assert referenced <= states[transition['from']], (transition['key'], referenced - states[transition['from']])
+    assert global_fields == {'checklist_verified', 'departure_verified', 'clearance_verified'}

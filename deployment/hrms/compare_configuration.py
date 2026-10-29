@@ -73,6 +73,18 @@ def main():
                 draft_review.append({'id': draft['id'], 'canonical_matches_published': left == right,
                                      'differences': {k: {'draft':left.get(k),'published':right.get(k)} for k in set(left)|set(right) if left.get(k)!=right.get(k)}, 'definition_matches_published': draft['definition'] == published['definition'],
                                      'canvas_matches_published': draft.get('canvas_metadata') == published.get('canvas_metadata')})
+        workflow_validation = {}
+        for item in validate(package):
+            if item['kind'] != 'workflow' or not identities.get(item['key']):
+                continue
+            try:
+                graph = resolve(item['payload'], identities)['definition']
+            except ConfigurationError:
+                continue  # New method dependencies are not created by comparison.
+            identity = identities[item['key']]
+            graph['machine_key'] = identity['machine_name']
+            workflow_validation[item['key']] = api.call('POST', '/workflow-state-machines/validate',
+                json={'machine_name': identity['machine_name'], 'definition': graph})
         pending = state.get('pending')
         diagnostic = None
         if pending and pending.get('draft_id'):
@@ -89,7 +101,7 @@ def main():
                        if op['decision'] == 'conflict']
         print(json.dumps({'comparison': 'read-only comparison; no baseline modified',
                           'summary': dict(Counter(item['decision'] for item in plan['operations'])),
-                          'plan': plan, 'differences': differences, 'pending_diagnostic': diagnostic, 'preflight_error': preflight_error, 'draft_review': draft_review}, indent=2))
+                          'plan': plan, 'differences': differences, 'pending_diagnostic': diagnostic, 'preflight_error': preflight_error, 'draft_review': draft_review, 'workflow_validation': workflow_validation}, indent=2))
     except ConfigurationError as exc:
         print(json.dumps({'blocked': True, 'reason': str(exc)}))
         raise SystemExit(2) from None

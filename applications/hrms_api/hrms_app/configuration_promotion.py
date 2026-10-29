@@ -120,7 +120,14 @@ def resume_reviewed(native, package, reviewed, journal, original_package=None, d
     original_objects = validate(original_package)
     owned_drafts = deepcopy(state.get('owned_drafts', {}))
     pending = state.get('pending')
-    if pending:
+    if pending and not pending.get('draft_id'):
+        item = next((o for o in original_objects if o['key'] == pending['key']), None)
+        if item is None:
+            raise ConfigurationError('Unknown pending configuration object')
+        current, _ = native.read(item)
+        if digest(current) != pending.get('before'):
+            raise ConfigurationError('Pending configuration changed; separate reconciliation is required')
+    elif pending:
         if not pending.get('draft_id') or not draft_review:
             raise ConfigurationError('An uncertain write requires separate reconciliation')
         item = next((o for o in original_objects if o['key'] == pending['key']), None)
@@ -132,7 +139,7 @@ def resume_reviewed(native, package, reviewed, journal, original_package=None, d
                 or draft.get('machine_name') != pending['machine_name'] or digest(draft) != draft_review):
             raise ConfigurationError('Workflow draft changed or was published; recovery stopped')
         owned_drafts[item['key']] = {'id': pending['draft_id'], 'checksum': draft_review}
-    fresh, actual, identities = inspection(native, package, {'baseline': {}})
+    fresh, actual, identities = inspection(native, package, state)
     if fresh != reviewed:
         raise ConfigurationError('Recovery review is stale or invalid')
     by_key = {o['key']: o for o in original_objects}
@@ -143,7 +150,7 @@ def resume_reviewed(native, package, reviewed, journal, original_package=None, d
         if value != resolve(by_key[key]['payload'], identities):
             raise ConfigurationError('A completed configuration changed; recovery stopped')
     native.preflight(objects, identities)
-    checked, _, _ = inspection(native, package, {'baseline': {}})
+    checked, _, _ = inspection(native, package, state)
     if checked != reviewed:
         raise ConfigurationError('Destination changed during recovery checks')
     history = deepcopy(state.get('recovery_history', []))
