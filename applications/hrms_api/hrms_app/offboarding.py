@@ -162,7 +162,7 @@ class OffboardingService:
     def config(self, actor):
         w = self.workflow(actor)
         fields=self.visible_fields(actor,self.fields(w, w['definition']['initial_state']))
-        return dict(workflow=w, previous_fields=previous_fields, fields=[f for f in fields if f['field'] not in SYSTEM|EMPLOYEE_FIELDS])
+        return dict(workflow=w, previous_fields=[], fields=[f for f in fields if f['field'] not in SYSTEM|EMPLOYEE_FIELDS])
 
     def visible_fields(self, actor, fields):
         if 'superadmin' in actor.roles:

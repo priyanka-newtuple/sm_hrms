@@ -73,6 +73,10 @@ def main():
             options = response.json()
             for key in ('department', 'designation'):
                 assert options[key + 's'] == (fields[key].get('enum_values') or []), 'Dropdown differs from native form'
+            response = client.get('/hrms/offboarding/config')
+            response.raise_for_status()
+            assert response.json()['fields'], 'Initial offboarding form has no fields'
+            assert response.json()['previous_fields'] == [], 'New offboarding form contains previous-stage fields'
             for path in ('/hrms/employees', '/hrms/projects', '/hrms/user-approvals'):
                 client.get(path).raise_for_status()
         print(f'Native HRMS verification passed: {len(methods)} forms, {len(workflows)} workflows, picklists and Super Admin access')

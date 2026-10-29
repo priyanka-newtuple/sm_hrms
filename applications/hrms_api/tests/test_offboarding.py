@@ -13,6 +13,33 @@ from hrms_app.platform import Actor
 from hrms_app.policy import permission_key
 
 
+@pytest.mark.parametrize('role', ['superadmin', 'hrms_hr_full'])
+def test_new_offboarding_form_uses_initial_stage_and_native_field_access(role):
+    actor = Actor('hr', 'org', 'human', frozenset({role}),
+                  frozenset({permission_key('org', 'employee:exit')}))
+    initial = [{'field': name, 'type': 'string'} for name in ('exit_type', 'hr_notes')]
+    later = [{'field': 'exit_interview_notes', 'type': 'string'}]
+    workflow = {'id': 'workflow', 'entity_type': 'HRMS.Offboarding', 'organization_id': 'org',
+                'is_active': True, 'definition': {'initial_state': 'OffboardingInitiated',
+                'entity_schema': {'fields': initial + later}, 'method_schemas': [
+                    {'state_name': 'OffboardingInitiated', 'fields': initial},
+                    {'state_name': 'ExitInterview', 'fields': later}]}}
+    def request(method, path, **kwargs):
+        assert method == 'GET' and kwargs['token'] == 'human'
+        if path == '/workflow-state-machines':
+            return {'published_items': [workflow]}
+        if path == '/workflow-state-machines/workflow':
+            return workflow
+        assert path == '/roles/my-permissions'
+        return {'field_permissions': [{'entity_type': 'HRMS.Offboarding',
+                'field_name': 'exit_type', 'can_view': True, 'can_edit': True}]}
+    off = OffboardingService(SimpleNamespace(platform=SimpleNamespace(request=request), journal=None))
+    config = off.config(actor)
+    assert config['previous_fields'] == []
+    assert [field['field'] for field in config['fields']] == (
+        ['exit_type', 'hr_notes'] if role == 'superadmin' else ['exit_type'])
+
+
 class Op:
     def __init__(self): self.progress, self.result = {}, None
     def checkpoint(self, **values): self.progress.update(values)
