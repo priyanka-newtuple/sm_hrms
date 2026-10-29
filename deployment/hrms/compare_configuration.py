@@ -48,7 +48,11 @@ def main():
         state = row[0] if row else {'baseline': {}}
         native.bindings = state.get('bindings', {})
         plan, actual, identities = inspection(native, package, state)
-        native.preflight(validate(package), identities)
+        preflight_error = None
+        try:
+            native.preflight(validate(package), identities)
+        except ConfigurationError as exc:
+            preflight_error = {'reason': str(exc), 'object': native.current_key}
         pending = state.get('pending')
         diagnostic = None
         if pending and pending.get('draft_id'):
@@ -65,7 +69,7 @@ def main():
                        if op['decision'] == 'conflict']
         print(json.dumps({'comparison': 'read-only comparison; no baseline modified',
                           'summary': dict(Counter(item['decision'] for item in plan['operations'])),
-                          'plan': plan, 'differences': differences, 'pending_diagnostic': diagnostic}, indent=2))
+                          'plan': plan, 'differences': differences, 'pending_diagnostic': diagnostic, 'preflight_error': preflight_error}, indent=2))
     except ConfigurationError as exc:
         print(json.dumps({'blocked': True, 'reason': str(exc)}))
         raise SystemExit(2) from None
