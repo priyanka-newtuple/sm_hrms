@@ -117,3 +117,21 @@ def test_pending_intent_can_resume_only_when_native_object_is_unchanged(changed)
     else:
         assert resume_reviewed(native, p, review, journal)['status'] == 'applied'
         assert native.writes == ['Second']
+
+
+@pytest.mark.parametrize('changed', [False, True])
+def test_published_pending_workflow_requires_exact_reviewed_payload_and_identity(changed):
+    wf = {'key': 'workflow:Employee', 'kind': 'workflow', 'match': 'Employee',
+          'payload': {'definition': {'name': 'Employee'}}}
+    p = package(wf)
+    native = FakeNative({wf['key']: wf})
+    journal = MemoryJournal({'status': 'failed', 'package_checksum': digest(p), 'baseline': {},
+        'completed': [], 'pending': {'key': wf['key'], 'draft_id': wf['key'], 'before': digest(None)}})
+    if changed: native.rows[wf['key']]['payload']['definition']['name'] = 'Changed'
+    review, _, _ = inspection(native, p, journal.read())
+    if changed:
+        with pytest.raises(ConfigurationError): resume_reviewed(native, p, review, journal)
+        assert not journal.writes
+    else:
+        assert resume_reviewed(native, p, review, journal)['status'] == 'applied'
+    assert not native.writes

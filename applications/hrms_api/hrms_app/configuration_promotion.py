@@ -120,6 +120,16 @@ def resume_reviewed(native, package, reviewed, journal, original_package=None, d
     original_objects = validate(original_package)
     owned_drafts = deepcopy(state.get('owned_drafts', {}))
     pending = state.get('pending')
+    # Publication may succeed before exact read-back detects native normalization.
+    # Accept only the exact active draft identity AND the fully reviewed payload.
+    if pending and pending.get('draft_id'):
+        desired = next((o for o in objects if o['key'] == pending['key']), None)
+        if desired and desired['kind'] == 'workflow':
+            _, identities = native.snapshot(objects)
+            current, identity = native.read(desired)
+            if (identity.get('id') == pending['draft_id'] and
+                    current == resolve(desired['payload'], identities)):
+                pending = None
     if pending and not pending.get('draft_id'):
         item = next((o for o in original_objects if o['key'] == pending['key']), None)
         if item is None:
