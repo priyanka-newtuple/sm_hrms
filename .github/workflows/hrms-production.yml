@@ -85,7 +85,7 @@ jobs:
           printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/hrms ~/.ssh/known_hosts
           trap 'rm -f ~/.ssh/hrms' EXIT
-          opts=(-i ~/.ssh/hrms -o BatchMode=yes -o StrictHostKeyChecking=yes)
+          opts=(-i ~/.ssh/hrms -o BatchMode=yes -o StrictHostKeyChecking=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=6)
           # Stream cleanup over SSH: it can run even when the server cannot accept an archive.
           upload_bytes=$(du -cb release/* | tail -1 | cut -f1)
           [[ "$upload_bytes" =~ ^[0-9]+$ ]]
