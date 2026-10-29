@@ -62,7 +62,16 @@ def main():
             draft_review = []
             for summary in drafts:
                 draft = native.get('/workflow-state-machines/' + summary['id'])
-                draft_review.append({'id': draft['id'], 'definition_matches_published': draft['definition'] == published['definition'],
+                def canonical(graph):
+                    from copy import deepcopy
+                    graph = deepcopy(graph)
+                    for transition in graph.get('transitions', []):
+                        if 'from_state' in transition:
+                            transition['from'] = transition.pop('from_state')
+                    return graph
+                left, right = canonical(draft['definition']), canonical(published['definition'])
+                draft_review.append({'id': draft['id'], 'canonical_matches_published': left == right,
+                                     'differences': {k: {'draft':left.get(k),'published':right.get(k)} for k in set(left)|set(right) if left.get(k)!=right.get(k)}, 'definition_matches_published': draft['definition'] == published['definition'],
                                      'canvas_matches_published': draft.get('canvas_metadata') == published.get('canvas_metadata')})
         pending = state.get('pending')
         diagnostic = None
