@@ -135,3 +135,23 @@ def test_published_pending_workflow_requires_exact_reviewed_payload_and_identity
     else:
         assert resume_reviewed(native, p, review, journal)['status'] == 'applied'
     assert not native.writes
+
+
+@pytest.mark.parametrize('changed', [False, True])
+def test_native_publication_with_separate_immutable_row_checks_retained_draft(changed):
+    wf = {'key': 'workflow:Employee', 'kind': 'workflow', 'match': 'Employee',
+          'payload': {'definition': {'name': 'Employee'}}}
+    p = package(wf)
+    native = FakeNative({wf['key']: wf})
+    native.read = lambda item: (deepcopy(wf['payload']), {'id': 'published-row', 'machine_name': 'family'})
+    draft = {'id': 'draft-row', 'version': 0, 'machine_name': 'family'}
+    native.get = lambda path: deepcopy(draft)
+    journal = MemoryJournal({'status': 'failed', 'package_checksum': digest(p), 'baseline': {},
+        'completed': [], 'pending': {'key': wf['key'], 'draft_id': 'draft-row', 'machine_name': 'family', 'before': digest(None)}})
+    review, _, _ = inspection(native, p, journal.read())
+    if changed:
+        with pytest.raises(ConfigurationError): resume_reviewed(native, p, review, journal, draft_review='stale')
+        assert not journal.writes
+    else:
+        assert resume_reviewed(native, p, review, journal, draft_review=digest(draft))['status'] == 'applied'
+    assert not native.writes
