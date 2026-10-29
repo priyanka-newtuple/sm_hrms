@@ -7912,6 +7912,13 @@
               "$ref": "workflow:HRMS.Offboarding",
               "attribute": "machine_name"
             },
+            "transition_key": "begin_exit_interview"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
             "transition_key": "cancel_request_7"
           },
           {
@@ -7982,6 +7989,13 @@
               "$ref": "workflow:HRMS.Offboarding",
               "attribute": "machine_name"
             },
+            "transition_key": "departure_interview"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
             "transition_key": "employee_handover_return"
           },
           {
@@ -7990,6 +8004,13 @@
               "attribute": "machine_name"
             },
             "transition_key": "employee_handover_submit"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "finish_exit_interview"
           },
           {
             "machine_name": {
@@ -8951,7 +8972,7 @@
             "mask_value": false
           },
           {
-            "can_edit": true,
+            "can_edit": false,
             "can_view": true,
             "entity_type": "HRMS.Offboarding",
             "field_name": "employee_notification_email",
@@ -9049,7 +9070,7 @@
             "mask_value": false
           },
           {
-            "can_edit": true,
+            "can_edit": false,
             "can_view": true,
             "entity_type": "HRMS.Offboarding",
             "field_name": "notification_email_confirmed",
@@ -9461,6 +9482,13 @@
               "$ref": "workflow:HRMS.Offboarding",
               "attribute": "machine_name"
             },
+            "transition_key": "begin_exit_interview"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
             "transition_key": "cancel_request_7"
           },
           {
@@ -9531,7 +9559,21 @@
               "$ref": "workflow:HRMS.Offboarding",
               "attribute": "machine_name"
             },
+            "transition_key": "departure_interview"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
             "transition_key": "employee_handover_return"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "finish_exit_interview"
           },
           {
             "machine_name": {
@@ -10141,7 +10183,7 @@
             "mask_value": false
           },
           {
-            "can_edit": true,
+            "can_edit": false,
             "can_view": true,
             "entity_type": "HRMS.Offboarding",
             "field_name": "employee_notification_email",
@@ -10239,7 +10281,7 @@
             "mask_value": false
           },
           {
-            "can_edit": true,
+            "can_edit": false,
             "can_view": true,
             "entity_type": "HRMS.Offboarding",
             "field_name": "notification_email_confirmed",
@@ -10623,6 +10665,13 @@
               "$ref": "workflow:HRMS.Offboarding",
               "attribute": "machine_name"
             },
+            "transition_key": "begin_exit_interview"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
             "transition_key": "cancel_request_7"
           },
           {
@@ -10693,7 +10742,21 @@
               "$ref": "workflow:HRMS.Offboarding",
               "attribute": "machine_name"
             },
+            "transition_key": "departure_interview"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
             "transition_key": "employee_handover_return"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "finish_exit_interview"
           },
           {
             "machine_name": {
@@ -11472,80 +11535,31 @@
             "fields": []
           },
           "entity_type": "HRMS.Offboarding",
-          "initial_state": "Not Started",
+          "initial_state": "Offboarding Initiated",
           "machine_key": "HRMS.Offboarding",
           "name": "Employee offboarding",
           "service_id": null,
           "states": [
             {
-              "description": "hrms:durable-exit-notifications",
+              "description": "hrms:durable-exit-notifications hrms:stage-forms-v3",
               "method_refs": [
                 {
                   "method_id": {
-                    "$ref": "method:Exit checklist v2 · Exit administration",
-                    "attribute": "id"
-                  },
-                  "version_id": null
-                },
-                {
-                  "method_id": {
-                    "$ref": "method:Exit checklist v2 · Employee Information",
-                    "attribute": "id"
-                  },
-                  "version_id": null
-                },
-                {
-                  "method_id": {
-                    "$ref": "method:Exit checklist v2 · Knowledge Transfer & Handover",
-                    "attribute": "id"
-                  },
-                  "version_id": null
-                },
-                {
-                  "method_id": {
-                    "$ref": "method:Exit checklist v2 · Access & Asset Clearance",
-                    "attribute": "id"
-                  },
-                  "version_id": null
-                },
-                {
-                  "method_id": {
-                    "$ref": "method:Exit checklist v2 · HR & Administration",
-                    "attribute": "id"
-                  },
-                  "version_id": null
-                },
-                {
-                  "method_id": {
-                    "$ref": "method:Exit checklist v2 · Employee Feedback & Experience",
-                    "attribute": "id"
-                  },
-                  "version_id": null
-                },
-                {
-                  "method_id": {
-                    "$ref": "method:Exit checklist v2 · Declaration & Sign-Off",
-                    "attribute": "id"
-                  },
-                  "version_id": null
-                },
-                {
-                  "method_id": {
-                    "$ref": "method:Exit checklist v2 · Clearance verification",
+                    "$ref": "method:Exit checklist v3 · Offboarding initiation",
                     "attribute": "id"
                   },
                   "version_id": null
                 }
               ],
-              "name": "Not Started",
+              "name": "Offboarding Initiated",
               "on_state_actions": [
                 {
+                  "kind": "entity.assign_user",
                   "config": {
                     "assignment_type": "user",
                     "user_id": "$entity.offboarding_employee_user_id"
                   },
                   "failure_policy": {},
-                  "kind": "entity.assign_user",
                   "outcome_triggers": {}
                 }
               ],
@@ -11560,70 +11574,21 @@
               "method_refs": [
                 {
                   "method_id": {
-                    "$ref": "method:Exit checklist v2 · Exit administration",
-                    "attribute": "id"
-                  },
-                  "version_id": null
-                },
-                {
-                  "method_id": {
-                    "$ref": "method:Exit checklist v2 · Employee Information",
-                    "attribute": "id"
-                  },
-                  "version_id": null
-                },
-                {
-                  "method_id": {
-                    "$ref": "method:Exit checklist v2 · Knowledge Transfer & Handover",
-                    "attribute": "id"
-                  },
-                  "version_id": null
-                },
-                {
-                  "method_id": {
-                    "$ref": "method:Exit checklist v2 · Access & Asset Clearance",
-                    "attribute": "id"
-                  },
-                  "version_id": null
-                },
-                {
-                  "method_id": {
-                    "$ref": "method:Exit checklist v2 · HR & Administration",
-                    "attribute": "id"
-                  },
-                  "version_id": null
-                },
-                {
-                  "method_id": {
-                    "$ref": "method:Exit checklist v2 · Employee Feedback & Experience",
-                    "attribute": "id"
-                  },
-                  "version_id": null
-                },
-                {
-                  "method_id": {
-                    "$ref": "method:Exit checklist v2 · Declaration & Sign-Off",
-                    "attribute": "id"
-                  },
-                  "version_id": null
-                },
-                {
-                  "method_id": {
-                    "$ref": "method:Exit checklist v2 · Clearance verification",
+                    "$ref": "method:Exit checklist v3 · Employee checklist",
                     "attribute": "id"
                   },
                   "version_id": null
                 }
               ],
-              "name": "In Progress",
+              "name": "Employee Checklist",
               "on_state_actions": [
                 {
+                  "kind": "entity.assign_user",
                   "config": {
                     "assignment_type": "user",
                     "user_id": "$entity.offboarding_employee_user_id"
                   },
                   "failure_policy": {},
-                  "kind": "entity.assign_user",
                   "outcome_triggers": {}
                 }
               ],
@@ -11636,70 +11601,21 @@
               "method_refs": [
                 {
                   "method_id": {
-                    "$ref": "method:Exit checklist v2 · Exit administration",
-                    "attribute": "id"
-                  },
-                  "version_id": null
-                },
-                {
-                  "method_id": {
-                    "$ref": "method:Exit checklist v2 · Employee Information",
-                    "attribute": "id"
-                  },
-                  "version_id": null
-                },
-                {
-                  "method_id": {
-                    "$ref": "method:Exit checklist v2 · Knowledge Transfer & Handover",
-                    "attribute": "id"
-                  },
-                  "version_id": null
-                },
-                {
-                  "method_id": {
-                    "$ref": "method:Exit checklist v2 · Access & Asset Clearance",
-                    "attribute": "id"
-                  },
-                  "version_id": null
-                },
-                {
-                  "method_id": {
-                    "$ref": "method:Exit checklist v2 · HR & Administration",
-                    "attribute": "id"
-                  },
-                  "version_id": null
-                },
-                {
-                  "method_id": {
-                    "$ref": "method:Exit checklist v2 · Employee Feedback & Experience",
-                    "attribute": "id"
-                  },
-                  "version_id": null
-                },
-                {
-                  "method_id": {
-                    "$ref": "method:Exit checklist v2 · Declaration & Sign-Off",
-                    "attribute": "id"
-                  },
-                  "version_id": null
-                },
-                {
-                  "method_id": {
-                    "$ref": "method:Exit checklist v2 · Clearance verification",
+                    "$ref": "method:Exit checklist v3 · HR review",
                     "attribute": "id"
                   },
                   "version_id": null
                 }
               ],
-              "name": "Submitted",
+              "name": "HR Review",
               "on_state_actions": [
                 {
+                  "kind": "entity.assign_user",
                   "config": {
                     "assignment_type": "user",
                     "user_id": "$entity.offboarding_coordinator_id"
                   },
                   "failure_policy": {},
-                  "kind": "entity.assign_user",
                   "outcome_triggers": {}
                 }
               ],
@@ -11712,70 +11628,21 @@
               "method_refs": [
                 {
                   "method_id": {
-                    "$ref": "method:Exit checklist v2 · Exit administration",
-                    "attribute": "id"
-                  },
-                  "version_id": null
-                },
-                {
-                  "method_id": {
-                    "$ref": "method:Exit checklist v2 · Employee Information",
-                    "attribute": "id"
-                  },
-                  "version_id": null
-                },
-                {
-                  "method_id": {
-                    "$ref": "method:Exit checklist v2 · Knowledge Transfer & Handover",
-                    "attribute": "id"
-                  },
-                  "version_id": null
-                },
-                {
-                  "method_id": {
-                    "$ref": "method:Exit checklist v2 · Access & Asset Clearance",
-                    "attribute": "id"
-                  },
-                  "version_id": null
-                },
-                {
-                  "method_id": {
-                    "$ref": "method:Exit checklist v2 · HR & Administration",
-                    "attribute": "id"
-                  },
-                  "version_id": null
-                },
-                {
-                  "method_id": {
-                    "$ref": "method:Exit checklist v2 · Employee Feedback & Experience",
-                    "attribute": "id"
-                  },
-                  "version_id": null
-                },
-                {
-                  "method_id": {
-                    "$ref": "method:Exit checklist v2 · Declaration & Sign-Off",
-                    "attribute": "id"
-                  },
-                  "version_id": null
-                },
-                {
-                  "method_id": {
-                    "$ref": "method:Exit checklist v2 · Clearance verification",
+                    "$ref": "method:Exit checklist v3 · Exit interview",
                     "attribute": "id"
                   },
                   "version_id": null
                 }
               ],
-              "name": "Pending Clearance",
+              "name": "Exit Interview",
               "on_state_actions": [
                 {
+                  "kind": "entity.assign_user",
                   "config": {
                     "assignment_type": "user",
                     "user_id": "$entity.offboarding_coordinator_id"
                   },
                   "failure_policy": {},
-                  "kind": "entity.assign_user",
                   "outcome_triggers": {}
                 }
               ],
@@ -11788,56 +11655,34 @@
               "method_refs": [
                 {
                   "method_id": {
-                    "$ref": "method:Exit checklist v2 · Exit administration",
+                    "$ref": "method:Exit checklist v3 · Clearance verification",
                     "attribute": "id"
                   },
                   "version_id": null
-                },
+                }
+              ],
+              "name": "Pending Clearance",
+              "on_state_actions": [
                 {
-                  "method_id": {
-                    "$ref": "method:Exit checklist v2 · Employee Information",
-                    "attribute": "id"
+                  "kind": "entity.assign_user",
+                  "config": {
+                    "assignment_type": "user",
+                    "user_id": "$entity.offboarding_coordinator_id"
                   },
-                  "version_id": null
-                },
+                  "failure_policy": {},
+                  "outcome_triggers": {}
+                }
+              ],
+              "order": 5,
+              "sla_seconds": null,
+              "tags": []
+            },
+            {
+              "description": "hrms:durable-exit-notifications",
+              "method_refs": [
                 {
                   "method_id": {
-                    "$ref": "method:Exit checklist v2 · Knowledge Transfer & Handover",
-                    "attribute": "id"
-                  },
-                  "version_id": null
-                },
-                {
-                  "method_id": {
-                    "$ref": "method:Exit checklist v2 · Access & Asset Clearance",
-                    "attribute": "id"
-                  },
-                  "version_id": null
-                },
-                {
-                  "method_id": {
-                    "$ref": "method:Exit checklist v2 · HR & Administration",
-                    "attribute": "id"
-                  },
-                  "version_id": null
-                },
-                {
-                  "method_id": {
-                    "$ref": "method:Exit checklist v2 · Employee Feedback & Experience",
-                    "attribute": "id"
-                  },
-                  "version_id": null
-                },
-                {
-                  "method_id": {
-                    "$ref": "method:Exit checklist v2 · Declaration & Sign-Off",
-                    "attribute": "id"
-                  },
-                  "version_id": null
-                },
-                {
-                  "method_id": {
-                    "$ref": "method:Exit checklist v2 · Clearance verification",
+                    "$ref": "method:Exit checklist v3 · Completed summary",
                     "attribute": "id"
                   },
                   "version_id": null
@@ -11845,7 +11690,7 @@
               ],
               "name": "Completed",
               "on_state_actions": [],
-              "order": 5,
+              "order": 6,
               "sla_seconds": null,
               "tags": [
                 "terminal"
@@ -11856,20 +11701,20 @@
             {
               "auto_transition": null,
               "description": null,
-              "from": "Not Started",
+              "from": "Offboarding Initiated",
               "guards": [],
               "key": "start_checklist",
               "label": "Start checklist",
               "post_transition_tasks": [],
               "pre_transition_tasks": [],
               "required_fields": [],
-              "to_state": "In Progress",
+              "to_state": "Employee Checklist",
               "trigger": "start_checklist"
             },
             {
               "auto_transition": null,
               "description": null,
-              "from": "In Progress",
+              "from": "Employee Checklist",
               "guards": [
                 {
                   "config": {},
@@ -11915,17 +11760,7 @@
                   "type": "enum"
                 },
                 {
-                  "field": "exit_access_revoked",
-                  "required": true,
-                  "type": "enum"
-                },
-                {
                   "field": "exit_resignation_acknowledged",
-                  "required": true,
-                  "type": "enum"
-                },
-                {
-                  "field": "exit_interview_completed",
                   "required": true,
                   "type": "enum"
                 },
@@ -11945,51 +11780,44 @@
                   "type": "enum"
                 },
                 {
-                  "field": "exit_enjoyed",
-                  "required": true,
-                  "type": "text"
-                },
-                {
-                  "field": "exit_improvements",
-                  "required": true,
-                  "type": "text"
-                },
-                {
-                  "field": "exit_rejoin",
-                  "required": true,
-                  "type": "enum"
-                },
-                {
-                  "field": "exit_suggestions",
-                  "required": true,
-                  "type": "text"
-                },
-                {
                   "field": "exit_acknowledgment",
                   "required": true,
                   "type": "boolean"
+                },
+                {
+                  "field": "employee_notification_email",
+                  "type": "email",
+                  "required": true
+                },
+                {
+                  "field": "notification_email_confirmed",
+                  "type": "enum",
+                  "enum_values": [
+                    "Yes"
+                  ],
+                  "required": true
                 }
               ],
-              "to_state": "Submitted",
+              "to_state": "HR Review",
               "trigger": "submit_checklist"
             },
             {
               "auto_transition": null,
               "description": null,
-              "from": "Submitted",
+              "from": "HR Review",
               "guards": [],
-              "key": "begin_clearance",
-              "label": "Begin clearance",
+              "key": "begin_exit_interview",
+              "label": "Continue to exit interview",
               "post_transition_tasks": [],
               "pre_transition_tasks": [],
               "required_fields": [],
-              "to_state": "Pending Clearance",
-              "trigger": "begin_clearance"
+              "to_state": "Exit Interview",
+              "trigger": "begin_exit_interview"
             },
             {
               "auto_transition": null,
               "description": null,
-              "from": "Submitted",
+              "from": "HR Review",
               "guards": [],
               "key": "request_checklist_corrections",
               "label": "Request corrections",
@@ -12002,7 +11830,7 @@
                   "type": "text"
                 }
               ],
-              "to_state": "In Progress",
+              "to_state": "Employee Checklist",
               "trigger": "request_checklist_corrections"
             },
             {
@@ -12021,7 +11849,7 @@
                   "type": "text"
                 }
               ],
-              "to_state": "In Progress",
+              "to_state": "Employee Checklist",
               "trigger": "reopen_checklist"
             },
             {
@@ -12053,6 +11881,11 @@
                   "field": "final_notes",
                   "required": true,
                   "type": "text"
+                },
+                {
+                  "field": "exit_interview_notes",
+                  "type": "text",
+                  "required": true
                 }
               ],
               "to_state": "Completed",
@@ -12061,7 +11894,7 @@
             {
               "auto_transition": null,
               "description": null,
-              "from": "Not Started",
+              "from": "Offboarding Initiated",
               "guards": [
                 {
                   "config": {},
@@ -12082,13 +11915,13 @@
                   "type": "text"
                 }
               ],
-              "to_state": "Pending Clearance",
+              "to_state": "Offboarding Initiated",
               "trigger": "confirm_departure"
             },
             {
               "auto_transition": null,
               "description": null,
-              "from": "In Progress",
+              "from": "Employee Checklist",
               "guards": [
                 {
                   "config": {},
@@ -12109,13 +11942,13 @@
                   "type": "text"
                 }
               ],
-              "to_state": "Pending Clearance",
+              "to_state": "Employee Checklist",
               "trigger": "confirm_departure"
             },
             {
               "auto_transition": null,
               "description": null,
-              "from": "Submitted",
+              "from": "HR Review",
               "guards": [
                 {
                   "config": {},
@@ -12130,7 +11963,7 @@
               "post_transition_tasks": [],
               "pre_transition_tasks": [],
               "required_fields": [],
-              "to_state": "Pending Clearance",
+              "to_state": "HR Review",
               "trigger": "confirm_departure"
             },
             {
@@ -12152,6 +11985,46 @@
               "pre_transition_tasks": [],
               "required_fields": [],
               "to_state": "Pending Clearance",
+              "trigger": "confirm_departure"
+            },
+            {
+              "auto_transition": null,
+              "description": null,
+              "from": "Exit Interview",
+              "guards": [],
+              "key": "finish_exit_interview",
+              "label": "Finish exit interview",
+              "post_transition_tasks": [],
+              "pre_transition_tasks": [],
+              "required_fields": [
+                {
+                  "field": "exit_interview_notes",
+                  "type": "text",
+                  "required": true
+                }
+              ],
+              "to_state": "Pending Clearance",
+              "trigger": "finish_exit_interview"
+            },
+            {
+              "auto_transition": null,
+              "description": null,
+              "from": "Exit Interview",
+              "guards": [
+                {
+                  "config": {},
+                  "field": "departure_verified",
+                  "message": "Departure Verified must be 'yes'",
+                  "type": "field_exact_match",
+                  "value": "yes"
+                }
+              ],
+              "key": "departure_interview",
+              "label": "Confirm departure",
+              "post_transition_tasks": [],
+              "pre_transition_tasks": [],
+              "required_fields": [],
+              "to_state": "Exit Interview",
               "trigger": "confirm_departure"
             }
           ]
@@ -15135,6 +15008,1224 @@
             }
           ]
         }
+      }
+    },
+    {
+      "key": "method:Exit checklist v3 · Offboarding initiation",
+      "kind": "method",
+      "match": "Exit checklist v3 · Offboarding initiation",
+      "payload": {
+        "category_id": null,
+        "description": null,
+        "entity_types": [
+          "HRMS.Offboarding"
+        ],
+        "fields": [
+          {
+            "inherit_from": null,
+            "label": "Employee",
+            "library_field_id": {
+              "$ref": "field:employee_id",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 0,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:employee_id",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Exit type",
+            "library_field_id": {
+              "$ref": "field:exit_type",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 1,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:exit_type",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Date notified",
+            "library_field_id": {
+              "$ref": "field:notified_date",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 2,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:notified_date",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Requested last working day",
+            "library_field_id": {
+              "$ref": "field:requested_last_day",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 3,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:requested_last_day",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Confirmed last working day",
+            "library_field_id": {
+              "$ref": "field:confirmed_last_day",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 4,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:confirmed_last_day",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Exit reason",
+            "library_field_id": {
+              "$ref": "field:exit_reason",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 5,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:exit_reason",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Supporting documents",
+            "library_field_id": {
+              "$ref": "field:supporting_documents",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 6,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:supporting_documents",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "HR coordinator",
+            "library_field_id": {
+              "$ref": "field:offboarding_coordinator_id",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 7,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:offboarding_coordinator_id",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Handover owner / contact",
+            "library_field_id": {
+              "$ref": "field:handover_owner",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 8,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:handover_owner",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "HRMS access cutoff (include timezone)",
+            "library_field_id": {
+              "$ref": "field:access_cutoff",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 9,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:access_cutoff",
+              "attribute": "version_id"
+            }
+          }
+        ],
+        "name": "Exit checklist v3 · Offboarding initiation"
+      }
+    },
+    {
+      "key": "method:Exit checklist v3 · Employee checklist",
+      "kind": "method",
+      "match": "Exit checklist v3 · Employee checklist",
+      "payload": {
+        "category_id": null,
+        "description": null,
+        "entity_types": [
+          "HRMS.Offboarding"
+        ],
+        "fields": [
+          {
+            "inherit_from": null,
+            "label": "Employee name",
+            "library_field_id": {
+              "$ref": "field:exit_employee_name",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 0,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:exit_employee_name",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Employee ID",
+            "library_field_id": {
+              "$ref": "field:exit_employee_code",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 1,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:exit_employee_code",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Date of joining",
+            "library_field_id": {
+              "$ref": "field:exit_date_joined",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 2,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:exit_date_joined",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Confirmed last working day",
+            "library_field_id": {
+              "$ref": "field:confirmed_last_day",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 3,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:confirmed_last_day",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Employee-approved personal email for exit updates",
+            "library_field_id": {
+              "$ref": "field:employee_notification_email",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 4,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:employee_notification_email",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Employee has confirmed this contact address",
+            "library_field_id": {
+              "$ref": "field:notification_email_confirmed",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 5,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:notification_email_confirmed",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Have all ongoing projects been handed over to the concerned team members?",
+            "library_field_id": {
+              "$ref": "field:exit_projects_handed_over",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 6,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:exit_projects_handed_over",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Pending actions / remarks",
+            "library_field_id": {
+              "$ref": "field:exit_projects_handed_over_remarks",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 7,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:exit_projects_handed_over_remarks",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Have all necessary project documents, credentials, and notes been shared through approved channels?",
+            "library_field_id": {
+              "$ref": "field:exit_documents_shared",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 8,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:exit_documents_shared",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Pending actions / remarks",
+            "library_field_id": {
+              "$ref": "field:exit_documents_shared_remarks",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 9,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:exit_documents_shared_remarks",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Have all pending tasks and deliverables been updated in the project management tool?",
+            "library_field_id": {
+              "$ref": "field:exit_tasks_updated",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 10,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:exit_tasks_updated",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Pending actions / remarks",
+            "library_field_id": {
+              "$ref": "field:exit_tasks_updated_remarks",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 11,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:exit_tasks_updated_remarks",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Has the Project Manager confirmed satisfactory knowledge transfer completion via email?",
+            "library_field_id": {
+              "$ref": "field:exit_manager_confirmed",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 12,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:exit_manager_confirmed",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Pending actions / remarks",
+            "library_field_id": {
+              "$ref": "field:exit_manager_confirmed_remarks",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 13,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:exit_manager_confirmed_remarks",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Have all company assets (laptop, charger, ID card, SIM card, etc.) been returned?",
+            "library_field_id": {
+              "$ref": "field:exit_assets_returned",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 14,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:exit_assets_returned",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Pending actions / remarks",
+            "library_field_id": {
+              "$ref": "field:exit_assets_returned_remarks",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 15,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:exit_assets_returned_remarks",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Has personal data been removed from company devices in accordance with company policy?",
+            "library_field_id": {
+              "$ref": "field:exit_personal_data_removed",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 16,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:exit_personal_data_removed",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Pending actions / remarks",
+            "library_field_id": {
+              "$ref": "field:exit_personal_data_removed_remarks",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 17,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:exit_personal_data_removed_remarks",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Has the resignation letter been submitted and acknowledged?",
+            "library_field_id": {
+              "$ref": "field:exit_resignation_acknowledged",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 18,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:exit_resignation_acknowledged",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Pending actions / remarks",
+            "library_field_id": {
+              "$ref": "field:exit_resignation_acknowledged_remarks",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 19,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:exit_resignation_acknowledged_remarks",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Have all pending reimbursements, travel claims, or advances been cleared?",
+            "library_field_id": {
+              "$ref": "field:exit_claims_cleared",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 20,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:exit_claims_cleared",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Pending actions / remarks",
+            "library_field_id": {
+              "$ref": "field:exit_claims_cleared_remarks",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 21,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:exit_claims_cleared_remarks",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Has the full and final settlement and relieving letter process been explained?",
+            "library_field_id": {
+              "$ref": "field:exit_settlement_explained",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 22,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:exit_settlement_explained",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Pending actions / remarks",
+            "library_field_id": {
+              "$ref": "field:exit_settlement_explained_remarks",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 23,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:exit_settlement_explained_remarks",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Have the office access card and keys been returned?",
+            "library_field_id": {
+              "$ref": "field:exit_keys_returned",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 24,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:exit_keys_returned",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Pending actions / remarks",
+            "library_field_id": {
+              "$ref": "field:exit_keys_returned_remarks",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 25,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:exit_keys_returned_remarks",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "I confirm that the information provided in this offboarding form is accurate to the best of my knowledge and that I have disclosed any pending handover or clearance activities.",
+            "library_field_id": {
+              "$ref": "field:exit_acknowledgment",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 26,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:exit_acknowledgment",
+              "attribute": "version_id"
+            }
+          }
+        ],
+        "name": "Exit checklist v3 · Employee checklist"
+      }
+    },
+    {
+      "key": "method:Exit checklist v3 · HR review",
+      "kind": "method",
+      "match": "Exit checklist v3 · HR review",
+      "payload": {
+        "category_id": null,
+        "description": null,
+        "entity_types": [
+          "HRMS.Offboarding"
+        ],
+        "fields": [
+          {
+            "inherit_from": null,
+            "label": "HR notes",
+            "library_field_id": {
+              "$ref": "field:hr_notes",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 0,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:hr_notes",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Change / cancellation reason",
+            "library_field_id": {
+              "$ref": "field:change_reason",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 1,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:change_reason",
+              "attribute": "version_id"
+            }
+          }
+        ],
+        "name": "Exit checklist v3 · HR review"
+      }
+    },
+    {
+      "key": "method:Exit checklist v3 · Exit interview",
+      "kind": "method",
+      "match": "Exit checklist v3 · Exit interview",
+      "payload": {
+        "category_id": null,
+        "description": null,
+        "entity_types": [
+          "HRMS.Offboarding"
+        ],
+        "fields": [
+          {
+            "inherit_from": null,
+            "label": "Exit interview notes",
+            "library_field_id": {
+              "$ref": "field:exit_interview_notes",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 0,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:exit_interview_notes",
+              "attribute": "version_id"
+            }
+          }
+        ],
+        "name": "Exit checklist v3 · Exit interview"
+      }
+    },
+    {
+      "key": "method:Exit checklist v3 · Clearance verification",
+      "kind": "method",
+      "match": "Exit checklist v3 · Clearance verification",
+      "payload": {
+        "category_id": null,
+        "description": null,
+        "entity_types": [
+          "HRMS.Offboarding"
+        ],
+        "fields": [
+          {
+            "inherit_from": null,
+            "label": "Handover owner / contact",
+            "library_field_id": {
+              "$ref": "field:handover_owner",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 0,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:handover_owner",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Handover",
+            "library_field_id": {
+              "$ref": "field:handover_status",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 1,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:handover_status",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Handover evidence and replacement manager / approver",
+            "library_field_id": {
+              "$ref": "field:handover_notes",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 2,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:handover_notes",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Asset clearance",
+            "library_field_id": {
+              "$ref": "field:asset_status",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 3,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:asset_status",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Asset return details / exception approval",
+            "library_field_id": {
+              "$ref": "field:asset_notes",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 4,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:asset_notes",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "External email, VPN and application access",
+            "library_field_id": {
+              "$ref": "field:external_access_status",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 5,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:external_access_status",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "External access removal evidence",
+            "library_field_id": {
+              "$ref": "field:external_access_notes",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 6,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:external_access_notes",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "HRMS access cutoff (include timezone)",
+            "library_field_id": {
+              "$ref": "field:access_cutoff",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 7,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:access_cutoff",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Projects, allocations and pending approvals",
+            "library_field_id": {
+              "$ref": "field:ownership_status",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 8,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:ownership_status",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Ownership transfer evidence / not applicable reason",
+            "library_field_id": {
+              "$ref": "field:ownership_notes",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 9,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:ownership_notes",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Settlement confirmation",
+            "library_field_id": {
+              "$ref": "field:settlement_status",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 10,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:settlement_status",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Settlement reference / notes",
+            "library_field_id": {
+              "$ref": "field:settlement_notes",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 11,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:settlement_notes",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Relieving / experience letter and final documents",
+            "library_field_id": {
+              "$ref": "field:final_documents",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 12,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:final_documents",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Final review notes",
+            "library_field_id": {
+              "$ref": "field:final_notes",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 13,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:final_notes",
+              "attribute": "version_id"
+            }
+          }
+        ],
+        "name": "Exit checklist v3 · Clearance verification"
+      }
+    },
+    {
+      "key": "method:Exit checklist v3 · Completed summary",
+      "kind": "method",
+      "match": "Exit checklist v3 · Completed summary",
+      "payload": {
+        "category_id": null,
+        "description": null,
+        "entity_types": [
+          "HRMS.Offboarding"
+        ],
+        "fields": [
+          {
+            "inherit_from": null,
+            "label": "Employee name",
+            "library_field_id": {
+              "$ref": "field:exit_employee_name",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 0,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:exit_employee_name",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Employee ID",
+            "library_field_id": {
+              "$ref": "field:exit_employee_code",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 1,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:exit_employee_code",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Confirmed last working day",
+            "library_field_id": {
+              "$ref": "field:confirmed_last_day",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 2,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:confirmed_last_day",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Completed at",
+            "library_field_id": {
+              "$ref": "field:completed_at",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 3,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:completed_at",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Relieving / experience letter and final documents",
+            "library_field_id": {
+              "$ref": "field:final_documents",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 4,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:final_documents",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Final review notes",
+            "library_field_id": {
+              "$ref": "field:final_notes",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 5,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:final_notes",
+              "attribute": "version_id"
+            }
+          }
+        ],
+        "name": "Exit checklist v3 · Completed summary"
+      }
+    },
+    {
+      "key": "template:Exit checklist v2 · Offboarding Initiated",
+      "kind": "template",
+      "match": "Exit checklist v2 · Offboarding Initiated",
+      "payload": {
+        "body_html": "<p>Your offboarding case is now <strong>Offboarding Initiated</strong>.</p><p><a href=\"{{workspace_url}}\">Open MyHub tasks</a> to view progress and your assigned actions. HR can review the case in HR Cockpit. If access has ended, contact your HR coordinator.</p><p>Feedback and confidential clearance details are available only in the authenticated application. If corrections are requested, open the case to read the HR reason.</p>",
+        "entity_type": "HRMS.Offboarding",
+        "form_id": null,
+        "name": "Exit checklist v2 · Offboarding Initiated",
+        "subject": "MyHub offboarding · {{employee_code}} · Offboarding Initiated"
+      }
+    },
+    {
+      "key": "template:Exit checklist v2 · Employee Checklist",
+      "kind": "template",
+      "match": "Exit checklist v2 · Employee Checklist",
+      "payload": {
+        "body_html": "<p>Your offboarding case is now <strong>Employee Checklist</strong>.</p><p><a href=\"{{workspace_url}}\">Open MyHub tasks</a> to view progress and your assigned actions. HR can review the case in HR Cockpit. If access has ended, contact your HR coordinator.</p><p>Feedback and confidential clearance details are available only in the authenticated application. If corrections are requested, open the case to read the HR reason.</p>",
+        "entity_type": "HRMS.Offboarding",
+        "form_id": null,
+        "name": "Exit checklist v2 · Employee Checklist",
+        "subject": "MyHub offboarding · {{employee_code}} · Employee Checklist"
+      }
+    },
+    {
+      "key": "template:Exit checklist v2 · HR Review",
+      "kind": "template",
+      "match": "Exit checklist v2 · HR Review",
+      "payload": {
+        "body_html": "<p>Your offboarding case is now <strong>HR Review</strong>.</p><p><a href=\"{{workspace_url}}\">Open MyHub tasks</a> to view progress and your assigned actions. HR can review the case in HR Cockpit. If access has ended, contact your HR coordinator.</p><p>Feedback and confidential clearance details are available only in the authenticated application. If corrections are requested, open the case to read the HR reason.</p>",
+        "entity_type": "HRMS.Offboarding",
+        "form_id": null,
+        "name": "Exit checklist v2 · HR Review",
+        "subject": "MyHub offboarding · {{employee_code}} · HR Review"
+      }
+    },
+    {
+      "key": "template:Exit checklist v2 · Exit Interview",
+      "kind": "template",
+      "match": "Exit checklist v2 · Exit Interview",
+      "payload": {
+        "body_html": "<p>Your offboarding case is now <strong>Exit Interview</strong>.</p><p><a href=\"{{workspace_url}}\">Open MyHub tasks</a> to view progress and your assigned actions. HR can review the case in HR Cockpit. If access has ended, contact your HR coordinator.</p><p>Feedback and confidential clearance details are available only in the authenticated application. If corrections are requested, open the case to read the HR reason.</p>",
+        "entity_type": "HRMS.Offboarding",
+        "form_id": null,
+        "name": "Exit checklist v2 · Exit Interview",
+        "subject": "MyHub offboarding · {{employee_code}} · Exit Interview"
       }
     }
   ],

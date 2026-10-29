@@ -53,7 +53,7 @@ EMPLOYEE_TRIGGERS = {'start_checklist','submit_checklist','submit_employee_hando
 
 
 def is_checklist(workflow):
-    return workflow['definition'].get('initial_state') == 'Not Started'
+    return workflow['definition'].get('initial_state') == 'Not Started' or staged_forms(workflow)
 
 
 def validate_values(fields, values, submitting=False):
@@ -100,3 +100,10 @@ def definition(methods, templates):
         exception = [dict(field('change_reason','Reason for proceeding before employee submission','text'),required=True)] if name in STAGES[:2] else []
         transitions.append(dict(transition('confirm_departure',name,'Pending Clearance','Confirm departure',fields=exception,guards=[{'type':'field_exact_match','field':'departure_verified','value':'yes'}]),key='departure_'+str(STAGES.index(name))))
     return dict(machine_key='hrms_offboarding',name='Employee offboarding',entity_type='HRMS.Offboarding',entity_schema={'entity_type':'HRMS.Offboarding','fields':[]},initial_state=STAGES[0],states=states,transitions=transitions)
+
+
+CONTACT_KEYS = {'employee_notification_email', 'notification_email_confirmed'}
+
+def staged_forms(workflow):
+    return (workflow['definition'].get('initial_state') == 'Offboarding Initiated' or
+            any('hrms:stage-forms-v3' in (s.get('description') or '') for s in workflow['definition']['states']))

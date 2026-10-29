@@ -8,6 +8,7 @@ import hashlib
 
 from .errors import AppError
 from .platform import Actor
+from .offboarding_checklist import staged_forms
 
 ENTITY = 'HRMS.OffboardingNotice'
 TAG = 'hrms:durable-exit-notifications'
@@ -62,7 +63,12 @@ def dispatch(platform, journal, event, source, workflow, notice_workflow, templa
             if op.result:
                 continue
             if not op.progress.get('envelope'):
-                envelope = dict(notice_key=key, recipient=values.get(field), template_id=template,
+                recipient = values.get(field)
+                if field == 'employee_notification_email' and staged_forms(workflow):
+                    if values.get('notification_email_confirmed') != 'Yes' or not recipient:
+                        user = next((u for u in platform.users() if u['id'] == values.get('offboarding_employee_user_id')), None)
+                        recipient = user.get('email') if user else None
+                envelope = dict(notice_key=key, recipient=recipient, template_id=template,
                                 workspace_url=values.get('offboarding_workspace_url'),
                                 employee_code=values.get('exit_employee_code'), source_entity_id=source['entity_id'],
                                 source_event_id=event['id'], stage=stage)

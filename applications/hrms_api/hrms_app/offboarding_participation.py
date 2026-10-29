@@ -8,7 +8,7 @@ from .offboarding_catalog import ENTITY, SECTIONS
 from .offer_documents import digest
 from datetime import datetime, UTC
 import json
-from .offboarding_checklist import EMPLOYEE_KEYS, EMPLOYEE_TRIGGERS, is_checklist, validate_values
+from .offboarding_checklist import EMPLOYEE_KEYS, EMPLOYEE_TRIGGERS, is_checklist, validate_values, CONTACT_KEYS, staged_forms
 
 def employee_step(state):
     return any(a['kind']=='entity.assign_user' and a.get('config',{}).get('user_id')=='$entity.offboarding_employee_user_id' for a in state.get('on_state_actions',[]))
@@ -92,10 +92,11 @@ class EmployeeOffboarding:
             return dict(entity_id=entity_id, state=state['name'], values=values, values_hash=digest(values),
                         editable=False, fields=[], sections=[], assets=[], actions=[],
                         assigned_to_you=record.get('assignee_id') == actor.user_id, viewer='participant')
-        visible = EMPLOYEE_FIELDS | ({'exit_employee_name','exit_employee_code','exit_date_joined','confirmed_last_day'} if is_checklist(workflow) else set())
-        fields = [{**f, 'read_only':f.get('read_only',False) or f['field'] not in EMPLOYEE_FIELDS} for f in self.offboarding.fields(workflow, state['name']) if f['field'] in visible]
+        employee_fields = EMPLOYEE_FIELDS | (CONTACT_KEYS if staged_forms(workflow) else set())
+        visible = employee_fields | ({'exit_employee_name','exit_employee_code','exit_date_joined','confirmed_last_day'} if is_checklist(workflow) else set())
+        fields = [{**f, 'read_only':f.get('read_only',False) or f['field'] not in employee_fields} for f in self.offboarding.fields(workflow, state['name']) if f['field'] in visible]
         editable = employee_step(state) and record.get('assignee_id') == actor.user_id
-        values = {k:v for k,v in record['data'].items() if k in PUBLIC_FIELDS}
+        values = {k:v for k,v in record['data'].items() if k in PUBLIC_FIELDS | (CONTACT_KEYS if staged_forms(workflow) else set())}
         transitions = [t for t in workflow['definition']['transitions'] if t.get('from') == state['name'] and t['trigger'] in EMPLOYEE_TRIGGERS]
         required = {f['field'] for t in workflow['definition']['transitions'] if t['trigger']=='submit_checklist' for f in t.get('required_fields',[]) if f.get('required')}
         fields = [{**f,'required':True} if f['field'] in required else f for f in fields]
@@ -104,7 +105,7 @@ class EmployeeOffboarding:
             if schema['state_name'] != state['name']: continue
             keys = {f['field'] for f in schema['fields']}
             selected = [f for f in fields if f['field'] in keys]
-            if selected and schema['method_name'].startswith('Exit checklist v2 · ') and schema['method_name'] not in {'Exit checklist v2 · Exit administration','Exit checklist v2 · Clearance verification'}:
+            if selected and schema['method_name'].startswith(('Exit checklist v2 · ', 'Exit checklist v3 · ')) and schema['method_name'] not in {'Exit checklist v2 · Exit administration','Exit checklist v2 · Clearance verification'}:
                 sections.append({'title':schema['method_name'].split(' · ',1)[-1],'fields':selected})
         assets, asset_error = [], None
         if is_checklist(workflow):
@@ -161,7 +162,7 @@ class EmployeeOffboarding:
                         history.append({'submission':dict(op.progress['submission']),'answers':item['values']})
                         op.checkpoint(submission={**op.progress['submission'],'checklist_submission_history':json.dumps(history)})
                     self.platform.call('PUT',f'/entity-records/{entity_id}',json={'data':op.progress['submission']})
-                    op.checkpoint(saved_hash=digest({**item['values'],**{k:v for k,v in op.progress['submission'].items() if k in PUBLIC_FIELDS}}))
+                    op.checkpoint(saved_hash=digest({**item['values'],**{k:v for k,v in op.progress['submission'].items() if k in PUBLIC_FIELDS | (CONTACT_KEYS if staged_forms(workflow) else set())}}))
                 op.checkpoint(target=target)
                 self.platform.call('POST',f'/entities/{entity_id}/transitions',json={
                     'entity_id':entity_id,'workflow_id':workflow['id'],'trigger':trigger,'idempotency_key':payload['idempotency_key']})
@@ -174,7 +175,7 @@ class EmployeeOffboarding:
                 if is_checklist(workflow): validate_values(item['fields'], merged)
                 op.checkpoint(saved_hash=digest(merged))
                 self.platform.call('PUT',f'/entity-records/{entity_id}',json={'data':values})
-                if is_checklist(workflow) and item['state']=='Not Started':
+                if is_checklist(workflow) and item['state']==workflow['definition']['initial_state']:
                     self.platform.call('POST',f'/entities/{entity_id}/transitions',json={'entity_id':entity_id,'workflow_id':workflow['id'],'trigger':'start_checklist','idempotency_key':payload['idempotency_key']+'-start'})
             self.offboarding.journal.audit(db,actor,'offboarding.employee.'+(trigger or 'saved'),entity_id,payload['idempotency_key'])
             op.finish({'entity_id':entity_id})

@@ -12,7 +12,7 @@ from .offboarding_catalog import ENTITY, MACHINE, SYSTEM_FIELDS
 from .offer_documents import digest
 from .employee_work import transition_grants
 from .offboarding_participation import EMPLOYEE_FIELDS, employee_step as is_employee_step
-from .offboarding_checklist import SYSTEM_KEYS, EMPLOYEE_TRIGGERS, is_checklist
+from .offboarding_checklist import SYSTEM_KEYS, EMPLOYEE_TRIGGERS, is_checklist, CONTACT_KEYS, staged_forms
 
 SYSTEM = {f['field'] for f in SYSTEM_FIELDS} | SYSTEM_KEYS
 
@@ -162,7 +162,7 @@ class OffboardingService:
     def config(self, actor):
         w = self.workflow(actor)
         fields=self.visible_fields(actor,self.fields(w, w['definition']['initial_state']))
-        return dict(workflow=w, fields=[f for f in fields if f['field'] not in SYSTEM|EMPLOYEE_FIELDS])
+        return dict(workflow=w, previous_fields=previous_fields, fields=[f for f in fields if f['field'] not in SYSTEM|EMPLOYEE_FIELDS])
 
     def visible_fields(self, actor, fields):
         if 'superadmin' in actor.roles:
@@ -196,8 +196,18 @@ class OffboardingService:
         employee_step=any(s['name']==state['current_state'] and is_employee_step(s) for s in w['definition']['states'])
         people={u['id']:u.get('full_name') or u['email'] for u in self.platform.users()}
         participation=any(is_employee_step(s) for s in w['definition']['states'])
+        previous_fields = []
+        if staged_forms(w):
+            graph = w['definition']
+            order = next(s['order'] for s in graph['states'] if s['name'] == state['current_state'])
+            earlier = {s['name'] for s in graph['states'] if s['order'] < order}
+            current_keys = {f['field'] for f in self.fields(w, state['current_state'])}
+            prior = {f['field']: f for schema in graph.get('method_schemas', [])
+                     if schema['state_name'] in earlier for f in schema['fields']
+                     if f['field'] not in current_keys | SYSTEM and f['field'] in r['data']}
+            previous_fields = [dict(f, read_only=True) for f in self.visible_fields(actor, list(prior.values()))]
         return dict(entity_id=entity_id, values=r['data'], values_hash=digest(r['data']), state=state['current_state'],assignee_id=assigned,assignee_name=people.get(assigned),employee_participation=participation,
-            workflow=w, fields=[{**f,'read_only':True} if f['field'] in EMPLOYEE_FIELDS|SYSTEM else f for f in self.visible_fields(actor,self.fields(w, state['current_state']))], editable=not terminal and (not employee_step or is_checklist(w)),
+            workflow=w, previous_fields=previous_fields, fields=[{**f,'read_only':True} if f['field'] in EMPLOYEE_FIELDS|SYSTEM|(CONTACT_KEYS if staged_forms(w) else set()) else f for f in self.visible_fields(actor,self.fields(w, state['current_state']))], editable=not terminal and (not employee_step or is_checklist(w)),
             employee={k: employee['data'].get(k) for k in ('employee_code','first_name','last_name','department','designation','date_joined','employment_status')},
             actions=[a for a in actions.get('available_transitions', []) if a['trigger'] in permitted and a['trigger'] not in EMPLOYEE_TRIGGERS
                      and (not employee_step or (is_checklist(w) and a['trigger']=='confirm_departure'))
@@ -235,7 +245,7 @@ class OffboardingService:
                 raise AppError(409, 'This record changed or is closed. Reload before saving')
             w = current['workflow'] if current else self.workflow(actor)
             fields = self.fields(w, current['state'] if current else w['definition']['initial_state'])
-            allowed = {f['field'] for f in fields if not f.get('read_only')} - SYSTEM - EMPLOYEE_FIELDS
+            allowed = {f['field'] for f in fields if not f.get('read_only')} - SYSTEM - EMPLOYEE_FIELDS - (CONTACT_KEYS if staged_forms(w) else set())
             if current:
                 allowed.discard('employee_id')
                 if current['values'].get('departure_verified') == 'yes':
@@ -253,13 +263,14 @@ class OffboardingService:
             if not current and employee['data'].get('employment_status') != 'active':
                 raise AppError(409, 'Choose an active employee')
             if not current and is_checklist(w):
-                from pydantic import TypeAdapter, EmailStr, ValidationError
-                try:
-                    TypeAdapter(EmailStr).validate_python(values.get('employee_notification_email'))
-                except ValidationError:
-                    raise AppError(422,'Enter the employee-confirmed notification email')
-                if values.get('notification_email_confirmed')!='Yes':
-                    raise AppError(422,'Confirm the employee-approved contact address')
+                if not staged_forms(w):
+                    from pydantic import TypeAdapter, EmailStr, ValidationError
+                    try:
+                        TypeAdapter(EmailStr).validate_python(values.get('employee_notification_email'))
+                    except ValidationError:
+                        raise AppError(422,'Enter the employee-confirmed notification email')
+                    if values.get('notification_email_confirmed')!='Yes':
+                        raise AppError(422,'Confirm the employee-approved contact address')
                 if not identity or identity.get('status')!='active':
                     raise AppError(409,'An active linked employee account is required')
                 cutoff(values)

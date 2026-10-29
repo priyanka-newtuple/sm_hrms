@@ -129,3 +129,20 @@ def test_stage_emails_use_deployment_managed_transport():
                 # Workflow configuration supplies content/recipients only. The
                 # native default integration is selected by the release pipeline.
                 assert set(action['config']) == {'to', 'template_id', 'workspace_url', 'employee_code'}
+
+
+def test_staged_employee_can_save_contact_but_not_hr_interview_notes(checklist):
+    api, actor, record, state, writes = checklist
+    workflow = api.context(actor, 'exit')[2]
+    workflow['definition']['initial_state'] = 'Offboarding Initiated'
+    state['name'] = 'Employee Checklist'
+    contact = [dict(field='employee_notification_email', description='Contact email', type='email'),
+               dict(field='notification_email_confirmed', description='Consent', type='enum', enum_values=['Yes'])]
+    api.offboarding.fields = lambda *a: contact + [dict(field='exit_interview_notes', type='text')]
+    record['data']['employee_notification_email'] = 'old@example.com'
+    item = api.detail(actor, 'exit')
+    assert {f['field'] for f in item['fields']} == {f['field'] for f in contact}
+    command(api, actor, 'contact', values={'employee_notification_email': 'personal@example.com', 'notification_email_confirmed': 'Yes'})
+    assert record['data']['employee_notification_email'] == 'personal@example.com'
+    with pytest.raises(AppError):
+        command(api, actor, 'hr-notes', values={'exit_interview_notes': 'not permitted'})
