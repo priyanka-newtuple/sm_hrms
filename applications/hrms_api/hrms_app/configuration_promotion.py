@@ -51,6 +51,37 @@ def inspection(native, package, state):
     return make_plan(package, actual, baseline, native.api.org), actual, identities
 
 
+def accept_reviewed_drift(native, package, reviewed, journal):
+    """Accept an exact reviewed live snapshot as baseline; never write native data.
+
+    Deployment remains a separate operation with its normal preflight and drift
+    checks. Keep the prior baseline and review for an auditable reconciliation.
+    """
+    state = journal.read()
+    if state.get('status') != 'applied' or not state.get('baseline') or state.get('pending'):
+        raise ConfigurationError('Drift review requires a fully applied release')
+    fresh, actual, identities = inspection(native, package, state)
+    conflicts = [op['key'] for op in fresh['operations'] if op['decision'] == 'conflict']
+    if (fresh != reviewed or not conflicts or
+            any(op['decision'] == 'retirement_required' for op in fresh['operations']) or
+            any(key not in state['baseline'] or actual.get(key) is None for key in conflicts)):
+        raise ConfigurationError('Drift review is stale or requires a different recovery')
+    native.preflight(validate(package), identities)
+    checked, _, _ = inspection(native, package, state)
+    if checked != reviewed:
+        raise ConfigurationError('Destination changed during drift review checks')
+    history = deepcopy(state.get('drift_reviews', []))
+    history.append({'review': deepcopy(reviewed), 'previous_baseline': deepcopy(state['baseline']),
+                    'accepted_snapshot': deepcopy(actual),
+                    'reviewed_at': datetime.now(timezone.utc).isoformat()})
+    baseline = deepcopy(state['baseline'])
+    for key in conflicts:
+        baseline[key] = deepcopy(actual[key])
+    state = {**state, 'baseline': baseline, 'drift_reviews': history}
+    journal.save(state)
+    return state
+
+
 def adopt_reviewed(native, package, reviewed, journal):
     """Record an explicitly reviewed initial snapshot, then use normal promotion.
 

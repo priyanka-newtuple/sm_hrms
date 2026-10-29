@@ -8017,6 +8017,13 @@
               "$ref": "workflow:HRMS.Offboarding",
               "attribute": "machine_name"
             },
+            "transition_key": "initiated__to__in progress"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
             "transition_key": "reopen_checklist"
           },
           {
@@ -8569,6 +8576,13 @@
             "can_edit": false,
             "can_view": true,
             "entity_type": "HRMS.Offboarding",
+            "field_name": "employee_notification_email",
+            "mask_value": false
+          },
+          {
+            "can_edit": false,
+            "can_view": true,
+            "entity_type": "HRMS.Offboarding",
             "field_name": "exit_access_revoked",
             "mask_value": false
           },
@@ -8800,6 +8814,13 @@
             "can_edit": false,
             "can_view": true,
             "entity_type": "HRMS.Offboarding",
+            "field_name": "notification_email_confirmed",
+            "mask_value": false
+          },
+          {
+            "can_edit": false,
+            "can_view": true,
+            "entity_type": "HRMS.Offboarding",
             "field_name": "offboarding_coordinator_email",
             "mask_value": false
           },
@@ -8972,13 +8993,6 @@
             "mask_value": false
           },
           {
-            "can_edit": false,
-            "can_view": true,
-            "entity_type": "HRMS.Offboarding",
-            "field_name": "employee_notification_email",
-            "mask_value": false
-          },
-          {
             "can_edit": true,
             "can_view": true,
             "entity_type": "HRMS.Offboarding",
@@ -9067,13 +9081,6 @@
             "can_view": true,
             "entity_type": "HRMS.Offboarding",
             "field_name": "identifier",
-            "mask_value": false
-          },
-          {
-            "can_edit": false,
-            "can_view": true,
-            "entity_type": "HRMS.Offboarding",
-            "field_name": "notification_email_confirmed",
             "mask_value": false
           },
           {
@@ -9580,6 +9587,13 @@
               "$ref": "workflow:HRMS.Offboarding",
               "attribute": "machine_name"
             },
+            "transition_key": "initiated__to__in progress"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
             "transition_key": "reopen_checklist"
           },
           {
@@ -9857,6 +9871,13 @@
             "can_edit": false,
             "can_view": true,
             "entity_type": "HRMS.Offboarding",
+            "field_name": "employee_notification_email",
+            "mask_value": false
+          },
+          {
+            "can_edit": false,
+            "can_view": true,
+            "entity_type": "HRMS.Offboarding",
             "field_name": "exit_access_revoked",
             "mask_value": false
           },
@@ -10088,6 +10109,13 @@
             "can_edit": false,
             "can_view": true,
             "entity_type": "HRMS.Offboarding",
+            "field_name": "notification_email_confirmed",
+            "mask_value": false
+          },
+          {
+            "can_edit": false,
+            "can_view": true,
+            "entity_type": "HRMS.Offboarding",
             "field_name": "offboarding_coordinator_email",
             "mask_value": false
           },
@@ -10183,13 +10211,6 @@
             "mask_value": false
           },
           {
-            "can_edit": false,
-            "can_view": true,
-            "entity_type": "HRMS.Offboarding",
-            "field_name": "employee_notification_email",
-            "mask_value": false
-          },
-          {
             "can_edit": true,
             "can_view": true,
             "entity_type": "HRMS.Offboarding",
@@ -10278,13 +10299,6 @@
             "can_view": true,
             "entity_type": "HRMS.Offboarding",
             "field_name": "identifier",
-            "mask_value": false
-          },
-          {
-            "can_edit": false,
-            "can_view": true,
-            "entity_type": "HRMS.Offboarding",
-            "field_name": "notification_email_confirmed",
             "mask_value": false
           },
           {
@@ -10757,6 +10771,13 @@
               "attribute": "machine_name"
             },
             "transition_key": "finish_exit_interview"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "initiated__to__in progress"
           },
           {
             "machine_name": {
