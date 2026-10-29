@@ -127,9 +127,16 @@ def resume_reviewed(native, package, reviewed, journal, original_package=None, d
         if desired and desired['kind'] == 'workflow':
             _, identities = native.snapshot(objects)
             current, identity = native.read(desired)
-            if (identity.get('id') == pending['draft_id'] and
-                    current == resolve(desired['payload'], identities)):
+            matches = current == resolve(desired['payload'], identities)
+            if matches and identity.get('id') == pending['draft_id']:
                 pending = None
+            elif matches and identity.get('machine_name') == pending.get('machine_name') and draft_review:
+                # Native publish creates a separate immutable row and retains the
+                # source draft at version 0. Verify both sides of that publication.
+                draft = native.get('/workflow-state-machines/' + pending['draft_id'])
+                if (draft.get('version') == 0 and draft.get('machine_name') == identity['machine_name']
+                        and digest(draft) == draft_review):
+                    pending = None
     if pending and not pending.get('draft_id'):
         item = next((o for o in original_objects if o['key'] == pending['key']), None)
         if item is None:
