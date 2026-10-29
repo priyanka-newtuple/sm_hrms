@@ -141,7 +141,7 @@ export default function MyWorkPage() {
           : <div className="hrms-task-empty"><Illustration name="all-clear" animate={motion} className="hrms-task-empty-art" /><h3>{current === 'all' ? 'You’re all caught up' : `Nothing waiting in ${AREAS[current as Area].label}`}</h3><p>{current === 'all' ? 'New approvals and tasks for your role will appear here.' : 'New items will appear here as soon as they need you.'}</p></div>}
         <Pager paged={paged} noun={current === 'all' ? 'tasks' : AREAS[current as Area].label.toLowerCase()} />
       </section>
-      {(waiting.myOffboarding.data??[]).map(item=><section key={item.entity_id} className="hrms-lk-card p-6"><h2 className="font-semibold">Your offboarding</h2><p className="my-3">{item.state}</p><Go to={`/hrms/my-offboarding/${item.entity_id}`}>View progress</Go></section>)}
+      {(waiting.myOffboarding.data??[]).map(item=><section key={item.entity_id} className="hrms-lk-card p-6"><h2 className="font-semibold">{item.viewer==='participant'?`Offboarding · ${String(item.values.exit_employee_name||item.values.identifier||'Employee')}`:'Your offboarding'}</h2><p className="my-3">{item.state}</p><Go to={`/hrms/my-offboarding/${item.entity_id}`}>View progress</Go></section>)}
       {waiting.myOffboarding.isError&&<p role="alert">Unable to load your offboarding status. <button onClick={()=>void waiting.myOffboarding.refetch()}>Retry</button></p>}
       {waiting.employeeWork.filter(item=>item.is_own_onboarding).map(item=><section key={`status-${item.entity_id}-${item.workflow_id}`} className="hrms-lk-card p-6" aria-label="Your onboarding status">
         <h2 className="font-semibold">Your onboarding</h2>

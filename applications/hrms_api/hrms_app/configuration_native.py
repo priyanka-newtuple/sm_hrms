@@ -188,6 +188,27 @@ class NativeConfiguration:
         normalized = {key: {**obj, 'payload': walk(obj['payload'], replace)} for key, obj in raw.items()}
         return normalized, identities
 
+    def reusable_workflow_draft(self, identity):
+        drafts = self.get('/workflow-state-machines', params={'scope': 'draft', 'machine_name': identity['machine_name']})['draft_items']
+        if not drafts:
+            return None
+        if len(drafts) != 1:
+            raise ConfigurationError('Existing workflow drafts must be resolved before promotion')
+        draft = self.get('/workflow-state-machines/' + path(drafts[0]['id']))
+        published = self.get('/workflow-state-machines/' + path(identity['id']))
+        if not isinstance(draft.get('definition'), dict) or not isinstance(published.get('definition'), dict):
+            raise ConfigurationError('Cannot verify existing workflow draft')
+        def canonical(graph):
+            graph = deepcopy(graph)
+            for transition in graph.get('transitions', []):
+                if 'from_state' in transition:
+                    transition['from'] = transition.pop('from_state')
+            return graph
+        if (canonical(draft['definition']) != canonical(published['definition']) or
+                draft.get('canvas_metadata') != published.get('canvas_metadata')):
+            raise ConfigurationError('Edited workflow draft must be resolved in Settings before promotion')
+        return draft
+
     def preflight(self, objects, identities):
         """Read-only checks for unsupported edits before any resource is written."""
         from .configuration_package import resolve
@@ -207,9 +228,7 @@ class NativeConfiguration:
                 except ConfigurationError:
                     changed = True  # a dependency will be created by this release
                 if changed:
-                    drafts = self.get('/workflow-state-machines', params={'scope': 'draft', 'machine_name': identity['machine_name']})['draft_items']
-                    if drafts:
-                        raise ConfigurationError('Existing workflow draft must be resolved before promotion')
+                    self.reusable_workflow_draft(identity)
             if obj['kind'] == 'field' and current['name'] != obj['payload']['name']:
                 raise ConfigurationError('Field renaming requires a reviewed Settings migration')
             if obj['kind'] == 'method':
@@ -277,10 +296,7 @@ class NativeConfiguration:
                                   json={'machine_name': identity['machine_name'], 'definition': graph})
                 if not validation.get('can_publish'):
                     raise ConfigurationError(f'Native workflow validation failed: {obj["key"]}')
-                drafts = self.get('/workflow-state-machines', params={'scope': 'draft', 'machine_name': identity['machine_name']})['draft_items']
-                if drafts:
-                    raise ConfigurationError('Existing workflow draft must be resolved in Settings before promotion')
-                draft = call('POST', '/workflow-state-machines/' + path(identity['machine_name']) + '/draft')
+                draft = self.reusable_workflow_draft(identity) or call('POST', '/workflow-state-machines/' + path(identity['machine_name']) + '/draft')
             else:
                 # Native publication performs full validation for the newly allocated family.
                 recovery = getattr(self, 'recovery_drafts', {}).get(obj['key'])
@@ -292,9 +308,13 @@ class NativeConfiguration:
                 else:
                     draft = call('POST', '/workflow-state-machines/draft', json={'name': graph['name']})
                 graph['machine_key'] = draft['machine_name']
-            checkpoint({'draft_id': draft['id'], 'machine_name': draft['machine_name']})
+            from .configuration_workflow_grants import capture, restore
+            old = self.get('/workflow-state-machines/' + identity['id'])['definition'] if existing else {}
+            retained = capture(self, draft['machine_name'], old, graph)
+            checkpoint({'draft_id': draft['id'], 'machine_name': draft['machine_name'], 'retained_transition_grants': retained})
             call('POST', '/workflow-state-machines/' + path(draft['id']) + '/publish',
                  json={'definition': graph, 'canvas_metadata': payload.get('canvas_metadata')})
+            restore(self, retained)
         elif kind == 'role':
             current = self.get('/roles/' + path(identity['id']))
             merged = {}

@@ -2,6 +2,9 @@
 from datetime import datetime, UTC, date
 from uuid import UUID
 import json
+import os
+from html import escape
+from urllib.parse import urlsplit
 
 from .errors import AppError
 from .policy import require, capabilities
@@ -10,8 +13,9 @@ from .offboarding_catalog import ENTITY, MACHINE, SYSTEM_FIELDS
 from .offer_documents import digest
 from .employee_work import transition_grants
 from .offboarding_participation import EMPLOYEE_FIELDS, employee_step as is_employee_step
+from .offboarding_checklist import SYSTEM_KEYS, EMPLOYEE_TRIGGERS, is_checklist
 
-SYSTEM = {f['field'] for f in SYSTEM_FIELDS}
+SYSTEM = {f['field'] for f in SYSTEM_FIELDS} | SYSTEM_KEYS
 
 
 def validate_clearances(values):
@@ -160,7 +164,8 @@ class OffboardingService:
 
     def config(self, actor):
         w = self.workflow(actor)
-        return dict(workflow=w, fields=self.visible_fields(actor,self.fields(w, w['definition']['initial_state'])))
+        fields=self.visible_fields(actor,self.fields(w, w['definition']['initial_state']))
+        return dict(workflow=w, fields=[f for f in fields if f['field'] not in SYSTEM|EMPLOYEE_FIELDS])
 
     def visible_fields(self, actor, fields):
         if 'superadmin' in actor.roles:
@@ -195,10 +200,12 @@ class OffboardingService:
         people={u['id']:u.get('full_name') or u['email'] for u in self.platform.users()}
         participation=any(is_employee_step(s) for s in w['definition']['states'])
         return dict(entity_id=entity_id, values=r['data'], values_hash=digest(r['data']), state=state['current_state'],assignee_id=assigned,assignee_name=people.get(assigned),employee_participation=participation,
-            workflow=w, fields=[{**f,'read_only':True} if f['field'] in EMPLOYEE_FIELDS else f for f in self.visible_fields(actor,self.fields(w, state['current_state']))], editable=not terminal and not employee_step,
+            workflow=w, fields=[{**f,'read_only':True} if f['field'] in EMPLOYEE_FIELDS|SYSTEM else f for f in self.visible_fields(actor,self.fields(w, state['current_state']))], editable=not terminal and (not employee_step or is_checklist(w)),
             employee={k: employee['data'].get(k) for k in ('employee_code','first_name','last_name','department','designation','date_joined','employment_status')},
-            actions=[a for a in actions.get('available_transitions', []) if a['trigger'] in permitted and not employee_step
-                     and (assigned in {None,actor.user_id} or 'superadmin' in actor.roles)])
+            actions=[a for a in actions.get('available_transitions', []) if a['trigger'] in permitted and a['trigger'] not in EMPLOYEE_TRIGGERS
+                     and (not employee_step or (is_checklist(w) and a['trigger']=='confirm_departure'))
+                     and (assigned in {None,actor.user_id} or 'superadmin' in actor.roles or (is_checklist(w) and a['trigger']=='confirm_departure' and r['data'].get('offboarding_coordinator_id')==actor.user_id))
+                     and not (a['trigger']=='confirm_departure' and r['data'].get('departure_verified')=='yes')])
 
     def related(self, actor, entity_id):
         item = self.detail(actor, entity_id)
@@ -240,14 +247,39 @@ class OffboardingService:
             if set(submitted) - allowed:
                 raise AppError(422, 'Only editable fields in this workflow state may be saved')
             values = {**(current['values'] if current else {}), **submitted}
-            employee, _ = self.employee(actor, str(values.get('employee_id', '')))
-            routing_keys={'offboarding_approver_id','offboarding_coordinator_id'}
+            employee, identity = self.employee(actor, str(values.get('employee_id', '')))
+            routing_keys={'offboarding_coordinator_id'} if is_checklist(w) else {'offboarding_approver_id','offboarding_coordinator_id'}
             if any(k in values for k in routing_keys):
                 eligible={u['id'] for u in self.assignees(actor)}
                 if any(values.get(k) not in eligible for k in routing_keys):
                     raise AppError(422,'Choose active HR approver and coordinator accounts')
             if not current and employee['data'].get('employment_status') != 'active':
                 raise AppError(409, 'Choose an active employee')
+            if not current and is_checklist(w):
+                from pydantic import TypeAdapter, EmailStr, ValidationError
+                try:
+                    TypeAdapter(EmailStr).validate_python(values.get('employee_notification_email'))
+                except ValidationError:
+                    raise AppError(422,'Enter the employee-confirmed notification email')
+                if values.get('notification_email_confirmed')!='Yes':
+                    raise AppError(422,'Confirm the employee-approved contact address')
+                if not identity or identity.get('status')!='active':
+                    raise AppError(409,'An active linked employee account is required')
+                cutoff(values)
+                if not values.get('exit_type'): raise AppError(422,'Choose the exit type')
+                coordinator=next((u for u in self.platform.users() if u['id']==values.get('offboarding_coordinator_id') and u['status']=='active'),None)
+                if not coordinator: raise AppError(422,'Choose an active HR coordinator')
+                address=urlsplit(os.environ.get('HRMS_PUBLIC_URL') or os.environ.get('GOOGLE_REDIRECT_URI',''))
+                if address.scheme not in {'https','http'} or not address.hostname or address.username or address.password:
+                    raise AppError(503,'Configure the MyHub public address before starting offboarding')
+                values.update(offboarding_employee_user_id=identity['id'],offboarding_coordinator_email=coordinator['email'],
+                    offboarding_workspace_url=escape(address.scheme+'://'+address.netloc+'/hrms/my-work',quote=True),
+                    exit_employee_name=' '.join(str(employee['data'].get(k) or '') for k in ('first_name','last_name')).strip(),
+                    exit_employee_code=employee['data'].get('employee_code'),exit_date_joined=employee['data'].get('date_joined'))
+            if current and is_checklist(w) and 'offboarding_coordinator_id' in submitted:
+                coordinator=next((u for u in self.platform.users() if u['id']==values.get('offboarding_coordinator_id') and u['status']=='active'),None)
+                if not coordinator: raise AppError(422,'Choose an active HR coordinator')
+                values['offboarding_coordinator_email']=coordinator['email']
             for f in fields:
                 value = values.get(f['field'])
                 if f.get('required') and not value:
@@ -294,6 +326,9 @@ class OffboardingService:
                     created = self.call(actor, 'POST', '/entity-records', json={'entity_type_id': kind['entity_type_id'], 'data': {k:v for k,v in values.items() if k not in SYSTEM}, 'owner_id': actor.user_id})
                     op.checkpoint(entity_id=created['entity_id'])
                 entity_id = op.progress['entity_id']
+                if is_checklist(w):
+                    # Assignment/email state-entry actions must see routing first.
+                    self.platform.call('PUT',f'/entity-records/{entity_id}',json={'data':{k:v for k,v in values.items() if k in SYSTEM}})
                 enrollment = self.call(actor, 'GET', f'/entity-records/{entity_id}/with-states').get('states', [])
                 if not enrollment:
                     self.call(actor, 'POST', f"/workflow-state-machines/{w['machine_name']}/enrollments", json={'entity_id': entity_id})
@@ -338,7 +373,7 @@ class OffboardingService:
                 if f.get('required') and not values.get(f['field']):
                     raise AppError(422, 'Complete ' + f['field'])
             employee, identity = self.employee(actor, values['employee_id'])
-            if trigger=='submit_employee_handover':
+            if trigger in EMPLOYEE_TRIGGERS:
                 raise AppError(403,'Employee handover must be submitted by the assigned employee')
             if any(f['field']=='offboarding_approver_id' for f in item['workflow']['definition']['entity_schema']['fields']):
                 # Prepare the dynamic native assignment and communication fields
@@ -380,6 +415,13 @@ class OffboardingService:
                 if employee_data.get('employment_status') != 'offboarded' or (identity and identity['status'] in {'active','pending'}):
                     raise AppError(409, 'Employee departure and HRMS access removal must be verified')
                 values.update(clearance_verified='yes', completed_at=now.isoformat())
+            elif trigger in {'request_checklist_corrections','reopen_checklist'}:
+                if not identity or identity.get('status')!='active':
+                    raise AppError(409,'The employee no longer has access. Resolve remaining clearance with HR')
+                values['checklist_verified']=''
+                # A reopened form requires a new acknowledgment. Prior answers
+                # and signature snapshots remain in the operation/audit history.
+                self.platform.call('PUT',f'/entity-records/{entity_id}',json={'data':{'exit_acknowledgment':False}})
             op.checkpoint(target=transition['to_state'], planned_hash=digest(values))
             if employee_data != employee['data']:
                 self.platform.call('PUT', f"/entity-records/{employee['entity_id']}", json={'data': {k:v for k,v in employee_data.items() if employee['data'].get(k)!=v}})

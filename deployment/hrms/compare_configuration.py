@@ -40,13 +40,40 @@ def main():
     try:
         api.service_token()
         native = InspectedConfiguration(api)
-        plan, actual, identities = inspection(native, package, {'baseline': {}})
         # Read only our own journal; validation is a native non-mutating endpoint.
         import psycopg
         with psycopg.connect(os.environ['HRMS_APP_DATABASE_URL']) as db:
             row = db.execute('SELECT state FROM hrms_configuration_releases WHERE organization_id=%s AND package_name=%s',
                              (api.org, package['name'])).fetchone()
-        pending = (row[0].get('pending') if row else None)
+        state = row[0] if row else {'baseline': {}}
+        native.bindings = state.get('bindings', {})
+        plan, actual, identities = inspection(native, package, state)
+        preflight_error = None
+        try:
+            native.preflight(validate(package), identities)
+        except ConfigurationError as exc:
+            preflight_error = {'reason': str(exc), 'object': native.current_key}
+        draft_review = None
+        if preflight_error and preflight_error['reason'] == 'Existing workflow draft must be resolved before promotion':
+            target = next(o for o in package['objects'] if o['key'] == preflight_error['object'])
+            _, identity = native.read(target)
+            published = native.get('/workflow-state-machines/' + identity['id'])
+            drafts = native.get('/workflow-state-machines', params={'scope':'draft','machine_name':identity['machine_name']})['draft_items']
+            draft_review = []
+            for summary in drafts:
+                draft = native.get('/workflow-state-machines/' + summary['id'])
+                def canonical(graph):
+                    from copy import deepcopy
+                    graph = deepcopy(graph)
+                    for transition in graph.get('transitions', []):
+                        if 'from_state' in transition:
+                            transition['from'] = transition.pop('from_state')
+                    return graph
+                left, right = canonical(draft['definition']), canonical(published['definition'])
+                draft_review.append({'id': draft['id'], 'canonical_matches_published': left == right,
+                                     'differences': {k: {'draft':left.get(k),'published':right.get(k)} for k in set(left)|set(right) if left.get(k)!=right.get(k)}, 'definition_matches_published': draft['definition'] == published['definition'],
+                                     'canvas_matches_published': draft.get('canvas_metadata') == published.get('canvas_metadata')})
+        pending = state.get('pending')
         diagnostic = None
         if pending and pending.get('draft_id'):
             draft = native.get('/workflow-state-machines/' + pending['draft_id'])
@@ -60,9 +87,9 @@ def main():
         differences = [{'key': op['key'], 'production': actual.get(op['key']),
                         'desired': desired[op['key']]} for op in plan['operations']
                        if op['decision'] == 'conflict']
-        print(json.dumps({'comparison': 'initial adoption; no baseline modified',
+        print(json.dumps({'comparison': 'read-only comparison; no baseline modified',
                           'summary': dict(Counter(item['decision'] for item in plan['operations'])),
-                          'plan': plan, 'differences': differences, 'pending_diagnostic': diagnostic}, indent=2))
+                          'plan': plan, 'differences': differences, 'pending_diagnostic': diagnostic, 'preflight_error': preflight_error, 'draft_review': draft_review}, indent=2))
     except ConfigurationError as exc:
         print(json.dumps({'blocked': True, 'reason': str(exc)}))
         raise SystemExit(2) from None

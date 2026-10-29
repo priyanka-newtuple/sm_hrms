@@ -16,6 +16,7 @@ def setup():
     workflow={'id':'workflow','organization_id':'org','entity_type':'HRMS.Offboarding','definition':{'states':[state], 'transitions':[{'from':'Employee handover','trigger':'submit_employee_handover','label':'Submit','to_state':'Notice & handover'}]}}
     writes=[]
     def call(method,path,**kw):
+        if path == '/audit-events':return {'items': [], 'total': 0}
         if path.endswith('/with-states'):return {'entity':deepcopy(record),'states':[{'workflow_id':'workflow','current_state':state['name']}]}
         if path.startswith('/entity-types/'):return {'entity_type_id':'exit-type'}
         if path.startswith('/workflow-state-machines/'):return workflow
@@ -90,3 +91,42 @@ def test_employee_save_is_idempotent_and_preserves_hr_data(setup):
     assert len(writes)==1
     assert record['data']['hr_notes']=='PRIVATE'
     assert record['data']['employee_handover_notes']=='Updated'
+
+
+def test_future_assignee_can_follow_without_employee_profile_or_private_fields(setup):
+    api, actor, record, state, writes = setup
+    workflow = api.context(actor, 'exit')[2]
+    workflow['definition']['states'].append({'name':'Review','on_state_actions':[{'kind':'entity.assign_user','config':{'user_id':'$entity.offboarding_coordinator_id'}}]})
+    record['data'].update(offboarding_coordinator_id='coordinator', exit_employee_name='Employee', checklist_submission_history='PRIVATE')
+    other=Actor('coordinator','org','token',frozenset(),frozenset())
+    api.service.own_employee=lambda *a: (_ for _ in ()).throw(AppError(404,'No employee profile'))
+    item=api.detail(other,'exit')
+    assert item['viewer']=='participant' and item['state']=='Employee handover'
+    assert not item['actions'] and not item['fields'] and not item['editable']
+    assert set(item['values']) <= {'identifier','exit_employee_name','exit_employee_code','confirmed_last_day'}
+    assert len(api.rows(other))==1
+    with pytest.raises(AppError,match='assigned'):api.command(other,'exit',{'idempotency_key':'change','expected_hash':item['values_hash'],'values':{}})
+    assert not writes
+
+
+def test_previous_assignee_retains_progress_visibility(setup):
+    api,actor,record,state,writes=setup
+    old=api.platform.call
+    def call(method,path,**kw):
+        if path=='/audit-events':
+            return {'items':[{'entity_id':'exit','organization_id':'org','metadata':{'previous_assignee_id':'previous','new_assignee_id':'employee-user'}}], 'total':1}
+        return old(method,path,**kw)
+    api.platform.call=call
+    previous=Actor('previous','org','token',frozenset(),frozenset())
+    assert api.detail(previous,'exit')['viewer']=='participant'
+    assert not api.detail(previous,'exit')['editable']
+
+
+def test_assignment_history_from_other_tenant_cannot_grant_visibility(setup):
+    api,actor,record,state,writes=setup
+    old=api.platform.call
+    def call(method,path,**kw):
+        if path=='/audit-events':return {'items':[{'entity_id':'exit','organization_id':'other','metadata':{'new_assignee_id':'other'}}], 'total':1}
+        return old(method,path,**kw)
+    api.platform.call=call
+    with pytest.raises(AppError,match='scope'):api.detail(Actor('other','org','token',frozenset(),frozenset()),'exit')

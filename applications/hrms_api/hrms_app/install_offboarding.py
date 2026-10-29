@@ -93,6 +93,13 @@ def install(api, dsn):
     # Native transition grants require workflow access. Install base grants first.
     from .install_offboarding_participation import install as install_participation
     install_participation(api,dsn,workflow)
+    # Opt-in migration: run explicitly after reviewing native configuration.
+    # Subsequent installs preserve tenant edits and existing workflow versions.
+    if os.getenv('HRMS_OFFBOARDING_CHECKLIST_V2', '').lower() == 'true':
+        from .install_offboarding_checklist import install as install_checklist
+        refreshed=api.call('GET','/workflow-state-machines',params={'scope':'published'})['published_items']
+        current=next(w for w in refreshed if w['machine_name']==machine and w['is_active'])
+        install_checklist(api,dsn,api.call('GET',f"/workflow-state-machines/{current['id']}"))
 
 
 if __name__=='__main__':
