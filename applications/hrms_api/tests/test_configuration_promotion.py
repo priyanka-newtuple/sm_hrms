@@ -271,3 +271,39 @@ def test_grant_order_is_semantic_not_destination_uuid_order():
     from hrms_app.configuration_package import walk
     role = {'workflow_permissions': [{'machine_name': 'z'}, {'machine_name': 'a'}]}
     assert walk(role, lambda v: v)['workflow_permissions'] == [{'machine_name': 'a'}, {'machine_name': 'z'}]
+
+
+def test_reviewed_drift_only_updates_baseline_without_native_writes():
+    from hrms_app.configuration_promotion import accept_reviewed_drift
+    old, live, desired = obj(options=['old']), obj(options=['settings']), obj(options=['release'])
+    native = FakeNative({old['key']: live})
+    journal = MemoryJournal({'status': 'applied', 'baseline': {old['key']: old}})
+    release = package(desired)
+    review, _, _ = inspection(native, release, journal.read())
+    state = accept_reviewed_drift(native, release, review, journal)
+    assert not native.writes
+    assert state['baseline'][old['key']] == live
+    assert state['drift_reviews'][0]['previous_baseline'][old['key']] == old
+    plan, _, _ = inspection(native, release, state)
+    assert plan['operations'][0]['decision'] == 'update'
+
+
+@pytest.mark.parametrize('failure', ['stale', 'failed', 'pending', 'deleted', 'changed_during_preflight'])
+def test_reviewed_drift_rejects_unsafe_reconciliation(failure):
+    from hrms_app.configuration_promotion import accept_reviewed_drift
+    old, live = obj(), obj(options=['settings'])
+    native = FakeNative({old['key']: live})
+    state = {'status': 'applied', 'baseline': {old['key']: old}}
+    if failure == 'failed': state['status'] = 'failed'
+    if failure == 'pending': state['pending'] = {'key': old['key']}
+    if failure == 'deleted': native.rows = {}
+    journal = MemoryJournal(state)
+    release = package(old)
+    review, _, _ = inspection(native, release, state)
+    if failure == 'stale': review['organization'] = 'different-tenant'
+    if failure == 'changed_during_preflight':
+        def mutate(*args): native.rows[old['key']] = obj(options=['changed-again'])
+        native.preflight = mutate
+    with pytest.raises(ConfigurationError):
+        accept_reviewed_drift(native, release, review, journal)
+    assert not native.writes and not journal.writes

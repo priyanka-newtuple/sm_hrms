@@ -5,7 +5,7 @@ import sys
 
 from hrms_app.configuration_native import NativeConfiguration
 from hrms_app.configuration_package import ConfigurationError
-from hrms_app.configuration_promotion import Journal, adopt_reviewed, inspection, resume_reviewed
+from hrms_app.configuration_promotion import Journal, adopt_reviewed, inspection, resume_reviewed, accept_reviewed_drift
 from hrms_app.platform import PlatformClient
 
 
@@ -19,6 +19,10 @@ def main():
         native = NativeConfiguration(api)
         journal = Journal(os.environ['HRMS_APP_DATABASE_URL'], api.org, package['name'])
         with journal.locked():
+            if inputs.get('accept_drift'):
+                state = accept_reviewed_drift(native, package, inputs['review'], journal)
+                print(json.dumps({'status': 'reviewed_drift_accepted', 'native_writes': 0}))
+                return
             operation = resume_reviewed if inputs.get('resume') else adopt_reviewed
             state = (operation(native, package, inputs['review'], journal,
                                original_package=inputs.get('original_package'), draft_review=inputs.get('draft_review'))

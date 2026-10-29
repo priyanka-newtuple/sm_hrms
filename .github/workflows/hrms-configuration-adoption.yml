@@ -2,6 +2,14 @@ name: HRMS reviewed configuration adoption
 on:
   workflow_dispatch:
     inputs:
+      accept_drift:
+        description: Accept the exact reviewed production drift as baseline (no native writes)
+        type: boolean
+        default: false
+      release_package:
+        description: Review the managed release package instead of initial adoption candidate
+        type: boolean
+        default: false
       original_revision:
         description: Original package commit for a reviewed corrective recovery (optional)
         type: string
@@ -53,6 +61,8 @@ jobs:
           HOST: ${{ vars.HRMS_DEPLOY_HOST }}
           USER: ${{ vars.HRMS_DEPLOY_USER }}
           PORT: ${{ vars.HRMS_DEPLOY_PORT }}
+          ACCEPT_DRIFT: ${{ inputs.accept_drift }}
+          RELEASE_PACKAGE: ${{ inputs.release_package }}
           RESUME: ${{ inputs.resume }}
           ORIGINAL_REVISION: ${{ inputs.original_revision }}
         run: |
@@ -76,7 +86,11 @@ jobs:
               assert re.fullmatch('[a-f0-9]{40}', revision)
               original = json.loads(subprocess.check_output(['git', 'show', revision + ':configuration/hrms/production-candidate.json']))
           comparison = json.loads(pathlib.Path('reviewed/comparison.json').read_text())
-          payload = json.dumps({'package': json.loads(pathlib.Path('configuration/hrms/production-candidate.json').read_text()),
+          accept_drift = os.environ['ACCEPT_DRIFT'] == 'true'
+          assert not (accept_drift and (os.environ['RESUME'] == 'true' or revision)), 'Choose one recovery mode'
+          package_path = 'configuration/hrms/release.json' if os.environ['RELEASE_PACKAGE'] == 'true' else 'configuration/hrms/production-candidate.json'
+          payload = json.dumps({'package': json.loads(pathlib.Path(package_path).read_text()),
+                                'accept_drift': accept_drift,
                                 'resume': os.environ['RESUME'] == 'true',
                                 'original_package': original,
                                 'draft_review': (comparison.get('pending_diagnostic') or {}).get('draft_checksum'),
