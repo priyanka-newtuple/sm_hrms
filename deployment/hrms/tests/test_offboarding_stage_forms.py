@@ -26,7 +26,10 @@ def test_each_stage_has_its_own_native_form_and_interview_has_only_notes():
     assert 'exit_enjoyed' not in fields(objects, states['Employee Checklist'])
     assert 'asset_status' not in fields(objects, states['Offboarding Initiated'])
     assert 'asset_status' in fields(objects, states['Pending Clearance'])
-    assert len(fields(objects, states['Offboarding Initiated'])) == 10
+    assert set(fields(objects, states['Offboarding Initiated'])) == {
+        'employee_id', 'exit_type', 'notified_date', 'requested_last_day', 'confirmed_last_day',
+        'exit_reason', 'supporting_documents', 'offboarding_coordinator_id', 'access_cutoff',
+    }
     for state in states.values():
         assert 'template:Exit checklist v2 · ' + state['name'] in objects
     finish = next(t for t in graph['transitions'] if t['trigger'] == 'finish_exit_interview')
@@ -35,13 +38,16 @@ def test_each_stage_has_its_own_native_form_and_interview_has_only_notes():
     assert all(t['to_state'] == t['from'] for t in graph['transitions'] if t['trigger'] == 'confirm_departure')
 
 
-def test_hr_cannot_fill_employee_contact_and_old_forms_remain_versioned():
+def test_reviewed_contact_field_permissions_and_old_forms_remain_versioned():
     objects = package()
     for obj in objects.values():
         if obj['kind'] != 'role' or 'application_service' in obj['key']:
             continue
         grants = [f for f in obj['payload']['field_permissions'] if f['entity_type'] == 'HRMS.Offboarding' and f['field_name'] in {'employee_notification_email', 'notification_email_confirmed'}]
-        assert grants and all(not f['can_edit'] for f in grants)
+        # Preserve the tenant administrator's reviewed HR Full overrides.
+        # Employee contact ownership in HRMS commands is tested by the API suite.
+        assert grants and all(f['can_view'] for f in grants)
+        assert all(f['can_edit'] == (obj['key'] == 'role:hrms_hr_full') for f in grants)
     assert 'method:Exit checklist v2 · Exit administration' in objects
 
 
