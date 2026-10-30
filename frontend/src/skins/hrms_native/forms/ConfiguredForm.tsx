@@ -47,7 +47,7 @@ export function ConfiguredInputs({values,onChange,exclude=[],fields:provided,ada
   })}</>;
 }
 
-export function ConfiguredForm({entityType, aliases = {}, children, purpose='record'}: {entityType: string; aliases?: Record<string,string>; children: ReactNode; purpose?:string}) {
+export function ConfiguredForm({entityType, aliases = {}, children, purpose='record', optionsLoading=false, loadingMessage='Loading form configuration…'}: {entityType: string; aliases?: Record<string,string>; children: ReactNode; purpose?:string; optionsLoading?:boolean; loadingMessage?:string}) {
   const client = useQueryClient();
   const schema = useFormSchema(entityType,true,purpose);
   useEffect(() => {
@@ -55,7 +55,7 @@ export function ConfiguredForm({entityType, aliases = {}, children, purpose='rec
     window.addEventListener('form-schemas-changed',refresh);
     return () => window.removeEventListener('form-schemas-changed',refresh);
   },[client]);
-  if (schema.isLoading) return <p role="status">Loading form configuration…</p>;
+  if (schema.isLoading || optionsLoading) return <p role="status">{loadingMessage}</p>;
   if (schema.isError) return <p role="alert">{getApiErrorMessage(schema.error)} <button type="button" onClick={()=>void schema.refetch()}>Retry</button></p>;
   return <Context.Provider value={{fields:schema.data?.fields??[],aliases}}>{schema.data?.workflow_versioned&&<p className="text-xs text-slate-500 mb-3">Fields follow the published workflow form. After editing its form in Settings, publish the updated workflow to apply that version.</p>}{children}</Context.Provider>;
 }

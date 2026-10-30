@@ -171,6 +171,9 @@ class EmployeeOffboarding:
                 values=payload.get('values',{})
                 if set(values)-editable:
                     raise AppError(403,'Only employee handover fields may be changed')
+                if ('employee_notification_email' in values and values['employee_notification_email'] != item['values'].get('employee_notification_email')
+                        and 'notification_email_confirmed' not in values):
+                    values = {**values, 'notification_email_confirmed': ''}
                 merged={**item['values'],**values}
                 if is_checklist(workflow): validate_values(item['fields'], merged)
                 op.checkpoint(saved_hash=digest(merged))
