@@ -8576,13 +8576,6 @@
             "can_edit": false,
             "can_view": true,
             "entity_type": "HRMS.Offboarding",
-            "field_name": "employee_notification_email",
-            "mask_value": false
-          },
-          {
-            "can_edit": false,
-            "can_view": true,
-            "entity_type": "HRMS.Offboarding",
             "field_name": "exit_access_revoked",
             "mask_value": false
           },
@@ -8591,76 +8584,6 @@
             "can_view": true,
             "entity_type": "HRMS.Offboarding",
             "field_name": "exit_access_revoked_remarks",
-            "mask_value": false
-          },
-          {
-            "can_edit": false,
-            "can_view": true,
-            "entity_type": "HRMS.Offboarding",
-            "field_name": "exit_acknowledgment",
-            "mask_value": false
-          },
-          {
-            "can_edit": false,
-            "can_view": true,
-            "entity_type": "HRMS.Offboarding",
-            "field_name": "exit_assets_returned",
-            "mask_value": false
-          },
-          {
-            "can_edit": false,
-            "can_view": true,
-            "entity_type": "HRMS.Offboarding",
-            "field_name": "exit_assets_returned_remarks",
-            "mask_value": false
-          },
-          {
-            "can_edit": false,
-            "can_view": true,
-            "entity_type": "HRMS.Offboarding",
-            "field_name": "exit_claims_cleared",
-            "mask_value": false
-          },
-          {
-            "can_edit": false,
-            "can_view": true,
-            "entity_type": "HRMS.Offboarding",
-            "field_name": "exit_claims_cleared_remarks",
-            "mask_value": false
-          },
-          {
-            "can_edit": false,
-            "can_view": true,
-            "entity_type": "HRMS.Offboarding",
-            "field_name": "exit_date_joined",
-            "mask_value": false
-          },
-          {
-            "can_edit": false,
-            "can_view": true,
-            "entity_type": "HRMS.Offboarding",
-            "field_name": "exit_documents_shared",
-            "mask_value": false
-          },
-          {
-            "can_edit": false,
-            "can_view": true,
-            "entity_type": "HRMS.Offboarding",
-            "field_name": "exit_documents_shared_remarks",
-            "mask_value": false
-          },
-          {
-            "can_edit": false,
-            "can_view": true,
-            "entity_type": "HRMS.Offboarding",
-            "field_name": "exit_employee_code",
-            "mask_value": false
-          },
-          {
-            "can_edit": false,
-            "can_view": true,
-            "entity_type": "HRMS.Offboarding",
-            "field_name": "exit_employee_name",
             "mask_value": false
           },
           {
@@ -8695,91 +8618,7 @@
             "can_edit": false,
             "can_view": true,
             "entity_type": "HRMS.Offboarding",
-            "field_name": "exit_keys_returned",
-            "mask_value": false
-          },
-          {
-            "can_edit": false,
-            "can_view": true,
-            "entity_type": "HRMS.Offboarding",
-            "field_name": "exit_keys_returned_remarks",
-            "mask_value": false
-          },
-          {
-            "can_edit": false,
-            "can_view": true,
-            "entity_type": "HRMS.Offboarding",
-            "field_name": "exit_manager_confirmed",
-            "mask_value": false
-          },
-          {
-            "can_edit": false,
-            "can_view": true,
-            "entity_type": "HRMS.Offboarding",
-            "field_name": "exit_manager_confirmed_remarks",
-            "mask_value": false
-          },
-          {
-            "can_edit": false,
-            "can_view": true,
-            "entity_type": "HRMS.Offboarding",
-            "field_name": "exit_personal_data_removed",
-            "mask_value": false
-          },
-          {
-            "can_edit": false,
-            "can_view": true,
-            "entity_type": "HRMS.Offboarding",
-            "field_name": "exit_personal_data_removed_remarks",
-            "mask_value": false
-          },
-          {
-            "can_edit": false,
-            "can_view": true,
-            "entity_type": "HRMS.Offboarding",
-            "field_name": "exit_projects_handed_over",
-            "mask_value": false
-          },
-          {
-            "can_edit": false,
-            "can_view": true,
-            "entity_type": "HRMS.Offboarding",
-            "field_name": "exit_projects_handed_over_remarks",
-            "mask_value": false
-          },
-          {
-            "can_edit": false,
-            "can_view": true,
-            "entity_type": "HRMS.Offboarding",
             "field_name": "exit_rejoin",
-            "mask_value": false
-          },
-          {
-            "can_edit": false,
-            "can_view": true,
-            "entity_type": "HRMS.Offboarding",
-            "field_name": "exit_resignation_acknowledged",
-            "mask_value": false
-          },
-          {
-            "can_edit": false,
-            "can_view": true,
-            "entity_type": "HRMS.Offboarding",
-            "field_name": "exit_resignation_acknowledged_remarks",
-            "mask_value": false
-          },
-          {
-            "can_edit": false,
-            "can_view": true,
-            "entity_type": "HRMS.Offboarding",
-            "field_name": "exit_settlement_explained",
-            "mask_value": false
-          },
-          {
-            "can_edit": false,
-            "can_view": true,
-            "entity_type": "HRMS.Offboarding",
-            "field_name": "exit_settlement_explained_remarks",
             "mask_value": false
           },
           {
@@ -8793,28 +8632,7 @@
             "can_edit": false,
             "can_view": true,
             "entity_type": "HRMS.Offboarding",
-            "field_name": "exit_tasks_updated",
-            "mask_value": false
-          },
-          {
-            "can_edit": false,
-            "can_view": true,
-            "entity_type": "HRMS.Offboarding",
-            "field_name": "exit_tasks_updated_remarks",
-            "mask_value": false
-          },
-          {
-            "can_edit": false,
-            "can_view": true,
-            "entity_type": "HRMS.Offboarding",
             "field_name": "notice_verified",
-            "mask_value": false
-          },
-          {
-            "can_edit": false,
-            "can_view": true,
-            "entity_type": "HRMS.Offboarding",
-            "field_name": "notification_email_confirmed",
             "mask_value": false
           },
           {
@@ -8996,7 +8814,84 @@
             "can_edit": true,
             "can_view": true,
             "entity_type": "HRMS.Offboarding",
+            "field_name": "employee_notification_email",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "HRMS.Offboarding",
             "field_name": "employee_questions",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "exit_acknowledgment",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "exit_assets_returned",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "exit_assets_returned_remarks",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "exit_claims_cleared",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "exit_claims_cleared_remarks",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "exit_date_joined",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "exit_documents_shared",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "exit_documents_shared_remarks",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "exit_employee_code",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "exit_employee_name",
             "mask_value": false
           },
           {
@@ -9010,7 +8905,105 @@
             "can_edit": true,
             "can_view": true,
             "entity_type": "HRMS.Offboarding",
+            "field_name": "exit_keys_returned",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "exit_keys_returned_remarks",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "exit_manager_confirmed",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "exit_manager_confirmed_remarks",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "exit_personal_data_removed",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "exit_personal_data_removed_remarks",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "exit_projects_handed_over",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "exit_projects_handed_over_remarks",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "HRMS.Offboarding",
             "field_name": "exit_reason",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "exit_resignation_acknowledged",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "exit_resignation_acknowledged_remarks",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "exit_settlement_explained",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "exit_settlement_explained_remarks",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "exit_tasks_updated",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "exit_tasks_updated_remarks",
             "mask_value": false
           },
           {
@@ -9081,6 +9074,13 @@
             "can_view": true,
             "entity_type": "HRMS.Offboarding",
             "field_name": "identifier",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "notification_email_confirmed",
             "mask_value": false
           },
           {
@@ -9622,7 +9622,21 @@
               "$ref": "workflow:HRMS.Offboarding",
               "attribute": "machine_name"
             },
+            "transition_key": "start_checklist"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
             "transition_key": "start_final_clearance_5"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "submit_checklist"
           },
           {
             "machine_name": {
@@ -15271,24 +15285,6 @@
           },
           {
             "inherit_from": null,
-            "label": "Handover owner / contact",
-            "library_field_id": {
-              "$ref": "field:handover_owner",
-              "attribute": "id"
-            },
-            "ownership": null,
-            "placeholder": null,
-            "position": 8,
-            "required": false,
-            "source_entity_type": null,
-            "source_field_key": null,
-            "version_id": {
-              "$ref": "field:handover_owner",
-              "attribute": "version_id"
-            }
-          },
-          {
-            "inherit_from": null,
             "label": "HRMS access cutoff (include timezone)",
             "library_field_id": {
               "$ref": "field:access_cutoff",
@@ -15296,7 +15292,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 9,
+            "position": 8,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
