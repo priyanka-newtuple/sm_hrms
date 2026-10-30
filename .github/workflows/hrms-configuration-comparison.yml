@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   compare:
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/fix/offboarding-checklist-release'
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/fix/offboarding-checklist-release' || github.ref == 'refs/heads/fix/offboarding-stage-forms'
     runs-on: ubuntu-latest
     environment: hrms-production
     timeout-minutes: 15

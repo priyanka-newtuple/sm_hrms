@@ -99,7 +99,19 @@ def main():
         differences = [{'key': op['key'], 'production': actual.get(op['key']),
                         'desired': desired[op['key']]} for op in plan['operations']
                        if op['decision'] == 'conflict']
+        role_diagnostics = []
+        for summary in api.call('GET', '/roles'):
+            if summary['name'] not in {'hrms_hr_full', 'hrms_application_service'}:
+                continue
+            role = api.call('GET', '/roles/' + summary['id'])
+            role_diagnostics.append({
+                'name': role['name'],
+                'permissions': [p['permission_key'] for p in role['permissions']],
+                'entity_permissions': [p for p in role['entity_permissions'] if p['entity_type'] == 'HRMS.Offboarding'],
+                'workflow_permissions': role['workflow_permissions'],
+            })
         print(json.dumps({'comparison': 'read-only comparison; no baseline modified',
+                          'role_diagnostics': role_diagnostics,
                           'summary': dict(Counter(item['decision'] for item in plan['operations'])),
                           'plan': plan, 'differences': differences, 'pending_diagnostic': diagnostic, 'preflight_error': preflight_error, 'draft_review': draft_review, 'workflow_validation': workflow_validation}, indent=2))
     except ConfigurationError as exc:
