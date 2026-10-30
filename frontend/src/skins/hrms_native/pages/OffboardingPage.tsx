@@ -73,11 +73,10 @@ export function OffboardingEditor({entityId}:{entityId?:string}){
     {error&&<p role="alert" className="hrms-notice hrms-notice--error">{error}</p>}
     <form onSubmit={e=>{e.preventDefault();void perform();}}><fieldset disabled={busy||d.editable===false} className="grid sm:grid-cols-2 gap-4"><ConfiguredInputs entityId={id} fields={fields} values={values} onChange={v=>{setValues(v);setDirty(true);}} adapters={{offboarding_approver_id:{options:assignees.data??[]},offboarding_coordinator_id:{options:assignees.data??[]},employee_id:{options:(employees.data??[]).filter(e=>e.employment_status==='active'||e.entity_id===values.employee_id).map(e=>({id:e.entity_id,name:`${e.full_name} · ${e.employee_code}`}))}}}/></fieldset>
       {d.editable!==false&&<button className="hrms-outline-button mt-5" disabled={busy||employees.isError||assignees.isError||assignees.isLoading}>Save details</button>}</form>
-    {!id&&<p className="text-sm mt-3">Save the draft before uploading documents.</p>}
+    {(!id||dirty)&&<p className="text-sm mt-3">{!id?'Save details to create the draft before uploading documents or continuing.':'Save changes before continuing.'}</p>}
     {assignees.isError&&<p role="alert">Unable to load approvers and coordinators. <button onClick={()=>void assignees.refetch()}>Retry</button></p>}
     {employees.isError&&<p role="alert">Unable to load employee options. <button onClick={()=>void employees.refetch()}>Retry</button></p>}
-    <div className="hrms-form-actions">{d.actions?.map(a=><button key={a.trigger} disabled={busy||dirty} className="hrms-primary-button" onClick={()=>void perform(a.trigger)}>{a.label||a.trigger.replaceAll('_',' ')}</button>)}</div>
-    {dirty&&<p className="text-sm">Save changes before taking an action.</p>}
+    {!!d.actions?.length&&<div className="hrms-form-actions">{d.actions.map(a=><button key={a.trigger} disabled={busy||dirty} className="hrms-primary-button" onClick={()=>void perform(a.trigger)}>{a.label||a.trigger.replaceAll('_',' ')}</button>)}</div>}
   </>;
   return <div className="p-6">{id?<RecordTabs entityId={id} workflowId={d.workflow.id} scope="offboarding">{form}</RecordTabs>:form}</div>;
 }

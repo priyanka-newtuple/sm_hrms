@@ -84,9 +84,9 @@ export default function AddEmployee({buttonClassName = '', onCreated}: {buttonCl
     <Sheet open={showForm} onOpenChange={setShowForm}>
       <SheetContent className="hrms-brand hrms-employee-form overflow-y-auto data-[side=right]:w-full data-[side=right]:sm:max-w-2xl">
         <SheetHeader><p className="hrms-eyebrow">GROW THE TEAM</p><SheetTitle>Add Employee</SheetTitle><p className="hrms-form-intro">Enter the employee details. New accounts require approval before sign-in.</p></SheetHeader>
-        {options.isLoading && <p role="status" className="hrms-work-feedback">Loading employee options…</p>}
         {options.isError && <div role="alert" className="hrms-notice hrms-notice--error">{getApiErrorMessage(options.error)}<button className="hrms-outline-button" onClick={() => void options.refetch()}>Try again</button></div>}
-        <ConfiguredForm entityType="HRMS.Employee" purpose="registration"><form onSubmit={submit} className="hrms-people-form">
+        {employees.isError && <div role="alert" className="hrms-notice hrms-notice--error">Unable to load reporting managers. <button className="hrms-outline-button" onClick={() => void employees.refetch()}>Try again</button></div>}
+        <ConfiguredForm entityType="HRMS.Employee" purpose="registration" optionsLoading={options.isLoading||employees.isLoading} loadingMessage="Loading employee form…"><form onSubmit={submit} className="hrms-people-form">
           <div className="grid gap-3 sm:grid-cols-2"><ConfiguredInputs values={form} onChange={values=>{setForm(values);setKey(createRequestId());}} exclude={employeeSystemFields} adapters={{
             ...employeeAdapters,
             hrms_role:{...employeeAdapters.hrms_role,options:(options.data?.roles??[]).map(id=>({id,name:options.data?.role_labels[id]??id}))},
