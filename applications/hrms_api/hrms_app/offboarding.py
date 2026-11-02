@@ -7,6 +7,7 @@ from html import escape
 from urllib.parse import urlsplit
 
 from .errors import AppError
+from .offboarding_simple import enabled as simplified, departure_due, ROUTING, role_grants
 from .policy import require, capabilities
 from .offboarding_catalog import ENTITY, MACHINE, SYSTEM_FIELDS
 from .offer_documents import digest
@@ -32,17 +33,11 @@ def validate_clearances(values):
             raise AppError(422, 'Provide evidence or a not-applicable reason: ' + key.replace('_', ' '))
 
 
-def cutoff(values):
+def validate_last_day(values):
     try:
-        value = datetime.fromisoformat(str(values['access_cutoff']).replace('Z', '+00:00'))
-        if value.tzinfo is None:
-            raise ValueError()
-        day = date.fromisoformat(str(values['confirmed_last_day'])[:10])
-        if value.date() < day:
-            raise ValueError()
-        return value
+        return date.fromisoformat(str(values['confirmed_last_day'])[:10])
     except (ValueError, KeyError):
-        raise AppError(422, 'Enter a valid access cutoff with timezone, on or after the last working day')
+        raise AppError(422, 'Enter a valid last working day')
 
 
 class OffboardingService:
@@ -59,6 +54,23 @@ class OffboardingService:
         return [{'id':u['id'],'name':u.get('full_name') or u['email']} for u in self.platform.users()
                 if u.get('status')=='active' and u.get('email')!=self.platform.email
                 and 'employee:exit' in self.platform.user_capabilities(u['id'])]
+
+    def routing_options(self, actor):
+        require(actor, 'employee:exit')
+        from .platform import Actor
+        workflow = self.workflow(actor)
+        result = {k: [] for k in ROUTING}
+        for user in self.platform.users():
+            if user.get('status') != 'active' or user.get('email') == self.platform.email:
+                continue
+            candidate = Actor(user['id'], actor.organization_id, '', frozenset(), frozenset())
+            _, grants, workflows = role_grants(self.platform, candidate)
+            if workflow['machine_name'] not in workflows:
+                continue
+            for key, trigger in [('offboarding_project_manager_id', 'approve_project_release'), ('offboarding_office_admin_id', 'confirm_asset_clearance'), ('offboarding_access_admin_id', 'disable_hrms_access')]:
+                if any(t['trigger'] == trigger and (workflow['machine_name'], t['key']) in grants for t in workflow['definition']['transitions']):
+                    result[key].append({'id': user['id'], 'name': user.get('full_name') or user['email']})
+        return result
 
     def authorize_file(self, actor, method, path, query):
         if 'employee:exit' not in capabilities(actor):
@@ -162,7 +174,7 @@ class OffboardingService:
     def config(self, actor):
         w = self.workflow(actor)
         fields=self.visible_fields(actor,self.fields(w, w['definition']['initial_state']))
-        return dict(workflow=w, previous_fields=[], fields=[f for f in fields if f['field'] not in SYSTEM|EMPLOYEE_FIELDS])
+        return dict(simplified=simplified(w), workflow=w, previous_fields=[], fields=[f for f in fields if f['field'] not in SYSTEM|EMPLOYEE_FIELDS])
 
     def visible_fields(self, actor, fields):
         if 'superadmin' in actor.roles:
@@ -206,8 +218,8 @@ class OffboardingService:
                      if schema['state_name'] in earlier for f in schema['fields']
                      if f['field'] not in current_keys | SYSTEM and f['field'] in r['data']}
             previous_fields = [dict(f, read_only=True) for f in self.visible_fields(actor, list(prior.values()))]
-        return dict(entity_id=entity_id, values=r['data'], values_hash=digest(r['data']), state=state['current_state'],assignee_id=assigned,assignee_name=people.get(assigned),employee_participation=participation,
-            workflow=w, previous_fields=previous_fields, fields=[{**f,'read_only':True} if f['field'] in EMPLOYEE_FIELDS|SYSTEM|(CONTACT_KEYS if staged_forms(w) else set()) else f for f in self.visible_fields(actor,self.fields(w, state['current_state']))], editable=not terminal and (not employee_step or is_checklist(w)),
+        return dict(simplified=simplified(w), entity_id=entity_id, values=r['data'], values_hash=digest(r['data']), state=state['current_state'],assignee_id=assigned,assignee_name=people.get(assigned),employee_participation=participation,
+            workflow=w, previous_fields=previous_fields, fields=[{**f,'read_only':True} if f['field'] in EMPLOYEE_FIELDS|SYSTEM|(CONTACT_KEYS if staged_forms(w) else set()) else f for f in self.visible_fields(actor,self.fields(w, state['current_state']))], editable=not terminal and (not employee_step or is_checklist(w)) and (not simplified(w) or assigned == actor.user_id),
             employee={k: employee['data'].get(k) for k in ('employee_code','first_name','last_name','department','designation','date_joined','employment_status')},
             actions=[a for a in actions.get('available_transitions', []) if a['trigger'] in permitted and a['trigger'] not in EMPLOYEE_TRIGGERS
                      and (not employee_step or (is_checklist(w) and a['trigger']=='confirm_departure'))
@@ -249,13 +261,13 @@ class OffboardingService:
             if current:
                 allowed.discard('employee_id')
                 if current['values'].get('departure_verified') == 'yes':
-                    allowed -= {'confirmed_last_day', 'access_cutoff', 'exit_type'}
+                    allowed -= {'confirmed_last_day', 'exit_type'}
             submitted = payload.get('values', {})
             if set(submitted) - allowed:
                 raise AppError(422, 'Only editable fields in this workflow state may be saved')
             values = {**(current['values'] if current else {}), **submitted}
             employee, identity = self.employee(actor, str(values.get('employee_id', '')))
-            routing_keys={'offboarding_coordinator_id'} if is_checklist(w) else {'offboarding_approver_id','offboarding_coordinator_id'}
+            routing_keys=set() if simplified(w) else {'offboarding_coordinator_id'} if is_checklist(w) else {'offboarding_approver_id','offboarding_coordinator_id'}
             if any(k in values for k in routing_keys):
                 eligible={u['id'] for u in self.assignees(actor)}
                 if any(values.get(k) not in eligible for k in routing_keys):
@@ -273,7 +285,12 @@ class OffboardingService:
                         raise AppError(422,'Confirm the employee-approved contact address')
                 if not identity or identity.get('status')!='active':
                     raise AppError(409,'An active linked employee account is required')
-                cutoff(values)
+                if simplified(w):
+                    if not values.get('confirmed_last_day'):
+                        raise AppError(422, 'Enter the last working day')
+                    values['offboarding_coordinator_id'] = actor.user_id
+                else:
+                    validate_last_day(values)
                 if not values.get('exit_type'): raise AppError(422,'Choose the exit type')
                 coordinator=next((u for u in self.platform.users() if u['id']==values.get('offboarding_coordinator_id') and u['status']=='active'),None)
                 if not coordinator: raise AppError(422,'Choose an active HR coordinator')
@@ -288,6 +305,13 @@ class OffboardingService:
                 coordinator=next((u for u in self.platform.users() if u['id']==values.get('offboarding_coordinator_id') and u['status']=='active'),None)
                 if not coordinator: raise AppError(422,'Choose an active HR coordinator')
                 values['offboarding_coordinator_email']=coordinator['email']
+            if simplified(w) and (not current or ROUTING & set(submitted)):
+                options = self.routing_options(actor)
+                for key in ROUTING & {f['field'] for f in fields}:
+                    if values.get(key) not in {u['id'] for u in options[key]}:
+                        raise AppError(422, 'Choose an active assignee with native clearance permissions')
+                    if values[key] == (identity or {}).get('id'):
+                        raise AppError(422, 'The departing employee cannot approve their own clearance')
             for f in fields:
                 value = values.get(f['field'])
                 if f.get('required') and not value:
@@ -297,12 +321,12 @@ class OffboardingService:
             if values.get('confirmed_last_day') and employee['data'].get('date_joined') and str(values['confirmed_last_day'])[:10] < str(employee['data']['date_joined'])[:10]:
                 raise AppError(422, 'Last working day cannot precede the joining date')
             values['clearance_verified'] = ''
-            if current and any(values.get(k) != current['values'].get(k) for k in ('confirmed_last_day','access_cutoff')):
+            if current and not simplified(w) and any(values.get(k) != current['values'].get(k) for k in ('confirmed_last_day',)):
                 if not str(submitted.get('change_reason') or '').strip():
-                    raise AppError(422, 'Give a reason for changing the last day or access cutoff')
+                    raise AppError(422, 'Give a reason for changing the last working day')
                 values['notice_verified'] = ''
                 if current['values'].get('notice_verified') == 'yes':
-                    cutoff(values)
+                    validate_last_day(values)
                     values['notice_verified'] = 'yes'
             if entity_id:
                 # Persist the expected merged record before writes, so a lost
@@ -370,7 +394,7 @@ class OffboardingService:
             if 'workflow:write' not in actor.permissions:
                 raise AppError(403, 'Native workflow write permission is required')
             values = item['values']
-            verification = {'approve_exit':'notice_verified','confirm_departure':'departure_verified',
+            verification = {'approve_exit':'notice_verified','confirm_departure':'departure_verified','disable_hrms_access':'departure_verified',
                             'approve_withdrawal':'withdrawal_verified','complete_offboarding':'clearance_verified'}.get(trigger)
             preview = self.call(actor, 'GET', f'/entities/{entity_id}/transitions/{trigger}/preflight', params={
                 'machine_name':item['workflow']['machine_name'], 'workflow_id':item['workflow']['id'],
@@ -400,12 +424,14 @@ class OffboardingService:
             now = datetime.now(UTC)
             employee_data = dict(employee['data'])
             if trigger == 'approve_exit':
-                cutoff(values)
+                validate_last_day(values)
                 employee_data.update(last_working_day=str(values['confirmed_last_day'])[:10], exit_reason=values['exit_type'], exit_note=values.get('exit_reason'))
                 values.update(notice_verified='yes', approved_at=now.isoformat())
-            elif trigger == 'confirm_departure':
-                if cutoff(values) > now:
-                    raise AppError(409, 'The configured access cutoff has not been reached')
+            elif trigger in {'confirm_departure', 'disable_hrms_access'}:
+                if simplified(item['workflow']):
+                    departure_due(values, now)
+                if trigger == 'disable_hrms_access' and not identity:
+                    raise AppError(409, 'Linked HRMS account is required to verify access removal')
                 if identity and identity['status'] in {'active','pending'}:
                     self.service._end_access(op, identity['id'], identity['status'])
                     verified = next(u for u in self.platform.users() if u['id'] == identity['id'])
@@ -419,7 +445,8 @@ class OffboardingService:
                 employee_data.update(last_working_day=None, exit_reason=None, exit_note=None)
                 values['withdrawal_verified'] = 'yes'
             elif trigger == 'complete_offboarding':
-                validate_clearances(values)
+                if not simplified(item['workflow']):
+                    validate_clearances(values)
                 if employee_data.get('employment_status') != 'offboarded' or (identity and identity['status'] in {'active','pending'}):
                     raise AppError(409, 'Employee departure and HRMS access removal must be verified')
                 values.update(clearance_verified='yes', completed_at=now.isoformat())
@@ -430,6 +457,10 @@ class OffboardingService:
                 # A reopened form requires a new acknowledgment. Prior answers
                 # and signature snapshots remain in the operation/audit history.
                 self.platform.call('PUT',f'/entity-records/{entity_id}',json={'data':{'exit_acknowledgment':False}})
+            if simplified(item['workflow']) and trigger in {'reopen_project_clearance', 'reopen_asset_clearance'}:
+                reset = {'project_release_approved': '', 'clearance_assets_received': '', 'clearance_licenses_revoked': ''} if trigger == 'reopen_project_clearance' else {'clearance_assets_received': '', 'clearance_licenses_revoked': ''}
+                self.platform.call('PUT', f'/entity-records/{entity_id}', json={'data': reset})
+                values.update(reset)
             op.checkpoint(target=transition['to_state'], planned_hash=digest(values))
             if employee_data != employee['data']:
                 self.platform.call('PUT', f"/entity-records/{employee['entity_id']}", json={'data': {k:v for k,v in employee_data.items() if employee['data'].get(k)!=v}})

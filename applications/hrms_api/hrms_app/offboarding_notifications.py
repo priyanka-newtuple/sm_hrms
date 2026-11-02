@@ -8,6 +8,7 @@ import hashlib
 
 from .errors import AppError
 from .platform import Actor
+from .offboarding_simple import enabled as simplified
 from .offboarding_checklist import staged_forms
 
 ENTITY = 'HRMS.OffboardingNotice'
@@ -56,16 +57,25 @@ def dispatch(platform, journal, event, source, workflow, notice_workflow, templa
         raise AppError(409, 'Configure the native exit stage email template')
     values = source['data']
     actor = Actor('hrms-notifications', platform.org, '', frozenset(), frozenset())
+    recipients = ['employee_notification_email', 'offboarding_coordinator_email']
+    people = {}
+    if simplified(workflow):
+        recipients += ['offboarding_project_manager_id', 'offboarding_office_admin_id']
+        if values.get('offboarding_access_admin_id'):
+            recipients.append('offboarding_access_admin_id')
+        people = {u['id']: u for u in platform.users()}
     with journal.lock(platform.org + ':exit-notifications') as db:
-        for field in ('employee_notification_email', 'offboarding_coordinator_email'):
+        for field in recipients:
             key = hashlib.sha256((event['id'] + ':' + field).encode()).hexdigest()
             op = journal.operation(db, actor, 'exit-notice:' + key, {'event': event['id'], 'recipient_field': field})
             if op.result:
                 continue
             if not op.progress.get('envelope'):
                 recipient = values.get(field)
+                if field.endswith('_id'):
+                    recipient = people.get(recipient, {}).get('email')
                 if field == 'employee_notification_email' and staged_forms(workflow):
-                    if values.get('notification_email_confirmed') != 'Yes' or not recipient:
+                    if (not simplified(workflow) and values.get('notification_email_confirmed') != 'Yes') or not recipient:
                         user = next((u for u in platform.users() if u['id'] == values.get('offboarding_employee_user_id')), None)
                         recipient = user.get('email') if user else None
                 envelope = dict(notice_key=key, recipient=recipient, template_id=template,

@@ -30,7 +30,6 @@ SECTIONS = {
         field('asset_notes', 'Asset return details / exception approval', 'text'),
         field('external_access_status', 'External email, VPN and application access', enum_values=['Pending', 'Completed', 'Not applicable']),
         field('external_access_notes', 'External access removal evidence', 'text'),
-        field('access_cutoff', 'HRMS access cutoff (include timezone)', 'datetime'),
         field('ownership_status', 'Projects, allocations and pending approvals', enum_values=['Pending', 'Completed', 'Not applicable']),
         field('ownership_notes', 'Ownership transfer evidence / not applicable reason', 'text'),
     ],
@@ -72,7 +71,7 @@ def definition():
     add('Draft', 'submit_for_approval', 'Pending approval', required)
     add('Changes requested', 'resubmit', 'Pending approval', required)
     add('Pending approval', 'request_changes', 'Changes requested', ['change_reason'])
-    add('Pending approval', 'approve_exit', 'Notice & handover', ['confirmed_last_day', 'access_cutoff', 'handover_owner'], [equals('notice_verified', 'yes')])
+    add('Pending approval', 'approve_exit', 'Notice & handover', ['confirmed_last_day', 'handover_owner'], [equals('notice_verified', 'yes')])
     add('Notice & handover', 'confirm_departure', 'Departure confirmed', guards=[equals('departure_verified', 'yes')])
     add('Departure confirmed', 'start_final_clearance', 'Final clearance')
     add('Final clearance', 'complete_offboarding', 'Completed', ['final_notes'], [equals('departure_verified', 'yes'), equals('clearance_verified', 'yes')])

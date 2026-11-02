@@ -5,7 +5,7 @@ import { request, getApiErrorMessage } from '@/core/services/api/client';
 import { ConfiguredInputs, type Field } from '../forms/ConfiguredForm';
 import { createRequestId } from '../requestId';
 
-export type MyExit={viewer?:'employee'|'participant';entity_id:string;state:string;values:Record<string,unknown>;values_hash:string;fields:Field[];sections?:{title:string;fields:Field[]}[];assets?:{identifier:string;asset_name:string}[];asset_error?:string;editable:boolean;assigned_to_you:boolean;actions:{trigger:string;label:string}[]};
+export type MyExit={viewer?:'employee'|'participant';entity_id:string;state:string;values:Record<string,unknown>;values_hash:string;fields:Field[];sections?:{title:string;fields:Field[]}[];assets?:{identifier:string;asset_name:string}[];asset_error?:string;editable:boolean;assigned_to_you:boolean;actions:{trigger:string;label:string;required_fields?:Field[]}[]};
 
 export default function MyOffboardingPage(){
   const {id}=useParams();
@@ -20,9 +20,10 @@ export default function MyOffboardingPage(){
   useEffect(()=>{if(query.data&&!dirty){setValues(query.data.values);}},[query.data,dirty]);
   async function save(trigger=''){
     if(!query.data)return;
-    if(trigger==='submit_checklist'){
+    if(trigger){
       setShowMissing(true);
-      if(query.data.fields.some(f=>f.required&&!f.read_only&&(values[f.field]===false||values[f.field]==null||!String(values[f.field]).trim()))){setError('Please answer the required questions and acknowledge the declaration.');return;}
+      const required=new Set(query.data.actions.find(a=>a.trigger===trigger)?.required_fields?.filter(f=>f.required).map(f=>f.field)??query.data.fields.filter(f=>f.required).map(f=>f.field));
+      if(query.data.fields.some(f=>required.has(f.field)&&!f.read_only&&(values[f.field]===false||values[f.field]==null||!String(values[f.field]).trim()))){setError('Please complete the required answers before continuing.');return;}
     }
     setBusy(true);setError('');
     const input=Object.fromEntries(query.data.fields.filter(f=>!f.read_only&&values[f.field]!==undefined).map(f=>[f.field,values[f.field]]));
@@ -45,16 +46,16 @@ export default function MyOffboardingPage(){
     <p className="my-5">{item.viewer==='participant'?'You can follow this case throughout offboarding. Assigned actions appear separately in My Tasks.':item.editable?'Complete your checklist and save a draft whenever you need. You can submit with pending items marked No. Do not enter passwords or credentials.':'Your responses are read-only at this stage. HR will send stage updates to your agreed contact email.'}</p>
     {item.editable&&!!item.values.change_reason&&<p className="hrms-notice mb-4">Changes requested: {String(item.values.change_reason)}</p>}
     {!!item.values.checklist_submitted_at&&<p className="text-sm mb-4">Last submitted: {new Date(String(item.values.checklist_submitted_at)).toLocaleString()}</p>}
-    {item.asset_error?<p role="alert" className="hrms-notice">{item.asset_error}</p>:!!item.assets?.length&&<details className="hrms-surface p-4 mb-4"><summary>Assets currently assigned to you ({item.assets.length})</summary><ul>{item.assets.map(a=><li key={a.identifier}>{a.identifier} · {a.asset_name}</li>)}</ul><p>Office Admin must record returns in Asset Management.</p></details>}
+    {item.asset_error?<p role="alert" className="hrms-notice">{item.asset_error}</p>:!!item.assets?.length&&<details className="hrms-surface p-4 mb-4"><summary>Assets assigned to this employee ({item.assets.length})</summary><ul>{item.assets.map(a=><li key={a.identifier}>{a.identifier} · {a.asset_name}</li>)}</ul><p>Office Admin must record returns in Asset Management.</p></details>}
     {error&&<p role="alert" className="hrms-notice hrms-notice--error">{error}</p>}
     {item.fields.length>0&&<form noValidate onSubmit={e=>{e.preventDefault();void save();}}><fieldset disabled={!item.editable||busy} className="space-y-6">
-      {(item.sections?.length?item.sections:[{title:'Employee handover',fields:item.fields}]).map(section=>{
+      {(item.sections?.length?item.sections:[{title:item.state,fields:item.fields}]).map(section=>{
         const required=section.fields.filter(f=>f.required&&!f.read_only);
         const answered=(f:Field)=>values[f.field]!=null&&values[f.field]!==false&&String(values[f.field]).trim()!=='';
         return <section className="hrms-surface p-5" key={section.title}><div className="flex justify-between gap-4 mb-4"><h2 className="hrms-section-heading">{section.title}</h2>{required.length>0&&<span className="text-sm">{required.filter(answered).length} / {required.length} answered</span>}</div>
           <div className="grid sm:grid-cols-2 gap-4 [&_textarea]:min-h-28">{section.fields.filter(f=>!f.field.endsWith('_remarks')||values[f.field.slice(0,-8)]==='No').map(f=><div key={f.field} className={f.type==='text'||f.enum_values||f.type==='boolean'?'sm:col-span-2':''}>
             {!!f.enum_values?.length&&!f.read_only?<fieldset><legend className="mb-2">{f.description}{f.required?' *':''}</legend><div className="flex gap-4 flex-wrap">{f.enum_values.map(option=><label key={option} className="flex items-center gap-2"><input type="radio" name={f.field} value={option} checked={values[f.field]===option} onChange={()=>{setValues({...values,[f.field]:option});setDirty(true);}}/>{option}</label>)}</div></fieldset>
-            :<ConfiguredInputs fields={[{...f,description:(f.description??f.field)+(f.required&&!f.read_only?' *':''),required:false}]} values={values} onChange={v=>{setValues(f.field==='employee_notification_email'?{...v,notification_email_confirmed:''}:v);setDirty(true);}}/>}
+            :<ConfiguredInputs fields={[{...f,description:(f.description??f.field)+(f.required&&!f.read_only?' *':''),required:false}]} values={values} onChange={v=>{setValues(f.field==='employee_notification_email'&&item.fields.some(f=>f.field==='notification_email_confirmed')?{...v,notification_email_confirmed:''}:v);setDirty(true);}}/>}
             {f.field==='notification_email_confirmed'&&<p className="text-sm mt-2">{values.employee_notification_email?`Confirm that ${String(values.employee_notification_email)} is your personal email for correspondence after exit.`:'Enter your personal email above, then confirm it for correspondence after exit.'}</p>}
             {showMissing&&f.required&&!f.read_only&&!answered(f)&&<p role="alert" className="text-red-700 text-sm mt-1">Please complete this answer.</p>}
           </div>)}</div></section>;
