@@ -13,6 +13,24 @@ def fields(objects, state):
             for f in objects[ref['method_id']['$ref']]['payload']['fields']]
 
 
+def test_release_library_fields_have_unique_native_names_and_explicit_defaults():
+    objects = package()
+    names = set()
+    for obj in objects.values():
+        if obj['kind'] != 'field':
+            continue
+        payload = obj['payload']
+        identity = (payload['name'].lower(), payload['field_type'])
+        assert identity not in names, obj['key']
+        names.add(identity)
+        assert 'description' in payload
+    for obj in objects.values():
+        if obj['kind'] == 'method':
+            assert {'description', 'category_id'} <= obj['payload'].keys()
+            for field in obj['payload']['fields']:
+                assert {'placeholder', 'ownership', 'inherit_from', 'source_entity_type', 'source_field_key'} <= field.keys()
+
+
 def test_simplified_stages_use_separate_native_forms():
     objects = package()
     graph = objects['workflow:HRMS.Offboarding']['payload']['definition']
