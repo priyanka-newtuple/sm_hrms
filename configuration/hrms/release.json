@@ -804,6 +804,11 @@
               "field": "offboarding_access_admin_id",
               "type": "string",
               "required": false
+            },
+            {
+              "description": "HRMS access cutoff (include timezone)",
+              "field": "access_cutoff",
+              "type": "datetime"
             }
           ],
           "identifier_template": "EXT-{{seq}}"
@@ -15565,6 +15570,24 @@
               "$ref": "field:offboarding_coordinator_id",
               "attribute": "version_id"
             }
+          },
+          {
+            "inherit_from": null,
+            "label": "HRMS access cutoff (include timezone)",
+            "library_field_id": {
+              "$ref": "field:access_cutoff",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 8,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:access_cutoff",
+              "attribute": "version_id"
+            }
           }
         ],
         "name": "Exit checklist v3 · Offboarding initiation"
@@ -15673,24 +15696,6 @@
           },
           {
             "inherit_from": null,
-            "label": "Employee has confirmed this contact address",
-            "library_field_id": {
-              "$ref": "field:notification_email_confirmed",
-              "attribute": "id"
-            },
-            "ownership": null,
-            "placeholder": null,
-            "position": 5,
-            "required": false,
-            "source_entity_type": null,
-            "source_field_key": null,
-            "version_id": {
-              "$ref": "field:notification_email_confirmed",
-              "attribute": "version_id"
-            }
-          },
-          {
-            "inherit_from": null,
             "label": "Have all ongoing projects been handed over to the concerned team members?",
             "library_field_id": {
               "$ref": "field:exit_projects_handed_over",
@@ -15698,7 +15703,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 6,
+            "position": 5,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -15716,7 +15721,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 7,
+            "position": 6,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -15734,7 +15739,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 8,
+            "position": 7,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -15752,7 +15757,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 9,
+            "position": 8,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -15770,7 +15775,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 10,
+            "position": 9,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -15788,7 +15793,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 11,
+            "position": 10,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -15806,7 +15811,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 12,
+            "position": 11,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -15824,7 +15829,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 13,
+            "position": 12,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -15842,7 +15847,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 14,
+            "position": 13,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -15860,7 +15865,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 15,
+            "position": 14,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -15878,7 +15883,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 16,
+            "position": 15,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -15896,7 +15901,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 17,
+            "position": 16,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -15914,7 +15919,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 18,
+            "position": 17,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -15932,7 +15937,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 19,
+            "position": 18,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -15950,7 +15955,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 20,
+            "position": 19,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -15968,7 +15973,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 21,
+            "position": 20,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -15986,7 +15991,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 22,
+            "position": 21,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -16004,7 +16009,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 23,
+            "position": 22,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -16022,7 +16027,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 24,
+            "position": 23,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -16040,7 +16045,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 25,
+            "position": 24,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -16058,7 +16063,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 26,
+            "position": 25,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -17239,6 +17244,41 @@
             "can_view": true,
             "can_edit": false,
             "mask_value": false
+          },
+          {
+            "field_name": "checklist_submission_history",
+            "mask_value": false,
+            "entity_type": "HRMS.Offboarding",
+            "can_view": false,
+            "can_edit": false
+          },
+          {
+            "field_name": "exit_enjoyed",
+            "mask_value": false,
+            "entity_type": "HRMS.Offboarding",
+            "can_view": false,
+            "can_edit": false
+          },
+          {
+            "field_name": "exit_improvements",
+            "mask_value": false,
+            "entity_type": "HRMS.Offboarding",
+            "can_view": false,
+            "can_edit": false
+          },
+          {
+            "field_name": "exit_rejoin",
+            "mask_value": false,
+            "entity_type": "HRMS.Offboarding",
+            "can_view": false,
+            "can_edit": false
+          },
+          {
+            "field_name": "exit_suggestions",
+            "mask_value": false,
+            "entity_type": "HRMS.Offboarding",
+            "can_view": false,
+            "can_edit": false
           }
         ],
         "workflow_permissions": [
@@ -17338,6 +17378,41 @@
             "can_view": true,
             "can_edit": true,
             "mask_value": false
+          },
+          {
+            "field_name": "checklist_submission_history",
+            "mask_value": false,
+            "entity_type": "HRMS.Offboarding",
+            "can_view": false,
+            "can_edit": false
+          },
+          {
+            "field_name": "exit_enjoyed",
+            "mask_value": false,
+            "entity_type": "HRMS.Offboarding",
+            "can_view": false,
+            "can_edit": false
+          },
+          {
+            "field_name": "exit_improvements",
+            "mask_value": false,
+            "entity_type": "HRMS.Offboarding",
+            "can_view": false,
+            "can_edit": false
+          },
+          {
+            "field_name": "exit_rejoin",
+            "mask_value": false,
+            "entity_type": "HRMS.Offboarding",
+            "can_view": false,
+            "can_edit": false
+          },
+          {
+            "field_name": "exit_suggestions",
+            "mask_value": false,
+            "entity_type": "HRMS.Offboarding",
+            "can_view": false,
+            "can_edit": false
           }
         ],
         "workflow_permissions": [
@@ -17451,6 +17526,41 @@
             "can_view": true,
             "can_edit": true,
             "mask_value": false
+          },
+          {
+            "field_name": "checklist_submission_history",
+            "mask_value": false,
+            "entity_type": "HRMS.Offboarding",
+            "can_view": false,
+            "can_edit": false
+          },
+          {
+            "field_name": "exit_enjoyed",
+            "mask_value": false,
+            "entity_type": "HRMS.Offboarding",
+            "can_view": false,
+            "can_edit": false
+          },
+          {
+            "field_name": "exit_improvements",
+            "mask_value": false,
+            "entity_type": "HRMS.Offboarding",
+            "can_view": false,
+            "can_edit": false
+          },
+          {
+            "field_name": "exit_rejoin",
+            "mask_value": false,
+            "entity_type": "HRMS.Offboarding",
+            "can_view": false,
+            "can_edit": false
+          },
+          {
+            "field_name": "exit_suggestions",
+            "mask_value": false,
+            "entity_type": "HRMS.Offboarding",
+            "can_view": false,
+            "can_edit": false
           }
         ],
         "workflow_permissions": [
@@ -17571,6 +17681,41 @@
             "can_view": true,
             "can_edit": true,
             "mask_value": false
+          },
+          {
+            "field_name": "checklist_submission_history",
+            "mask_value": false,
+            "entity_type": "HRMS.Offboarding",
+            "can_view": false,
+            "can_edit": false
+          },
+          {
+            "field_name": "exit_enjoyed",
+            "mask_value": false,
+            "entity_type": "HRMS.Offboarding",
+            "can_view": false,
+            "can_edit": false
+          },
+          {
+            "field_name": "exit_improvements",
+            "mask_value": false,
+            "entity_type": "HRMS.Offboarding",
+            "can_view": false,
+            "can_edit": false
+          },
+          {
+            "field_name": "exit_rejoin",
+            "mask_value": false,
+            "entity_type": "HRMS.Offboarding",
+            "can_view": false,
+            "can_edit": false
+          },
+          {
+            "field_name": "exit_suggestions",
+            "mask_value": false,
+            "entity_type": "HRMS.Offboarding",
+            "can_view": false,
+            "can_edit": false
           }
         ],
         "workflow_permissions": [

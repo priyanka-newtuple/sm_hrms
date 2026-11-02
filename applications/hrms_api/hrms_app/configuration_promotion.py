@@ -62,9 +62,14 @@ def accept_reviewed_drift(native, package, reviewed, journal):
         raise ConfigurationError('Drift review requires a fully applied release')
     fresh, actual, identities = inspection(native, package, state)
     conflicts = [op['key'] for op in fresh['operations'] if op['decision'] == 'conflict']
+    # A release may start managing an existing role's tenant-scoped grants.
+    # Adopt only that exact reviewed scope, without writing permissions. Other
+    # unmanaged object kinds still require the initial-adoption workflow.
+    scoped_roles = {o['key'] for o in validate(package) if o['kind'] == 'role'}
     if (fresh != reviewed or not conflicts or
             any(op['decision'] == 'retirement_required' for op in fresh['operations']) or
-            any(key not in state['baseline'] or actual.get(key) is None for key in conflicts)):
+            any((key not in state['baseline'] and key not in scoped_roles)
+                or actual.get(key) is None for key in conflicts)):
         raise ConfigurationError('Drift review is stale or requires a different recovery')
     native.preflight(validate(package), identities)
     checked, _, _ = inspection(native, package, state)
