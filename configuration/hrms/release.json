@@ -16603,7 +16603,7 @@
       "kind": "field",
       "match": "offboarding_project_manager_id",
       "payload": {
-        "name": "Project Manager",
+        "name": "Offboarding Project Manager",
         "field_key": "offboarding_project_manager_id",
         "field_type": "text",
         "settings": {},
@@ -16644,7 +16644,7 @@
       "kind": "field",
       "match": "project_clearance_comments",
       "payload": {
-        "name": "Comments",
+        "name": "Project clearance comments",
         "field_key": "project_clearance_comments",
         "field_type": "textarea",
         "settings": {},
