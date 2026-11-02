@@ -129,3 +129,15 @@ def test_staged_workflow_uses_work_email_until_employee_consents(consent):
     dispatch(p, j, *args)
     recipients = {r['data']['recipient'] for r in p.rows}
     assert recipients == {'hr@example.test', 'employee@example.test' if consent else 'work@example.test'}
+
+
+def test_simplified_flow_notifies_employee_and_all_selected_assignees():
+    p, j = Platform(), Journal()
+    args = list(inputs())
+    args[2]['definition']['states'][0]['description'] += ' hrms:offboarding-v4'
+    args[1]['data'].update(offboarding_project_manager_id='pm', offboarding_office_admin_id='office')
+    p.users = lambda: [{'id':'pm','email':'pm@example.test'}, {'id':'office','email':'office@example.test'}]
+    dispatch(p,j,*args)
+    dispatch(p,j,*args)
+    assert len(p.rows) == 4
+    assert {r['data']['recipient'] for r in p.rows} == {'employee@example.test','hr@example.test','pm@example.test','office@example.test'}

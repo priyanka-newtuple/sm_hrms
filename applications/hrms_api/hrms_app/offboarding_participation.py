@@ -4,6 +4,7 @@ Employees never receive broad native read access to confidential exit records.
 This projection is a security ceiling; native methods further narrow the form.
 """
 from .errors import AppError
+from .offboarding_simple import enabled as simplified, role_grants
 from .offboarding_catalog import ENTITY, SECTIONS
 from .offer_documents import digest
 from datetime import datetime, UTC
@@ -86,6 +87,8 @@ class EmployeeOffboarding:
         record, enrollment, workflow, state = self.context(actor, entity_id)
         own = self.own(actor)
         is_employee = bool(own and record['data'].get('employee_id') == own['entity_id'])
+        if simplified(workflow):
+            return self.simple_detail(actor, record, workflow, state, is_employee)
         if not is_employee:
             # Participants get stage visibility, never employee feedback or HR evidence.
             values = {k: v for k, v in record['data'].items() if k in {'identifier', 'exit_employee_name', 'exit_employee_code', 'confirmed_last_day'}}
@@ -116,6 +119,28 @@ class EmployeeOffboarding:
         return dict(entity_id=entity_id, state=state['name'], values=values, values_hash=digest(values),
                     viewer='employee', editable=editable, fields=fields, sections=sections, assets=assets, asset_error=asset_error, actions=[{'trigger':t['trigger'],'label':t.get('label') or 'Submit handover'} for t in transitions] if editable else [],
                     assigned_to_you=record.get('assignee_id')==actor.user_id)
+
+    def simple_detail(self, actor, record, workflow, state, is_employee):
+        grants, transitions, workflows = role_grants(self.platform, actor)
+        machine = workflow['machine_name']
+        participant_fields = {'offboarding_employee_user_id', 'offboarding_project_manager_id', 'offboarding_office_admin_id'}
+        assigned_step = any(a.get('kind') == 'entity.assign_user' and a.get('config', {}).get('user_id') in {'$entity.' + k for k in participant_fields} for a in state.get('on_state_actions', []))
+        assigned = record.get('assignee_id') == actor.user_id
+        active = assigned_step and assigned and machine in workflows
+        actions = [t for t in workflow['definition']['transitions'] if t.get('from') == state['name'] and (machine, t['key']) in transitions and t['trigger'] not in {'confirm_departure', 'complete_offboarding'}] if active else []
+        fields = [{**f, 'read_only': bool(f.get('read_only')) or not grants.get(f['field'], (False, False))[1]} for f in self.offboarding.fields(workflow, state['name']) if active and grants.get(f['field'], (False, False))[0]]
+        # Only this assigned stage's form is exposed. HR interview feedback stays private.
+        keys = {f['field'] for f in fields} | {'identifier', 'exit_employee_name', 'exit_employee_code', 'confirmed_last_day'}
+        if is_employee:
+            keys |= {'employee_notification_email', 'exit_projects_handed_over', 'exit_tasks_updated', 'project_clearance_comments', 'checklist_submitted_at'}
+        values = {k: v for k, v in record['data'].items() if k in keys}
+        assets, asset_error = [], None
+        if active and record['data'].get('offboarding_office_admin_id') == actor.user_id:
+            try:
+                assets = [{'entity_id': r['entity_id'], 'identifier': r['data'].get('identifier'), 'asset_name': r['data'].get('asset_name')} for r in self.platform.records('HRMS.Asset', ['identifier', 'asset_name', 'issued_employee_id']) if r['data'].get('issued_employee_id') == record['data']['employee_id']]
+            except AppError:
+                asset_error = 'Unable to load assigned assets. Retry before confirming clearance.'
+        return dict(entity_id=record['entity_id'], state=state['name'], viewer='employee' if is_employee else 'participant', values=values, values_hash=digest(values), fields=fields, sections=[], assets=assets, asset_error=asset_error, editable=active and bool(actions), assigned_to_you=assigned, actions=[{'trigger': t['trigger'], 'label': t.get('label') or t['trigger'], 'required_fields': t.get('required_fields', [])} for t in actions])
 
     def rows(self, actor):
         rows = self.platform.records(ENTITY, ['employee_id'])
@@ -150,6 +175,24 @@ class EmployeeOffboarding:
                 if trigger not in {a['trigger'] for a in item['actions']}:
                     raise AppError(403,'Only your configured handover action is available')
                 target=next(t['to_state'] for t in workflow['definition']['transitions'] if t.get('from')==item['state'] and t['trigger']==trigger)
+                if simplified(workflow):
+                    record, _, _, _ = self.context(actor, entity_id)
+                    if trigger == 'return_employee_checklist':
+                        employee_user = next((u for u in self.platform.users() if u['id'] == record['data'].get('offboarding_employee_user_id')), None)
+                        if not employee_user or employee_user.get('status') != 'active':
+                            raise AppError(409, 'The employee no longer has login access. HR must resolve the remaining clearance.')
+                    transition = next(t for t in workflow['definition']['transitions'] if t.get('from') == item['state'] and t['trigger'] == trigger)
+                    required = {f['field'] for f in transition.get('required_fields', []) if f.get('required')}
+                    validate_values([{**f, 'required': f['field'] in required} for f in item['fields']], item['values'], submitting=True)
+                    preview = self.platform.call('GET', f'/entities/{entity_id}/transitions/{trigger}/preflight', params={'machine_name': workflow['machine_name'], 'workflow_id': workflow['id'], 'current_state': item['state'], 'inputs_json': json.dumps({'checklist_verified': 'yes'} if trigger == 'submit_checklist' else {})})
+                    if not preview.get('allowed'):
+                        raise AppError(409, '; '.join(preview.get('blocked_reasons', [])) or 'Complete the required clearance')
+                    if trigger == 'confirm_asset_clearance':
+                        if item.get('asset_error') or item.get('assets'):
+                            raise AppError(409, 'Record the return of all assigned assets before confirming clearance')
+                    if trigger in {'return_employee_checklist', 'return_project_clearance'}:
+                        reset = {'project_release_approved': '', 'clearance_assets_received': '', 'clearance_licenses_revoked': ''}
+                        self.platform.call('PUT', f'/entity-records/{entity_id}', json={'data': reset})
                 if trigger=='submit_checklist':
                     validate_values(item['fields'], item['values'], submitting=True)
                     # Freeze an authenticated submission snapshot before transition;
@@ -172,7 +215,7 @@ class EmployeeOffboarding:
                 if set(values)-editable:
                     raise AppError(403,'Only employee handover fields may be changed')
                 if ('employee_notification_email' in values and values['employee_notification_email'] != item['values'].get('employee_notification_email')
-                        and 'notification_email_confirmed' not in values):
+                        and 'notification_email_confirmed' not in values and not simplified(workflow)):
                     values = {**values, 'notification_email_confirmed': ''}
                 merged={**item['values'],**values}
                 if is_checklist(workflow): validate_values(item['fields'], merged)

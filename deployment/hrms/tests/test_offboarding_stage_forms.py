@@ -13,42 +13,35 @@ def fields(objects, state):
             for f in objects[ref['method_id']['$ref']]['payload']['fields']]
 
 
-def test_each_stage_has_its_own_native_form_and_interview_has_only_notes():
+def test_simplified_stages_use_separate_native_forms():
     objects = package()
     graph = objects['workflow:HRMS.Offboarding']['payload']['definition']
     states = {s['name']: s for s in graph['states']}
-    assert list(states) == ['Offboarding Initiated', 'Employee Checklist', 'HR Review', 'Exit Interview', 'Pending Clearance', 'Completed']
-    assert fields(objects, states['Exit Interview']) == ['exit_interview_notes']
-    assert 'employee_notification_email' not in fields(objects, states['Offboarding Initiated'])
-    assert 'notification_email_confirmed' not in fields(objects, states['Offboarding Initiated'])
-    assert {'employee_notification_email', 'notification_email_confirmed'} <= set(fields(objects, states['Employee Checklist']))
-    assert 'exit_interview_completed' not in fields(objects, states['Employee Checklist'])
-    assert 'exit_enjoyed' not in fields(objects, states['Employee Checklist'])
-    assert 'asset_status' not in fields(objects, states['Offboarding Initiated'])
-    assert 'asset_status' in fields(objects, states['Pending Clearance'])
-    assert set(fields(objects, states['Offboarding Initiated'])) == {
-        'employee_id', 'exit_type', 'notified_date', 'requested_last_day', 'confirmed_last_day',
-        'exit_reason', 'supporting_documents', 'offboarding_coordinator_id', 'access_cutoff',
+    assert list(states) == ['Start offboarding', 'Employee checklist', 'Project Manager Clearance', 'Asset and Subscriptions Clearance', 'Exit interview', 'HRMS Access Removal', 'Awaiting HR completion', 'Completed']
+    expected = {
+        'Start offboarding': {'employee_id', 'exit_type', 'confirmed_last_day', 'exit_reason', 'supporting_documents', 'offboarding_project_manager_id', 'offboarding_office_admin_id'},
+        'Employee checklist': {'employee_notification_email', 'exit_projects_handed_over', 'exit_tasks_updated'},
+        'Project Manager Clearance': {'project_release_approved', 'project_clearance_comments'},
+        'Asset and Subscriptions Clearance': {'clearance_assets_received', 'clearance_licenses_revoked', 'asset_clearance_comments'},
+        'Exit interview': {'exit_interview_done', 'exit_employee_feedback', 'exit_interview_date', 'offboarding_access_admin_id'},
     }
-    for state in states.values():
-        assert 'template:Exit checklist v2 · ' + state['name'] in objects
-    finish = next(t for t in graph['transitions'] if t['trigger'] == 'finish_exit_interview')
-    assert finish['to_state'] == 'Pending Clearance'
-    assert finish['required_fields'] == [{'field': 'exit_interview_notes', 'type': 'text', 'required': True}]
-    assert all(t['to_state'] == t['from'] for t in graph['transitions'] if t['trigger'] == 'confirm_departure')
+    for name, keys in expected.items():
+        assert set(fields(objects, states[name])) == keys
+    for name in states:
+        assert 'template:Exit checklist v2 · ' + name in objects
+    assert not any(t['trigger'] == 'confirm_departure' for t in graph['transitions'])
+    assert 'method:Exit checklist v2 · Exit administration' in objects
 
 
-def test_reviewed_contact_field_permissions_and_old_forms_remain_versioned():
+def test_all_human_roles_can_submit_their_own_checklist():
     objects = package()
     for obj in objects.values():
         if obj['kind'] != 'role' or 'application_service' in obj['key']:
             continue
-        grants = [f for f in obj['payload']['field_permissions'] if f['entity_type'] == 'HRMS.Offboarding' and f['field_name'] in {'employee_notification_email', 'notification_email_confirmed'}]
-        # Preserve the tenant administrator's reviewed HR Full overrides.
-        # Employee contact ownership in HRMS commands is tested by the API suite.
-        assert grants and all(f['can_view'] for f in grants)
-        assert all(f['can_edit'] == (obj['key'] == 'role:hrms_hr_full') for f in grants)
-    assert 'method:Exit checklist v2 · Exit administration' in objects
+        role = obj['payload']
+        assert any(t['transition_key'] == 'v4_submit_checklist_1' for t in role['transition_permissions'])
+        for key in ('employee_notification_email', 'exit_projects_handed_over', 'exit_tasks_updated'):
+            assert any(f['entity_type'] == 'HRMS.Offboarding' and f['field_name'] == key and f['can_view'] and f['can_edit'] for f in role['field_permissions'])
 
 
 def test_native_transition_fields_resolve_in_the_source_stage():
@@ -61,3 +54,22 @@ def test_native_transition_fields_resolve_in_the_source_stage():
         referenced |= {g['field'] for g in transition['guards'] if g.get('field')}
         assert referenced <= states[transition['from']], (transition['key'], referenced - states[transition['from']])
     assert global_fields == {'checklist_verified', 'departure_verified', 'clearance_verified'}
+
+
+def test_access_removal_is_last_admin_action_then_hr_completion():
+    objects = package()
+    graph = objects['workflow:HRMS.Offboarding']['payload']['definition']
+    transitions = {t['trigger']:t for t in graph['transitions']}
+    assert transitions['send_access_removal']['to_state'] == 'HRMS Access Removal'
+    assert transitions['disable_hrms_access']['from'] == 'HRMS Access Removal'
+    assert transitions['disable_hrms_access']['to_state'] == 'Awaiting HR completion'
+    assert transitions['complete_offboarding']['from'] == 'Awaiting HR completion'
+    assert transitions['complete_offboarding']['to_state'] == 'Completed'
+    for name, expected in [('superadmin',True),('hrms_hr_full',False),('hrms_office_admin',False),('hrms_employee',False)]:
+        permissions = objects['role:'+name]['payload']['transition_permissions']
+        assert any(p['transition_key']=='v4_disable_hrms_access_5' for p in permissions) == expected
+    assert any(p['transition_key']=='v4_complete_offboarding_6' for p in objects['role:hrms_hr_full']['payload']['transition_permissions'])
+    states = {s['name']:s for s in graph['states']}
+    assert states['HRMS Access Removal']['on_state_actions'][0]['config']['user_id'] == '$entity.offboarding_access_admin_id'
+    assert states['Awaiting HR completion']['on_state_actions'][0]['config']['user_id'] == '$entity.offboarding_coordinator_id'
+    assert 'terminal' not in states['Awaiting HR completion']['tags']

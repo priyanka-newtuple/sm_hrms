@@ -105,5 +105,5 @@ def definition(methods, templates):
 CONTACT_KEYS = {'employee_notification_email', 'notification_email_confirmed'}
 
 def staged_forms(workflow):
-    return (workflow['definition'].get('initial_state') == 'Offboarding Initiated' or
+    return (workflow['definition'].get('initial_state') in {'Offboarding Initiated', 'Start offboarding'} or
             any('hrms:stage-forms-v3' in (s.get('description') or '') for s in workflow['definition']['states']))

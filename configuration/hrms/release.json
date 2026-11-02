@@ -298,11 +298,6 @@
               "type": "text"
             },
             {
-              "description": "HRMS access cutoff (include timezone)",
-              "field": "access_cutoff",
-              "type": "datetime"
-            },
-            {
               "description": "Projects, allocations and pending approvals",
               "enum_values": [
                 "Pending",
@@ -728,6 +723,87 @@
               "field": "employee_handover_confirmed",
               "required": true,
               "type": "enum"
+            },
+            {
+              "field": "offboarding_project_manager_id",
+              "type": "string",
+              "required": false,
+              "description": "Project Manager"
+            },
+            {
+              "field": "offboarding_office_admin_id",
+              "type": "string",
+              "required": false,
+              "description": "Office Admin"
+            },
+            {
+              "field": "project_release_approved",
+              "type": "enum",
+              "required": false,
+              "description": "OK to release?",
+              "enum_values": [
+                "Yes",
+                "No"
+              ]
+            },
+            {
+              "field": "project_clearance_comments",
+              "type": "text",
+              "required": false,
+              "description": "Comments"
+            },
+            {
+              "field": "clearance_assets_received",
+              "type": "enum",
+              "required": false,
+              "description": "Have you received all assigned assets?",
+              "enum_values": [
+                "Yes",
+                "No"
+              ]
+            },
+            {
+              "field": "clearance_licenses_revoked",
+              "type": "enum",
+              "required": false,
+              "description": "Have you revoked all licenses (Claude, OpenAI and other subscriptions)?",
+              "enum_values": [
+                "Yes",
+                "No"
+              ]
+            },
+            {
+              "field": "asset_clearance_comments",
+              "type": "text",
+              "required": false,
+              "description": "Comments"
+            },
+            {
+              "field": "exit_interview_done",
+              "type": "enum",
+              "required": false,
+              "description": "Exit interview done",
+              "enum_values": [
+                "Yes",
+                "No"
+              ]
+            },
+            {
+              "field": "exit_employee_feedback",
+              "type": "text",
+              "required": false,
+              "description": "Employee feedback"
+            },
+            {
+              "field": "exit_interview_date",
+              "type": "datetime",
+              "required": false,
+              "description": "Exit interview date"
+            },
+            {
+              "field": "offboarding_access_admin_id",
+              "type": "string",
+              "required": false
             }
           ],
           "identifier_template": "EXT-{{seq}}"
@@ -5408,24 +5484,6 @@
           },
           {
             "inherit_from": null,
-            "label": "HRMS access cutoff (include timezone)",
-            "library_field_id": {
-              "$ref": "field:access_cutoff",
-              "attribute": "id"
-            },
-            "ownership": null,
-            "placeholder": null,
-            "position": 7,
-            "required": false,
-            "source_entity_type": null,
-            "source_field_key": null,
-            "version_id": {
-              "$ref": "field:access_cutoff",
-              "attribute": "version_id"
-            }
-          },
-          {
-            "inherit_from": null,
             "label": "Projects, allocations and pending approvals",
             "library_field_id": {
               "$ref": "field:ownership_status",
@@ -6985,13 +7043,6 @@
             "can_edit": true,
             "can_view": true,
             "entity_type": "HRMS.Offboarding",
-            "field_name": "access_cutoff",
-            "mask_value": false
-          },
-          {
-            "can_edit": true,
-            "can_view": true,
-            "entity_type": "HRMS.Offboarding",
             "field_name": "approved_at",
             "mask_value": false
           },
@@ -7827,6 +7878,83 @@
             "entity_type": "hrms_offer",
             "field_name": "special_percent",
             "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "exit_interview_done",
+            "can_view": true,
+            "can_edit": true,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "project_release_approved",
+            "can_view": true,
+            "can_edit": true,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "offboarding_project_manager_id",
+            "can_view": true,
+            "can_edit": true,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "clearance_licenses_revoked",
+            "can_view": true,
+            "can_edit": true,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "exit_interview_date",
+            "can_view": true,
+            "can_edit": true,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "project_clearance_comments",
+            "can_view": true,
+            "can_edit": true,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "clearance_assets_received",
+            "can_view": true,
+            "can_edit": true,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "exit_employee_feedback",
+            "can_view": true,
+            "can_edit": true,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "offboarding_office_admin_id",
+            "can_view": true,
+            "can_edit": true,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "asset_clearance_comments",
+            "can_view": true,
+            "can_edit": true,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "offboarding_access_admin_id",
+            "can_view": true,
+            "can_edit": true,
+            "mask_value": false
           }
         ],
         "transition_permissions": [
@@ -8130,6 +8258,83 @@
               "attribute": "machine_name"
             },
             "transition_key": "sent__to__offer expired"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "v4_send_checklist_0"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "v4_submit_checklist_1"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "v4_approve_project_release_2"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "v4_return_employee_checklist_2"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "v4_confirm_asset_clearance_3"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "v4_return_project_clearance_3"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "v4_reopen_project_clearance_4"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "v4_reopen_asset_clearance_4"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "v4_send_access_removal_4"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "v4_complete_offboarding_6"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "v4_disable_hrms_access_5"
           }
         ],
         "workflow_permissions": [
@@ -8751,13 +8956,6 @@
             "can_edit": true,
             "can_view": true,
             "entity_type": "HRMS.Offboarding",
-            "field_name": "access_cutoff",
-            "mask_value": false
-          },
-          {
-            "can_edit": true,
-            "can_view": true,
-            "entity_type": "HRMS.Offboarding",
             "field_name": "asset_notes",
             "mask_value": false
           },
@@ -9431,6 +9629,83 @@
             "can_view": true,
             "entity_type": "hrms_offer",
             "field_name": "special_percent",
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "exit_interview_done",
+            "can_view": true,
+            "can_edit": true,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "project_release_approved",
+            "can_view": true,
+            "can_edit": false,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "offboarding_project_manager_id",
+            "can_view": true,
+            "can_edit": true,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "clearance_licenses_revoked",
+            "can_view": true,
+            "can_edit": false,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "exit_interview_date",
+            "can_view": true,
+            "can_edit": true,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "project_clearance_comments",
+            "can_view": true,
+            "can_edit": false,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "clearance_assets_received",
+            "can_view": true,
+            "can_edit": false,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "exit_employee_feedback",
+            "can_view": true,
+            "can_edit": true,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "offboarding_office_admin_id",
+            "can_view": true,
+            "can_edit": true,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "asset_clearance_comments",
+            "can_view": true,
+            "can_edit": false,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "offboarding_access_admin_id",
+            "can_view": true,
+            "can_edit": true,
             "mask_value": false
           }
         ],
@@ -9700,6 +9975,48 @@
               "attribute": "machine_name"
             },
             "transition_key": "sent__to__offer expired"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "v4_send_checklist_0"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "v4_reopen_project_clearance_4"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "v4_reopen_asset_clearance_4"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "v4_submit_checklist_1"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "v4_send_access_removal_4"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "v4_complete_offboarding_6"
           }
         ],
         "workflow_permissions": [
@@ -9882,7 +10199,7 @@
             "mask_value": false
           },
           {
-            "can_edit": false,
+            "can_edit": true,
             "can_view": true,
             "entity_type": "HRMS.Offboarding",
             "field_name": "employee_notification_email",
@@ -10043,7 +10360,7 @@
             "mask_value": false
           },
           {
-            "can_edit": false,
+            "can_edit": true,
             "can_view": true,
             "entity_type": "HRMS.Offboarding",
             "field_name": "exit_projects_handed_over",
@@ -10099,7 +10416,7 @@
             "mask_value": false
           },
           {
-            "can_edit": false,
+            "can_edit": true,
             "can_view": true,
             "entity_type": "HRMS.Offboarding",
             "field_name": "exit_tasks_updated",
@@ -10159,13 +10476,6 @@
             "can_view": true,
             "entity_type": "hrms_offer",
             "field_name": "identifier",
-            "mask_value": false
-          },
-          {
-            "can_edit": true,
-            "can_view": true,
-            "entity_type": "HRMS.Offboarding",
-            "field_name": "access_cutoff",
             "mask_value": false
           },
           {
@@ -10664,6 +10974,83 @@
             "entity_type": "hrms_offer",
             "field_name": "special_percent",
             "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "exit_interview_done",
+            "can_view": true,
+            "can_edit": true,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "project_release_approved",
+            "can_view": true,
+            "can_edit": false,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "offboarding_project_manager_id",
+            "can_view": true,
+            "can_edit": true,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "clearance_licenses_revoked",
+            "can_view": true,
+            "can_edit": false,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "exit_interview_date",
+            "can_view": true,
+            "can_edit": true,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "project_clearance_comments",
+            "can_view": true,
+            "can_edit": false,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "clearance_assets_received",
+            "can_view": true,
+            "can_edit": false,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "exit_employee_feedback",
+            "can_view": true,
+            "can_edit": true,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "offboarding_office_admin_id",
+            "can_view": true,
+            "can_edit": true,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "asset_clearance_comments",
+            "can_view": true,
+            "can_edit": false,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "offboarding_access_admin_id",
+            "can_view": true,
+            "can_edit": true,
+            "mask_value": false
           }
         ],
         "transition_permissions": [
@@ -10890,6 +11277,55 @@
               "attribute": "machine_name"
             },
             "transition_key": "sent__to__offer expired"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "v4_send_checklist_0"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "v4_reopen_project_clearance_4"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "v4_reopen_asset_clearance_4"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "v4_submit_checklist_1"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "v4_send_access_removal_4"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "v4_complete_offboarding_6"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "v4_disable_hrms_access_5"
           }
         ],
         "workflow_permissions": [
@@ -11570,580 +12006,445 @@
             "fields": [
               {
                 "field": "checklist_verified",
-                "type": "text",
-                "required": false,
-                "nullable": true,
-                "default": null,
-                "enum_values": [],
-                "picklist_id": null,
-                "picklist_id_2": null,
-                "enum_values_2": [],
-                "enum_labels_2": [],
-                "extensions": null,
-                "extension_label": null,
-                "step1_label": null,
-                "step1_description": null,
-                "step2_label": null,
-                "step2_description": null,
-                "step3_label": null,
-                "step3_description": null,
-                "description": "Submission validated",
-                "ownership": null,
-                "source": null,
-                "editable": null,
-                "col_span": null,
-                "auto_number_config": null,
-                "currency_config": null,
-                "document_config": null,
-                "placeholder": null,
-                "table_config": null,
-                "calc": null,
-                "style_config": null,
-                "read_only": null,
-                "source_states": []
+                "type": "string",
+                "required": false
               },
               {
                 "field": "departure_verified",
-                "type": "text",
-                "required": false,
-                "nullable": true,
-                "default": null,
-                "enum_values": [],
-                "picklist_id": null,
-                "picklist_id_2": null,
-                "enum_values_2": [],
-                "enum_labels_2": [],
-                "extensions": null,
-                "extension_label": null,
-                "step1_label": null,
-                "step1_description": null,
-                "step2_label": null,
-                "step2_description": null,
-                "step3_label": null,
-                "step3_description": null,
-                "description": "HRMS access removed",
-                "ownership": null,
-                "source": null,
-                "editable": null,
-                "col_span": null,
-                "auto_number_config": null,
-                "currency_config": null,
-                "document_config": null,
-                "placeholder": null,
-                "table_config": null,
-                "calc": null,
-                "style_config": null,
-                "read_only": null,
-                "source_states": []
+                "type": "string",
+                "required": false
               },
               {
                 "field": "clearance_verified",
-                "type": "text",
-                "required": false,
-                "nullable": true,
-                "default": null,
-                "enum_values": [],
-                "picklist_id": null,
-                "picklist_id_2": null,
-                "enum_values_2": [],
-                "enum_labels_2": [],
-                "extensions": null,
-                "extension_label": null,
-                "step1_label": null,
-                "step1_description": null,
-                "step2_label": null,
-                "step2_description": null,
-                "step3_label": null,
-                "step3_description": null,
-                "description": "Clearances verified",
-                "ownership": null,
-                "source": null,
-                "editable": null,
-                "col_span": null,
-                "auto_number_config": null,
-                "currency_config": null,
-                "document_config": null,
-                "placeholder": null,
-                "table_config": null,
-                "calc": null,
-                "style_config": null,
-                "read_only": null,
-                "source_states": []
+                "type": "string",
+                "required": false
               }
             ]
           },
           "entity_type": "HRMS.Offboarding",
-          "initial_state": "Offboarding Initiated",
+          "initial_state": "Start offboarding",
           "machine_key": "HRMS.Offboarding",
           "name": "Employee offboarding",
           "service_id": null,
           "states": [
             {
-              "description": "hrms:durable-exit-notifications hrms:stage-forms-v3",
-              "method_refs": [
-                {
-                  "method_id": {
-                    "$ref": "method:Exit checklist v3 · Offboarding initiation",
-                    "attribute": "id"
-                  },
-                  "version_id": null
-                }
-              ],
-              "name": "Offboarding Initiated",
-              "on_state_actions": [
-                {
-                  "kind": "entity.assign_user",
-                  "config": {
-                    "assignment_type": "user",
-                    "user_id": "$entity.offboarding_employee_user_id"
-                  },
-                  "failure_policy": {},
-                  "outcome_triggers": {}
-                }
-              ],
+              "name": "Start offboarding",
               "order": 1,
-              "sla_seconds": null,
               "tags": [
                 "initial"
-              ]
-            },
-            {
-              "description": "hrms:durable-exit-notifications",
+              ],
+              "description": "hrms:durable-exit-notifications hrms:stage-forms-v3 hrms:offboarding-v4",
               "method_refs": [
                 {
                   "method_id": {
-                    "$ref": "method:Exit checklist v3 · Employee checklist",
+                    "$ref": "method:Exit checklist v4 · Start offboarding",
                     "attribute": "id"
-                  },
-                  "version_id": null
+                  }
                 }
               ],
-              "name": "Employee Checklist",
+              "on_state_actions": [
+                {
+                  "kind": "entity.assign_user",
+                  "config": {
+                    "assignment_type": "user",
+                    "user_id": "$entity.offboarding_coordinator_id"
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Employee checklist",
+              "order": 2,
+              "tags": [],
+              "description": "hrms:durable-exit-notifications hrms:stage-forms-v3 hrms:offboarding-v4",
+              "method_refs": [
+                {
+                  "method_id": {
+                    "$ref": "method:Exit checklist v4 · Employee checklist",
+                    "attribute": "id"
+                  }
+                }
+              ],
               "on_state_actions": [
                 {
                   "kind": "entity.assign_user",
                   "config": {
                     "assignment_type": "user",
                     "user_id": "$entity.offboarding_employee_user_id"
-                  },
-                  "failure_policy": {},
-                  "outcome_triggers": {}
+                  }
                 }
-              ],
-              "order": 2,
-              "sla_seconds": null,
-              "tags": []
+              ]
             },
             {
-              "description": "hrms:durable-exit-notifications",
-              "method_refs": [
-                {
-                  "method_id": {
-                    "$ref": "method:Exit checklist v3 · HR review",
-                    "attribute": "id"
-                  },
-                  "version_id": null
-                }
-              ],
-              "name": "HR Review",
-              "on_state_actions": [
-                {
-                  "kind": "entity.assign_user",
-                  "config": {
-                    "assignment_type": "user",
-                    "user_id": "$entity.offboarding_coordinator_id"
-                  },
-                  "failure_policy": {},
-                  "outcome_triggers": {}
-                }
-              ],
+              "name": "Project Manager Clearance",
               "order": 3,
-              "sla_seconds": null,
-              "tags": []
-            },
-            {
-              "description": "hrms:durable-exit-notifications",
+              "tags": [],
+              "description": "hrms:durable-exit-notifications hrms:stage-forms-v3 hrms:offboarding-v4",
               "method_refs": [
                 {
                   "method_id": {
-                    "$ref": "method:Exit checklist v3 · Exit interview",
+                    "$ref": "method:Exit checklist v4 · Project Manager Clearance",
                     "attribute": "id"
-                  },
-                  "version_id": null
+                  }
                 }
               ],
-              "name": "Exit Interview",
               "on_state_actions": [
                 {
                   "kind": "entity.assign_user",
                   "config": {
                     "assignment_type": "user",
-                    "user_id": "$entity.offboarding_coordinator_id"
-                  },
-                  "failure_policy": {},
-                  "outcome_triggers": {}
+                    "user_id": "$entity.offboarding_project_manager_id"
+                  }
                 }
-              ],
+              ]
+            },
+            {
+              "name": "Asset and Subscriptions Clearance",
               "order": 4,
-              "sla_seconds": null,
-              "tags": []
-            },
-            {
-              "description": "hrms:durable-exit-notifications",
+              "tags": [],
+              "description": "hrms:durable-exit-notifications hrms:stage-forms-v3 hrms:offboarding-v4",
               "method_refs": [
                 {
                   "method_id": {
-                    "$ref": "method:Exit checklist v3 · Clearance verification",
+                    "$ref": "method:Exit checklist v4 · Asset and Subscriptions Clearance",
                     "attribute": "id"
-                  },
-                  "version_id": null
+                  }
                 }
               ],
-              "name": "Pending Clearance",
+              "on_state_actions": [
+                {
+                  "kind": "entity.assign_user",
+                  "config": {
+                    "assignment_type": "user",
+                    "user_id": "$entity.offboarding_office_admin_id"
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Exit interview",
+              "order": 5,
+              "tags": [],
+              "description": "hrms:durable-exit-notifications hrms:stage-forms-v3 hrms:offboarding-v4",
+              "method_refs": [
+                {
+                  "method_id": {
+                    "$ref": "method:Exit checklist v4 · Exit interview",
+                    "attribute": "id"
+                  }
+                }
+              ],
               "on_state_actions": [
                 {
                   "kind": "entity.assign_user",
                   "config": {
                     "assignment_type": "user",
                     "user_id": "$entity.offboarding_coordinator_id"
-                  },
-                  "failure_policy": {},
-                  "outcome_triggers": {}
+                  }
                 }
-              ],
-              "order": 5,
-              "sla_seconds": null,
-              "tags": []
+              ]
             },
             {
-              "description": "hrms:durable-exit-notifications",
+              "name": "HRMS Access Removal",
+              "order": 6,
+              "tags": [],
+              "description": "hrms:durable-exit-notifications hrms:stage-forms-v3 hrms:offboarding-v4",
               "method_refs": [
                 {
                   "method_id": {
-                    "$ref": "method:Exit checklist v3 · Completed summary",
+                    "$ref": "method:Exit checklist v4 · HRMS Access Removal",
                     "attribute": "id"
-                  },
-                  "version_id": null
+                  }
                 }
               ],
+              "on_state_actions": [
+                {
+                  "kind": "entity.assign_user",
+                  "config": {
+                    "assignment_type": "user",
+                    "user_id": "$entity.offboarding_access_admin_id"
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Awaiting HR completion",
+              "order": 7,
+              "tags": [],
+              "description": "hrms:durable-exit-notifications hrms:stage-forms-v3 hrms:offboarding-v4",
+              "method_refs": [
+                {
+                  "method_id": {
+                    "$ref": "method:Exit checklist v4 · Awaiting HR completion",
+                    "attribute": "id"
+                  }
+                }
+              ],
+              "on_state_actions": [
+                {
+                  "kind": "entity.assign_user",
+                  "config": {
+                    "assignment_type": "user",
+                    "user_id": "$entity.offboarding_coordinator_id"
+                  }
+                }
+              ]
+            },
+            {
               "name": "Completed",
-              "on_state_actions": [],
-              "order": 6,
-              "sla_seconds": null,
+              "order": 8,
               "tags": [
                 "terminal"
-              ]
+              ],
+              "description": "hrms:durable-exit-notifications hrms:stage-forms-v3 hrms:offboarding-v4",
+              "method_refs": [
+                {
+                  "method_id": {
+                    "$ref": "method:Exit checklist v4 · Completed",
+                    "attribute": "id"
+                  }
+                }
+              ],
+              "on_state_actions": []
             }
           ],
           "transitions": [
             {
-              "auto_transition": null,
-              "description": null,
-              "from": "Offboarding Initiated",
-              "guards": [],
-              "key": "start_checklist",
-              "label": "Start checklist",
-              "post_transition_tasks": [],
-              "pre_transition_tasks": [],
-              "required_fields": [],
-              "to_state": "Employee Checklist",
-              "trigger": "start_checklist"
-            },
-            {
-              "auto_transition": null,
-              "description": null,
-              "from": "Employee Checklist",
-              "guards": [
-                {
-                  "config": {},
-                  "field": "checklist_verified",
-                  "message": "Checklist Verified must be 'yes'",
-                  "type": "field_exact_match",
-                  "value": "yes"
-                }
-              ],
-              "key": "submit_checklist",
-              "label": "Submit checklist",
-              "post_transition_tasks": [],
-              "pre_transition_tasks": [],
+              "key": "v4_send_checklist_0",
+              "trigger": "send_checklist",
+              "label": "Send checklist to employee",
+              "from": "Start offboarding",
+              "to_state": "Employee checklist",
               "required_fields": [
                 {
-                  "field": "exit_projects_handed_over",
-                  "required": true,
-                  "type": "enum"
+                  "field": "employee_id",
+                  "type": "string",
+                  "required": true
                 },
                 {
-                  "field": "exit_documents_shared",
-                  "required": true,
-                  "type": "enum"
+                  "field": "exit_type",
+                  "type": "enum",
+                  "required": true
                 },
                 {
-                  "field": "exit_tasks_updated",
-                  "required": true,
-                  "type": "enum"
+                  "field": "confirmed_last_day",
+                  "type": "datetime",
+                  "required": true
                 },
                 {
-                  "field": "exit_manager_confirmed",
-                  "required": true,
-                  "type": "enum"
+                  "field": "exit_reason",
+                  "type": "text",
+                  "required": true
                 },
                 {
-                  "field": "exit_assets_returned",
-                  "required": true,
-                  "type": "enum"
+                  "field": "offboarding_project_manager_id",
+                  "type": "string",
+                  "required": true
                 },
                 {
-                  "field": "exit_personal_data_removed",
-                  "required": true,
-                  "type": "enum"
-                },
-                {
-                  "field": "exit_resignation_acknowledged",
-                  "required": true,
-                  "type": "enum"
-                },
-                {
-                  "field": "exit_claims_cleared",
-                  "required": true,
-                  "type": "enum"
-                },
-                {
-                  "field": "exit_settlement_explained",
-                  "required": true,
-                  "type": "enum"
-                },
-                {
-                  "field": "exit_keys_returned",
-                  "required": true,
-                  "type": "enum"
-                },
-                {
-                  "field": "exit_acknowledgment",
-                  "required": true,
-                  "type": "boolean"
-                },
+                  "field": "offboarding_office_admin_id",
+                  "type": "string",
+                  "required": true
+                }
+              ],
+              "guards": []
+            },
+            {
+              "key": "v4_submit_checklist_1",
+              "trigger": "submit_checklist",
+              "label": "Submit for manager clearance",
+              "from": "Employee checklist",
+              "to_state": "Project Manager Clearance",
+              "required_fields": [
                 {
                   "field": "employee_notification_email",
                   "type": "email",
                   "required": true
                 },
                 {
-                  "field": "notification_email_confirmed",
+                  "field": "exit_projects_handed_over",
+                  "type": "enum",
+                  "required": true
+                },
+                {
+                  "field": "exit_tasks_updated",
                   "type": "enum",
                   "required": true
                 }
               ],
-              "to_state": "HR Review",
-              "trigger": "submit_checklist"
+              "guards": [
+                {
+                  "type": "field_exact_match",
+                  "field": "checklist_verified",
+                  "value": "yes"
+                }
+              ]
             },
             {
-              "auto_transition": null,
-              "description": null,
-              "from": "HR Review",
-              "guards": [],
-              "key": "begin_exit_interview",
-              "label": "Continue to exit interview",
-              "post_transition_tasks": [],
-              "pre_transition_tasks": [],
-              "required_fields": [],
-              "to_state": "Exit Interview",
-              "trigger": "begin_exit_interview"
-            },
-            {
-              "auto_transition": null,
-              "description": null,
-              "from": "HR Review",
-              "guards": [],
-              "key": "request_checklist_corrections",
-              "label": "Request corrections",
-              "post_transition_tasks": [],
-              "pre_transition_tasks": [],
+              "key": "v4_approve_project_release_2",
+              "trigger": "approve_project_release",
+              "label": "Approve release",
+              "from": "Project Manager Clearance",
+              "to_state": "Asset and Subscriptions Clearance",
               "required_fields": [
                 {
-                  "field": "change_reason",
-                  "required": true,
-                  "type": "text"
+                  "field": "project_release_approved",
+                  "type": "enum",
+                  "required": true
                 }
               ],
-              "to_state": "Employee Checklist",
-              "trigger": "request_checklist_corrections"
+              "guards": [
+                {
+                  "type": "field_exact_match",
+                  "field": "project_release_approved",
+                  "value": "Yes"
+                }
+              ]
             },
             {
-              "auto_transition": null,
-              "description": null,
-              "from": "Pending Clearance",
-              "guards": [],
-              "key": "reopen_checklist",
-              "label": "Request corrections",
-              "post_transition_tasks": [],
-              "pre_transition_tasks": [],
+              "key": "v4_return_employee_checklist_2",
+              "trigger": "return_employee_checklist",
+              "label": "Return to employee",
+              "from": "Project Manager Clearance",
+              "to_state": "Employee checklist",
               "required_fields": [
                 {
-                  "field": "change_reason",
-                  "required": true,
-                  "type": "text"
-                }
-              ],
-              "to_state": "Employee Checklist",
-              "trigger": "reopen_checklist"
-            },
-            {
-              "auto_transition": null,
-              "description": null,
-              "from": "Pending Clearance",
-              "guards": [
-                {
-                  "config": {},
-                  "field": "departure_verified",
-                  "message": "Departure Verified must be 'yes'",
-                  "type": "field_exact_match",
-                  "value": "yes"
-                },
-                {
-                  "config": {},
-                  "field": "clearance_verified",
-                  "message": "Clearance Verified must be 'yes'",
-                  "type": "field_exact_match",
-                  "value": "yes"
-                }
-              ],
-              "key": "complete_offboarding",
-              "label": "Finalize offboarding",
-              "post_transition_tasks": [],
-              "pre_transition_tasks": [],
-              "required_fields": [
-                {
-                  "field": "final_notes",
-                  "required": true,
-                  "type": "text"
-                }
-              ],
-              "to_state": "Completed",
-              "trigger": "complete_offboarding"
-            },
-            {
-              "auto_transition": null,
-              "description": null,
-              "from": "Offboarding Initiated",
-              "guards": [
-                {
-                  "config": {},
-                  "field": "departure_verified",
-                  "message": "Departure Verified must be 'yes'",
-                  "type": "field_exact_match",
-                  "value": "yes"
-                }
-              ],
-              "key": "departure_0",
-              "label": "Confirm departure",
-              "post_transition_tasks": [],
-              "pre_transition_tasks": [],
-              "required_fields": [],
-              "to_state": "Offboarding Initiated",
-              "trigger": "confirm_departure"
-            },
-            {
-              "auto_transition": null,
-              "description": null,
-              "from": "Employee Checklist",
-              "guards": [
-                {
-                  "config": {},
-                  "field": "departure_verified",
-                  "message": "Departure Verified must be 'yes'",
-                  "type": "field_exact_match",
-                  "value": "yes"
-                }
-              ],
-              "key": "departure_1",
-              "label": "Confirm departure",
-              "post_transition_tasks": [],
-              "pre_transition_tasks": [],
-              "required_fields": [],
-              "to_state": "Employee Checklist",
-              "trigger": "confirm_departure"
-            },
-            {
-              "auto_transition": null,
-              "description": null,
-              "from": "HR Review",
-              "guards": [
-                {
-                  "config": {},
-                  "field": "departure_verified",
-                  "message": "Departure Verified must be 'yes'",
-                  "type": "field_exact_match",
-                  "value": "yes"
-                }
-              ],
-              "key": "departure_2",
-              "label": "Confirm departure",
-              "post_transition_tasks": [],
-              "pre_transition_tasks": [],
-              "required_fields": [],
-              "to_state": "HR Review",
-              "trigger": "confirm_departure"
-            },
-            {
-              "auto_transition": null,
-              "description": null,
-              "from": "Pending Clearance",
-              "guards": [
-                {
-                  "config": {},
-                  "field": "departure_verified",
-                  "message": "Departure Verified must be 'yes'",
-                  "type": "field_exact_match",
-                  "value": "yes"
-                }
-              ],
-              "key": "departure_3",
-              "label": "Confirm departure",
-              "post_transition_tasks": [],
-              "pre_transition_tasks": [],
-              "required_fields": [],
-              "to_state": "Pending Clearance",
-              "trigger": "confirm_departure"
-            },
-            {
-              "auto_transition": null,
-              "description": null,
-              "from": "Exit Interview",
-              "guards": [],
-              "key": "finish_exit_interview",
-              "label": "Finish exit interview",
-              "post_transition_tasks": [],
-              "pre_transition_tasks": [],
-              "required_fields": [
-                {
-                  "field": "exit_interview_notes",
+                  "field": "project_clearance_comments",
                   "type": "text",
                   "required": true
                 }
               ],
-              "to_state": "Pending Clearance",
-              "trigger": "finish_exit_interview"
+              "guards": []
             },
             {
-              "auto_transition": null,
-              "description": null,
-              "from": "Exit Interview",
-              "guards": [
+              "key": "v4_confirm_asset_clearance_3",
+              "trigger": "confirm_asset_clearance",
+              "label": "Confirm asset and subscription clearance",
+              "from": "Asset and Subscriptions Clearance",
+              "to_state": "Exit interview",
+              "required_fields": [
                 {
-                  "config": {},
-                  "field": "departure_verified",
-                  "message": "Departure Verified must be 'yes'",
-                  "type": "field_exact_match",
-                  "value": "yes"
+                  "field": "clearance_assets_received",
+                  "type": "enum",
+                  "required": true
+                },
+                {
+                  "field": "clearance_licenses_revoked",
+                  "type": "enum",
+                  "required": true
                 }
               ],
-              "key": "departure_interview",
-              "label": "Confirm departure",
-              "post_transition_tasks": [],
-              "pre_transition_tasks": [],
+              "guards": [
+                {
+                  "type": "field_exact_match",
+                  "field": "clearance_assets_received",
+                  "value": "Yes"
+                },
+                {
+                  "type": "field_exact_match",
+                  "field": "clearance_licenses_revoked",
+                  "value": "Yes"
+                }
+              ]
+            },
+            {
+              "key": "v4_return_project_clearance_3",
+              "trigger": "return_project_clearance",
+              "label": "Return to Project Manager",
+              "from": "Asset and Subscriptions Clearance",
+              "to_state": "Project Manager Clearance",
+              "required_fields": [
+                {
+                  "field": "asset_clearance_comments",
+                  "type": "text",
+                  "required": true
+                }
+              ],
+              "guards": []
+            },
+            {
+              "key": "v4_reopen_project_clearance_4",
+              "trigger": "reopen_project_clearance",
+              "label": "Return to Project Manager",
+              "from": "Exit interview",
+              "to_state": "Project Manager Clearance",
               "required_fields": [],
-              "to_state": "Exit Interview",
-              "trigger": "confirm_departure"
+              "guards": []
+            },
+            {
+              "key": "v4_reopen_asset_clearance_4",
+              "trigger": "reopen_asset_clearance",
+              "label": "Return to Office Admin",
+              "from": "Exit interview",
+              "to_state": "Asset and Subscriptions Clearance",
+              "required_fields": [],
+              "guards": []
+            },
+            {
+              "key": "v4_send_access_removal_4",
+              "trigger": "send_access_removal",
+              "label": "Send to Super Admin for access removal",
+              "from": "Exit interview",
+              "to_state": "HRMS Access Removal",
+              "required_fields": [
+                {
+                  "field": "exit_interview_done",
+                  "type": "enum",
+                  "required": true
+                },
+                {
+                  "field": "exit_interview_date",
+                  "type": "datetime",
+                  "required": true
+                },
+                {
+                  "field": "offboarding_access_admin_id",
+                  "type": "string",
+                  "required": true
+                }
+              ],
+              "guards": [
+                {
+                  "type": "field_exact_match",
+                  "field": "exit_interview_done",
+                  "value": "Yes"
+                }
+              ]
+            },
+            {
+              "key": "v4_disable_hrms_access_5",
+              "trigger": "disable_hrms_access",
+              "label": "Disable HRMS access and send to HR",
+              "from": "HRMS Access Removal",
+              "to_state": "Awaiting HR completion",
+              "required_fields": [],
+              "guards": [
+                {
+                  "type": "field_exact_match",
+                  "field": "departure_verified",
+                  "value": "yes"
+                }
+              ]
+            },
+            {
+              "key": "v4_complete_offboarding_6",
+              "trigger": "complete_offboarding",
+              "label": "Mark offboarding complete",
+              "from": "Awaiting HR completion",
+              "to_state": "Completed",
+              "required_fields": [],
+              "guards": [
+                {
+                  "type": "field_exact_match",
+                  "field": "departure_verified",
+                  "value": "yes"
+                },
+                {
+                  "type": "field_exact_match",
+                  "field": "clearance_verified",
+                  "value": "yes"
+                }
+              ]
             }
           ]
         }
@@ -13509,24 +13810,6 @@
             "source_field_key": null,
             "version_id": {
               "$ref": "field:external_access_notes",
-              "attribute": "version_id"
-            }
-          },
-          {
-            "inherit_from": null,
-            "label": "HRMS access cutoff (include timezone)",
-            "library_field_id": {
-              "$ref": "field:access_cutoff",
-              "attribute": "id"
-            },
-            "ownership": null,
-            "placeholder": null,
-            "position": 7,
-            "required": false,
-            "source_entity_type": null,
-            "source_field_key": null,
-            "version_id": {
-              "$ref": "field:access_cutoff",
               "attribute": "version_id"
             }
           },
@@ -15282,24 +15565,6 @@
               "$ref": "field:offboarding_coordinator_id",
               "attribute": "version_id"
             }
-          },
-          {
-            "inherit_from": null,
-            "label": "HRMS access cutoff (include timezone)",
-            "library_field_id": {
-              "$ref": "field:access_cutoff",
-              "attribute": "id"
-            },
-            "ownership": null,
-            "placeholder": null,
-            "position": 8,
-            "required": false,
-            "source_entity_type": null,
-            "source_field_key": null,
-            "version_id": {
-              "$ref": "field:access_cutoff",
-              "attribute": "version_id"
-            }
           }
         ],
         "name": "Exit checklist v3 · Offboarding initiation"
@@ -16029,24 +16294,6 @@
           },
           {
             "inherit_from": null,
-            "label": "HRMS access cutoff (include timezone)",
-            "library_field_id": {
-              "$ref": "field:access_cutoff",
-              "attribute": "id"
-            },
-            "ownership": null,
-            "placeholder": null,
-            "position": 7,
-            "required": false,
-            "source_entity_type": null,
-            "source_field_key": null,
-            "version_id": {
-              "$ref": "field:access_cutoff",
-              "attribute": "version_id"
-            }
-          },
-          {
-            "inherit_from": null,
             "label": "Projects, allocations and pending approvals",
             "library_field_id": {
               "$ref": "field:ownership_status",
@@ -16344,6 +16591,1076 @@
         "form_id": null,
         "name": "Exit checklist v2 · Exit Interview",
         "subject": "MyHub offboarding · {{employee_code}} · Exit Interview"
+      }
+    },
+    {
+      "key": "field:offboarding_project_manager_id",
+      "kind": "field",
+      "match": "offboarding_project_manager_id",
+      "payload": {
+        "name": "Project Manager",
+        "field_key": "offboarding_project_manager_id",
+        "field_type": "text",
+        "settings": {}
+      }
+    },
+    {
+      "key": "field:offboarding_office_admin_id",
+      "kind": "field",
+      "match": "offboarding_office_admin_id",
+      "payload": {
+        "name": "Office Admin",
+        "field_key": "offboarding_office_admin_id",
+        "field_type": "text",
+        "settings": {}
+      }
+    },
+    {
+      "key": "field:project_release_approved",
+      "kind": "field",
+      "match": "project_release_approved",
+      "payload": {
+        "name": "OK to release?",
+        "field_key": "project_release_approved",
+        "field_type": "select",
+        "settings": {
+          "enum_values": [
+            "Yes",
+            "No"
+          ]
+        }
+      }
+    },
+    {
+      "key": "field:project_clearance_comments",
+      "kind": "field",
+      "match": "project_clearance_comments",
+      "payload": {
+        "name": "Comments",
+        "field_key": "project_clearance_comments",
+        "field_type": "textarea",
+        "settings": {}
+      }
+    },
+    {
+      "key": "field:clearance_assets_received",
+      "kind": "field",
+      "match": "clearance_assets_received",
+      "payload": {
+        "name": "Have you received all assigned assets?",
+        "field_key": "clearance_assets_received",
+        "field_type": "select",
+        "settings": {
+          "enum_values": [
+            "Yes",
+            "No"
+          ]
+        }
+      }
+    },
+    {
+      "key": "field:clearance_licenses_revoked",
+      "kind": "field",
+      "match": "clearance_licenses_revoked",
+      "payload": {
+        "name": "Have you revoked all licenses (Claude, OpenAI and other subscriptions)?",
+        "field_key": "clearance_licenses_revoked",
+        "field_type": "select",
+        "settings": {
+          "enum_values": [
+            "Yes",
+            "No"
+          ]
+        }
+      }
+    },
+    {
+      "key": "field:asset_clearance_comments",
+      "kind": "field",
+      "match": "asset_clearance_comments",
+      "payload": {
+        "name": "Comments",
+        "field_key": "asset_clearance_comments",
+        "field_type": "textarea",
+        "settings": {}
+      }
+    },
+    {
+      "key": "field:exit_interview_done",
+      "kind": "field",
+      "match": "exit_interview_done",
+      "payload": {
+        "name": "Exit interview done",
+        "field_key": "exit_interview_done",
+        "field_type": "select",
+        "settings": {
+          "enum_values": [
+            "Yes",
+            "No"
+          ]
+        }
+      }
+    },
+    {
+      "key": "field:exit_employee_feedback",
+      "kind": "field",
+      "match": "exit_employee_feedback",
+      "payload": {
+        "name": "Employee feedback",
+        "field_key": "exit_employee_feedback",
+        "field_type": "textarea",
+        "settings": {}
+      }
+    },
+    {
+      "key": "field:exit_interview_date",
+      "kind": "field",
+      "match": "exit_interview_date",
+      "payload": {
+        "name": "Exit interview date",
+        "field_key": "exit_interview_date",
+        "field_type": "datetime",
+        "settings": {}
+      }
+    },
+    {
+      "key": "method:Exit checklist v4 · Start offboarding",
+      "kind": "method",
+      "match": "Exit checklist v4 · Start offboarding",
+      "payload": {
+        "name": "Exit checklist v4 · Start offboarding",
+        "entity_types": [
+          "HRMS.Offboarding"
+        ],
+        "fields": [
+          {
+            "library_field_id": {
+              "$ref": "field:employee_id",
+              "attribute": "id"
+            },
+            "version_id": {
+              "$ref": "field:employee_id",
+              "attribute": "version_id"
+            },
+            "label": "Employee Id",
+            "position": 0,
+            "required": false
+          },
+          {
+            "library_field_id": {
+              "$ref": "field:exit_type",
+              "attribute": "id"
+            },
+            "version_id": {
+              "$ref": "field:exit_type",
+              "attribute": "version_id"
+            },
+            "label": "Exit type",
+            "position": 1,
+            "required": false
+          },
+          {
+            "library_field_id": {
+              "$ref": "field:confirmed_last_day",
+              "attribute": "id"
+            },
+            "version_id": {
+              "$ref": "field:confirmed_last_day",
+              "attribute": "version_id"
+            },
+            "label": "Last working day",
+            "position": 2,
+            "required": false
+          },
+          {
+            "library_field_id": {
+              "$ref": "field:exit_reason",
+              "attribute": "id"
+            },
+            "version_id": {
+              "$ref": "field:exit_reason",
+              "attribute": "version_id"
+            },
+            "label": "Exit reason",
+            "position": 3,
+            "required": false
+          },
+          {
+            "library_field_id": {
+              "$ref": "field:supporting_documents",
+              "attribute": "id"
+            },
+            "version_id": {
+              "$ref": "field:supporting_documents",
+              "attribute": "version_id"
+            },
+            "label": "Resignation / supporting documents",
+            "position": 4,
+            "required": false
+          },
+          {
+            "library_field_id": {
+              "$ref": "field:offboarding_project_manager_id",
+              "attribute": "id"
+            },
+            "version_id": {
+              "$ref": "field:offboarding_project_manager_id",
+              "attribute": "version_id"
+            },
+            "label": "Project Manager",
+            "position": 5,
+            "required": false
+          },
+          {
+            "library_field_id": {
+              "$ref": "field:offboarding_office_admin_id",
+              "attribute": "id"
+            },
+            "version_id": {
+              "$ref": "field:offboarding_office_admin_id",
+              "attribute": "version_id"
+            },
+            "label": "Office Admin",
+            "position": 6,
+            "required": false
+          }
+        ]
+      }
+    },
+    {
+      "key": "template:Exit checklist v2 · Start offboarding",
+      "kind": "template",
+      "match": "Exit checklist v2 · Start offboarding",
+      "payload": {
+        "name": "Exit checklist v2 · Start offboarding",
+        "entity_type": "HRMS.Offboarding",
+        "subject": "MyHub offboarding · {{employee_code}} · Start offboarding",
+        "body_html": "<p>The offboarding case is now <strong>Start offboarding</strong>.</p><p><a href=\"{{workspace_url}}\">Open MyHub</a> to view progress and any action assigned to you. Contact HR if your access has ended.</p>"
+      }
+    },
+    {
+      "key": "method:Exit checklist v4 · Employee checklist",
+      "kind": "method",
+      "match": "Exit checklist v4 · Employee checklist",
+      "payload": {
+        "name": "Exit checklist v4 · Employee checklist",
+        "entity_types": [
+          "HRMS.Offboarding"
+        ],
+        "fields": [
+          {
+            "library_field_id": {
+              "$ref": "field:employee_notification_email",
+              "attribute": "id"
+            },
+            "version_id": {
+              "$ref": "field:employee_notification_email",
+              "attribute": "version_id"
+            },
+            "label": "Personal email for communication after exit",
+            "position": 0,
+            "required": false
+          },
+          {
+            "library_field_id": {
+              "$ref": "field:exit_projects_handed_over",
+              "attribute": "id"
+            },
+            "version_id": {
+              "$ref": "field:exit_projects_handed_over",
+              "attribute": "version_id"
+            },
+            "label": "Have all ongoing projects been properly handed over to the concerned team/member?",
+            "position": 1,
+            "required": false
+          },
+          {
+            "library_field_id": {
+              "$ref": "field:exit_tasks_updated",
+              "attribute": "id"
+            },
+            "version_id": {
+              "$ref": "field:exit_tasks_updated",
+              "attribute": "version_id"
+            },
+            "label": "Have assigned tasks in the project board been handled appropriately (e.g., Jira, Azure DevOps)?",
+            "position": 2,
+            "required": false
+          }
+        ]
+      }
+    },
+    {
+      "key": "template:Exit checklist v2 · Employee checklist",
+      "kind": "template",
+      "match": "Exit checklist v2 · Employee checklist",
+      "payload": {
+        "name": "Exit checklist v2 · Employee checklist",
+        "entity_type": "HRMS.Offboarding",
+        "subject": "MyHub offboarding · {{employee_code}} · Employee checklist",
+        "body_html": "<p>The offboarding case is now <strong>Employee checklist</strong>.</p><p><a href=\"{{workspace_url}}\">Open MyHub</a> to view progress and any action assigned to you. Contact HR if your access has ended.</p>"
+      }
+    },
+    {
+      "key": "method:Exit checklist v4 · Project Manager Clearance",
+      "kind": "method",
+      "match": "Exit checklist v4 · Project Manager Clearance",
+      "payload": {
+        "name": "Exit checklist v4 · Project Manager Clearance",
+        "entity_types": [
+          "HRMS.Offboarding"
+        ],
+        "fields": [
+          {
+            "library_field_id": {
+              "$ref": "field:project_release_approved",
+              "attribute": "id"
+            },
+            "version_id": {
+              "$ref": "field:project_release_approved",
+              "attribute": "version_id"
+            },
+            "label": "OK to release?",
+            "position": 0,
+            "required": false
+          },
+          {
+            "library_field_id": {
+              "$ref": "field:project_clearance_comments",
+              "attribute": "id"
+            },
+            "version_id": {
+              "$ref": "field:project_clearance_comments",
+              "attribute": "version_id"
+            },
+            "label": "Comments",
+            "position": 1,
+            "required": false
+          }
+        ]
+      }
+    },
+    {
+      "key": "template:Exit checklist v2 · Project Manager Clearance",
+      "kind": "template",
+      "match": "Exit checklist v2 · Project Manager Clearance",
+      "payload": {
+        "name": "Exit checklist v2 · Project Manager Clearance",
+        "entity_type": "HRMS.Offboarding",
+        "subject": "MyHub offboarding · {{employee_code}} · Project Manager Clearance",
+        "body_html": "<p>The offboarding case is now <strong>Project Manager Clearance</strong>.</p><p><a href=\"{{workspace_url}}\">Open MyHub</a> to view progress and any action assigned to you. Contact HR if your access has ended.</p>"
+      }
+    },
+    {
+      "key": "method:Exit checklist v4 · Asset and Subscriptions Clearance",
+      "kind": "method",
+      "match": "Exit checklist v4 · Asset and Subscriptions Clearance",
+      "payload": {
+        "name": "Exit checklist v4 · Asset and Subscriptions Clearance",
+        "entity_types": [
+          "HRMS.Offboarding"
+        ],
+        "fields": [
+          {
+            "library_field_id": {
+              "$ref": "field:clearance_assets_received",
+              "attribute": "id"
+            },
+            "version_id": {
+              "$ref": "field:clearance_assets_received",
+              "attribute": "version_id"
+            },
+            "label": "Have you received all assigned assets?",
+            "position": 0,
+            "required": false
+          },
+          {
+            "library_field_id": {
+              "$ref": "field:clearance_licenses_revoked",
+              "attribute": "id"
+            },
+            "version_id": {
+              "$ref": "field:clearance_licenses_revoked",
+              "attribute": "version_id"
+            },
+            "label": "Have you revoked all licenses (Claude, OpenAI and other subscriptions)?",
+            "position": 1,
+            "required": false
+          },
+          {
+            "library_field_id": {
+              "$ref": "field:asset_clearance_comments",
+              "attribute": "id"
+            },
+            "version_id": {
+              "$ref": "field:asset_clearance_comments",
+              "attribute": "version_id"
+            },
+            "label": "Comments",
+            "position": 2,
+            "required": false
+          }
+        ]
+      }
+    },
+    {
+      "key": "template:Exit checklist v2 · Asset and Subscriptions Clearance",
+      "kind": "template",
+      "match": "Exit checklist v2 · Asset and Subscriptions Clearance",
+      "payload": {
+        "name": "Exit checklist v2 · Asset and Subscriptions Clearance",
+        "entity_type": "HRMS.Offboarding",
+        "subject": "MyHub offboarding · {{employee_code}} · Asset and Subscriptions Clearance",
+        "body_html": "<p>The offboarding case is now <strong>Asset and Subscriptions Clearance</strong>.</p><p><a href=\"{{workspace_url}}\">Open MyHub</a> to view progress and any action assigned to you. Contact HR if your access has ended.</p>"
+      }
+    },
+    {
+      "key": "method:Exit checklist v4 · Exit interview",
+      "kind": "method",
+      "match": "Exit checklist v4 · Exit interview",
+      "payload": {
+        "name": "Exit checklist v4 · Exit interview",
+        "entity_types": [
+          "HRMS.Offboarding"
+        ],
+        "fields": [
+          {
+            "library_field_id": {
+              "$ref": "field:exit_interview_done",
+              "attribute": "id"
+            },
+            "version_id": {
+              "$ref": "field:exit_interview_done",
+              "attribute": "version_id"
+            },
+            "label": "Exit interview done",
+            "position": 0,
+            "required": false
+          },
+          {
+            "library_field_id": {
+              "$ref": "field:exit_employee_feedback",
+              "attribute": "id"
+            },
+            "version_id": {
+              "$ref": "field:exit_employee_feedback",
+              "attribute": "version_id"
+            },
+            "label": "Employee feedback",
+            "position": 1,
+            "required": false
+          },
+          {
+            "library_field_id": {
+              "$ref": "field:exit_interview_date",
+              "attribute": "id"
+            },
+            "version_id": {
+              "$ref": "field:exit_interview_date",
+              "attribute": "version_id"
+            },
+            "label": "Exit interview date",
+            "position": 2,
+            "required": false
+          },
+          {
+            "library_field_id": {
+              "$ref": "field:offboarding_access_admin_id",
+              "attribute": "id"
+            },
+            "version_id": {
+              "$ref": "field:offboarding_access_admin_id",
+              "attribute": "version_id"
+            },
+            "label": "Access removal administrator",
+            "position": 3,
+            "required": false
+          }
+        ]
+      }
+    },
+    {
+      "key": "template:Exit checklist v2 · Exit interview",
+      "kind": "template",
+      "match": "Exit checklist v2 · Exit interview",
+      "payload": {
+        "name": "Exit checklist v2 · Exit interview",
+        "entity_type": "HRMS.Offboarding",
+        "subject": "MyHub offboarding · {{employee_code}} · Exit interview",
+        "body_html": "<p>The offboarding case is now <strong>Exit interview</strong>.</p><p><a href=\"{{workspace_url}}\">Open MyHub</a> to view progress and any action assigned to you. Contact HR if your access has ended.</p>"
+      }
+    },
+    {
+      "key": "method:Exit checklist v4 · Completed",
+      "kind": "method",
+      "match": "Exit checklist v4 · Completed",
+      "payload": {
+        "name": "Exit checklist v4 · Completed",
+        "entity_types": [
+          "HRMS.Offboarding"
+        ],
+        "fields": [
+          {
+            "library_field_id": {
+              "$ref": "field:exit_employee_name",
+              "attribute": "id"
+            },
+            "version_id": {
+              "$ref": "field:exit_employee_name",
+              "attribute": "version_id"
+            },
+            "label": "Exit checklist v2 - exit_employee_name",
+            "position": 0,
+            "required": false
+          },
+          {
+            "library_field_id": {
+              "$ref": "field:exit_employee_code",
+              "attribute": "id"
+            },
+            "version_id": {
+              "$ref": "field:exit_employee_code",
+              "attribute": "version_id"
+            },
+            "label": "Exit checklist v2 - exit_employee_code",
+            "position": 1,
+            "required": false
+          },
+          {
+            "library_field_id": {
+              "$ref": "field:confirmed_last_day",
+              "attribute": "id"
+            },
+            "version_id": {
+              "$ref": "field:confirmed_last_day",
+              "attribute": "version_id"
+            },
+            "label": "Last working day",
+            "position": 2,
+            "required": false
+          },
+          {
+            "library_field_id": {
+              "$ref": "field:completed_at",
+              "attribute": "id"
+            },
+            "version_id": {
+              "$ref": "field:completed_at",
+              "attribute": "version_id"
+            },
+            "label": "Completed at",
+            "position": 3,
+            "required": false
+          },
+          {
+            "library_field_id": {
+              "$ref": "field:supporting_documents",
+              "attribute": "id"
+            },
+            "version_id": {
+              "$ref": "field:supporting_documents",
+              "attribute": "version_id"
+            },
+            "label": "Resignation / supporting documents",
+            "position": 4,
+            "required": false
+          }
+        ]
+      }
+    },
+    {
+      "key": "role:hrms_employee",
+      "kind": "role",
+      "match": "hrms_employee",
+      "payload": {
+        "entity_scope": [
+          "HRMS.Offboarding"
+        ],
+        "workflow_scope": [
+          {
+            "$ref": "workflow:HRMS.Offboarding",
+            "attribute": "machine_name"
+          }
+        ],
+        "entity_permissions": [],
+        "field_permissions": [
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "identifier",
+            "can_view": true,
+            "can_edit": false,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "employee_notification_email",
+            "can_view": true,
+            "can_edit": true,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "exit_projects_handed_over",
+            "can_view": true,
+            "can_edit": true,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "exit_tasks_updated",
+            "can_view": true,
+            "can_edit": true,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "exit_employee_code",
+            "can_view": true,
+            "can_edit": false,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "project_clearance_comments",
+            "can_view": true,
+            "can_edit": false,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "confirmed_last_day",
+            "can_view": true,
+            "can_edit": false,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "exit_employee_name",
+            "can_view": true,
+            "can_edit": false,
+            "mask_value": false
+          }
+        ],
+        "workflow_permissions": [
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            }
+          }
+        ],
+        "transition_permissions": [
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "v4_submit_checklist_1"
+          }
+        ]
+      }
+    },
+    {
+      "key": "role:hrms_manager",
+      "kind": "role",
+      "match": "hrms_manager",
+      "payload": {
+        "entity_scope": [
+          "HRMS.Offboarding"
+        ],
+        "workflow_scope": [
+          {
+            "$ref": "workflow:HRMS.Offboarding",
+            "attribute": "machine_name"
+          }
+        ],
+        "entity_permissions": [],
+        "field_permissions": [
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "project_release_approved",
+            "can_view": true,
+            "can_edit": true,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "identifier",
+            "can_view": true,
+            "can_edit": false,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "exit_projects_handed_over",
+            "can_view": true,
+            "can_edit": true,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "exit_tasks_updated",
+            "can_view": true,
+            "can_edit": true,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "exit_employee_code",
+            "can_view": true,
+            "can_edit": false,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "project_clearance_comments",
+            "can_view": true,
+            "can_edit": true,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "confirmed_last_day",
+            "can_view": true,
+            "can_edit": false,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "exit_employee_name",
+            "can_view": true,
+            "can_edit": false,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "employee_notification_email",
+            "can_view": true,
+            "can_edit": true,
+            "mask_value": false
+          }
+        ],
+        "workflow_permissions": [
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            }
+          }
+        ],
+        "transition_permissions": [
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "v4_approve_project_release_2"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "v4_return_employee_checklist_2"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "v4_submit_checklist_1"
+          }
+        ]
+      }
+    },
+    {
+      "key": "role:hrms_delivery_manager",
+      "kind": "role",
+      "match": "hrms_delivery_manager",
+      "payload": {
+        "entity_scope": [
+          "HRMS.Offboarding"
+        ],
+        "workflow_scope": [
+          {
+            "$ref": "workflow:HRMS.Offboarding",
+            "attribute": "machine_name"
+          }
+        ],
+        "entity_permissions": [],
+        "field_permissions": [
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "project_release_approved",
+            "can_view": true,
+            "can_edit": true,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "identifier",
+            "can_view": true,
+            "can_edit": false,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "exit_projects_handed_over",
+            "can_view": true,
+            "can_edit": true,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "exit_tasks_updated",
+            "can_view": true,
+            "can_edit": true,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "exit_employee_code",
+            "can_view": true,
+            "can_edit": false,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "project_clearance_comments",
+            "can_view": true,
+            "can_edit": true,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "confirmed_last_day",
+            "can_view": true,
+            "can_edit": false,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "exit_employee_name",
+            "can_view": true,
+            "can_edit": false,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "employee_notification_email",
+            "can_view": true,
+            "can_edit": true,
+            "mask_value": false
+          }
+        ],
+        "workflow_permissions": [
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            }
+          }
+        ],
+        "transition_permissions": [
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "v4_approve_project_release_2"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "v4_return_employee_checklist_2"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "v4_submit_checklist_1"
+          }
+        ]
+      }
+    },
+    {
+      "key": "role:hrms_office_admin",
+      "kind": "role",
+      "match": "hrms_office_admin",
+      "payload": {
+        "entity_scope": [
+          "HRMS.Offboarding"
+        ],
+        "workflow_scope": [
+          {
+            "$ref": "workflow:HRMS.Offboarding",
+            "attribute": "machine_name"
+          }
+        ],
+        "entity_permissions": [],
+        "field_permissions": [
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "clearance_licenses_revoked",
+            "can_view": true,
+            "can_edit": true,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "identifier",
+            "can_view": true,
+            "can_edit": false,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "clearance_assets_received",
+            "can_view": true,
+            "can_edit": true,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "exit_employee_code",
+            "can_view": true,
+            "can_edit": false,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "asset_clearance_comments",
+            "can_view": true,
+            "can_edit": true,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "confirmed_last_day",
+            "can_view": true,
+            "can_edit": false,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "exit_employee_name",
+            "can_view": true,
+            "can_edit": false,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "employee_notification_email",
+            "can_view": true,
+            "can_edit": true,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "exit_projects_handed_over",
+            "can_view": true,
+            "can_edit": true,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Offboarding",
+            "field_name": "exit_tasks_updated",
+            "can_view": true,
+            "can_edit": true,
+            "mask_value": false
+          }
+        ],
+        "workflow_permissions": [
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            }
+          }
+        ],
+        "transition_permissions": [
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "v4_confirm_asset_clearance_3"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "v4_return_project_clearance_3"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Offboarding",
+              "attribute": "machine_name"
+            },
+            "transition_key": "v4_submit_checklist_1"
+          }
+        ]
+      }
+    },
+    {
+      "key": "field:offboarding_access_admin_id",
+      "kind": "field",
+      "match": "offboarding_access_admin_id",
+      "payload": {
+        "name": "Access removal administrator",
+        "field_key": "offboarding_access_admin_id",
+        "field_type": "text",
+        "settings": {}
+      }
+    },
+    {
+      "key": "method:Exit checklist v4 · HRMS Access Removal",
+      "kind": "method",
+      "match": "Exit checklist v4 · HRMS Access Removal",
+      "payload": {
+        "name": "Exit checklist v4 · HRMS Access Removal",
+        "entity_types": [
+          "HRMS.Offboarding"
+        ],
+        "fields": []
+      }
+    },
+    {
+      "key": "template:Exit checklist v2 · HRMS Access Removal",
+      "kind": "template",
+      "match": "Exit checklist v2 · HRMS Access Removal",
+      "payload": {
+        "name": "Exit checklist v2 · HRMS Access Removal",
+        "entity_type": "HRMS.Offboarding",
+        "subject": "MyHub offboarding · {{employee_code}} · HRMS Access Removal",
+        "body_html": "<p>The offboarding case is now <strong>HRMS Access Removal</strong>.</p><p><a href=\"{{workspace_url}}\">Open MyHub</a> to view your assigned action.</p>"
+      }
+    },
+    {
+      "key": "method:Exit checklist v4 · Awaiting HR completion",
+      "kind": "method",
+      "match": "Exit checklist v4 · Awaiting HR completion",
+      "payload": {
+        "name": "Exit checklist v4 · Awaiting HR completion",
+        "entity_types": [
+          "HRMS.Offboarding"
+        ],
+        "fields": []
+      }
+    },
+    {
+      "key": "template:Exit checklist v2 · Awaiting HR completion",
+      "kind": "template",
+      "match": "Exit checklist v2 · Awaiting HR completion",
+      "payload": {
+        "name": "Exit checklist v2 · Awaiting HR completion",
+        "entity_type": "HRMS.Offboarding",
+        "subject": "MyHub offboarding · {{employee_code}} · Awaiting HR completion",
+        "body_html": "<p>The offboarding case is now <strong>Awaiting HR completion</strong>.</p><p><a href=\"{{workspace_url}}\">Open MyHub</a> to view your assigned action.</p>"
       }
     }
   ],

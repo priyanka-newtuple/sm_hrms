@@ -6,7 +6,7 @@ from types import SimpleNamespace
 import pytest
 
 from hrms_app.errors import AppError
-from hrms_app.offboarding import OffboardingService, cutoff, validate_clearances
+from hrms_app.offboarding import OffboardingService, validate_last_day, validate_clearances
 from hrms_app.offboarding_catalog import definition
 from hrms_app.offer_documents import digest
 from hrms_app.platform import Actor
@@ -89,7 +89,7 @@ def case(monkeypatch):
     monkeypatch.setattr('hrms_app.offboarding.transition_grants',lambda *a:None)
     actor = Actor('hr','org','human',frozenset(),frozenset({permission_key('org','employee:exit'),'workflow:write'}))
     day = datetime.now(UTC)-timedelta(days=1)
-    values = dict(employee_id='employee',confirmed_last_day=day.date().isoformat(),access_cutoff=day.isoformat(),exit_type='Resignation',handover_owner='HR',employee_notification_email='employee@example.com',notification_email_confirmed='Yes')
+    values = dict(employee_id='employee',confirmed_last_day=day.date().isoformat(),exit_type='Resignation',handover_owner='HR',employee_notification_email='employee@example.com',notification_email_confirmed='Yes')
     employee = {'entity_id':'employee','data':{'employment_status':'active'}}
     identity = {'id':'user','status':'active'}
     item = dict(entity_id='case',values=values,values_hash=digest(values),state='Notice & handover',workflow={'id':'workflow','machine_name':'hrms_offboarding','definition':definition()},actions=[{'trigger':'confirm_departure'}])
@@ -130,12 +130,12 @@ def test_departure_suspends_account_and_preserves_employee(case):
     assert len(writes)==count
 
 
-def test_future_cutoff_does_not_suspend(case):
+def test_legacy_cutoff_does_not_block_explicit_departure(case):
     off,actor,payload,item,employee,identity,writes=case
     item['values']['access_cutoff']=(datetime.now(UTC)+timedelta(days=1)).isoformat()
     payload['expected_hash']=item['values_hash']=digest(item['values'])
-    with pytest.raises(AppError,match='not been reached'): off.act(actor,'case',payload)
-    assert not writes and identity['status']=='active'
+    off.act(actor,'case',payload)
+    assert identity['status']=='suspended'
 
 
 def test_native_rejection_prevents_side_effects(case):
@@ -172,9 +172,9 @@ def test_failed_transition_can_resume_without_reactivating(case):
     assert item['state']=='Departure confirmed' and identity['status']=='suspended'
 
 
-@pytest.mark.parametrize('value',['invalid','2026-10-22T18:00:00','2026-10-20T18:00:00+05:30'])
-def test_cutoff_requires_timezone_and_valid_last_day(value):
-    with pytest.raises(AppError): cutoff({'confirmed_last_day':'2026-10-22','access_cutoff':value})
+@pytest.mark.parametrize('value',['invalid',None,'2026-99-22'])
+def test_last_day_must_be_valid(value):
+    with pytest.raises(AppError): validate_last_day({'confirmed_last_day':value})
 
 
 def test_clearance_needs_evidence_and_all_checks():
@@ -246,3 +246,60 @@ def test_workflow_resolves_native_generated_identifier(case):
     off.call=call
     assert off.workflow(actor)['machine_name']=='workflow_generated'
     assert paths==['/workflow-state-machines','/workflow-state-machines/native-id']
+
+
+def test_access_removal_disables_account_before_hr_completion(case):
+    off,actor,payload,item,employee,identity,writes=case
+    item['state']='HRMS Access Removal'
+    item['workflow']['definition']['states'][0]['description']='hrms:offboarding-v4'
+    item['workflow']['definition']['transitions']=[dict(key='disable',trigger='disable_hrms_access',**{'from':item['state']},to_state='Awaiting HR completion')]
+    item['actions']=[{'trigger':'disable_hrms_access'}]
+    payload['trigger']='disable_hrms_access'
+    off.act(actor,'case',payload)
+    assert identity['status']=='suspended'
+    assert item['values']['departure_verified']=='yes'
+    assert not item['values'].get('completed_at')
+
+
+def test_access_removal_requires_native_permission(case):
+    off,actor,payload,item,employee,identity,writes=case
+    item['state']='HRMS Access Removal'
+    item['workflow']['definition']['transitions']=[dict(key='disable',trigger='disable_hrms_access',**{'from':item['state']},to_state='Awaiting HR completion')]
+    item['actions']=[]
+    payload['trigger']='disable_hrms_access'
+    with pytest.raises(AppError,match='permission'):
+        off.act(actor,'case',payload)
+    assert identity['status']=='active'
+    assert not writes
+
+
+def test_hr_cannot_complete_while_login_is_active(case):
+    off,actor,payload,item,employee,identity,writes=case
+    item['state']='Awaiting HR completion'
+    item['workflow']['definition']['states'][0]['description']='hrms:offboarding-v4'
+    item['workflow']['definition']['transitions']=[dict(key='finish',trigger='complete_offboarding',**{'from':item['state']},to_state='Completed')]
+    item['actions']=[{'trigger':'complete_offboarding'}]
+    item['values']['departure_verified']='yes'
+    payload.update(trigger='complete_offboarding',expected_hash=digest(item['values']))
+    item['values_hash']=payload['expected_hash']
+    with pytest.raises(AppError,match='must be verified'):
+        off.act(actor,'case',payload)
+    assert not writes
+    assert identity['status']=='active'
+
+
+def test_hr_can_complete_after_verified_access_removal(case):
+    off,actor,payload,item,employee,identity,writes=case
+    item['state']='Awaiting HR completion'
+    item['workflow']['definition']['states'][0]['description']='hrms:offboarding-v4'
+    item['workflow']['definition']['transitions']=[dict(key='finish',trigger='complete_offboarding',**{'from':item['state']},to_state='Completed')]
+    item['actions']=[{'trigger':'complete_offboarding'}]
+    identity['status']='suspended'
+    employee['data']['employment_status']='offboarded'
+    item['values']['departure_verified']='yes'
+    payload.update(trigger='complete_offboarding',expected_hash=digest(item['values']))
+    item['values_hash']=payload['expected_hash']
+    off.act(actor,'case',payload)
+    assert item['values']['completed_at']
+    assert item['values']['clearance_verified']=='yes'
+    assert identity['status']=='suspended'

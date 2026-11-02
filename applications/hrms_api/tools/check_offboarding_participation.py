@@ -38,7 +38,7 @@ try:
     act('submit_for_approval')
     assert mine.detail(employee_actor,xid)['state']=='Pending approval'
     item=off.detail(actor,xid)
-    off.save(actor,dict(values={'handover_owner':'Test HR coordinator','change_reason':'Set planned access cutoff','access_cutoff':'2026-11-30T18:00:00+05:30'},expected_hash=item['values_hash'],idempotency_key=uuid4().hex),xid)
+    off.save(actor,dict(values={'handover_owner':'Test HR coordinator','change_reason':'Update handover contact'},expected_hash=item['values_hash'],idempotency_key=uuid4().hex),xid)
     act('approve_exit')
     for _ in range(20):
         item=mine.detail(employee_actor,xid)

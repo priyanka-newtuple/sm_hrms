@@ -76,7 +76,7 @@ export default function MyWorkPage() {
     .sort((a, b) => a.start_date.localeCompare(b.start_date))[0];
 
   const tasks: Task[] = [
-    ...(waiting.myOffboarding.data??[]).filter(item=>item.actions.length>0).map(item=>({key:`my-exit-${item.entity_id}`,area:'offboarding' as const,title:'Your employee handover',detail:item.state,action:<Go to={`/hrms/my-offboarding/${item.entity_id}`}>Complete form</Go>})),
+    ...(waiting.myOffboarding.data??[]).filter(item=>item.actions.length>0).map(item=>({key:`my-exit-${item.entity_id}`,area:'offboarding' as const,title:item.viewer==='participant'?`Offboarding · ${String(item.values.exit_employee_name||'Employee')}`:'Your employee handover',detail:item.state,action:<Go to={`/hrms/my-offboarding/${item.entity_id}`}>Complete form</Go>})),
     ...waiting.employeeWork.filter(item=>item.actions.length>0).map(item=>({key:`e-${item.entity_id}-${item.workflow_id}`,area:'onboarding' as const,title:item.title,feedback:item.verifier_feedback,
       detail:joined(item.workflow_label,item.current_state,item.feedback_status==='resolved'?'Previous feedback resolved by HR':item.feedback_status==='submitted'?'Corrections submitted, awaiting HR review':'',item.due_date?`Due ${day(item.due_date)}`:''),action:<EmployeeWorkflowActions key={item.current_state} item={item}/>})),
     ...(waiting.offboarding.data??[]).map(item=>({key:`exit-${item.entity_id}`,area:'offboarding' as const,title:item.summary_fields.identifier||'Employee exit',detail:item.current_state,action:<Go to={`/hrms/workflows?workflow=${encodeURIComponent(item.machine_name)}&case=${item.entity_id}`}>Open</Go>})),

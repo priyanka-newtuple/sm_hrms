@@ -162,6 +162,10 @@ def create_app(platform=None, journal=None):
     def my_offboarding_command(entity_id: UUID, payload: OfferCommand, current=Depends(actor)):
         return employee_offboarding.command(current,str(entity_id),payload.model_dump())
 
+    @app.get('/v1/api/hrms/offboarding/routing-options')
+    def offboarding_routing_options(current=Depends(actor)):
+        return offboarding.routing_options(current)
+
     @app.get('/v1/api/hrms/offboarding/assignees')
     def offboarding_assignees(current=Depends(actor)):
         return offboarding.assignees(current)
