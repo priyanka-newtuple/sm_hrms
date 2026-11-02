@@ -288,6 +288,41 @@ def test_reviewed_drift_only_updates_baseline_without_native_writes():
     assert plan['operations'][0]['decision'] == 'update'
 
 
+def test_reviewed_drift_adopts_new_role_scope_without_changing_live_grants():
+    from hrms_app.configuration_promotion import accept_reviewed_drift
+    entity = {'key': 'entity:Employee', 'kind': 'entity', 'match': 'Employee', 'payload': {'name': 'Employee'}}
+    wf = {'key': 'workflow:Employee', 'kind': 'workflow', 'match': 'Employee', 'payload': {'definition': {}}}
+    role = {'key': 'role:hr', 'kind': 'role', 'match': 'hr', 'payload': {
+        'entity_scope': ['Employee'], 'workflow_scope': [reference('workflow:Employee', 'machine_name')],
+        'entity_permissions': [{'entity_type': 'Employee', 'action': 'view', 'allowed': True}]}}
+    live = deepcopy(role)
+    live['payload']['entity_permissions'] = []
+    baseline = {o['key']: o for o in (entity, wf)}
+    native = FakeNative({**baseline, role['key']: live})
+    journal = MemoryJournal({'status': 'applied', 'baseline': baseline})
+    release = package(entity, wf, role)
+    review, _, _ = inspection(native, release, journal.read())
+    state = accept_reviewed_drift(native, release, review, journal)
+    assert not native.writes
+    assert state['baseline'][role['key']] == live
+    assert role['key'] not in state['drift_reviews'][0]['previous_baseline']
+    plan, _, _ = inspection(native, release, state)
+    assert next(op for op in plan['operations'] if op['key'] == role['key'])['decision'] == 'update'
+
+
+def test_reviewed_drift_cannot_adopt_unmanaged_non_role_objects():
+    from hrms_app.configuration_promotion import accept_reviewed_drift
+    existing = obj('Existing')
+    live, desired = obj(options=['settings']), obj(options=['release'])
+    native = FakeNative({existing['key']: existing, live['key']: live})
+    journal = MemoryJournal({'status': 'applied', 'baseline': {existing['key']: existing}})
+    release = package(existing, desired)
+    review, _, _ = inspection(native, release, journal.read())
+    with pytest.raises(ConfigurationError):
+        accept_reviewed_drift(native, release, review, journal)
+    assert not native.writes and not journal.writes
+
+
 @pytest.mark.parametrize('failure', ['stale', 'failed', 'pending', 'deleted', 'changed_during_preflight'])
 def test_reviewed_drift_rejects_unsafe_reconciliation(failure):
     from hrms_app.configuration_promotion import accept_reviewed_drift
