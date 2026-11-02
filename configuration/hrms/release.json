@@ -16606,7 +16606,8 @@
         "name": "Project Manager",
         "field_key": "offboarding_project_manager_id",
         "field_type": "text",
-        "settings": {}
+        "settings": {},
+        "description": null
       }
     },
     {
@@ -16617,7 +16618,8 @@
         "name": "Office Admin",
         "field_key": "offboarding_office_admin_id",
         "field_type": "text",
-        "settings": {}
+        "settings": {},
+        "description": null
       }
     },
     {
@@ -16633,7 +16635,8 @@
             "Yes",
             "No"
           ]
-        }
+        },
+        "description": null
       }
     },
     {
@@ -16644,7 +16647,8 @@
         "name": "Comments",
         "field_key": "project_clearance_comments",
         "field_type": "textarea",
-        "settings": {}
+        "settings": {},
+        "description": null
       }
     },
     {
@@ -16660,7 +16664,8 @@
             "Yes",
             "No"
           ]
-        }
+        },
+        "description": null
       }
     },
     {
@@ -16676,7 +16681,8 @@
             "Yes",
             "No"
           ]
-        }
+        },
+        "description": null
       }
     },
     {
@@ -16687,7 +16693,8 @@
         "name": "Comments",
         "field_key": "asset_clearance_comments",
         "field_type": "textarea",
-        "settings": {}
+        "settings": {},
+        "description": null
       }
     },
     {
@@ -16703,7 +16710,8 @@
             "Yes",
             "No"
           ]
-        }
+        },
+        "description": null
       }
     },
     {
@@ -16714,7 +16722,8 @@
         "name": "Employee feedback",
         "field_key": "exit_employee_feedback",
         "field_type": "textarea",
-        "settings": {}
+        "settings": {},
+        "description": null
       }
     },
     {
@@ -16725,7 +16734,8 @@
         "name": "Exit interview date",
         "field_key": "exit_interview_date",
         "field_type": "datetime",
-        "settings": {}
+        "settings": {},
+        "description": null
       }
     },
     {
@@ -16749,7 +16759,12 @@
             },
             "label": "Employee Id",
             "position": 0,
-            "required": false
+            "required": false,
+            "placeholder": null,
+            "inherit_from": null,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "ownership": null
           },
           {
             "library_field_id": {
@@ -16762,7 +16777,12 @@
             },
             "label": "Exit type",
             "position": 1,
-            "required": false
+            "required": false,
+            "placeholder": null,
+            "inherit_from": null,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "ownership": null
           },
           {
             "library_field_id": {
@@ -16775,7 +16795,12 @@
             },
             "label": "Last working day",
             "position": 2,
-            "required": false
+            "required": false,
+            "placeholder": null,
+            "inherit_from": null,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "ownership": null
           },
           {
             "library_field_id": {
@@ -16788,7 +16813,12 @@
             },
             "label": "Exit reason",
             "position": 3,
-            "required": false
+            "required": false,
+            "placeholder": null,
+            "inherit_from": null,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "ownership": null
           },
           {
             "library_field_id": {
@@ -16801,7 +16831,12 @@
             },
             "label": "Resignation / supporting documents",
             "position": 4,
-            "required": false
+            "required": false,
+            "placeholder": null,
+            "inherit_from": null,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "ownership": null
           },
           {
             "library_field_id": {
@@ -16814,7 +16849,12 @@
             },
             "label": "Project Manager",
             "position": 5,
-            "required": false
+            "required": false,
+            "placeholder": null,
+            "inherit_from": null,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "ownership": null
           },
           {
             "library_field_id": {
@@ -16827,9 +16867,16 @@
             },
             "label": "Office Admin",
             "position": 6,
-            "required": false
+            "required": false,
+            "placeholder": null,
+            "inherit_from": null,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "ownership": null
           }
-        ]
+        ],
+        "description": null,
+        "category_id": null
       }
     },
     {
@@ -16864,7 +16911,12 @@
             },
             "label": "Personal email for communication after exit",
             "position": 0,
-            "required": false
+            "required": false,
+            "placeholder": null,
+            "inherit_from": null,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "ownership": null
           },
           {
             "library_field_id": {
@@ -16877,7 +16929,12 @@
             },
             "label": "Have all ongoing projects been properly handed over to the concerned team/member?",
             "position": 1,
-            "required": false
+            "required": false,
+            "placeholder": null,
+            "inherit_from": null,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "ownership": null
           },
           {
             "library_field_id": {
@@ -16890,9 +16947,16 @@
             },
             "label": "Have assigned tasks in the project board been handled appropriately (e.g., Jira, Azure DevOps)?",
             "position": 2,
-            "required": false
+            "required": false,
+            "placeholder": null,
+            "inherit_from": null,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "ownership": null
           }
-        ]
+        ],
+        "description": null,
+        "category_id": null
       }
     },
     {
@@ -16927,7 +16991,12 @@
             },
             "label": "OK to release?",
             "position": 0,
-            "required": false
+            "required": false,
+            "placeholder": null,
+            "inherit_from": null,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "ownership": null
           },
           {
             "library_field_id": {
@@ -16940,9 +17009,16 @@
             },
             "label": "Comments",
             "position": 1,
-            "required": false
+            "required": false,
+            "placeholder": null,
+            "inherit_from": null,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "ownership": null
           }
-        ]
+        ],
+        "description": null,
+        "category_id": null
       }
     },
     {
@@ -16977,7 +17053,12 @@
             },
             "label": "Have you received all assigned assets?",
             "position": 0,
-            "required": false
+            "required": false,
+            "placeholder": null,
+            "inherit_from": null,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "ownership": null
           },
           {
             "library_field_id": {
@@ -16990,7 +17071,12 @@
             },
             "label": "Have you revoked all licenses (Claude, OpenAI and other subscriptions)?",
             "position": 1,
-            "required": false
+            "required": false,
+            "placeholder": null,
+            "inherit_from": null,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "ownership": null
           },
           {
             "library_field_id": {
@@ -17003,9 +17089,16 @@
             },
             "label": "Comments",
             "position": 2,
-            "required": false
+            "required": false,
+            "placeholder": null,
+            "inherit_from": null,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "ownership": null
           }
-        ]
+        ],
+        "description": null,
+        "category_id": null
       }
     },
     {
@@ -17040,7 +17133,12 @@
             },
             "label": "Exit interview done",
             "position": 0,
-            "required": false
+            "required": false,
+            "placeholder": null,
+            "inherit_from": null,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "ownership": null
           },
           {
             "library_field_id": {
@@ -17053,7 +17151,12 @@
             },
             "label": "Employee feedback",
             "position": 1,
-            "required": false
+            "required": false,
+            "placeholder": null,
+            "inherit_from": null,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "ownership": null
           },
           {
             "library_field_id": {
@@ -17066,7 +17169,12 @@
             },
             "label": "Exit interview date",
             "position": 2,
-            "required": false
+            "required": false,
+            "placeholder": null,
+            "inherit_from": null,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "ownership": null
           },
           {
             "library_field_id": {
@@ -17079,9 +17187,16 @@
             },
             "label": "Access removal administrator",
             "position": 3,
-            "required": false
+            "required": false,
+            "placeholder": null,
+            "inherit_from": null,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "ownership": null
           }
-        ]
+        ],
+        "description": null,
+        "category_id": null
       }
     },
     {
@@ -17116,7 +17231,12 @@
             },
             "label": "Exit checklist v2 - exit_employee_name",
             "position": 0,
-            "required": false
+            "required": false,
+            "placeholder": null,
+            "inherit_from": null,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "ownership": null
           },
           {
             "library_field_id": {
@@ -17129,7 +17249,12 @@
             },
             "label": "Exit checklist v2 - exit_employee_code",
             "position": 1,
-            "required": false
+            "required": false,
+            "placeholder": null,
+            "inherit_from": null,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "ownership": null
           },
           {
             "library_field_id": {
@@ -17142,7 +17267,12 @@
             },
             "label": "Last working day",
             "position": 2,
-            "required": false
+            "required": false,
+            "placeholder": null,
+            "inherit_from": null,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "ownership": null
           },
           {
             "library_field_id": {
@@ -17155,7 +17285,12 @@
             },
             "label": "Completed at",
             "position": 3,
-            "required": false
+            "required": false,
+            "placeholder": null,
+            "inherit_from": null,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "ownership": null
           },
           {
             "library_field_id": {
@@ -17168,9 +17303,16 @@
             },
             "label": "Resignation / supporting documents",
             "position": 4,
-            "required": false
+            "required": false,
+            "placeholder": null,
+            "inherit_from": null,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "ownership": null
           }
-        ]
+        ],
+        "description": null,
+        "category_id": null
       }
     },
     {
@@ -17759,7 +17901,8 @@
         "name": "Access removal administrator",
         "field_key": "offboarding_access_admin_id",
         "field_type": "text",
-        "settings": {}
+        "settings": {},
+        "description": null
       }
     },
     {
@@ -17771,7 +17914,9 @@
         "entity_types": [
           "HRMS.Offboarding"
         ],
-        "fields": []
+        "fields": [],
+        "description": null,
+        "category_id": null
       }
     },
     {
@@ -17794,7 +17939,9 @@
         "entity_types": [
           "HRMS.Offboarding"
         ],
-        "fields": []
+        "fields": [],
+        "description": null,
+        "category_id": null
       }
     },
     {

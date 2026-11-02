@@ -323,6 +323,32 @@ def test_reviewed_drift_cannot_adopt_unmanaged_non_role_objects():
     assert not native.writes and not journal.writes
 
 
+@pytest.mark.parametrize('changed', [False, True])
+def test_resume_exact_reviewed_field_create_with_native_defaults(changed):
+    from hrms_app.configuration_promotion import resume_reviewed
+    field = {'key': 'field:comments', 'kind': 'field', 'match': 'comments', 'payload': {
+        'name': 'Comments', 'field_key': 'comments', 'field_type': 'textarea', 'settings': {}}}
+    original = package(field)
+    corrected = deepcopy(field)
+    corrected['payload']['description'] = None
+    live = deepcopy(corrected)
+    if changed:
+        live['payload']['description'] = 'Changed in Settings'
+    native = FakeNative({field['key']: live})
+    journal = MemoryJournal({'status': 'failed', 'package_checksum': digest(original),
+        'baseline': {}, 'completed': [], 'pending': {'key': field['key'], 'before': digest(None)}})
+    release = package(corrected)
+    review, _, _ = inspection(native, release, journal.read())
+    if changed:
+        with pytest.raises(ConfigurationError, match='Pending configuration changed'):
+            resume_reviewed(native, release, review, journal, original_package=original)
+        assert not journal.writes
+    else:
+        state = resume_reviewed(native, release, review, journal, original_package=original)
+        assert state['status'] == 'applied'
+    assert not native.writes
+
+
 @pytest.mark.parametrize('failure', ['stale', 'failed', 'pending', 'deleted', 'changed_during_preflight'])
 def test_reviewed_drift_rejects_unsafe_reconciliation(failure):
     from hrms_app.configuration_promotion import accept_reviewed_drift

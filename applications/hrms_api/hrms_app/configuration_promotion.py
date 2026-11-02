@@ -148,7 +148,15 @@ def resume_reviewed(native, package, reviewed, journal, original_package=None, d
             raise ConfigurationError('Unknown pending configuration object')
         current, _ = native.read(item)
         if digest(current) != pending.get('before'):
-            raise ConfigurationError('Pending configuration changed; separate reconciliation is required')
+            # A native field create can succeed before read-back detects an
+            # omitted default (for example description=null). Recover only an
+            # exact, freshly reviewed corrected payload, never an arbitrary
+            # changed object or an unverified repeat of the write.
+            desired = next((o for o in objects if o['key'] == item['key']), None)
+            _, identities = native.snapshot(objects)
+            if (item['kind'] != 'field' or desired is None or
+                    current != resolve(desired['payload'], identities)):
+                raise ConfigurationError('Pending configuration changed; separate reconciliation is required')
     elif pending:
         if not pending.get('draft_id') or not draft_review:
             raise ConfigurationError('An uncertain write requires separate reconciliation')
@@ -185,7 +193,7 @@ def resume_reviewed(native, package, reviewed, journal, original_package=None, d
     plan, _, _ = inspection(native, package, journal.read())
     # A fully completed checkpoint is finalized by reconcile, including all pins.
     if all(op['decision'] == 'unchanged' for op in plan['operations']):
-        journal.save({**journal.read(), 'status': 'failed'})
+        journal.save({**journal.read(), 'status': 'failed', 'package_checksum': digest(package)})
         return reconcile(native, package, journal)
     return apply(native, package, plan, journal)
 
