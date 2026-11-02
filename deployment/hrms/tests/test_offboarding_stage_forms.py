@@ -31,6 +31,15 @@ def test_release_library_fields_have_unique_native_names_and_explicit_defaults()
                 assert {'placeholder', 'ownership', 'inherit_from', 'source_entity_type', 'source_field_key'} <= field.keys()
 
 
+def test_release_permissions_match_native_canonical_order():
+    for obj in package().values():
+        if obj['kind'] != 'role':
+            continue
+        for key in ('entity_permissions', 'field_permissions', 'workflow_permissions', 'transition_permissions'):
+            grants = obj['payload'].get(key, [])
+            assert grants == sorted(grants, key=lambda item: json.dumps(item, sort_keys=True)), (obj['key'], key)
+
+
 def test_simplified_stages_use_separate_native_forms():
     objects = package()
     graph = objects['workflow:HRMS.Offboarding']['payload']['definition']
