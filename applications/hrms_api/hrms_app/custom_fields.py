@@ -1,6 +1,7 @@
 """Tenant-added attributes and native field type validation for HRMS commands."""
 from datetime import date, datetime
 import time
+import re
 
 from .catalog import pack_by_type
 from .errors import AppError
@@ -64,6 +65,17 @@ def _typed(label, field, value):
     options = field.get('enum_values')
     if options and value not in options:
         raise AppError(422, f'{label} must be one of the configured options')
+    if kind == 'phone':
+        # Preserve formatting and leading zeroes; the native field type drives this check.
+        valid = isinstance(value, str) and (
+            value == '' or (
+                re.fullmatch(r'\+?[0-9 ()\-]+', value) is not None
+                and 7 <= sum(c in '0123456789' for c in value) <= 15
+            )
+        )
+        if not valid:
+            raise AppError(422, f'{label}: Enter a valid phone number with 7-15 digits. Use only digits, an optional leading +, spaces, hyphens or parentheses.')
+        return value
     if kind in TEXT or kind == 'enum':
         if not isinstance(value, str):
             raise AppError(422, f'{label} must be text')

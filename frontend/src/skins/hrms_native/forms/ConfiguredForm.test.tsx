@@ -27,3 +27,27 @@ it('maps an authorized relationship without making its generated label writable'
  const fields:Field[]=[{field:'reports_to_employee_code',type:'string'},{field:'created_by',type:'string'}];
  expect(formValues(fields,{reports_to_entity_id:'manager',created_by:'attacker'},['created_by'],{reports_to_employee_code:{key:'reports_to_entity_id'}})).toEqual({reports_to_entity_id:'manager'});
 });
+
+it('validates configured phone inputs and clears the error after correction',()=>{
+ function PhoneEditor(){const [values,setValues]=useState<Record<string,unknown>>({contact:''});return <ConfiguredInputs fields={[{field:'contact',type:'phone',description:'Contact'}]} values={values} onChange={setValues}/>;}
+ render(<PhoneEditor/>);
+ const input=screen.getByLabelText('Contact') as HTMLInputElement;
+ expect(input.type).toBe('tel');
+ expect(input.checkValidity()).toBe(true);
+ fireEvent.change(input,{target:{value:'kjkjkjk'}});
+ expect(input.checkValidity()).toBe(false);
+ expect(input.validationMessage).toContain('valid phone number');
+ fireEvent.input(input,{target:{value:'+91 98765 43210'}});
+ expect(input.checkValidity()).toBe(true);
+ fireEvent.input(input,{target:{value:'1234567890123456'}});
+ expect(input.checkValidity()).toBe(false);
+});
+
+it('shows a reporting manager name while saving the employee code',()=>{
+ const change=vi.fn();
+ render(<ConfiguredInputs fields={[{field:'reports_to_employee_code',type:'string',description:'Reports to employee code'}]} values={{reports_to_employee_code:'EMP-0003'}} onChange={change} adapters={{reports_to_employee_code:{options:[{id:'EMP-0003',name:'Priyanka Nambiar · EMP-0003'},{id:'EMP-0002',name:'Shikha Hossein · EMP-0002'}]}}}/>);
+ const select=screen.getByLabelText('Reports to employee code') as HTMLSelectElement;
+ expect(select.selectedOptions[0].textContent).toBe('Priyanka Nambiar · EMP-0003');
+ fireEvent.change(select,{target:{value:'EMP-0002'}});
+ expect(change).toHaveBeenCalledWith({reports_to_employee_code:'EMP-0002'});
+});
