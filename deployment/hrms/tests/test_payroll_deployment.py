@@ -37,3 +37,13 @@ def test_native_graph_has_cancel_from_every_unfinished_state():
         outgoing=[t for t in graph['transitions'] if t['from']==state['name']]
         if 'terminal' in state['tags']: assert not outgoing
         else: assert any(t['to_state']=='Onboarding Cancelled' and not t['required_fields'] and not t['guards'] for t in outgoing)
+
+
+def test_payroll_fields_are_contributed_by_native_methods_only():
+    from test_offboarding_stage_forms import package
+    objects = package()
+    graph = objects['workflow:HRMS.Employee']['payload']['definition']
+    assert not any(f['field'].startswith('razorpay_') for f in graph['entity_schema']['fields'])
+    for name in ('Payroll Registration', 'Final HR Sign-off'):
+        state = next(s for s in graph['states'] if s['name'] == name)
+        assert state['method_refs'], 'Native methods must contribute the Payroll fields'
