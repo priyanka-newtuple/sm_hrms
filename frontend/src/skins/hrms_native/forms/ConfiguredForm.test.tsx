@@ -2,8 +2,9 @@ import {afterEach,expect,it,vi} from 'vitest';
 import {cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react';
 import {QueryClient,QueryClientProvider} from '@tanstack/react-query';
 import {useState} from 'react';
-import {ConfiguredForm,ConfiguredInputs,formValues,type Field} from './ConfiguredForm';
+import {ConfiguredForm,ConfiguredInputs,ConfiguredField,NativeFormFields,formValues,type Field} from './ConfiguredForm';
 const config=vi.hoisted(()=>({fields:[] as Field[]}));
+vi.mock('@/core/hooks/useDocumentTypes',()=>({useDocumentTypes:()=>({documentTypes:[],loading:false,error:null,getDocumentType:()=>undefined,getAllowedExtensions:()=>[],getMaxSizeBytes:()=>10485760})}));
 vi.mock('@/core/services/api/client',()=>({request:async()=>({fields:config.fields}),getApiErrorMessage:String}));
 afterEach(cleanup);
 function Editor({kind}:{kind:string}) {const [values,setValues]=useState<Record<string,unknown>>({retired:'Old value'});return <ConfiguredForm entityType={kind}><ConfiguredInputs values={values} onChange={setValues}/></ConfiguredForm>;}
@@ -58,4 +59,26 @@ it('renders multi-select values separately and submits an array',()=>{
  expect(screen.getByText('Python')).toBeTruthy();
  expect(screen.getByText('SQL')).toBeTruthy();
  expect(formValues([{field:'skills',type:'multi_select'}],{skills:['Python','SQL']})).toEqual({skills:['Python','SQL']});
+});
+
+
+it.each(['string','text','phone','email','date','datetime','enum','multi_select','boolean','document'])('marks required %s fields once using native metadata', type=>{
+ const {container,rerender}=render(<ConfiguredInputs fields={[{field:'answer',description:'Answer',type,required:true}]} values={{}} onChange={()=>{}}/>);
+ expect(container.querySelectorAll('[title="Required"]').length).toBe(1);
+ rerender(<ConfiguredInputs fields={[{field:'answer',description:'Answer',type,required:false}]} values={{}} onChange={()=>{}}/>);
+ expect(container.querySelectorAll('[title="Required"]').length).toBe(0);
+ rerender(<ConfiguredInputs fields={[{field:'answer',description:'Answer',type,required:true,read_only:true}]} values={{}} onChange={()=>{}}/>);
+ expect(container.querySelectorAll('[title="Required"]').length).toBe(0);
+});
+it('shows draft requirements without blocking incomplete draft saves',()=>{
+ const {container}=render(<form><ConfiguredInputs validateRequired={false} fields={[{field:'email',type:'email',required:true},{field:'confirm',type:'boolean',required:true}]} values={{}} onChange={()=>{}}/></form>);
+ expect(container.querySelectorAll('[title="Required"]').length).toBe(2);
+ expect(container.querySelector('form')!.checkValidity()).toBe(true);
+ expect(screen.getByLabelText('Email').getAttribute('aria-required')).toBe('true');
+});
+it('prefers native requirements to custom input defaults',()=>{
+ const {container}=render(<NativeFormFields fields={[{field:'answer',required:false}]}><ConfiguredField field="answer" label="Answer"><input required/></ConfiguredField><ConfiguredField operational field="quantity" label="Quantity"><input required/></ConfiguredField></NativeFormFields>);
+ expect(container.querySelectorAll('[title="Required"]').length).toBe(1);
+ expect((screen.getByLabelText('Answer') as HTMLInputElement).required).toBe(false);
+ expect((screen.getByLabelText('Quantity') as HTMLInputElement).required).toBe(true);
 });

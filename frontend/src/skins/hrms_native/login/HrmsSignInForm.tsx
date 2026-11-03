@@ -1,3 +1,4 @@
+import { FieldLabel } from '../forms/FieldLabel';
 import { useId, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { AnimIcon, ArrowRightIcon, EyeIcon, EyeOffIcon, LoaderCircleIcon } from '../animated-icons';
@@ -9,7 +10,7 @@ import { Magnet } from './reactbits';
 /** HRMS sign-in presentation; employee accounts are provisioned by administrators. */
 function Field({ id, label, aside, children }: { id: string; label: string; aside?: ReactNode; children: ReactNode }) {
   return <div className="hrms-field">
-    <div className="hrms-field-box">{children}<label htmlFor={id}>{label}</label><span className="hrms-field-line" aria-hidden="true" /></div>
+    <div className="hrms-field-box">{children}<label htmlFor={id}><FieldLabel required>{label}</FieldLabel></label><span className="hrms-field-line" aria-hidden="true" /></div>
     {aside}
   </div>;
 }

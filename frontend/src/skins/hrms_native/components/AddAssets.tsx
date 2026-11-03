@@ -1,3 +1,4 @@
+import { FieldLabel } from '../forms/FieldLabel';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { request, getApiErrorMessage } from '@/core/services/api/client';
@@ -33,7 +34,7 @@ export function AddAssets({done}:{done:()=>void}) {
  {pending.isError&&<p role="alert">Could not check unfinished batches. <button type="button" onClick={()=>void pending.refetch()}>Retry</button></p>}
  {!batch&&pending.data?.items.map(p=><div className="hrms-notice" key={p.idempotency_key}>Unfinished batch: {p.units.length} × {String(p.data.asset_name??'Asset')}. <button type="button" className="hrms-outline-button" onClick={()=>{setBatch(p);setValues(p.data);setUnits(p.units);setReview(true);mutation.reset();}}>Resume batch</button></div>)}
  <fieldset disabled={locked||review} className="space-y-5">
- <label className="block">Quantity<input aria-label="Quantity" className="hrms-field-input" type="number" min={1} max={50} step={1} required value={units.length} onChange={e=>{const n=Number(e.target.value);if(Number.isInteger(n)&&n>=1&&n<=50)setUnits(old=>Array.from({length:n},(_,i)=>old[i]??{serial_number:'',asset_tag:''}));}}/></label>
+ <label className="block"><FieldLabel required>Quantity</FieldLabel><input aria-label="Quantity" className="hrms-field-input" type="number" min={1} max={50} step={1} required value={units.length} onChange={e=>{const n=Number(e.target.value);if(Number.isInteger(n)&&n>=1&&n<=50)setUnits(old=>Array.from({length:n},(_,i)=>old[i]??{serial_number:'',asset_tag:''}));}}/></label>
  <div className="grid gap-4 sm:grid-cols-2"><ConfiguredInputs fields={fields.filter(f=>!excluded.includes(f.field))} values={values} onChange={setValues}/></div>
  <h3 className="font-semibold">Individual items</h3><p className="text-sm text-slate-500">Serial numbers identify individual equipment. Existing sticker/tag is separate from the automatic Asset ID.</p>
  {units.map((unit,i)=><section className="hrms-surface p-4 space-y-3" key={i} aria-label={`Item ${i+1}`}><strong>Item {i+1} · Asset ID assigned on save</strong><div className="grid gap-4 sm:grid-cols-2"><ConfiguredInputs fields={unitFields.map(f=>f.field==='asset_tag'?{...f,description:'Existing sticker/tag'}:f)} values={unit} onChange={v=>setUnits(old=>old.map((u,j)=>j===i?{serial_number:String(v.serial_number??''),asset_tag:String(v.asset_tag??'')}:u))}/></div></section>)}
