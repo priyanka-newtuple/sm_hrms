@@ -325,6 +325,8 @@ def save_employee_form(platform, actor, entity_id, workflow_id, values):
         raise AppError(
             403, "Only editable fields on the current native form can be changed"
         )
+    from .profile_address import copy_current_address
+    values = copy_current_address(form['fields'], values, form['values'])
     checked = {}
     for key, value in values.items():
         field = editable[key]

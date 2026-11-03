@@ -1,3 +1,4 @@
+import MultiSelectDropdown from '@/core/components/MultiSelectDropdown';
 import DocumentFieldInput from '@/core/components/DocumentFieldInput';
 import type { FormField } from '@/core/types';
 import { Children, cloneElement, createContext, isValidElement, useContext, useEffect, type ReactElement, type ReactNode } from 'react';
@@ -32,13 +33,18 @@ export function ConfiguredInputs({values,onChange,exclude=[],fields:provided,ada
     const adapter=adapters[f.field]??{}, key=adapter.key??f.field, type=adapter.type??f.type??'string', value=values[key];
     const set=(v:unknown)=>onChange({...values,[key]:v});
     const numeric=['integer','int','number','float','decimal','timer_duration'].includes(type);
-    const supported=['string','str','text','email','phone','url','date','datetime','enum','boolean','bool'].includes(type)||numeric;
+    const supported=['string','str','text','email','phone','url','date','datetime','enum','multi_select','boolean','bool'].includes(type)||numeric;
     const readonly=!!f.read_only||!!adapter.readOnly;
     const common={className:'hrms-field-input',required:!!f.required&&!readonly,disabled:readonly||(!supported&&!adapter.options),placeholder:f.placeholder};
     const title=f.description?.trim()||adapter.label||key.replaceAll('_',' ').replace(/^./,c=>c.toUpperCase());
     const choices=adapter.options??(f.enum_values??[]).map(v=>({id:v,name:f.enum_labels?.[v]??v}));
     const display=value==null?'':typeof value==='object'?JSON.stringify(value):String(value);
     const inputDisplay=type==='datetime' ? (/^\d{4}-\d{2}-\d{2}$/.test(display)?`${display}T00:00`:display.replace(' ','T').slice(0,16)) : display;
+    if (type==='multi_select') return <div key={f.field} className="sm:col-span-2" role="group" aria-label={title}>
+      <p className="text-sm leading-6 mb-2">{title}{f.required?' *':''}</p>
+      {typeof value==='string'&&value&&<p className="text-sm mb-2">Previously entered: {value}. Select the matching options below.</p>}
+      <MultiSelectDropdown options={choices.map(c=>c.id)} value={Array.isArray(value)?value.filter((v):v is string=>typeof v==='string'):[]} onChange={set} disabled={readonly} labelFor={id=>choices.find(c=>c.id===id)?.name??id} placeholder="Search and select options…"/>
+    </div>;
     if (['boolean','bool'].includes(type)) return <div key={f.field} className="sm:col-span-2"><label className="flex items-start gap-3 text-sm leading-6"><input className="mt-1 h-4 w-4 shrink-0 accent-[#0047AB]" type="checkbox" disabled={readonly} required={!!f.required&&!readonly} checked={value===true} onChange={e=>set(e.target.checked)}/><span>{title}</span></label></div>;
     return <div key={f.field} className={f.col_span===2||type==='text'?'sm:col-span-2':''}><label className="flex flex-col gap-2 text-sm leading-6"><span>{title}</span>{type==='document'?<DocumentFieldInput field={{id:f.field,label:title,type:'document',required:!!f.required,system:false,document_config:f.document_config}} value={value} onChange={set} disabled={readonly||!entityId} entityId={entityId}/>:adapter.options||type==='enum'||!!f.enum_values?.length?
       <select {...common} value={display} onChange={e=>set(e.target.value)}><option value="">Select…</option>{choices.map(v=><option key={v.id} value={v.id}>{v.name}</option>)}</select>
