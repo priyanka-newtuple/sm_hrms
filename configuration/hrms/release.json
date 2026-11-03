@@ -7005,6 +7005,13 @@
             "can_edit": true,
             "can_view": true,
             "entity_type": "HRMS.Employee",
+            "field_name": "aadhaar_card",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "HRMS.Employee",
             "field_name": "account_approved",
             "mask_value": false
           },
@@ -7048,6 +7055,13 @@
             "can_view": true,
             "entity_type": "HRMS.Employee",
             "field_name": "bank_name",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "HRMS.Employee",
+            "field_name": "blood_group",
             "mask_value": false
           },
           {
@@ -7138,6 +7152,20 @@
             "can_edit": true,
             "can_view": true,
             "entity_type": "HRMS.Employee",
+            "field_name": "emergency_contact_phone",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "HRMS.Employee",
+            "field_name": "emergency_contact_relationship",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "HRMS.Employee",
             "field_name": "employee_code",
             "mask_value": false
           },
@@ -7167,6 +7195,13 @@
             "can_view": true,
             "entity_type": "HRMS.Employee",
             "field_name": "exit_reason",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "HRMS.Employee",
+            "field_name": "experience_letters",
             "mask_value": false
           },
           {
@@ -7229,6 +7264,13 @@
             "can_edit": true,
             "can_view": true,
             "entity_type": "HRMS.Employee",
+            "field_name": "marksheets",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "HRMS.Employee",
             "field_name": "notice_period_days",
             "mask_value": false
           },
@@ -7237,6 +7279,13 @@
             "can_view": true,
             "entity_type": "HRMS.Employee",
             "field_name": "onboarding_documents",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "HRMS.Employee",
+            "field_name": "pan_card",
             "mask_value": false
           },
           {
@@ -7272,6 +7321,13 @@
             "can_view": true,
             "entity_type": "HRMS.Employee",
             "field_name": "permanent_postal_code",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "HRMS.Employee",
+            "field_name": "permanent_same_as_current",
             "mask_value": false
           },
           {
@@ -8259,62 +8315,6 @@
             "can_view": true,
             "entity_type": "hrms_offer",
             "field_name": "special_percent",
-            "mask_value": false
-          },
-          {
-            "can_edit": true,
-            "can_view": true,
-            "entity_type": "HRMS.Employee",
-            "field_name": "emergency_contact_relationship",
-            "mask_value": false
-          },
-          {
-            "can_edit": true,
-            "can_view": true,
-            "entity_type": "HRMS.Employee",
-            "field_name": "emergency_contact_phone",
-            "mask_value": false
-          },
-          {
-            "can_edit": true,
-            "can_view": true,
-            "entity_type": "HRMS.Employee",
-            "field_name": "blood_group",
-            "mask_value": false
-          },
-          {
-            "can_edit": true,
-            "can_view": true,
-            "entity_type": "HRMS.Employee",
-            "field_name": "permanent_same_as_current",
-            "mask_value": false
-          },
-          {
-            "can_edit": true,
-            "can_view": true,
-            "entity_type": "HRMS.Employee",
-            "field_name": "marksheets",
-            "mask_value": false
-          },
-          {
-            "can_edit": true,
-            "can_view": true,
-            "entity_type": "HRMS.Employee",
-            "field_name": "experience_letters",
-            "mask_value": false
-          },
-          {
-            "can_edit": true,
-            "can_view": true,
-            "entity_type": "HRMS.Employee",
-            "field_name": "aadhaar_card",
-            "mask_value": false
-          },
-          {
-            "can_edit": true,
-            "can_view": true,
-            "entity_type": "HRMS.Employee",
-            "field_name": "pan_card",
             "mask_value": false
           }
         ],
@@ -8841,6 +8841,13 @@
             "can_edit": false,
             "can_view": true,
             "entity_type": "HRMS.Employee",
+            "field_name": "aadhaar_card",
+            "mask_value": false
+          },
+          {
+            "can_edit": false,
+            "can_view": true,
+            "entity_type": "HRMS.Employee",
             "field_name": "account_approved",
             "mask_value": false
           },
@@ -8884,6 +8891,13 @@
             "can_view": true,
             "entity_type": "HRMS.Employee",
             "field_name": "bank_name",
+            "mask_value": false
+          },
+          {
+            "can_edit": false,
+            "can_view": true,
+            "entity_type": "HRMS.Employee",
+            "field_name": "blood_group",
             "mask_value": false
           },
           {
@@ -8953,6 +8967,20 @@
             "can_edit": false,
             "can_view": true,
             "entity_type": "HRMS.Employee",
+            "field_name": "emergency_contact_phone",
+            "mask_value": false
+          },
+          {
+            "can_edit": false,
+            "can_view": true,
+            "entity_type": "HRMS.Employee",
+            "field_name": "emergency_contact_relationship",
+            "mask_value": false
+          },
+          {
+            "can_edit": false,
+            "can_view": true,
+            "entity_type": "HRMS.Employee",
             "field_name": "employee_code",
             "mask_value": false
           },
@@ -8961,6 +8989,13 @@
             "can_view": true,
             "entity_type": "HRMS.Employee",
             "field_name": "employment_status",
+            "mask_value": false
+          },
+          {
+            "can_edit": false,
+            "can_view": true,
+            "entity_type": "HRMS.Employee",
+            "field_name": "experience_letters",
             "mask_value": false
           },
           {
@@ -8981,7 +9016,21 @@
             "can_edit": false,
             "can_view": true,
             "entity_type": "HRMS.Employee",
+            "field_name": "marksheets",
+            "mask_value": false
+          },
+          {
+            "can_edit": false,
+            "can_view": true,
+            "entity_type": "HRMS.Employee",
             "field_name": "onboarding_documents",
+            "mask_value": false
+          },
+          {
+            "can_edit": false,
+            "can_view": true,
+            "entity_type": "HRMS.Employee",
+            "field_name": "pan_card",
             "mask_value": false
           },
           {
@@ -9017,6 +9066,13 @@
             "can_view": true,
             "entity_type": "HRMS.Employee",
             "field_name": "permanent_postal_code",
+            "mask_value": false
+          },
+          {
+            "can_edit": false,
+            "can_view": true,
+            "entity_type": "HRMS.Employee",
+            "field_name": "permanent_same_as_current",
             "mask_value": false
           },
           {
@@ -10067,62 +10123,6 @@
             "can_view": true,
             "entity_type": "hrms_offer",
             "field_name": "special_percent",
-            "mask_value": false
-          },
-          {
-            "can_edit": false,
-            "can_view": true,
-            "entity_type": "HRMS.Employee",
-            "field_name": "emergency_contact_relationship",
-            "mask_value": false
-          },
-          {
-            "can_edit": false,
-            "can_view": true,
-            "entity_type": "HRMS.Employee",
-            "field_name": "emergency_contact_phone",
-            "mask_value": false
-          },
-          {
-            "can_edit": false,
-            "can_view": true,
-            "entity_type": "HRMS.Employee",
-            "field_name": "blood_group",
-            "mask_value": false
-          },
-          {
-            "can_edit": false,
-            "can_view": true,
-            "entity_type": "HRMS.Employee",
-            "field_name": "permanent_same_as_current",
-            "mask_value": false
-          },
-          {
-            "can_edit": false,
-            "can_view": true,
-            "entity_type": "HRMS.Employee",
-            "field_name": "marksheets",
-            "mask_value": false
-          },
-          {
-            "can_edit": false,
-            "can_view": true,
-            "entity_type": "HRMS.Employee",
-            "field_name": "experience_letters",
-            "mask_value": false
-          },
-          {
-            "can_edit": false,
-            "can_view": true,
-            "entity_type": "HRMS.Employee",
-            "field_name": "aadhaar_card",
-            "mask_value": false
-          },
-          {
-            "can_edit": false,
-            "can_view": true,
-            "entity_type": "HRMS.Employee",
-            "field_name": "pan_card",
             "mask_value": false
           }
         ],
