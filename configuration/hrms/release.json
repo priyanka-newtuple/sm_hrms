@@ -12689,13 +12689,15 @@
                   "type": "field_present",
                   "field": "razorpay_employee_id",
                   "message": "Register the employee in Payroll before continuing",
-                  "config": {}
+                  "config": {},
+                  "value": null
                 }
               ],
               "required_fields": [],
               "pre_transition_tasks": [],
               "post_transition_tasks": [],
-              "auto_transition": null
+              "auto_transition": null,
+              "description": null
             },
             {
               "key": "cancel_onboarding_1",
@@ -12707,7 +12709,8 @@
               "required_fields": [],
               "pre_transition_tasks": [],
               "post_transition_tasks": [],
-              "auto_transition": null
+              "auto_transition": null,
+              "description": null
             },
             {
               "key": "cancel_onboarding_2",
@@ -12719,7 +12722,8 @@
               "required_fields": [],
               "pre_transition_tasks": [],
               "post_transition_tasks": [],
-              "auto_transition": null
+              "auto_transition": null,
+              "description": null
             },
             {
               "key": "cancel_onboarding_3",
@@ -12731,7 +12735,8 @@
               "required_fields": [],
               "pre_transition_tasks": [],
               "post_transition_tasks": [],
-              "auto_transition": null
+              "auto_transition": null,
+              "description": null
             },
             {
               "key": "cancel_onboarding_4",
@@ -12743,7 +12748,8 @@
               "required_fields": [],
               "pre_transition_tasks": [],
               "post_transition_tasks": [],
-              "auto_transition": null
+              "auto_transition": null,
+              "description": null
             },
             {
               "key": "cancel_onboarding_5",
@@ -12755,7 +12761,8 @@
               "required_fields": [],
               "pre_transition_tasks": [],
               "post_transition_tasks": [],
-              "auto_transition": null
+              "auto_transition": null,
+              "description": null
             },
             {
               "key": "cancel_onboarding_6",
@@ -12767,7 +12774,8 @@
               "required_fields": [],
               "pre_transition_tasks": [],
               "post_transition_tasks": [],
-              "auto_transition": null
+              "auto_transition": null,
+              "description": null
             },
             {
               "key": "cancel_onboarding_8",
@@ -12779,7 +12787,8 @@
               "required_fields": [],
               "pre_transition_tasks": [],
               "post_transition_tasks": [],
-              "auto_transition": null
+              "auto_transition": null,
+              "description": null
             },
             {
               "key": "cancel_onboarding_7",
@@ -12791,7 +12800,8 @@
               "required_fields": [],
               "pre_transition_tasks": [],
               "post_transition_tasks": [],
-              "auto_transition": null
+              "auto_transition": null,
+              "description": null
             }
           ]
         }
