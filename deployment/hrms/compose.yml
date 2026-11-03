@@ -219,6 +219,9 @@ services:
   hrms-app:
     image: sm-hrms-application:${IMAGE_TAG:?Release SHA required}
     environment:
+      HRMS_RAZORPAY_MODE: ${HRMS_RAZORPAY_MODE:-disabled}
+      HRMS_RAZORPAY_API_ID: ${HRMS_RAZORPAY_API_ID:-}
+      HRMS_RAZORPAY_API_KEY: ${HRMS_RAZORPAY_API_KEY:-}
       HRMS_EMAIL_MODE: ${HRMS_EMAIL_MODE:-capture}
       HRMS_UAT_INBOX_ENABLED: ${HRMS_UAT_INBOX_ENABLED:-false}
       HRMS_ASSET_EMPLOYEE_RELATION: ${HRMS_ASSET_EMPLOYEE_RELATION-ISSUED_TO}

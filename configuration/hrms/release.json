@@ -176,6 +176,18 @@
             {
               "field": "exit_note",
               "type": "text"
+            },
+            {
+              "field": "razorpay_employee_id",
+              "type": "string"
+            },
+            {
+              "field": "razorpay_people_id",
+              "type": "string"
+            },
+            {
+              "field": "razorpay_mode",
+              "type": "string"
             }
           ],
           "identifier_template": "EMP-{{seq}}"
@@ -4391,22 +4403,58 @@
         "entity_types": [],
         "fields": [
           {
-            "inherit_from": null,
-            "label": "Verification notes / correction reason",
             "library_field_id": {
-              "$ref": "field:hr_verification_notes",
+              "$ref": "field:razorpay_employee_id",
               "attribute": "id"
             },
-            "ownership": null,
-            "placeholder": "Explain the verification outcome or corrections required.",
+            "version_id": {
+              "$ref": "field:razorpay_employee_id",
+              "attribute": "version_id"
+            },
             "position": 0,
             "required": false,
+            "label": "Razorpay Employee ID",
+            "placeholder": null,
+            "ownership": null,
+            "inherit_from": null,
             "source_entity_type": null,
-            "source_field_key": null,
+            "source_field_key": null
+          },
+          {
+            "library_field_id": {
+              "$ref": "field:razorpay_people_id",
+              "attribute": "id"
+            },
             "version_id": {
-              "$ref": "field:hr_verification_notes",
+              "$ref": "field:razorpay_people_id",
               "attribute": "version_id"
-            }
+            },
+            "position": 1,
+            "required": false,
+            "label": "Razorpay People ID",
+            "placeholder": null,
+            "ownership": null,
+            "inherit_from": null,
+            "source_entity_type": null,
+            "source_field_key": null
+          },
+          {
+            "library_field_id": {
+              "$ref": "field:razorpay_mode",
+              "attribute": "id"
+            },
+            "version_id": {
+              "$ref": "field:razorpay_mode",
+              "attribute": "version_id"
+            },
+            "position": 2,
+            "required": false,
+            "label": "Payroll integration mode",
+            "placeholder": null,
+            "ownership": null,
+            "inherit_from": null,
+            "source_entity_type": null,
+            "source_field_key": null
           }
         ],
         "name": "Employee Final HR Sign-off"
@@ -7359,6 +7407,27 @@
             "mask_value": false
           },
           {
+            "entity_type": "HRMS.Employee",
+            "field_name": "razorpay_employee_id",
+            "can_view": true,
+            "can_edit": true,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Employee",
+            "field_name": "razorpay_mode",
+            "can_view": true,
+            "can_edit": true,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Employee",
+            "field_name": "razorpay_people_id",
+            "can_view": true,
+            "can_edit": true,
+            "mask_value": false
+          },
+          {
             "can_edit": true,
             "can_view": true,
             "entity_type": "HRMS.Employee",
@@ -8331,6 +8400,62 @@
               "$ref": "workflow:HRMS.Employee",
               "attribute": "machine_name"
             },
+            "transition_key": "cancel_onboarding_1"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Employee",
+              "attribute": "machine_name"
+            },
+            "transition_key": "cancel_onboarding_2"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Employee",
+              "attribute": "machine_name"
+            },
+            "transition_key": "cancel_onboarding_3"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Employee",
+              "attribute": "machine_name"
+            },
+            "transition_key": "cancel_onboarding_4"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Employee",
+              "attribute": "machine_name"
+            },
+            "transition_key": "cancel_onboarding_5"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Employee",
+              "attribute": "machine_name"
+            },
+            "transition_key": "cancel_onboarding_6"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Employee",
+              "attribute": "machine_name"
+            },
+            "transition_key": "cancel_onboarding_7"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Employee",
+              "attribute": "machine_name"
+            },
+            "transition_key": "cancel_onboarding_8"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Employee",
+              "attribute": "machine_name"
+            },
             "transition_key": "email setup__to__profile completion pending"
           },
           {
@@ -8346,6 +8471,13 @@
               "attribute": "machine_name"
             },
             "transition_key": "hr_signoff_to_completed"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Employee",
+              "attribute": "machine_name"
+            },
+            "transition_key": "payroll_to_hr_signoff"
           },
           {
             "machine_name": {
@@ -9094,6 +9226,27 @@
             "can_view": true,
             "entity_type": "HRMS.Employee",
             "field_name": "professional_experience",
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Employee",
+            "field_name": "razorpay_employee_id",
+            "can_view": true,
+            "can_edit": false,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Employee",
+            "field_name": "razorpay_mode",
+            "can_view": true,
+            "can_edit": false,
+            "mask_value": false
+          },
+          {
+            "entity_type": "HRMS.Employee",
+            "field_name": "razorpay_people_id",
+            "can_view": true,
+            "can_edit": false,
             "mask_value": false
           },
           {
@@ -10127,6 +10280,69 @@
           }
         ],
         "transition_permissions": [
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Employee",
+              "attribute": "machine_name"
+            },
+            "transition_key": "cancel_onboarding_1"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Employee",
+              "attribute": "machine_name"
+            },
+            "transition_key": "cancel_onboarding_2"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Employee",
+              "attribute": "machine_name"
+            },
+            "transition_key": "cancel_onboarding_3"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Employee",
+              "attribute": "machine_name"
+            },
+            "transition_key": "cancel_onboarding_4"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Employee",
+              "attribute": "machine_name"
+            },
+            "transition_key": "cancel_onboarding_5"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Employee",
+              "attribute": "machine_name"
+            },
+            "transition_key": "cancel_onboarding_6"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Employee",
+              "attribute": "machine_name"
+            },
+            "transition_key": "cancel_onboarding_7"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Employee",
+              "attribute": "machine_name"
+            },
+            "transition_key": "cancel_onboarding_8"
+          },
+          {
+            "machine_name": {
+              "$ref": "workflow:HRMS.Employee",
+              "attribute": "machine_name"
+            },
+            "transition_key": "email setup__to__profile completion pending"
+          },
           {
             "machine_name": {
               "$ref": "workflow:HRMS.Employee",
@@ -12029,6 +12245,21 @@
                 "style_config": null,
                 "read_only": null,
                 "source_states": []
+              },
+              {
+                "field": "razorpay_employee_id",
+                "type": "string",
+                "required": false
+              },
+              {
+                "field": "razorpay_people_id",
+                "type": "string",
+                "required": false
+              },
+              {
+                "field": "razorpay_mode",
+                "type": "string",
+                "required": false
               }
             ]
           },
@@ -12074,7 +12305,7 @@
                   }
                 }
               ],
-              "name": "Email Setup",
+              "name": "Email Setup Google",
               "on_state_actions": [],
               "order": 2,
               "sla_seconds": 14400,
@@ -12161,6 +12392,26 @@
               "tags": []
             },
             {
+              "name": "Payroll Registration",
+              "order": 7,
+              "description": "Payroll Registration",
+              "tags": [],
+              "on_state_actions": [],
+              "sla_seconds": null,
+              "method_refs": [
+                {
+                  "method_id": {
+                    "$ref": "method:Employee Payroll Registration",
+                    "attribute": "id"
+                  },
+                  "version_id": {
+                    "$ref": "method:Employee Payroll Registration",
+                    "attribute": "version_id"
+                  }
+                }
+              ]
+            },
+            {
               "description": "The HR user who registered this employee confirms final onboarding completion.",
               "method_refs": [
                 {
@@ -12176,7 +12427,7 @@
               ],
               "name": "Final HR Sign-off",
               "on_state_actions": [],
-              "order": 7,
+              "order": 8,
               "sla_seconds": 172800,
               "tags": []
             },
@@ -12196,10 +12447,32 @@
               ],
               "name": "Onboarding Completed",
               "on_state_actions": [],
-              "order": 8,
+              "order": 9,
               "sla_seconds": null,
               "tags": [
                 "terminal"
+              ]
+            },
+            {
+              "name": "Onboarding Cancelled",
+              "order": 10,
+              "description": "Onboarding Cancelled",
+              "tags": [
+                "terminal"
+              ],
+              "on_state_actions": [],
+              "sla_seconds": null,
+              "method_refs": [
+                {
+                  "method_id": {
+                    "$ref": "method:Employee Onboarding Cancelled",
+                    "attribute": "id"
+                  },
+                  "version_id": {
+                    "$ref": "method:Employee Onboarding Cancelled",
+                    "attribute": "version_id"
+                  }
+                }
               ]
             }
           ],
@@ -12245,16 +12518,16 @@
                   "type": "string"
                 }
               ],
-              "to_state": "Email Setup",
+              "to_state": "Email Setup Google",
               "trigger": "to_email setup"
             },
             {
               "auto_transition": null,
               "description": "HRMS invitation is sent to the employee's official email. Employee activates their account, completes personal and professional details, and uploads required documents.",
-              "from": "Email Setup",
+              "from": "Email Setup Google",
               "guards": [],
               "key": "email setup__to__profile completion pending",
-              "label": "Submit for account approval",
+              "label": "Submit proposed email address for account approval",
               "post_transition_tasks": [],
               "pre_transition_tasks": [],
               "required_fields": [
@@ -12328,11 +12601,11 @@
             },
             {
               "auto_transition": null,
-              "description": "Send completed provisioning to the HR user who started onboarding.",
+              "description": "Super Admin registers the employee in Payroll before final HR sign-off.",
               "from": "IT & Workspace Provisioning",
               "guards": [],
               "key": "provisioning_to_hr_signoff",
-              "label": "Finish IT provisioning and send to HR",
+              "label": "Finish IT provisioning and send to payroll",
               "post_transition_tasks": [],
               "pre_transition_tasks": [],
               "required_fields": [
@@ -12357,7 +12630,7 @@
                   "type": "text"
                 }
               ],
-              "to_state": "Final HR Sign-off",
+              "to_state": "Payroll Registration",
               "trigger": "provisioning_to_hr_signoff"
             },
             {
@@ -12419,6 +12692,121 @@
               "required_fields": [],
               "to_state": "Onboarding Completed",
               "trigger": "hr_signoff_to_completed"
+            },
+            {
+              "key": "payroll_to_hr_signoff",
+              "from": "Payroll Registration",
+              "to_state": "Final HR Sign-off",
+              "trigger": "payroll_to_hr_signoff",
+              "label": "Approve and register in Razorpay",
+              "guards": [
+                {
+                  "type": "field_present",
+                  "field": "razorpay_employee_id",
+                  "message": "Register the employee in Payroll before continuing",
+                  "config": {}
+                }
+              ],
+              "required_fields": [],
+              "pre_transition_tasks": [],
+              "post_transition_tasks": [],
+              "auto_transition": null
+            },
+            {
+              "key": "cancel_onboarding_1",
+              "from": "Employee Registration",
+              "to_state": "Onboarding Cancelled",
+              "trigger": "cancel_onboarding_1",
+              "label": "Cancel onboarding",
+              "guards": [],
+              "required_fields": [],
+              "pre_transition_tasks": [],
+              "post_transition_tasks": [],
+              "auto_transition": null
+            },
+            {
+              "key": "cancel_onboarding_2",
+              "from": "Email Setup Google",
+              "to_state": "Onboarding Cancelled",
+              "trigger": "cancel_onboarding_2",
+              "label": "Cancel onboarding",
+              "guards": [],
+              "required_fields": [],
+              "pre_transition_tasks": [],
+              "post_transition_tasks": [],
+              "auto_transition": null
+            },
+            {
+              "key": "cancel_onboarding_3",
+              "from": "Account Approval",
+              "to_state": "Onboarding Cancelled",
+              "trigger": "cancel_onboarding_3",
+              "label": "Cancel onboarding",
+              "guards": [],
+              "required_fields": [],
+              "pre_transition_tasks": [],
+              "post_transition_tasks": [],
+              "auto_transition": null
+            },
+            {
+              "key": "cancel_onboarding_4",
+              "from": "Profile Completion Pending",
+              "to_state": "Onboarding Cancelled",
+              "trigger": "cancel_onboarding_4",
+              "label": "Cancel onboarding",
+              "guards": [],
+              "required_fields": [],
+              "pre_transition_tasks": [],
+              "post_transition_tasks": [],
+              "auto_transition": null
+            },
+            {
+              "key": "cancel_onboarding_5",
+              "from": "Onboarding Verification",
+              "to_state": "Onboarding Cancelled",
+              "trigger": "cancel_onboarding_5",
+              "label": "Cancel onboarding",
+              "guards": [],
+              "required_fields": [],
+              "pre_transition_tasks": [],
+              "post_transition_tasks": [],
+              "auto_transition": null
+            },
+            {
+              "key": "cancel_onboarding_6",
+              "from": "IT & Workspace Provisioning",
+              "to_state": "Onboarding Cancelled",
+              "trigger": "cancel_onboarding_6",
+              "label": "Cancel onboarding",
+              "guards": [],
+              "required_fields": [],
+              "pre_transition_tasks": [],
+              "post_transition_tasks": [],
+              "auto_transition": null
+            },
+            {
+              "key": "cancel_onboarding_8",
+              "from": "Final HR Sign-off",
+              "to_state": "Onboarding Cancelled",
+              "trigger": "cancel_onboarding_8",
+              "label": "Cancel onboarding",
+              "guards": [],
+              "required_fields": [],
+              "pre_transition_tasks": [],
+              "post_transition_tasks": [],
+              "auto_transition": null
+            },
+            {
+              "key": "cancel_onboarding_7",
+              "from": "Payroll Registration",
+              "to_state": "Onboarding Cancelled",
+              "trigger": "cancel_onboarding_7",
+              "label": "Cancel onboarding",
+              "guards": [],
+              "required_fields": [],
+              "pre_transition_tasks": [],
+              "post_transition_tasks": [],
+              "auto_transition": null
             }
           ]
         }
@@ -19191,6 +19579,134 @@
           },
           "required": false
         }
+      }
+    },
+    {
+      "key": "field:razorpay_employee_id",
+      "kind": "field",
+      "match": "razorpay_employee_id",
+      "payload": {
+        "name": "Razorpay Employee ID",
+        "field_key": "razorpay_employee_id",
+        "field_type": "text",
+        "description": "Razorpay Employee ID",
+        "settings": {
+          "read_only": true,
+          "required": false
+        }
+      }
+    },
+    {
+      "key": "field:razorpay_people_id",
+      "kind": "field",
+      "match": "razorpay_people_id",
+      "payload": {
+        "name": "Razorpay People ID",
+        "field_key": "razorpay_people_id",
+        "field_type": "text",
+        "description": "Razorpay People ID",
+        "settings": {
+          "read_only": true,
+          "required": false
+        }
+      }
+    },
+    {
+      "key": "field:razorpay_mode",
+      "kind": "field",
+      "match": "razorpay_mode",
+      "payload": {
+        "name": "Payroll integration mode",
+        "field_key": "razorpay_mode",
+        "field_type": "text",
+        "description": "Payroll integration mode",
+        "settings": {
+          "read_only": true,
+          "required": false
+        }
+      }
+    },
+    {
+      "key": "method:Employee Payroll Registration",
+      "kind": "method",
+      "match": "Employee Payroll Registration",
+      "payload": {
+        "name": "Employee Payroll Registration",
+        "description": null,
+        "category_id": null,
+        "entity_types": [
+          "HRMS.Employee"
+        ],
+        "fields": [
+          {
+            "library_field_id": {
+              "$ref": "field:razorpay_employee_id",
+              "attribute": "id"
+            },
+            "version_id": {
+              "$ref": "field:razorpay_employee_id",
+              "attribute": "version_id"
+            },
+            "position": 0,
+            "required": false,
+            "label": "Razorpay Employee ID",
+            "placeholder": null,
+            "ownership": null,
+            "inherit_from": null,
+            "source_entity_type": null,
+            "source_field_key": null
+          },
+          {
+            "library_field_id": {
+              "$ref": "field:razorpay_people_id",
+              "attribute": "id"
+            },
+            "version_id": {
+              "$ref": "field:razorpay_people_id",
+              "attribute": "version_id"
+            },
+            "position": 1,
+            "required": false,
+            "label": "Razorpay People ID",
+            "placeholder": null,
+            "ownership": null,
+            "inherit_from": null,
+            "source_entity_type": null,
+            "source_field_key": null
+          },
+          {
+            "library_field_id": {
+              "$ref": "field:razorpay_mode",
+              "attribute": "id"
+            },
+            "version_id": {
+              "$ref": "field:razorpay_mode",
+              "attribute": "version_id"
+            },
+            "position": 2,
+            "required": false,
+            "label": "Payroll integration mode",
+            "placeholder": null,
+            "ownership": null,
+            "inherit_from": null,
+            "source_entity_type": null,
+            "source_field_key": null
+          }
+        ]
+      }
+    },
+    {
+      "key": "method:Employee Onboarding Cancelled",
+      "kind": "method",
+      "match": "Employee Onboarding Cancelled",
+      "payload": {
+        "name": "Employee Onboarding Cancelled",
+        "description": null,
+        "category_id": null,
+        "entity_types": [
+          "HRMS.Employee"
+        ],
+        "fields": []
       }
     }
   ],

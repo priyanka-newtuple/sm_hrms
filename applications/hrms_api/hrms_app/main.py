@@ -276,7 +276,18 @@ def create_app(platform=None, journal=None):
     def employee_action(entity_id: UUID, payload: EmployeeWorkflowAction, current=Depends(actor)):
         from .employee_work import transition_employee
         return transition_employee(platform, current, str(entity_id), str(payload.workflow_id),
-                                   payload.trigger, payload.idempotency_key)
+                                   payload.trigger, payload.idempotency_key, journal=journal)
+
+    @app.get('/v1/api/hrms/employee-work/{entity_id}/assignees')
+    def employee_assignees(entity_id: UUID, workflow_id: UUID, current=Depends(actor)):
+        from .onboarding_routing import assignees
+        return assignees(platform, current, str(entity_id), str(workflow_id))
+
+    @app.put('/v1/api/hrms/employee-work/{entity_id}/assignee')
+    def employee_assign(entity_id: UUID, payload: EmployeeAccountLink, current=Depends(actor)):
+        from .onboarding_routing import assign
+        with journal.lock(current.organization_id):
+            return assign(platform, current, str(entity_id), str(payload.workflow_id), str(payload.user_id))
 
     @app.get('/v1/api/hrms/employee-work/{entity_id}/form')
     def employee_work_form(entity_id: UUID, workflow_id: UUID, current=Depends(actor)):

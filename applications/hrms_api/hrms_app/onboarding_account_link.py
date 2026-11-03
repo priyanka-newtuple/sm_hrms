@@ -38,7 +38,7 @@ def link(service, actor, entity_id, workflow_id, user_id):
         item = next((i for i in employee_work(p, actor)
                      if i['entity_id'] == entity_id and i['workflow_id'] == workflow_id), None)
         workflow = p.request('GET', '/workflow-state-machines/' + workflow_id, token=actor.token)
-        if not item or not item['actions'] or not approval_step(workflow, item['current_state']):
+        if not item or not any(not a.get('cancellation') for a in item['actions']) or not approval_step(workflow, item['current_state']):
             raise AppError(409, 'Open the current Account Approval task before linking an account')
         record = p.request('GET', '/entity-records/' + entity_id, token=actor.token)
         if record['data'].get('employment_status') in {'inactive', 'offboarded'}:

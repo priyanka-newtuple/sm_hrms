@@ -420,3 +420,21 @@ def test_unknown_configuration_does_not_claim_resolution(monkeypatch):
     from hrms_app.employee_work import feedback_stage
     monkeypatch.delenv('HRMS_EMPLOYEE_PROFILE_FORM_ID',raising=False)
     assert feedback_stage(feedback_workflow(),'Done') is None
+
+
+def test_cancel_from_approval_does_not_link_account_or_create_payroll(monkeypatch):
+    monkeypatch.setenv('HRMS_EMPLOYEE_APPROVAL_FORM_ID','approval')
+    monkeypatch.setenv('HRMS_EMPLOYEE_CANCELLED_FORM_ID','cancelled')
+    monkeypatch.setenv('HRMS_EMPLOYEE_PAYROLL_FORM_ID','payroll')
+    p,a,calls=setup()
+    original=p.request
+    def request(method,path,**kwargs):
+        value=original(method,path,**kwargs)
+        if path.startswith('/workflow-state-machines/'):
+            value['definition']['states']=[{'name':'Employee Registration','method_refs':[{'method_id':'approval'}]}, {'name':'Cancelled','method_refs':[{'method_id':'cancelled'}],'tags':['terminal']}]
+            value['definition']['transitions'][0]['to_state']='Cancelled'
+        return value
+    p.request=request
+    transition_employee(p,a,'employee','workflow','next','cancel-key')
+    assert [method for method,_,_ in calls if method!='GET']==['POST']
+    assert calls[-1][1]=='/entities/employee/transitions'

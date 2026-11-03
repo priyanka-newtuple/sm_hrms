@@ -63,7 +63,7 @@ def install(api):
         'entity_permissions': [{'entity_type': 'HRMS.Employee', 'action': a, 'allowed': True} for a in ('view', 'edit')],
         'field_permissions': [{'entity_type': 'HRMS.Employee', 'field_name': f, 'can_view': True, 'can_edit': f in editable, 'mask_value': False} for f in sorted(visible)],
         'workflow_permissions': [{'machine_name': machine}],
-        'transition_permissions': [{'machine_name': machine, 'transition_key': t['key']} for t in definition['transitions'] if t.get('from', t.get('from_state')) in states],
+        'transition_permissions': [{'machine_name': machine, 'transition_key': t['key']} for t in definition['transitions'] if t.get('from', t.get('from_state')) in states and not t['key'].startswith('cancel_onboarding_')],
     })
     print('Restricted native Onboarding Employee role created; lifecycle forms verified')
 

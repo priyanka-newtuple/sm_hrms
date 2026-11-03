@@ -27,4 +27,4 @@ def test_email_stdin_is_secured_before_any_docker_consumers():
     assert capture < script.index('exec < /dev/null') < script.index('docker load')
     assert capture < script.index('exec -T "$service"')
     assert 'hrms_app.configure_email < "$email_payload"' in script
-    assert "trap 'rm -f -- \"$email_payload\"' EXIT" in script
+    assert "trap 'rm -f -- \"$email_payload\" \"$payroll_env\"' EXIT" in script

@@ -30,6 +30,16 @@ def resolve(platform):
         if len(matches) != 1:
             raise AppError(409, f'Configure one native onboarding form: {name}')
         result[variable] = matches[0]['method_id']
+    # Optional integration bindings preserve older published workflows.
+    for variable, name in {
+        'HRMS_EMPLOYEE_PAYROLL_FORM_ID': 'Employee Payroll Registration',
+        'HRMS_EMPLOYEE_CANCELLED_FORM_ID': 'Employee Onboarding Cancelled',
+    }.items():
+        matches = [m for m in methods if m['name'] == name and not m.get('is_archived')]
+        if len(matches) > 1:
+            raise AppError(409, f'Configure one native onboarding form: {name}')
+        if matches:
+            result[variable] = matches[0]['method_id']
     return result
 
 
