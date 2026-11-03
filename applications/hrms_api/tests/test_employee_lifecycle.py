@@ -173,3 +173,14 @@ def test_final_hr_signoff_does_not_grant_portal_access_before_completion():
     e['current_state']='Onboarding Completed'
     reconcile_employee(s,w,e,[COMPLETE_TAG])
     assert sum(body.get('role_id') == 'hrms_employee' for _,body in p.writes)==1
+
+
+def test_payroll_workflow_account_approval_waits_for_human_transition(monkeypatch):
+    monkeypatch.setenv('HRMS_EMPLOYEE_PAYROLL_FORM_ID','payroll')
+    p,s,w,e=system()
+    w['definition']['states']=[{'name':'Payroll','method_refs':[{'method_id':'payroll'}]}]
+    reconcile_employee(s,w,e,[APPROVAL_TAG])
+    p.people[0]['status']='active'
+    reconcile_employee(s,w,e,[APPROVAL_TAG])
+    assert p.data['account_approved'] is True
+    assert not any(path.endswith('/transitions') for path,_ in p.writes)

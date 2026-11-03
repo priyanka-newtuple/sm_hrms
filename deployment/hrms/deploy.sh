@@ -11,7 +11,8 @@ flock -n 9 || { echo 'Another HRMS deployment is running'; exit 1; }
 # Consume SSH stdin before Docker exec/run commands can drain the email JSON.
 # The file is private (umask 077) and is removed on both success and failure.
 email_payload=$(mktemp "$base/.email-payload.XXXXXX")
-trap 'rm -f -- "$email_payload"' EXIT
+payroll_env=$(mktemp "$base/.payroll-env.XXXXXX")
+trap 'rm -f -- "$email_payload" "$payroll_env"' EXIT
 cat > "$email_payload"
 exec < /dev/null
 test -s "$email_payload" || { echo 'Email configuration input is missing; redeploy from the release pipeline.' >&2; exit 1; }
@@ -20,8 +21,9 @@ sha256sum -c SHA256SUMS
 inbox_switches=$(python3 "$release/configure_uat_inbox.py" < "$email_payload")
 read -r HRMS_EMAIL_MODE HRMS_UAT_INBOX_ENABLED <<< "$inbox_switches"
 export HRMS_EMAIL_MODE HRMS_UAT_INBOX_ENABLED
+python3 "$release/configure_payroll.py" "$payroll_env" < "$email_payload"
 export IMAGE_TAG="$sha"
-compose=(docker compose --project-name newtuple-hrms-production --env-file "$base/production.env" -f "$release/compose.yml")
+compose=(docker compose --project-name newtuple-hrms-production --env-file "$base/production.env" --env-file "$payroll_env" -f "$release/compose.yml")
 "${compose[@]}" config --quiet
 # Only images in this release are loaded. No global prune, stop, or compose down.
 gzip -dc images.tar.gz | docker load
@@ -64,6 +66,7 @@ fi
 "${compose[@]}" run --rm -T --no-deps platform-install python -m hrms_app.install_offboarding_notifications < /dev/null
 # Read the email-mode payload and credentials from encrypted stdin, before any worker starts.
 "${compose[@]}" run --rm -T --no-deps platform-install python -m hrms_app.install_onboarding_bridge < /dev/null
+"${compose[@]}" run --rm -T --no-deps platform-install python -m hrms_app.install_onboarding_routing < /dev/null
 "${compose[@]}" run --rm -T --no-deps platform-install python -m hrms_app.install_onboarding_assets < /dev/null
 "${compose[@]}" run --rm -T --no-deps platform-install python -m hrms_app.install_asset_bulk < /dev/null
 # Apply the inbox off switch before live SMTP can be enabled, including on failed releases.

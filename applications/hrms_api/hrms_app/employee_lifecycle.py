@@ -215,6 +215,13 @@ def reconcile_employee(service, workflow, enrollment, tags):
                 raise AppError(
                     409, "Invitation outcome needs reconciliation before proceeding"
                 )
+            from .onboarding_routing import managed
+            if managed(workflow):
+                # Approval remains a human action in the new workflow; the bridge
+                # only records the verified native account status.
+                if not data.get('account_approved'):
+                    p.call('PUT', f'/entity-records/{eid}', json={'data': {'account_approved': True}})
+                return
             outgoing = [
                 t
                 for t in workflow["definition"]["transitions"]

@@ -1,3 +1,4 @@
+import { useHrmsCapabilities } from '../capabilities';
 import { EmployeeProfileInputs } from './EmployeeProfileInputs';
 import { RecordTabs } from '../components/record/RecordTabs';
 import { OnboardingAssets } from './OnboardingAssets';
@@ -9,11 +10,13 @@ import { ConfiguredInputs, NativeFormFields, type Field } from '../forms/Configu
 import { createRequestId } from '../requestId';
 import type { EmployeeWork } from '../workspace/useWaitingActions';
 
-type Form = {existing_account?:{user_id:string;email:string;active:boolean}|null;feedback_status?:'requested'|'submitted'|'resolved'|null;previous_feedback?:string|null;asset_section?:boolean;name:string; fields:Field[]; previous_fields:Field[]; values:Record<string,unknown>; current_state:string; verifier_feedback?:string|null};
+type Form = {payroll_mode?:string;existing_account?:{user_id:string;email:string;active:boolean}|null;feedback_status?:'requested'|'submitted'|'resolved'|null;previous_feedback?:string|null;asset_section?:boolean;name:string; fields:Field[]; previous_fields:Field[]; values:Record<string,unknown>; current_state:string; verifier_feedback?:string|null};
 export function EmployeeWorkflowActions({item,readOnly=false,open:controlledOpen,onOpenChange}:{
   item:EmployeeWork;readOnly?:boolean;open?:boolean;onOpenChange?:(open:boolean)=>void;
 }) {
   const client=useQueryClient();
+  const caps=useHrmsCapabilities();
+  const [cancelTrigger,setCancelTrigger]=useState<string|null>(null);
   const [localOpen,setLocalOpen]=useState(false);
   const open=controlledOpen??localOpen;
   const setOpen=(value:boolean)=>{setLocalOpen(value);onOpenChange?.(value);};
@@ -24,6 +27,10 @@ export function EmployeeWorkflowActions({item,readOnly=false,open:controlledOpen
   const changedState=!readOnly&&work.isSuccess&&(!current||current.current_state!==item.current_state);
   const form=useQuery({queryKey:['hrms','employee-state-form',item.entity_id,item.workflow_id,item.current_state],
     queryFn:()=>request<Form>(`/hrms/employee-work/${item.entity_id}/form?workflow_id=${item.workflow_id}`),enabled:open,refetchInterval:open?10_000:false});
+  const canAssign=caps.data?.roles.some(r=>['superadmin','hrms_hr_full'].includes(r))??false;
+  const assignees=useQuery({queryKey:['hrms','employee-assignees',item.entity_id,item.workflow_id,item.current_state],
+    queryFn:()=>request<{items:{id:string;name:string}[];current:string|null;fixed:boolean;unsupported?:boolean}>(`/hrms/employee-work/${item.entity_id}/assignees?workflow_id=${item.workflow_id}`),enabled:open&&canAssign&&!readOnly});
+  const assignment=useMutation({mutationFn:(user_id:string)=>request(`/hrms/employee-work/${item.entity_id}/assignee`,{method:'PUT',body:JSON.stringify({workflow_id:item.workflow_id,user_id})}),onSuccess:()=>{void client.invalidateQueries({queryKey:['hrms']});}});
   const hasManagerField=[...(form.data?.fields??[]),...(form.data?.previous_fields??[])].some(f=>f.field==='reports_to_employee_code');
   const employees=useQuery({queryKey:['hrms','employees'],queryFn:()=>request<{entity_id:string;employee_code:string;full_name:string;employment_status:string}[]>('/hrms/employees'),enabled:open&&hasManagerField});
   const managerCode=String((values??form.data?.values)?.reports_to_employee_code??'');
@@ -41,16 +48,16 @@ export function EmployeeWorkflowActions({item,readOnly=false,open:controlledOpen
       throw new Error('This task has changed. Close this panel and open the current task.');
     const editable=form.data?.fields.filter(f=>!f.read_only)??[];
     const input=values??form.data?.values??{};
-    const selected=item.actions.find(step=>step.trigger===trigger);
+    const selected=active.actions.find(step=>step.trigger===trigger);
     if(selected?.required_fields?.some(f=>f.field==='hr_verification_notes'&&f.required) &&
        (typeof input.hr_verification_notes!=='string'||!input.hr_verification_notes.trim()))
       throw new Error('Enter verification notes / a correction reason before continuing.');
     const changed=Object.fromEntries(editable.filter(f=>input[f.field]!==undefined && input[f.field]!==form.data?.values[f.field]).map(f=>[f.field,input[f.field]]));
-    if(Object.keys(changed).length) await request(`/hrms/employee-work/${item.entity_id}/form`,{
+    if(!selected?.cancellation&&Object.keys(changed).length) await request(`/hrms/employee-work/${item.entity_id}/form`,{
       method:'PUT',body:JSON.stringify({workflow_id:item.workflow_id,values:changed})});
     if(trigger) await request(`/hrms/employee-work/${item.entity_id}/actions`,{
       method:'POST',body:JSON.stringify({workflow_id:item.workflow_id,trigger,idempotency_key:key})});
-  },onSuccess:()=>{setValues(null);setKey(createRequestId());setOpen(false);void client.invalidateQueries({queryKey:['hrms']});},onError:()=>{void client.invalidateQueries({queryKey:['hrms']});}});
+  },onSuccess:()=>{setValues(null);setCancelTrigger(null);setKey(createRequestId());setOpen(false);void client.invalidateQueries({queryKey:['hrms']});},onError:()=>{void client.invalidateQueries({queryKey:['hrms']});}});
   const linkAccount=useMutation({mutationFn:()=>request(`/hrms/employee-work/${item.entity_id}/existing-account`,{
     method:'POST',body:JSON.stringify({workflow_id:item.workflow_id,user_id:form.data?.existing_account?.user_id})}),
     onSuccess:()=>{setValues(null);void client.invalidateQueries({queryKey:['hrms']});}});
@@ -63,6 +70,10 @@ export function EmployeeWorkflowActions({item,readOnly=false,open:controlledOpen
       {stale&&<p role="status">This task has moved forward or is no longer assigned to you. Close this panel to see the current tasks.</p>}
       {work.isError&&<p role="alert">Unable to refresh task access. <button onClick={()=>void work.refetch()}>Retry</button></p>}
       {form.data&&!stale&&<form onSubmit={e=>{e.preventDefault();if(e.target===e.currentTarget)action.mutate(null);}} className="space-y-5 mt-5">
+        {canAssign&&!readOnly&&assignees.data&&!assignees.data.unsupported&&<div><label htmlFor="onboarding-assignee">Assigned to</label><select id="onboarding-assignee" className="hrms-input" value={assignees.data.current??''} disabled={assignees.data.fixed||assignment.isPending} onChange={e=>assignment.mutate(e.target.value)}><option value="" disabled>Select an eligible assignee</option>{assignees.data.items.map(u=><option key={u.id} value={u.id}>{u.name}</option>)}</select></div>}
+        {assignees.isError&&<p role="alert">Could not load eligible assignees. <button type="button" onClick={()=>void assignees.refetch()}>Retry</button></p>}
+        {form.data.payroll_mode&&<p role="status">{form.data.payroll_mode==='mock'?'UAT mode: approval creates a simulated Payroll record only.':form.data.payroll_mode==='live'?'Live mode: approval creates an employee in Razorpay Payroll.':'Payroll registration is disabled.'}</p>}
+        {assignment.isError&&<p role="alert">{getApiErrorMessage(assignment.error)}</p>}
         {form.data.verifier_feedback && <section aria-label="Verifier feedback" className="rounded-xl border border-blue-200 bg-blue-50 p-4"><h3 className="font-semibold">Changes requested</h3><p className="whitespace-pre-wrap break-words mt-2">{form.data.verifier_feedback}</p></section>}
         {form.data.feedback_status==='submitted'&&<p role="status">Corrections submitted — awaiting HR review</p>}
         {form.data.previous_feedback&&<details><summary>Previous feedback · Resolved by HR</summary><p className="whitespace-pre-wrap break-words mt-2">{form.data.previous_feedback}</p><p className="hrms-muted mt-2">HR approved the details and moved onboarding forward. No correction action is pending.</p></details>}
@@ -78,8 +89,9 @@ export function EmployeeWorkflowActions({item,readOnly=false,open:controlledOpen
         {hasManagerField&&employees.isLoading&&<p role="status">Loading reporting manager names…</p>}
         {hasManagerField&&employees.isError&&<p role="alert">Could not load reporting manager names. <button type="button" onClick={()=>void employees.refetch()}>Try again</button></p>}
         <h3>{form.data.name}</h3><p className="hrms-muted">For questions or corrections, use Comments and @mention the relevant assignee.</p><div className="grid gap-4 sm:grid-cols-2"><NativeFormFields fields={(readOnly?form.data.fields.map(f=>({...f,read_only:true})):form.data.fields).filter(f=>!form.data?.asset_section||f.field!=='issued_asset_references')}><EmployeeProfileInputs fields={readOnly?form.data.fields.map(f=>({...f,read_only:true})):form.data.fields.filter(f=>!form.data?.asset_section||f.field!=='issued_asset_references')} adapters={managerAdapters} entityId={item.entity_id} values={values??form.data.values} onChange={v=>{setValues(v);setKey(createRequestId());}}/></NativeFormFields></div>
-        {!readOnly&&!form.data.existing_account&&work.isSuccess&&current&&<div className="flex flex-wrap gap-3"><button className="hrms-outline-button" disabled={action.isPending} type="submit">Save details</button>
-        {current.actions.map(step=><button key={step.trigger} type="button" className="hrms-primary-button" disabled={action.isPending} onClick={()=>action.mutate(step.trigger)}>{step.label||step.to_state}</button>)}</div>}
+        {!readOnly&&work.isSuccess&&current&&<div className="flex flex-wrap gap-3"><button className="hrms-outline-button" disabled={action.isPending} type="submit">Save details</button>
+        {current.actions.map(step=><button key={step.trigger} type="button" className="hrms-primary-button" disabled={action.isPending||(!step.cancellation&&!!form.data?.existing_account)} onClick={()=>step.cancellation?setCancelTrigger(step.trigger):action.mutate(step.trigger)}>{step.label||step.to_state}</button>)}</div>}
+        {cancelTrigger&&<section role="alert" className="rounded-xl border p-4"><p>Cancel this onboarding? Unsaved form edits will be discarded. Login access will remain unchanged.</p><div className="flex gap-3 mt-3"><button type="button" className="hrms-outline-button" onClick={()=>setCancelTrigger(null)}>Keep onboarding</button><button type="button" className="hrms-primary-button" disabled={action.isPending} onClick={()=>action.mutate(cancelTrigger)}>Confirm cancellation</button></div></section>}
       </form>}
       {action.isError&&<p role="alert" className="text-red-700">{getApiErrorMessage(action.error)}</p>}
       </RecordTabs>

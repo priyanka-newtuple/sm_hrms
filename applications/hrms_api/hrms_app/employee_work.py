@@ -96,6 +96,7 @@ def employee_enrollments(platform, actor):
 
 
 def employee_work(platform, actor):
+    from .onboarding_routing import cancellation
     result = []
     workflows = {}
     grants = transition_grants(platform, actor)
@@ -116,8 +117,9 @@ def employee_work(platform, actor):
             for t in workflow["definition"]["transitions"]
             if t.get("from", row["current_state"]) == row["current_state"]
         }
+        cancelled_triggers = {t['trigger'] for t in workflow['definition']['transitions'] if cancellation(workflow, t)}
         options = [
-            {**t, "required_fields": requirements.get(t["trigger"], [])}
+            {**t, "required_fields": requirements.get(t["trigger"], []), "cancellation": t["trigger"] in cancelled_triggers}
             for t in row.get("transition_options", []) if t["trigger"] in permitted
         ]
         if is_owner_signoff_step(workflow, row["current_state"]):
@@ -125,13 +127,13 @@ def employee_work(platform, actor):
             if record["organization_id"] != actor.organization_id:
                 raise AppError(403, "Employee organization mismatch")
             if record.get("owner_id") != actor.user_id:
-                options = []
+                options = [a for a in options if a.get("cancellation")]
         data = row.get("summary_fields") or {}
         if data.get('employment_status') in {'offboarded','inactive'}:
             options = []
         own = data.get("platform_user_id") == actor.user_id
         if is_employee_profile_step(workflow, row["current_state"]) and not own:
-            options = []
+            options = [a for a in options if a.get("cancellation")]
         if (not options and not own) or row.get("archived_at"):
             continue
         result.append(
@@ -158,8 +160,11 @@ def employee_work(platform, actor):
 
 
 def transition_employee(
-    platform, actor, entity_id, workflow_id, trigger, idempotency_key
+    platform, actor, entity_id, workflow_id, trigger, idempotency_key, journal=None, _db=None
 ):
+    if journal is not None and _db is None:
+        with journal.lock(actor.organization_id) as db:
+            return transition_employee(platform, actor, entity_id, workflow_id, trigger, idempotency_key, journal, db)
     item = next(
         (
             r
@@ -173,7 +178,7 @@ def transition_employee(
     selected = next(a for a in item["actions"] if a["trigger"] == trigger)
     from .onboarding_account_link import approval_step
     approval_workflow = platform.request('GET', '/workflow-state-machines/' + workflow_id, token=actor.token)
-    if approval_step(approval_workflow, item['current_state']):
+    if not selected.get('cancellation') and approval_step(approval_workflow, item['current_state']):
         record = platform.request('GET', '/entity-records/' + entity_id, token=actor.token)
         if not record['data'].get('platform_user_id'):
             raise AppError(409, 'The employee account is not linked yet. An administrator must review and link any existing account before continuing.')
@@ -189,6 +194,12 @@ def transition_employee(
         if not value and any(f['field'] == ASSET_FIELD and f.get('required') for f in selected['required_fields']):
             raise AppError(422, 'Issue the required asset before completing provisioning')
         platform.request('PUT', f'/entity-records/{entity_id}', token=actor.token, json={'data': {ASSET_FIELD:value}})
+    from .onboarding_routing import payroll_step
+    if not selected.get('cancellation') and payroll_step(approval_workflow, item['current_state']):
+        if journal is None:
+            raise AppError(503, 'Payroll operation journal is unavailable')
+        from .onboarding_payroll import register
+        register(platform, journal, actor, entity_id, db=_db)
     # The native engine rechecks role grants, guards, required fields and state.
     return platform.request(
         "POST",
@@ -242,6 +253,7 @@ def employee_form(platform, actor, entity_id, workflow_id):
         if g["entity_type"] == "HRMS.Employee"
     }
     admin = "superadmin" in actor.roles
+    terminal = any(s['name'] == enrollment['current_state'] and 'terminal' in s.get('tags', []) for s in definition.get('states', []))
     other_employee_profile = (
         is_employee_profile_step(workflow, enrollment["current_state"])
         and record["data"].get("platform_user_id") != actor.user_id
@@ -257,6 +269,7 @@ def employee_form(platform, actor, entity_id, workflow_id):
         {
             **f,
             "read_only": f.get("read_only")
+            or terminal
             or other_employee_profile
             or (is_owner_signoff_step(workflow, enrollment["current_state"])
                 and record.get("owner_id") != actor.user_id)
@@ -310,6 +323,10 @@ def employee_form(platform, actor, entity_id, workflow_id):
     from .onboarding_account_link import approval_step, candidate
     if approval_step(workflow, enrollment['current_state']):
         form['existing_account'] = candidate(platform, actor, record)
+    from .onboarding_routing import payroll_step
+    if payroll_step(workflow, enrollment['current_state']):
+        from .onboarding_payroll import mode
+        form['payroll_mode'] = mode()
     return form
 
 
