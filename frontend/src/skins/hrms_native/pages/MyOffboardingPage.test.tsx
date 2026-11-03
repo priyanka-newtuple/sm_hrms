@@ -52,10 +52,11 @@ it('shows participant progress without an employee form or actions',async()=>{
 
 it('renders email and declaration despite empty choices and reconfirms changed email',async()=>{
  state.contact=true;show();
- const email=await screen.findByRole('textbox',{name:'Personal email *'});
+ const email=await screen.findByRole('textbox',{name:'Personal email'});
+ expect(screen.getAllByTitle('Required')).toHaveLength(3);
  fireEvent.change(email,{target:{value:'personal@example.com'}});
  fireEvent.click(screen.getByRole('radio',{name:'Yes'}));
- fireEvent.click(screen.getByRole('checkbox',{name:'I confirm the information is accurate *'}));
+ fireEvent.click(screen.getByRole('checkbox',{name:'I confirm the information is accurate'}));
  fireEvent.change(email,{target:{value:'updated@example.com'}});
  expect((screen.getByRole('radio',{name:'Yes'}) as HTMLInputElement).checked).toBe(false);
  expect(screen.getByText('Confirm that updated@example.com is your personal email for correspondence after exit.')).toBeTruthy();

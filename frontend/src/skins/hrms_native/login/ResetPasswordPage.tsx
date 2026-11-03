@@ -1,3 +1,4 @@
+import { FieldLabel } from '../forms/FieldLabel';
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { CheckCircle, Eye, EyeOff, KeyRound } from 'lucide-react';
@@ -72,16 +73,16 @@ function PasswordForm({ token }: { token: string }) {
           <form onSubmit={submit} className="space-y-5">
             {error && <p role="alert" className="text-red-700">{error}</p>}
             <div>
-              <label className="block mb-2" htmlFor="new-password">New password</label>
+              <label className="block mb-2" htmlFor="new-password"><FieldLabel required>New password</FieldLabel></label>
               <div className="relative">
-                <input id="new-password" type={visible ? 'text' : 'password'} autoComplete="new-password" required value={password} onChange={e => setPassword(e.target.value)} className="w-full rounded-xl border border-slate-200 p-3 pr-12" />
+                <input aria-label="New password" id="new-password" type={visible ? 'text' : 'password'} autoComplete="new-password" required value={password} onChange={e => setPassword(e.target.value)} className="w-full rounded-xl border border-slate-200 p-3 pr-12" />
                 <button type="button" aria-label={visible ? 'Hide password' : 'Show password'} className="absolute right-3 top-3" onClick={() => setVisible(!visible)}>{visible ? <EyeOff size={20} /> : <Eye size={20} />}</button>
               </div>
               <PasswordRequirements password={password} />
             </div>
             <div>
-              <label className="block mb-2" htmlFor="confirm-password">Confirm password</label>
-              <input id="confirm-password" type={visible ? 'text' : 'password'} autoComplete="new-password" required value={confirmation} onChange={e => setConfirmation(e.target.value)} className="w-full rounded-xl border border-slate-200 p-3" />
+              <label className="block mb-2" htmlFor="confirm-password"><FieldLabel required>Confirm password</FieldLabel></label>
+              <input aria-label="Confirm password" id="confirm-password" type={visible ? 'text' : 'password'} autoComplete="new-password" required value={confirmation} onChange={e => setConfirmation(e.target.value)} className="w-full rounded-xl border border-slate-200 p-3" />
             </div>
             <button type="submit" disabled={pending} className="hrms-primary-button">{pending ? 'Saving…' : 'Save password'}</button>
           </form>

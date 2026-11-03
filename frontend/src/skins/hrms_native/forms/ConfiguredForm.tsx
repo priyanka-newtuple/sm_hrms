@@ -1,3 +1,4 @@
+import { FieldLabel } from './FieldLabel';
 import MultiSelectDropdown from '@/core/components/MultiSelectDropdown';
 import DocumentFieldInput from '@/core/components/DocumentFieldInput';
 import type { FormField } from '@/core/types';
@@ -27,7 +28,7 @@ export function commandValues(fields:Field[], values:Record<string,unknown>, exc
 }
 export const employeeSystemFields=['employee_code','employment_status','platform_user_id','identifier','hrms_operation_key','last_working_day','exit_reason','exit_note'];
 export const employeeAdapters={hrms_role:{key:'role',label:'Access role'},reports_to_employee_code:{key:'reports_to_entity_id',label:'Reporting manager'}};
-export function ConfiguredInputs({values,onChange,exclude=[],fields:provided,adapters={},entityId}:{values:Record<string,unknown>;onChange:(values:Record<string,unknown>)=>void;exclude?:string[];fields?:Field[];adapters?:Record<string,FieldAdapter>;entityId?:string}) {
+export function ConfiguredInputs({values,onChange,exclude=[],fields:provided,adapters={},entityId,validateRequired=true}:{values:Record<string,unknown>;onChange:(values:Record<string,unknown>)=>void;exclude?:string[];fields?:Field[];adapters?:Record<string,FieldAdapter>;entityId?:string;validateRequired?:boolean}) {
   const context=useContext(Context);
   return <>{(provided??context.fields).filter(f=>!exclude.includes(f.field)).map(f=>{
     const adapter=adapters[f.field]??{}, key=adapter.key??f.field, type=adapter.type??f.type??'string', value=values[key];
@@ -35,21 +36,21 @@ export function ConfiguredInputs({values,onChange,exclude=[],fields:provided,ada
     const numeric=['integer','int','number','float','decimal','timer_duration'].includes(type);
     const supported=['string','str','text','email','phone','url','date','datetime','enum','multi_select','boolean','bool'].includes(type)||numeric;
     const readonly=!!f.read_only||!!adapter.readOnly;
-    const common={className:'hrms-field-input',required:!!f.required&&!readonly,disabled:readonly||(!supported&&!adapter.options),placeholder:f.placeholder};
+    const common={className:'hrms-field-input',required:validateRequired&&!!f.required&&!readonly,disabled:readonly||(!supported&&!adapter.options),placeholder:f.placeholder};
     const title=f.description?.trim()||adapter.label||key.replaceAll('_',' ').replace(/^./,c=>c.toUpperCase());
     const choices=adapter.options??(f.enum_values??[]).map(v=>({id:v,name:f.enum_labels?.[v]??v}));
     const display=value==null?'':typeof value==='object'?JSON.stringify(value):String(value);
     const inputDisplay=type==='datetime' ? (/^\d{4}-\d{2}-\d{2}$/.test(display)?`${display}T00:00`:display.replace(' ','T').slice(0,16)) : display;
     if (type==='multi_select') return <div key={f.field} className="sm:col-span-2" role="group" aria-label={title}>
-      <p className="text-sm leading-6 mb-2">{title}{f.required?' *':''}</p>
+      <p className="text-sm leading-6 mb-2"><FieldLabel required={!!f.required&&!readonly}>{title}</FieldLabel></p>
       {typeof value==='string'&&value&&<p className="text-sm mb-2">Previously entered: {value}. Select the matching options below.</p>}
       <MultiSelectDropdown options={choices.map(c=>c.id)} value={Array.isArray(value)?value.filter((v):v is string=>typeof v==='string'):[]} onChange={set} disabled={readonly} labelFor={id=>choices.find(c=>c.id===id)?.name??id} placeholder="Search and select options…"/>
     </div>;
-    if (['boolean','bool'].includes(type)) return <div key={f.field} className="sm:col-span-2"><label className="flex items-start gap-3 text-sm leading-6"><input className="mt-1 h-4 w-4 shrink-0 accent-[#0047AB]" type="checkbox" disabled={readonly} required={!!f.required&&!readonly} checked={value===true} onChange={e=>set(e.target.checked)}/><span>{title}</span></label></div>;
-    return <div key={f.field} className={f.col_span===2||type==='text'?'sm:col-span-2':''}><label className="flex flex-col gap-2 text-sm leading-6"><span>{title}</span>{type==='document'?<DocumentFieldInput field={{id:f.field,label:title,type:'document',required:!!f.required,system:false,document_config:f.document_config}} value={value} onChange={set} disabled={readonly||!entityId} entityId={entityId}/>:adapter.options||type==='enum'||!!f.enum_values?.length?
-      <select {...common} value={display} onChange={e=>set(e.target.value)}><option value="">Select…</option>{choices.map(v=><option key={v.id} value={v.id}>{v.name}</option>)}</select>
-      :type==='text'?<textarea {...common} value={display} onChange={e=>set(e.target.value)}/>
-      :<input {...common} type={numeric?'number':type==='date'?'date':type==='datetime'?'datetime-local':type==='phone'?'tel':['email','url'].includes(type)?type:'text'} pattern={type==='phone'?String.raw`(?=(?:[^0-9]*[0-9]){7,15}[^0-9]*$)\+?[0-9 \(\)\-]+`:undefined} title={type==='phone'?'Enter a valid phone number with 7-15 digits. Use only digits, an optional leading +, spaces, hyphens or parentheses.':undefined} onInvalid={e=>{if(type==='phone'&&e.currentTarget.validity.patternMismatch)e.currentTarget.setCustomValidity(e.currentTarget.title);}} onInput={e=>e.currentTarget.setCustomValidity('')} step={['float','decimal'].includes(type)?'any':1} value={inputDisplay} onChange={e=>set(numeric?(e.target.value===''?null:Number(e.target.value)):e.target.value)}/>}</label>{!readonly&&adapter.action}</div>;
+    if (['boolean','bool'].includes(type)) return <div key={f.field} className="sm:col-span-2"><label className="flex items-start gap-3 text-sm leading-6"><input className="mt-1 h-4 w-4 shrink-0 accent-[#0047AB]" type="checkbox" aria-label={title} aria-required={!!f.required&&!readonly} disabled={readonly} required={validateRequired&&!!f.required&&!readonly} checked={value===true} onChange={e=>set(e.target.checked)}/><FieldLabel required={!!f.required&&!readonly}>{title}</FieldLabel></label></div>;
+    return <div key={f.field} className={f.col_span===2||type==='text'?'sm:col-span-2':''}><label className="flex flex-col gap-2 text-sm leading-6"><FieldLabel required={!!f.required&&!readonly}>{title}</FieldLabel>{type==='document'?<DocumentFieldInput field={{id:f.field,label:title,type:'document',required:!!f.required,system:false,document_config:f.document_config}} value={value} onChange={set} disabled={readonly||!entityId} entityId={entityId}/>:adapter.options||type==='enum'||!!f.enum_values?.length?
+      <select aria-label={title} aria-required={!!f.required&&!readonly} {...common} value={display} onChange={e=>set(e.target.value)}><option value="">Select…</option>{choices.map(v=><option key={v.id} value={v.id}>{v.name}</option>)}</select>
+      :type==='text'?<textarea aria-label={title} aria-required={!!f.required&&!readonly} {...common} value={display} onChange={e=>set(e.target.value)}/>
+      :<input aria-label={title} aria-required={!!f.required&&!readonly} {...common} type={numeric?'number':type==='date'?'date':type==='datetime'?'datetime-local':type==='phone'?'tel':['email','url'].includes(type)?type:'text'} pattern={type==='phone'?String.raw`(?=(?:[^0-9]*[0-9]){7,15}[^0-9]*$)\+?[0-9 \(\)\-]+`:undefined} title={type==='phone'?'Enter a valid phone number with 7-15 digits. Use only digits, an optional leading +, spaces, hyphens or parentheses.':undefined} onInvalid={e=>{if(type==='phone'&&e.currentTarget.validity.patternMismatch)e.currentTarget.setCustomValidity(e.currentTarget.title);}} onInput={e=>e.currentTarget.setCustomValidity('')} step={['float','decimal'].includes(type)?'any':1} value={inputDisplay} onChange={e=>set(numeric?(e.target.value===''?null:Number(e.target.value)):e.target.value)}/>}</label>{!readonly&&adapter.action}</div>;
   })}</>;
 }
 
@@ -76,6 +77,8 @@ export function ConfiguredField({field, label, children, action, operational = f
   const config = context.fields.find(f=>f.field===(context.aliases[field]??field));
   if (!config && !operational) return null;
   const text = config?.description?.trim() || label;
+  const required = config ? !!config.required && !config.read_only : Children.toArray(children).some(child =>
+    isValidElement(child) && !!(child.props as Record<string,unknown>).required);
   const content = Children.map(children, child => {
     if (!isValidElement(child) || !['input','textarea','select'].includes(String(child.type))) return child;
     const control = child as ReactElement<Record<string,unknown>>;
@@ -83,6 +86,7 @@ export function ConfiguredField({field, label, children, action, operational = f
     const select = child.type === 'select';
     const readonly = Boolean(config?.read_only);
     const configured: Record<string,unknown> = {
+      'aria-label': props['aria-label'] ?? text,
       required: Boolean(config ? config.required && !readonly : props.required),
       placeholder: config?.placeholder ?? props.placeholder,
       readOnly: select ? undefined : Boolean(props.readOnly || readonly),
@@ -94,6 +98,6 @@ export function ConfiguredField({field, label, children, action, operational = f
     }
     return cloneElement(control,configured);
   });
-  if (action && !config?.read_only) return <div className={`${className} ${config?.col_span===2?'sm:col-span-2':''}`}><label className="block space-y-1"><span>{text}</span>{content}</label>{action}</div>;
-  return <label className={`${className} ${config?.col_span===2?'sm:col-span-2':''}`}><span>{text}</span>{content}</label>;
+  if (action && !config?.read_only) return <div className={`${className} ${config?.col_span===2?'sm:col-span-2':''}`}><label className="block space-y-1"><FieldLabel required={required}>{text}</FieldLabel>{content}</label>{action}</div>;
+  return <label className={`${className} ${config?.col_span===2?'sm:col-span-2':''}`}><FieldLabel required={required}>{text}</FieldLabel>{content}</label>;
 }

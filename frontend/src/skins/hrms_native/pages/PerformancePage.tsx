@@ -1,3 +1,4 @@
+import { FieldLabel } from '../forms/FieldLabel';
 import { RecordTabs } from '../components/record/RecordTabs';
 import { createRequestId } from '../requestId';
 import { ArrowRight, Plus, Layers, Target, MessageSquare, CheckCircle2 } from 'lucide-react';
@@ -99,7 +100,7 @@ function ActionForm({ item, action, done }: { item?: Item; action: string; done:
     <p className="text-sm text-muted-foreground">Select employees with active accounts. For someone without a reporting manager, choose who assesses them. The employee cannot assess or calibrate their own review.</p>
     <div className="max-h-56 space-y-2 overflow-auto rounded-lg border p-3">{options.data?.employees.filter(p => !inCycle.has(p.id)).map(p => <div key={p.id} className="flex flex-wrap items-center gap-2 text-sm">
       <label className="flex items-center gap-2"><input type="checkbox" checked={participants.includes(p.id)} onChange={e => setParticipants(e.target.checked ? [...participants, p.id] : participants.filter(id => id !== p.id))} />{p.name} · Manager: {p.manager_name ?? 'none'}</label>
-      {!p.manager_name && participants.includes(p.id) && <select aria-label={`Who assesses ${p.name}`} className={inputClass} required value={assessors[p.id] ?? ''} onChange={e => setAssessors({ ...assessors, [p.id]: e.target.value })}><option value="">Who assesses them…</option>{options.data?.users.filter(u => u.id !== p.employee_user_id).map(u => <option key={u.id} value={u.id}>{u.name}</option>)}</select>}
+      {!p.manager_name && participants.includes(p.id) && <label><FieldLabel required>{`Who assesses ${p.name}`}</FieldLabel><select aria-label={`Who assesses ${p.name}`} className={inputClass} required value={assessors[p.id] ?? ''} onChange={e => setAssessors({ ...assessors, [p.id]: e.target.value })}><option value="">Who assesses them…</option>{options.data?.users.filter(u => u.id !== p.employee_user_id).map(u => <option key={u.id} value={u.id}>{u.name}</option>)}</select></label>}
     </div>)}</div>
     {options.isLoading && <p>Loading participants…</p>}{options.isError && <p role="alert">{getApiErrorMessage(options.error)}</p>}
   </>;
