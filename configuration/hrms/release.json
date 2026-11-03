@@ -12245,21 +12245,6 @@
                 "style_config": null,
                 "read_only": null,
                 "source_states": []
-              },
-              {
-                "field": "razorpay_employee_id",
-                "type": "string",
-                "required": false
-              },
-              {
-                "field": "razorpay_people_id",
-                "type": "string",
-                "required": false
-              },
-              {
-                "field": "razorpay_mode",
-                "type": "string",
-                "required": false
               }
             ]
           },
