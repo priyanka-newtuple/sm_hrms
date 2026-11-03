@@ -32,3 +32,11 @@ def test_configured_enum_can_extend_seeded_choices(monkeypatch):
     monkeypatch.setattr('hrms_app.form_values.configured_form',lambda *a:{'fields':fields})
     data=dict(title='Coach',category='mentoring',measurement='Two sessions',weight=20,target_date='2030-01-01')
     assert record_input(None,'HRMS.PerformanceGoal',GoalInput,data)['category']=='mentoring'
+
+
+def test_resubmitting_invalid_phone_cannot_bypass_validation(monkeypatch):
+    monkeypatch.setattr('hrms_app.form_values.configured_form', lambda *a: {'fields': [
+        {'field': 'contact', 'type': 'phone', 'description': 'Contact'}]})
+    with pytest.raises(AppError, match='valid phone number'):
+        editable_values(None, 'HRMS.Employee', {'contact': 'letters'}, current={'contact': 'letters'})
+    assert editable_values(None, 'HRMS.Employee', {'contact': ''}) == {'contact': ''}

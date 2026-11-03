@@ -23,6 +23,14 @@ export function EmployeeWorkflowActions({item,readOnly=false,open:controlledOpen
   const changedState=!readOnly&&work.isSuccess&&(!current||current.current_state!==item.current_state);
   const form=useQuery({queryKey:['hrms','employee-state-form',item.entity_id,item.workflow_id,item.current_state],
     queryFn:()=>request<Form>(`/hrms/employee-work/${item.entity_id}/form?workflow_id=${item.workflow_id}`),enabled:open,refetchInterval:open?10_000:false});
+  const hasManagerField=[...(form.data?.fields??[]),...(form.data?.previous_fields??[])].some(f=>f.field==='reports_to_employee_code');
+  const employees=useQuery({queryKey:['hrms','employees'],queryFn:()=>request<{entity_id:string;employee_code:string;full_name:string;employment_status:string}[]>('/hrms/employees'),enabled:open&&hasManagerField});
+  const managerCode=String((values??form.data?.values)?.reports_to_employee_code??'');
+  const managerOptions=(employees.data??[]).filter(e=>e.employee_code===managerCode||(e.entity_id!==item.entity_id&&e.employment_status==='active'))
+    .map(e=>({id:e.employee_code,name:`${e.full_name} · ${e.employee_code}`}));
+  // Preserve saved references when the linked employee is outside the viewer's scope.
+  if(managerCode&&!managerOptions.some(e=>e.id===managerCode))managerOptions.push({id:managerCode,name:managerCode});
+  const managerAdapters={reports_to_employee_code:{options:managerOptions}};
   const stale=changedState||(!readOnly&&Boolean(form.data&&form.data.current_state!==item.current_state));
   const action=useMutation({mutationFn:async(trigger:string|null)=>{
     const latest=await work.refetch();
@@ -57,7 +65,7 @@ export function EmployeeWorkflowActions({item,readOnly=false,open:controlledOpen
         {form.data.verifier_feedback && <section aria-label="Verifier feedback" className="rounded-xl border border-blue-200 bg-blue-50 p-4"><h3 className="font-semibold">Changes requested</h3><p className="whitespace-pre-wrap break-words mt-2">{form.data.verifier_feedback}</p></section>}
         {form.data.feedback_status==='submitted'&&<p role="status">Corrections submitted — awaiting HR review</p>}
         {form.data.previous_feedback&&<details><summary>Previous feedback · Resolved by HR</summary><p className="whitespace-pre-wrap break-words mt-2">{form.data.previous_feedback}</p><p className="hrms-muted mt-2">HR approved the details and moved onboarding forward. No correction action is pending.</p></details>}
-        {!!form.data.previous_fields.length&&<details><summary>Previously entered details</summary><div className="grid gap-4 sm:grid-cols-2 mt-4"><NativeFormFields fields={form.data.previous_fields}><ConfiguredInputs entityId={item.entity_id} values={form.data.values} onChange={()=>{}}/></NativeFormFields></div></details>}
+        {!!form.data.previous_fields.length&&<details><summary>Previously entered details</summary><div className="grid gap-4 sm:grid-cols-2 mt-4"><NativeFormFields fields={form.data.previous_fields}><ConfiguredInputs adapters={managerAdapters} entityId={item.entity_id} values={form.data.values} onChange={()=>{}}/></NativeFormFields></div></details>}
         {form.data.asset_section&&<OnboardingAssets employeeId={item.entity_id} workflowId={item.workflow_id} employeeName={item.title} readOnly={readOnly||!item.actions.length}/>}
         {form.data.existing_account&&<section className="rounded-xl border border-blue-200 bg-blue-50 p-4" aria-label="Existing account">
           <h3 className="font-semibold">An account already exists</h3>
@@ -66,7 +74,9 @@ export function EmployeeWorkflowActions({item,readOnly=false,open:controlledOpen
           {!readOnly&&form.data.existing_account.active&&<button type="button" className="hrms-primary-button mt-3" disabled={linkAccount.isPending||linkAccount.isSuccess} onClick={()=>linkAccount.mutate()}>{linkAccount.isPending?'Linking…':'Confirm and link existing account'}</button>}
           {linkAccount.isError&&<p role="alert">{getApiErrorMessage(linkAccount.error)}</p>}
         </section>}
-        <h3>{form.data.name}</h3><div className="grid gap-4 sm:grid-cols-2"><NativeFormFields fields={(readOnly?form.data.fields.map(f=>({...f,read_only:true})):form.data.fields).filter(f=>!form.data?.asset_section||f.field!=='issued_asset_references')}><ConfiguredInputs entityId={item.entity_id} values={values??form.data.values} onChange={v=>{setValues(v);setKey(createRequestId());}}/></NativeFormFields></div>
+        {hasManagerField&&employees.isLoading&&<p role="status">Loading reporting manager names…</p>}
+        {hasManagerField&&employees.isError&&<p role="alert">Could not load reporting manager names. <button type="button" onClick={()=>void employees.refetch()}>Try again</button></p>}
+        <h3>{form.data.name}</h3><div className="grid gap-4 sm:grid-cols-2"><NativeFormFields fields={(readOnly?form.data.fields.map(f=>({...f,read_only:true})):form.data.fields).filter(f=>!form.data?.asset_section||f.field!=='issued_asset_references')}><ConfiguredInputs adapters={managerAdapters} entityId={item.entity_id} values={values??form.data.values} onChange={v=>{setValues(v);setKey(createRequestId());}}/></NativeFormFields></div>
         {!readOnly&&!form.data.existing_account&&work.isSuccess&&current&&<div className="flex flex-wrap gap-3"><button className="hrms-outline-button" disabled={action.isPending} type="submit">Save details</button>
         {current.actions.map(step=><button key={step.trigger} type="button" className="hrms-primary-button" disabled={action.isPending} onClick={()=>action.mutate(step.trigger)}>{step.label||step.to_state}</button>)}</div>}
       </form>}

@@ -32,7 +32,7 @@ def editable_values(platform, kind, values, *, excluded=(), current=None, aliase
             if key in values:
                 result[key] = value
         elif key in values:
-            result[key] = value if key in current and value == current[key] else _typed(label, field, value)
+            result[key] = value if key in current and value == current[key] and str(field.get('type')).lower() != 'phone' else _typed(label, field, value)
     return result
 
 

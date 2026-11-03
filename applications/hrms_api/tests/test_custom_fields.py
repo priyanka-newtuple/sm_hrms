@@ -106,3 +106,19 @@ def test_new_employee_workflow_access_is_discovered_as_admin(monkeypatch):
         updates.append(json)
     field_access.sync_service_access(None, call)
     assert updates == [{'workflow_permissions': [{'machine_name': 'new_employee'}]}]
+
+
+@pytest.mark.parametrize('value', ['+91 98765 43210', '(020) 1234-5678', '00123456789', '1234567', '+123456789012345', ''])
+def test_phone_preserves_valid_formatting(value):
+    assert custom_fields._typed('Contact', {'type': 'phone'}, value) == value
+
+
+@pytest.mark.parametrize('value', ['kjkjkjk', '+91 98765abc', '123456', '1234567890123456', '123+4567890', '   ', 9876543210, True])
+def test_configured_phone_rejects_invalid_values(value):
+    with pytest.raises(AppError, match='Contact: Enter a valid phone number') as error:
+        custom_fields._typed('Contact', {'type': 'phone'}, value)
+    assert error.value.status == 422
+
+
+def test_text_field_does_not_receive_phone_validation():
+    assert custom_fields._typed('Phone', {'type': 'string'}, 'extension ABC') == 'extension ABC'
