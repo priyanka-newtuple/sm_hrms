@@ -101,3 +101,28 @@ def test_repairs_only_missing_runtime_permission_and_is_idempotent():
     assert {p['permission_key'] for p in role['permissions']} == {p['permission_key'] for p in before['permissions']} | {'workflow:write'}
     for key in ('field_permissions', 'workflow_permissions', 'transition_permissions', 'entity_permissions'):
         assert role[key] == before[key]
+
+
+def test_profile_upgrade_inherits_existing_field_permissions_once():
+    platform = Platform()
+    install(platform)
+    role = platform.roles[0]
+    role['field_permissions'].extend([
+        {'entity_type': 'HRMS.Employee', 'field_name': 'emergency_contact', 'can_view': True, 'can_edit': True, 'mask_value': False},
+        {'entity_type': 'HRMS.Employee', 'field_name': 'emergency_contact_phone', 'can_view': False, 'can_edit': False, 'mask_value': False},
+    ])
+    original = platform.call
+    def updated(method, path, **kwargs):
+        result = original(method, path, **kwargs)
+        if path == '/workflow-state-machines':
+            result['published_items'][0]['definition']['method_schemas'][0]['fields'].extend(
+                {'field': key} for key in ('permanent_same_as_current', 'emergency_contact_relationship', 'emergency_contact_phone'))
+        return result
+    platform.call = updated
+    platform.writes.clear()
+    install(platform)
+    install(platform)
+    assert len(platform.writes) == 1
+    grants = {f['field_name']: f for f in role['field_permissions']}
+    assert grants['emergency_contact_relationship']['can_edit'] is True
+    assert grants['emergency_contact_phone']['can_view'] is False

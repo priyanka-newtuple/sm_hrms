@@ -2308,19 +2308,200 @@
       "kind": "field",
       "match": "skills",
       "payload": {
-        "description": "Skills",
         "field_key": "skills",
-        "field_type": "textarea",
         "name": "Skills",
+        "description": "Skills",
+        "field_type": "multi_select",
         "settings": {
-          "col_span": null,
-          "default": null,
-          "editable": null,
-          "nullable": true,
-          "ownership": null,
-          "placeholder": null,
-          "required": false,
-          "source": null
+          "enum_values": [
+            "Python",
+            "SQL",
+            "JavaScript",
+            "TypeScript",
+            "Java",
+            "C#",
+            "Go",
+            "React",
+            "Node.js",
+            "FastAPI",
+            "API design and integration",
+            "Software architecture",
+            "Git",
+            "Code review",
+            "Machine learning",
+            "Deep learning",
+            "Generative AI",
+            "LLM application development",
+            "Prompt engineering",
+            "RAG",
+            "AI agents",
+            "Model evaluation",
+            "Fine-tuning",
+            "Natural language processing",
+            "Computer vision",
+            "Responsible AI",
+            "AI governance",
+            "PyTorch",
+            "TensorFlow",
+            "Data engineering",
+            "Data modelling",
+            "ETL / ELT",
+            "Data analytics",
+            "Statistics",
+            "Power BI",
+            "Tableau",
+            "Excel",
+            "Spark",
+            "Databricks",
+            "Snowflake",
+            "AWS",
+            "Azure",
+            "Google Cloud",
+            "Docker",
+            "Kubernetes",
+            "Terraform",
+            "CI/CD",
+            "MLOps",
+            "LLMOps",
+            "Observability",
+            "Cybersecurity",
+            "Identity and access management",
+            "Data privacy",
+            "Quality assurance",
+            "Test automation",
+            "Performance testing",
+            "UX research",
+            "UI design",
+            "Figma",
+            "Accessibility",
+            "Product management",
+            "Business analysis",
+            "Requirements gathering",
+            "Solution consulting",
+            "AI strategy",
+            "Process improvement",
+            "Change management",
+            "Project management",
+            "Program management",
+            "Agile / Scrum",
+            "Delivery management",
+            "Stakeholder management",
+            "Technical writing",
+            "Client communication",
+            "Pre-sales",
+            "Sales",
+            "Account management",
+            "Customer success",
+            "Digital marketing",
+            "Content strategy",
+            "Recruitment",
+            "HR operations",
+            "Learning and development",
+            "Finance and accounting",
+            "Payroll",
+            "Procurement",
+            "Office administration",
+            "Asset management",
+            "People management",
+            "Leadership"
+          ],
+          "enum_labels": [
+            "Python",
+            "SQL",
+            "JavaScript",
+            "TypeScript",
+            "Java",
+            "C#",
+            "Go",
+            "React",
+            "Node.js",
+            "FastAPI",
+            "API design and integration",
+            "Software architecture",
+            "Git",
+            "Code review",
+            "Machine learning",
+            "Deep learning",
+            "Generative AI",
+            "LLM application development",
+            "Prompt engineering",
+            "RAG",
+            "AI agents",
+            "Model evaluation",
+            "Fine-tuning",
+            "Natural language processing",
+            "Computer vision",
+            "Responsible AI",
+            "AI governance",
+            "PyTorch",
+            "TensorFlow",
+            "Data engineering",
+            "Data modelling",
+            "ETL / ELT",
+            "Data analytics",
+            "Statistics",
+            "Power BI",
+            "Tableau",
+            "Excel",
+            "Spark",
+            "Databricks",
+            "Snowflake",
+            "AWS",
+            "Azure",
+            "Google Cloud",
+            "Docker",
+            "Kubernetes",
+            "Terraform",
+            "CI/CD",
+            "MLOps",
+            "LLMOps",
+            "Observability",
+            "Cybersecurity",
+            "Identity and access management",
+            "Data privacy",
+            "Quality assurance",
+            "Test automation",
+            "Performance testing",
+            "UX research",
+            "UI design",
+            "Figma",
+            "Accessibility",
+            "Product management",
+            "Business analysis",
+            "Requirements gathering",
+            "Solution consulting",
+            "AI strategy",
+            "Process improvement",
+            "Change management",
+            "Project management",
+            "Program management",
+            "Agile / Scrum",
+            "Delivery management",
+            "Stakeholder management",
+            "Technical writing",
+            "Client communication",
+            "Pre-sales",
+            "Sales",
+            "Account management",
+            "Customer success",
+            "Digital marketing",
+            "Content strategy",
+            "Recruitment",
+            "HR operations",
+            "Learning and development",
+            "Finance and accounting",
+            "Payroll",
+            "Procurement",
+            "Office administration",
+            "Asset management",
+            "People management",
+            "Leadership"
+          ],
+          "picklist_id": {
+            "$ref": "picklist:HRMS Skills",
+            "attribute": "id"
+          },
+          "col_span": 2
         }
       }
     },
@@ -3589,9 +3770,9 @@
           },
           {
             "inherit_from": null,
-            "label": "Emergency Contact",
+            "label": "Emergency contact relationship",
             "library_field_id": {
-              "$ref": "field:emergency_contact",
+              "$ref": "field:emergency_contact_relationship",
               "attribute": "id"
             },
             "ownership": null,
@@ -3601,7 +3782,43 @@
             "source_entity_type": null,
             "source_field_key": null,
             "version_id": {
-              "$ref": "field:emergency_contact",
+              "$ref": "field:emergency_contact_relationship",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Emergency contact phone number",
+            "library_field_id": {
+              "$ref": "field:emergency_contact_phone",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 13,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:emergency_contact_phone",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Blood group",
+            "library_field_id": {
+              "$ref": "field:blood_group",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 14,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:blood_group",
               "attribute": "version_id"
             }
           },
@@ -3614,7 +3831,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 13,
+            "position": 15,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -3632,7 +3849,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 14,
+            "position": 16,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -3650,7 +3867,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 15,
+            "position": 17,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -3668,7 +3885,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 16,
+            "position": 18,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -3686,7 +3903,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 17,
+            "position": 19,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -3704,12 +3921,30 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 18,
+            "position": 20,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
             "version_id": {
               "$ref": "field:current_country",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Permanent address same as current",
+            "library_field_id": {
+              "$ref": "field:permanent_same_as_current",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 21,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:permanent_same_as_current",
               "attribute": "version_id"
             }
           },
@@ -3722,7 +3957,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 19,
+            "position": 22,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -3740,7 +3975,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 20,
+            "position": 23,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -3758,7 +3993,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 21,
+            "position": 24,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -3776,7 +4011,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 22,
+            "position": 25,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -3794,7 +4029,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 23,
+            "position": 26,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -3812,7 +4047,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 24,
+            "position": 27,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -3830,7 +4065,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 25,
+            "position": 28,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -3848,30 +4083,12 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 26,
+            "position": 29,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
             "version_id": {
               "$ref": "field:skills",
-              "attribute": "version_id"
-            }
-          },
-          {
-            "inherit_from": null,
-            "label": "Professional Experience",
-            "library_field_id": {
-              "$ref": "field:professional_experience",
-              "attribute": "id"
-            },
-            "ownership": null,
-            "placeholder": null,
-            "position": 27,
-            "required": false,
-            "source_entity_type": null,
-            "source_field_key": null,
-            "version_id": {
-              "$ref": "field:professional_experience",
               "attribute": "version_id"
             }
           },
@@ -3884,7 +4101,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 28,
+            "position": 30,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -3902,7 +4119,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 29,
+            "position": 31,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -3920,7 +4137,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 30,
+            "position": 32,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -3938,7 +4155,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 31,
+            "position": 33,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -3956,7 +4173,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 32,
+            "position": 34,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -3974,7 +4191,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 33,
+            "position": 35,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -3985,19 +4202,73 @@
           },
           {
             "inherit_from": null,
-            "label": "Employee documents",
+            "label": "Marksheets",
             "library_field_id": {
-              "$ref": "field:onboarding_documents",
+              "$ref": "field:marksheets",
               "attribute": "id"
             },
             "ownership": null,
             "placeholder": null,
-            "position": 34,
+            "position": 36,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
             "version_id": {
-              "$ref": "field:onboarding_documents",
+              "$ref": "field:marksheets",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Experience letters",
+            "library_field_id": {
+              "$ref": "field:experience_letters",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 37,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:experience_letters",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Aadhaar card",
+            "library_field_id": {
+              "$ref": "field:aadhaar_card",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 38,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:aadhaar_card",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "PAN card",
+            "library_field_id": {
+              "$ref": "field:pan_card",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 39,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:pan_card",
               "attribute": "version_id"
             }
           },
@@ -4010,7 +4281,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 35,
+            "position": 40,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -4028,7 +4299,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 36,
+            "position": 41,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -4046,7 +4317,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 37,
+            "position": 42,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -4064,30 +4335,12 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 38,
+            "position": 43,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
             "version_id": {
               "$ref": "field:issued_asset_references",
-              "attribute": "version_id"
-            }
-          },
-          {
-            "inherit_from": null,
-            "label": "Verification notes / correction reason",
-            "library_field_id": {
-              "$ref": "field:hr_verification_notes",
-              "attribute": "id"
-            },
-            "ownership": null,
-            "placeholder": "Explain the verification outcome or corrections required.",
-            "position": 39,
-            "required": false,
-            "source_entity_type": null,
-            "source_field_key": null,
-            "version_id": {
-              "$ref": "field:hr_verification_notes",
               "attribute": "version_id"
             }
           }
@@ -4169,26 +4422,7 @@
         "entity_types": [
           "HRMS.Employee"
         ],
-        "fields": [
-          {
-            "inherit_from": null,
-            "label": "Verification notes / correction reason",
-            "library_field_id": {
-              "$ref": "field:hr_verification_notes",
-              "attribute": "id"
-            },
-            "ownership": null,
-            "placeholder": "Explain the verification outcome or corrections required.",
-            "position": 0,
-            "required": false,
-            "source_entity_type": null,
-            "source_field_key": null,
-            "version_id": {
-              "$ref": "field:hr_verification_notes",
-              "attribute": "version_id"
-            }
-          }
-        ],
+        "fields": [],
         "name": "Employee HR Verification"
       }
     },
@@ -4274,24 +4508,6 @@
               "$ref": "field:issued_asset_references",
               "attribute": "version_id"
             }
-          },
-          {
-            "inherit_from": null,
-            "label": "Verification notes / correction reason",
-            "library_field_id": {
-              "$ref": "field:hr_verification_notes",
-              "attribute": "id"
-            },
-            "ownership": null,
-            "placeholder": "Explain the verification outcome or corrections required.",
-            "position": 4,
-            "required": false,
-            "source_entity_type": null,
-            "source_field_key": null,
-            "version_id": {
-              "$ref": "field:hr_verification_notes",
-              "attribute": "version_id"
-            }
           }
         ],
         "name": "Employee IT and Workplace Provisioning"
@@ -4328,9 +4544,9 @@
           },
           {
             "inherit_from": null,
-            "label": "Emergency Contact",
+            "label": "Emergency contact relationship",
             "library_field_id": {
-              "$ref": "field:emergency_contact",
+              "$ref": "field:emergency_contact_relationship",
               "attribute": "id"
             },
             "ownership": null,
@@ -4340,7 +4556,43 @@
             "source_entity_type": null,
             "source_field_key": null,
             "version_id": {
-              "$ref": "field:emergency_contact",
+              "$ref": "field:emergency_contact_relationship",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Emergency contact phone number",
+            "library_field_id": {
+              "$ref": "field:emergency_contact_phone",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 2,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:emergency_contact_phone",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Blood group",
+            "library_field_id": {
+              "$ref": "field:blood_group",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 3,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:blood_group",
               "attribute": "version_id"
             }
           },
@@ -4353,7 +4605,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 2,
+            "position": 4,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -4371,7 +4623,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 3,
+            "position": 5,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -4389,7 +4641,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 4,
+            "position": 6,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -4407,7 +4659,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 5,
+            "position": 7,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -4425,7 +4677,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 6,
+            "position": 8,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -4443,12 +4695,30 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 7,
+            "position": 9,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
             "version_id": {
               "$ref": "field:current_country",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Permanent address same as current",
+            "library_field_id": {
+              "$ref": "field:permanent_same_as_current",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 10,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:permanent_same_as_current",
               "attribute": "version_id"
             }
           },
@@ -4461,7 +4731,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 8,
+            "position": 11,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -4479,7 +4749,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 9,
+            "position": 12,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -4497,7 +4767,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 10,
+            "position": 13,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -4515,7 +4785,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 11,
+            "position": 14,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -4533,7 +4803,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 12,
+            "position": 15,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -4551,7 +4821,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 13,
+            "position": 16,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -4569,7 +4839,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 14,
+            "position": 17,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -4587,30 +4857,12 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 15,
+            "position": 18,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
             "version_id": {
               "$ref": "field:skills",
-              "attribute": "version_id"
-            }
-          },
-          {
-            "inherit_from": null,
-            "label": "Professional Experience",
-            "library_field_id": {
-              "$ref": "field:professional_experience",
-              "attribute": "id"
-            },
-            "ownership": null,
-            "placeholder": null,
-            "position": 16,
-            "required": false,
-            "source_entity_type": null,
-            "source_field_key": null,
-            "version_id": {
-              "$ref": "field:professional_experience",
               "attribute": "version_id"
             }
           },
@@ -4623,7 +4875,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 17,
+            "position": 19,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -4641,7 +4893,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 18,
+            "position": 20,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -4659,7 +4911,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 19,
+            "position": 21,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -4677,7 +4929,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 20,
+            "position": 22,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -4695,7 +4947,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 21,
+            "position": 23,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -4713,7 +4965,7 @@
             },
             "ownership": null,
             "placeholder": null,
-            "position": 22,
+            "position": 24,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
@@ -4724,37 +4976,73 @@
           },
           {
             "inherit_from": null,
-            "label": "Employee documents",
+            "label": "Marksheets",
             "library_field_id": {
-              "$ref": "field:onboarding_documents",
+              "$ref": "field:marksheets",
               "attribute": "id"
             },
             "ownership": null,
             "placeholder": null,
-            "position": 23,
+            "position": 25,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
             "version_id": {
-              "$ref": "field:onboarding_documents",
+              "$ref": "field:marksheets",
               "attribute": "version_id"
             }
           },
           {
             "inherit_from": null,
-            "label": "Verification notes / correction reason",
+            "label": "Experience letters",
             "library_field_id": {
-              "$ref": "field:hr_verification_notes",
+              "$ref": "field:experience_letters",
               "attribute": "id"
             },
             "ownership": null,
-            "placeholder": "Explain the verification outcome or corrections required.",
-            "position": 24,
+            "placeholder": null,
+            "position": 26,
             "required": false,
             "source_entity_type": null,
             "source_field_key": null,
             "version_id": {
-              "$ref": "field:hr_verification_notes",
+              "$ref": "field:experience_letters",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "Aadhaar card",
+            "library_field_id": {
+              "$ref": "field:aadhaar_card",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 27,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:aadhaar_card",
+              "attribute": "version_id"
+            }
+          },
+          {
+            "inherit_from": null,
+            "label": "PAN card",
+            "library_field_id": {
+              "$ref": "field:pan_card",
+              "attribute": "id"
+            },
+            "ownership": null,
+            "placeholder": null,
+            "position": 28,
+            "required": false,
+            "source_entity_type": null,
+            "source_field_key": null,
+            "version_id": {
+              "$ref": "field:pan_card",
               "attribute": "version_id"
             }
           }
@@ -7972,6 +8260,62 @@
             "entity_type": "hrms_offer",
             "field_name": "special_percent",
             "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "HRMS.Employee",
+            "field_name": "emergency_contact_relationship",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "HRMS.Employee",
+            "field_name": "emergency_contact_phone",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "HRMS.Employee",
+            "field_name": "blood_group",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "HRMS.Employee",
+            "field_name": "permanent_same_as_current",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "HRMS.Employee",
+            "field_name": "marksheets",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "HRMS.Employee",
+            "field_name": "experience_letters",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "HRMS.Employee",
+            "field_name": "aadhaar_card",
+            "mask_value": false
+          },
+          {
+            "can_edit": true,
+            "can_view": true,
+            "entity_type": "HRMS.Employee",
+            "field_name": "pan_card",
+            "mask_value": false
           }
         ],
         "transition_permissions": [
@@ -9723,6 +10067,62 @@
             "can_view": true,
             "entity_type": "hrms_offer",
             "field_name": "special_percent",
+            "mask_value": false
+          },
+          {
+            "can_edit": false,
+            "can_view": true,
+            "entity_type": "HRMS.Employee",
+            "field_name": "emergency_contact_relationship",
+            "mask_value": false
+          },
+          {
+            "can_edit": false,
+            "can_view": true,
+            "entity_type": "HRMS.Employee",
+            "field_name": "emergency_contact_phone",
+            "mask_value": false
+          },
+          {
+            "can_edit": false,
+            "can_view": true,
+            "entity_type": "HRMS.Employee",
+            "field_name": "blood_group",
+            "mask_value": false
+          },
+          {
+            "can_edit": false,
+            "can_view": true,
+            "entity_type": "HRMS.Employee",
+            "field_name": "permanent_same_as_current",
+            "mask_value": false
+          },
+          {
+            "can_edit": false,
+            "can_view": true,
+            "entity_type": "HRMS.Employee",
+            "field_name": "marksheets",
+            "mask_value": false
+          },
+          {
+            "can_edit": false,
+            "can_view": true,
+            "entity_type": "HRMS.Employee",
+            "field_name": "experience_letters",
+            "mask_value": false
+          },
+          {
+            "can_edit": false,
+            "can_view": true,
+            "entity_type": "HRMS.Employee",
+            "field_name": "aadhaar_card",
+            "mask_value": false
+          },
+          {
+            "can_edit": false,
+            "can_view": true,
+            "entity_type": "HRMS.Employee",
+            "field_name": "pan_card",
             "mask_value": false
           }
         ],
@@ -11900,7 +12300,7 @@
                 {
                   "field": "skills",
                   "required": true,
-                  "type": "text"
+                  "type": "multi_select"
                 },
                 {
                   "field": "bank_account_holder",
@@ -11969,13 +12369,7 @@
               "label": "Approve details and send to IT",
               "post_transition_tasks": [],
               "pre_transition_tasks": [],
-              "required_fields": [
-                {
-                  "field": "hr_verification_notes",
-                  "required": true,
-                  "type": "text"
-                }
-              ],
+              "required_fields": [],
               "to_state": "IT & Workspace Provisioning",
               "trigger": "verification_to_provisioning"
             },
@@ -12002,28 +12396,14 @@
             },
             {
               "auto_transition": null,
-              "description": null,
+              "description": "Add correction details in Comments and @mention the employee before requesting corrections.",
               "from": "Onboarding Verification",
-              "guards": [
-                {
-                  "config": {},
-                  "field": "hr_verification_notes",
-                  "message": "Enter a correction reason before returning this task.",
-                  "type": "field_present",
-                  "value": null
-                }
-              ],
+              "guards": [],
               "key": "request_profile_changes",
               "label": "Request employee corrections",
               "post_transition_tasks": [],
               "pre_transition_tasks": [],
-              "required_fields": [
-                {
-                  "field": "hr_verification_notes",
-                  "required": true,
-                  "type": "text"
-                }
-              ],
+              "required_fields": [],
               "to_state": "Profile Completion Pending",
               "trigger": "request_profile_changes"
             },
@@ -18183,6 +18563,634 @@
         "subject": "MyHub offboarding · {{employee_code}} · Awaiting HR completion",
         "body_html": "<p>The offboarding case is now <strong>Awaiting HR completion</strong>.</p><p><a href=\"{{workspace_url}}\">Open MyHub</a> to view your assigned action.</p>",
         "form_id": null
+      }
+    },
+    {
+      "key": "picklist:HRMS Emergency contact relationship",
+      "kind": "picklist",
+      "match": "HRMS Emergency contact relationship",
+      "payload": {
+        "name": "HRMS Emergency contact relationship",
+        "options": [
+          {
+            "label": "Spouse",
+            "value": "Spouse"
+          },
+          {
+            "label": "Mother",
+            "value": "Mother"
+          },
+          {
+            "label": "Father",
+            "value": "Father"
+          },
+          {
+            "label": "Sibling",
+            "value": "Sibling"
+          },
+          {
+            "label": "Cousin",
+            "value": "Cousin"
+          },
+          {
+            "label": "Aunt",
+            "value": "Aunt"
+          },
+          {
+            "label": "Uncle",
+            "value": "Uncle"
+          }
+        ]
+      }
+    },
+    {
+      "key": "field:emergency_contact_relationship",
+      "kind": "field",
+      "match": "emergency_contact_relationship",
+      "payload": {
+        "field_key": "emergency_contact_relationship",
+        "name": "Emergency contact relationship",
+        "description": "Emergency contact relationship",
+        "field_type": "select",
+        "settings": {
+          "enum_values": [
+            "Spouse",
+            "Mother",
+            "Father",
+            "Sibling",
+            "Cousin",
+            "Aunt",
+            "Uncle"
+          ],
+          "enum_labels": [
+            "Spouse",
+            "Mother",
+            "Father",
+            "Sibling",
+            "Cousin",
+            "Aunt",
+            "Uncle"
+          ],
+          "picklist_id": {
+            "$ref": "picklist:HRMS Emergency contact relationship",
+            "attribute": "id"
+          },
+          "col_span": 1
+        }
+      }
+    },
+    {
+      "key": "field:emergency_contact_phone",
+      "kind": "field",
+      "match": "emergency_contact_phone",
+      "payload": {
+        "field_key": "emergency_contact_phone",
+        "name": "Emergency contact phone number",
+        "description": "Emergency contact phone number",
+        "field_type": "phone",
+        "settings": {}
+      }
+    },
+    {
+      "key": "picklist:HRMS Blood group",
+      "kind": "picklist",
+      "match": "HRMS Blood group",
+      "payload": {
+        "name": "HRMS Blood group",
+        "options": [
+          {
+            "label": "A+",
+            "value": "A+"
+          },
+          {
+            "label": "A-",
+            "value": "A-"
+          },
+          {
+            "label": "B+",
+            "value": "B+"
+          },
+          {
+            "label": "B-",
+            "value": "B-"
+          },
+          {
+            "label": "AB+",
+            "value": "AB+"
+          },
+          {
+            "label": "AB-",
+            "value": "AB-"
+          },
+          {
+            "label": "O+",
+            "value": "O+"
+          },
+          {
+            "label": "O-",
+            "value": "O-"
+          },
+          {
+            "label": "Unknown / Not tested",
+            "value": "Unknown / Not tested"
+          }
+        ]
+      }
+    },
+    {
+      "key": "field:blood_group",
+      "kind": "field",
+      "match": "blood_group",
+      "payload": {
+        "field_key": "blood_group",
+        "name": "Blood group",
+        "description": "Blood group",
+        "field_type": "select",
+        "settings": {
+          "enum_values": [
+            "A+",
+            "A-",
+            "B+",
+            "B-",
+            "AB+",
+            "AB-",
+            "O+",
+            "O-",
+            "Unknown / Not tested"
+          ],
+          "enum_labels": [
+            "A+",
+            "A-",
+            "B+",
+            "B-",
+            "AB+",
+            "AB-",
+            "O+",
+            "O-",
+            "Unknown / Not tested"
+          ],
+          "picklist_id": {
+            "$ref": "picklist:HRMS Blood group",
+            "attribute": "id"
+          },
+          "col_span": 1
+        }
+      }
+    },
+    {
+      "key": "field:permanent_same_as_current",
+      "kind": "field",
+      "match": "permanent_same_as_current",
+      "payload": {
+        "field_key": "permanent_same_as_current",
+        "name": "Permanent address same as current",
+        "description": "Permanent address same as current",
+        "field_type": "boolean",
+        "settings": {
+          "col_span": 2
+        }
+      }
+    },
+    {
+      "key": "picklist:HRMS Skills",
+      "kind": "picklist",
+      "match": "HRMS Skills",
+      "payload": {
+        "name": "HRMS Skills",
+        "options": [
+          {
+            "label": "Python",
+            "value": "Python"
+          },
+          {
+            "label": "SQL",
+            "value": "SQL"
+          },
+          {
+            "label": "JavaScript",
+            "value": "JavaScript"
+          },
+          {
+            "label": "TypeScript",
+            "value": "TypeScript"
+          },
+          {
+            "label": "Java",
+            "value": "Java"
+          },
+          {
+            "label": "C#",
+            "value": "C#"
+          },
+          {
+            "label": "Go",
+            "value": "Go"
+          },
+          {
+            "label": "React",
+            "value": "React"
+          },
+          {
+            "label": "Node.js",
+            "value": "Node.js"
+          },
+          {
+            "label": "FastAPI",
+            "value": "FastAPI"
+          },
+          {
+            "label": "API design and integration",
+            "value": "API design and integration"
+          },
+          {
+            "label": "Software architecture",
+            "value": "Software architecture"
+          },
+          {
+            "label": "Git",
+            "value": "Git"
+          },
+          {
+            "label": "Code review",
+            "value": "Code review"
+          },
+          {
+            "label": "Machine learning",
+            "value": "Machine learning"
+          },
+          {
+            "label": "Deep learning",
+            "value": "Deep learning"
+          },
+          {
+            "label": "Generative AI",
+            "value": "Generative AI"
+          },
+          {
+            "label": "LLM application development",
+            "value": "LLM application development"
+          },
+          {
+            "label": "Prompt engineering",
+            "value": "Prompt engineering"
+          },
+          {
+            "label": "RAG",
+            "value": "RAG"
+          },
+          {
+            "label": "AI agents",
+            "value": "AI agents"
+          },
+          {
+            "label": "Model evaluation",
+            "value": "Model evaluation"
+          },
+          {
+            "label": "Fine-tuning",
+            "value": "Fine-tuning"
+          },
+          {
+            "label": "Natural language processing",
+            "value": "Natural language processing"
+          },
+          {
+            "label": "Computer vision",
+            "value": "Computer vision"
+          },
+          {
+            "label": "Responsible AI",
+            "value": "Responsible AI"
+          },
+          {
+            "label": "AI governance",
+            "value": "AI governance"
+          },
+          {
+            "label": "PyTorch",
+            "value": "PyTorch"
+          },
+          {
+            "label": "TensorFlow",
+            "value": "TensorFlow"
+          },
+          {
+            "label": "Data engineering",
+            "value": "Data engineering"
+          },
+          {
+            "label": "Data modelling",
+            "value": "Data modelling"
+          },
+          {
+            "label": "ETL / ELT",
+            "value": "ETL / ELT"
+          },
+          {
+            "label": "Data analytics",
+            "value": "Data analytics"
+          },
+          {
+            "label": "Statistics",
+            "value": "Statistics"
+          },
+          {
+            "label": "Power BI",
+            "value": "Power BI"
+          },
+          {
+            "label": "Tableau",
+            "value": "Tableau"
+          },
+          {
+            "label": "Excel",
+            "value": "Excel"
+          },
+          {
+            "label": "Spark",
+            "value": "Spark"
+          },
+          {
+            "label": "Databricks",
+            "value": "Databricks"
+          },
+          {
+            "label": "Snowflake",
+            "value": "Snowflake"
+          },
+          {
+            "label": "AWS",
+            "value": "AWS"
+          },
+          {
+            "label": "Azure",
+            "value": "Azure"
+          },
+          {
+            "label": "Google Cloud",
+            "value": "Google Cloud"
+          },
+          {
+            "label": "Docker",
+            "value": "Docker"
+          },
+          {
+            "label": "Kubernetes",
+            "value": "Kubernetes"
+          },
+          {
+            "label": "Terraform",
+            "value": "Terraform"
+          },
+          {
+            "label": "CI/CD",
+            "value": "CI/CD"
+          },
+          {
+            "label": "MLOps",
+            "value": "MLOps"
+          },
+          {
+            "label": "LLMOps",
+            "value": "LLMOps"
+          },
+          {
+            "label": "Observability",
+            "value": "Observability"
+          },
+          {
+            "label": "Cybersecurity",
+            "value": "Cybersecurity"
+          },
+          {
+            "label": "Identity and access management",
+            "value": "Identity and access management"
+          },
+          {
+            "label": "Data privacy",
+            "value": "Data privacy"
+          },
+          {
+            "label": "Quality assurance",
+            "value": "Quality assurance"
+          },
+          {
+            "label": "Test automation",
+            "value": "Test automation"
+          },
+          {
+            "label": "Performance testing",
+            "value": "Performance testing"
+          },
+          {
+            "label": "UX research",
+            "value": "UX research"
+          },
+          {
+            "label": "UI design",
+            "value": "UI design"
+          },
+          {
+            "label": "Figma",
+            "value": "Figma"
+          },
+          {
+            "label": "Accessibility",
+            "value": "Accessibility"
+          },
+          {
+            "label": "Product management",
+            "value": "Product management"
+          },
+          {
+            "label": "Business analysis",
+            "value": "Business analysis"
+          },
+          {
+            "label": "Requirements gathering",
+            "value": "Requirements gathering"
+          },
+          {
+            "label": "Solution consulting",
+            "value": "Solution consulting"
+          },
+          {
+            "label": "AI strategy",
+            "value": "AI strategy"
+          },
+          {
+            "label": "Process improvement",
+            "value": "Process improvement"
+          },
+          {
+            "label": "Change management",
+            "value": "Change management"
+          },
+          {
+            "label": "Project management",
+            "value": "Project management"
+          },
+          {
+            "label": "Program management",
+            "value": "Program management"
+          },
+          {
+            "label": "Agile / Scrum",
+            "value": "Agile / Scrum"
+          },
+          {
+            "label": "Delivery management",
+            "value": "Delivery management"
+          },
+          {
+            "label": "Stakeholder management",
+            "value": "Stakeholder management"
+          },
+          {
+            "label": "Technical writing",
+            "value": "Technical writing"
+          },
+          {
+            "label": "Client communication",
+            "value": "Client communication"
+          },
+          {
+            "label": "Pre-sales",
+            "value": "Pre-sales"
+          },
+          {
+            "label": "Sales",
+            "value": "Sales"
+          },
+          {
+            "label": "Account management",
+            "value": "Account management"
+          },
+          {
+            "label": "Customer success",
+            "value": "Customer success"
+          },
+          {
+            "label": "Digital marketing",
+            "value": "Digital marketing"
+          },
+          {
+            "label": "Content strategy",
+            "value": "Content strategy"
+          },
+          {
+            "label": "Recruitment",
+            "value": "Recruitment"
+          },
+          {
+            "label": "HR operations",
+            "value": "HR operations"
+          },
+          {
+            "label": "Learning and development",
+            "value": "Learning and development"
+          },
+          {
+            "label": "Finance and accounting",
+            "value": "Finance and accounting"
+          },
+          {
+            "label": "Payroll",
+            "value": "Payroll"
+          },
+          {
+            "label": "Procurement",
+            "value": "Procurement"
+          },
+          {
+            "label": "Office administration",
+            "value": "Office administration"
+          },
+          {
+            "label": "Asset management",
+            "value": "Asset management"
+          },
+          {
+            "label": "People management",
+            "value": "People management"
+          },
+          {
+            "label": "Leadership",
+            "value": "Leadership"
+          }
+        ]
+      }
+    },
+    {
+      "key": "field:marksheets",
+      "kind": "field",
+      "match": "marksheets",
+      "payload": {
+        "field_key": "marksheets",
+        "name": "Marksheets",
+        "description": "Marksheets",
+        "field_type": "document",
+        "settings": {
+          "col_span": 2,
+          "document_config": {
+            "multiple": true
+          },
+          "required": false
+        }
+      }
+    },
+    {
+      "key": "field:experience_letters",
+      "kind": "field",
+      "match": "experience_letters",
+      "payload": {
+        "field_key": "experience_letters",
+        "name": "Experience letters",
+        "description": "Experience letters",
+        "field_type": "document",
+        "settings": {
+          "col_span": 2,
+          "document_config": {
+            "multiple": true
+          },
+          "required": false
+        }
+      }
+    },
+    {
+      "key": "field:aadhaar_card",
+      "kind": "field",
+      "match": "aadhaar_card",
+      "payload": {
+        "field_key": "aadhaar_card",
+        "name": "Aadhaar card",
+        "description": "Aadhaar card",
+        "field_type": "document",
+        "settings": {
+          "col_span": 2,
+          "document_config": {
+            "multiple": true
+          },
+          "required": false
+        }
+      }
+    },
+    {
+      "key": "field:pan_card",
+      "kind": "field",
+      "match": "pan_card",
+      "payload": {
+        "field_key": "pan_card",
+        "name": "PAN card",
+        "description": "PAN card",
+        "field_type": "document",
+        "settings": {
+          "col_span": 2,
+          "document_config": {
+            "multiple": true
+          },
+          "required": false
+        }
       }
     }
   ],

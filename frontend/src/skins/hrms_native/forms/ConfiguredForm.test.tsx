@@ -51,3 +51,11 @@ it('shows a reporting manager name while saving the employee code',()=>{
  fireEvent.change(select,{target:{value:'EMP-0002'}});
  expect(change).toHaveBeenCalledWith({reports_to_employee_code:'EMP-0002'});
 });
+
+it('renders multi-select values separately and submits an array',()=>{
+ render(<ConfiguredInputs fields={[{field:'skills',type:'multi_select',description:'Skills',enum_values:['Python','SQL']}]} values={{skills:['Python','SQL']}} onChange={()=>{}}/>);
+ expect(screen.getByRole('group',{name:'Skills'})).toBeTruthy();
+ expect(screen.getByText('Python')).toBeTruthy();
+ expect(screen.getByText('SQL')).toBeTruthy();
+ expect(formValues([{field:'skills',type:'multi_select'}],{skills:['Python','SQL']})).toEqual({skills:['Python','SQL']});
+});

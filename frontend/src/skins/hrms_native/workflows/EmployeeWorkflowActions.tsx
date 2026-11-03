@@ -1,3 +1,4 @@
+import { EmployeeProfileInputs } from './EmployeeProfileInputs';
 import { RecordTabs } from '../components/record/RecordTabs';
 import { OnboardingAssets } from './OnboardingAssets';
 import { useState } from 'react';
@@ -76,7 +77,7 @@ export function EmployeeWorkflowActions({item,readOnly=false,open:controlledOpen
         </section>}
         {hasManagerField&&employees.isLoading&&<p role="status">Loading reporting manager names…</p>}
         {hasManagerField&&employees.isError&&<p role="alert">Could not load reporting manager names. <button type="button" onClick={()=>void employees.refetch()}>Try again</button></p>}
-        <h3>{form.data.name}</h3><div className="grid gap-4 sm:grid-cols-2"><NativeFormFields fields={(readOnly?form.data.fields.map(f=>({...f,read_only:true})):form.data.fields).filter(f=>!form.data?.asset_section||f.field!=='issued_asset_references')}><ConfiguredInputs adapters={managerAdapters} entityId={item.entity_id} values={values??form.data.values} onChange={v=>{setValues(v);setKey(createRequestId());}}/></NativeFormFields></div>
+        <h3>{form.data.name}</h3><p className="hrms-muted">For questions or corrections, use Comments and @mention the relevant assignee.</p><div className="grid gap-4 sm:grid-cols-2"><NativeFormFields fields={(readOnly?form.data.fields.map(f=>({...f,read_only:true})):form.data.fields).filter(f=>!form.data?.asset_section||f.field!=='issued_asset_references')}><EmployeeProfileInputs fields={readOnly?form.data.fields.map(f=>({...f,read_only:true})):form.data.fields.filter(f=>!form.data?.asset_section||f.field!=='issued_asset_references')} adapters={managerAdapters} entityId={item.entity_id} values={values??form.data.values} onChange={v=>{setValues(v);setKey(createRequestId());}}/></NativeFormFields></div>
         {!readOnly&&!form.data.existing_account&&work.isSuccess&&current&&<div className="flex flex-wrap gap-3"><button className="hrms-outline-button" disabled={action.isPending} type="submit">Save details</button>
         {current.actions.map(step=><button key={step.trigger} type="button" className="hrms-primary-button" disabled={action.isPending} onClick={()=>action.mutate(step.trigger)}>{step.label||step.to_state}</button>)}</div>}
       </form>}

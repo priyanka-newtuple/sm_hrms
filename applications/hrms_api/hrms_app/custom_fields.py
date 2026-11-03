@@ -63,6 +63,12 @@ def check_custom(platform, entity_type, values, current=None):
 def _typed(label, field, value):
     kind = str(field.get('type') or 'string').lower()
     options = field.get('enum_values')
+    if kind == 'multi_select':
+        if value == [] and field.get('required'):
+            raise AppError(422, f'{label} is required')
+        if not isinstance(value, list) or any(not isinstance(v, str) or v not in (options or []) for v in value):
+            raise AppError(422, f'{label}: Select values from the configured options')
+        return list(dict.fromkeys(value))
     if options and value not in options:
         raise AppError(422, f'{label} must be one of the configured options')
     if kind == 'phone':
