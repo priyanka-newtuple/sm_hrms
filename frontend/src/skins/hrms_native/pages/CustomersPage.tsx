@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { request, getApiErrorMessage } from '@/core/services/api/client';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/skins/hrms_native/components/record/Sheet';
 import { useHrmsCapabilities } from '../capabilities';
 import { PageHero } from '../components/PageHero';
 import { ProjectAction } from './ProjectsPage';

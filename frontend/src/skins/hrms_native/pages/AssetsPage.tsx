@@ -6,7 +6,7 @@ import { useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Laptop, Plus, Search } from 'lucide-react';
 import { request, getApiErrorMessage } from '@/core/services/api/client';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/skins/hrms_native/components/record/Sheet';
 import { useHrmsCapabilities } from '../capabilities';
 import { PageHero } from '../components/PageHero';
 

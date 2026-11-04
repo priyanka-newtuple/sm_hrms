@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Grid2X2, Plus, Search } from 'lucide-react';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/skins/hrms_native/components/record/Sheet';
 import { getApiErrorMessage } from '@/core/services/api/client';
 import { useHrmsCapabilities } from '../capabilities';
 import { useWorkflowConfiguration } from '../workflows/WorkflowConfiguration';

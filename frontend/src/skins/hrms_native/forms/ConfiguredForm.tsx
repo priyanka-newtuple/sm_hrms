@@ -1,5 +1,7 @@
 import { FieldLabel } from './FieldLabel';
 import MultiSelectDropdown from '@/core/components/MultiSelectDropdown';
+import { DocumentPreviewAvailable } from '../components/record/DocumentPreviewContext';
+import DocumentFieldDisplay from '@/core/components/DocumentFieldDisplay';
 import DocumentFieldInput from '@/core/components/DocumentFieldInput';
 import type { FormField } from '@/core/types';
 import { Children, cloneElement, createContext, isValidElement, useContext, useEffect, type ReactElement, type ReactNode } from 'react';
@@ -29,6 +31,7 @@ export function commandValues(fields:Field[], values:Record<string,unknown>, exc
 export const employeeSystemFields=['employee_code','employment_status','platform_user_id','identifier','hrms_operation_key','last_working_day','exit_reason','exit_note'];
 export const employeeAdapters={hrms_role:{key:'role',label:'Access role'},reports_to_employee_code:{key:'reports_to_entity_id',label:'Reporting manager'}};
 export function ConfiguredInputs({values,onChange,exclude=[],fields:provided,adapters={},entityId,validateRequired=true}:{values:Record<string,unknown>;onChange:(values:Record<string,unknown>)=>void;exclude?:string[];fields?:Field[];adapters?:Record<string,FieldAdapter>;entityId?:string;validateRequired?:boolean}) {
+  const showPreview=useContext(DocumentPreviewAvailable);
   const context=useContext(Context);
   return <>{(provided??context.fields).filter(f=>!exclude.includes(f.field)).map(f=>{
     const adapter=adapters[f.field]??{}, key=adapter.key??f.field, type=adapter.type??f.type??'string', value=values[key];
@@ -47,7 +50,7 @@ export function ConfiguredInputs({values,onChange,exclude=[],fields:provided,ada
       <MultiSelectDropdown options={choices.map(c=>c.id)} value={Array.isArray(value)?value.filter((v):v is string=>typeof v==='string'):[]} onChange={set} disabled={readonly} labelFor={id=>choices.find(c=>c.id===id)?.name??id} placeholder="Search and select options…"/>
     </div>;
     if (['boolean','bool'].includes(type)) return <div key={f.field} className="sm:col-span-2"><label className="flex items-start gap-3 text-sm leading-6"><input className="mt-1 h-4 w-4 shrink-0 accent-[#0047AB]" type="checkbox" aria-label={title} aria-required={!!f.required&&!readonly} disabled={readonly} required={validateRequired&&!!f.required&&!readonly} checked={value===true} onChange={e=>set(e.target.checked)}/><FieldLabel required={!!f.required&&!readonly}>{title}</FieldLabel></label></div>;
-    return <div key={f.field} className={f.col_span===2||type==='text'?'sm:col-span-2':''}><label className="flex flex-col gap-2 text-sm leading-6"><FieldLabel required={!!f.required&&!readonly}>{title}</FieldLabel>{type==='document'?<DocumentFieldInput field={{id:f.field,label:title,type:'document',required:!!f.required,system:false,document_config:f.document_config}} value={value} onChange={set} disabled={readonly||!entityId} entityId={entityId}/>:adapter.options||type==='enum'||!!f.enum_values?.length?
+    return <div key={f.field} className={f.col_span===2||type==='text'?'sm:col-span-2':''}><label className="flex flex-col gap-2 text-sm leading-6"><FieldLabel required={!!f.required&&!readonly}>{title}</FieldLabel>{type==='document'?(readonly?<DocumentFieldDisplay value={value} entityId={entityId} showPreview={showPreview}/>:<DocumentFieldInput field={{id:f.field,label:title,type:'document',required:!!f.required,system:false,document_config:f.document_config}} value={value} onChange={set} disabled={readonly||!entityId} entityId={entityId} showPreview={showPreview}/>):adapter.options||type==='enum'||!!f.enum_values?.length?
       <select aria-label={title} aria-required={!!f.required&&!readonly} {...common} value={display} onChange={e=>set(e.target.value)}><option value="">Select…</option>{choices.map(v=><option key={v.id} value={v.id}>{v.name}</option>)}</select>
       :type==='text'?<textarea aria-label={title} aria-required={!!f.required&&!readonly} {...common} value={display} onChange={e=>set(e.target.value)}/>
       :<input aria-label={title} aria-required={!!f.required&&!readonly} {...common} type={numeric?'number':type==='date'?'date':type==='datetime'?'datetime-local':type==='phone'?'tel':['email','url'].includes(type)?type:'text'} pattern={type==='phone'?String.raw`(?=(?:[^0-9]*[0-9]){7,15}[^0-9]*$)\+?[0-9 \(\)\-]+`:undefined} title={type==='phone'?'Enter a valid phone number with 7-15 digits. Use only digits, an optional leading +, spaces, hyphens or parentheses.':undefined} onInvalid={e=>{if(type==='phone'&&e.currentTarget.validity.patternMismatch)e.currentTarget.setCustomValidity(e.currentTarget.title);}} onInput={e=>e.currentTarget.setCustomValidity('')} step={['float','decimal'].includes(type)?'any':1} value={inputDisplay} onChange={e=>set(numeric?(e.target.value===''?null:Number(e.target.value)):e.target.value)}/>}</label>{!readonly&&adapter.action}</div>;

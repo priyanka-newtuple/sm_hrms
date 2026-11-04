@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/skins/hrms_native/components/record/Sheet';
 import { getApiErrorMessage, request } from '../../../core/services/api/client';
 import { ConfiguredInputs, ConfiguredForm, useFormSchema, commandValues, employeeSystemFields, employeeAdapters, formValues } from '../forms/ConfiguredForm';
 import { createRequestId } from '../requestId';

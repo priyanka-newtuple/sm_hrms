@@ -1,11 +1,10 @@
-import { useHrmsCapabilities } from '../capabilities';
 import { EmployeeProfileInputs } from './EmployeeProfileInputs';
 import { RecordTabs } from '../components/record/RecordTabs';
 import { OnboardingAssets } from './OnboardingAssets';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { request, getApiErrorMessage } from '@/core/services/api/client';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/skins/hrms_native/components/record/Sheet';
 import { ConfiguredInputs, NativeFormFields, type Field } from '../forms/ConfiguredForm';
 import { createRequestId } from '../requestId';
 import type { EmployeeWork } from '../workspace/useWaitingActions';
@@ -15,7 +14,9 @@ export function EmployeeWorkflowActions({item,readOnly=false,open:controlledOpen
   item:EmployeeWork;readOnly?:boolean;open?:boolean;onOpenChange?:(open:boolean)=>void;
 }) {
   const client=useQueryClient();
-  const caps=useHrmsCapabilities();
+  const [handover,setHandover]=useState<string|null>(null);
+  const [nextAssignee,setNextAssignee]=useState('');
+  const pendingTransition=useRef<{trigger:string;next_assignee_id:string|null;idempotency_key:string}|null>(null);
   const [cancelTrigger,setCancelTrigger]=useState<string|null>(null);
   const [localOpen,setLocalOpen]=useState(false);
   const open=controlledOpen??localOpen;
@@ -27,9 +28,12 @@ export function EmployeeWorkflowActions({item,readOnly=false,open:controlledOpen
   const changedState=!readOnly&&work.isSuccess&&(!current||current.current_state!==item.current_state);
   const form=useQuery({queryKey:['hrms','employee-state-form',item.entity_id,item.workflow_id,item.current_state],
     queryFn:()=>request<Form>(`/hrms/employee-work/${item.entity_id}/form?workflow_id=${item.workflow_id}`),enabled:open,refetchInterval:open?10_000:false});
-  const canAssign=caps.data?.roles.some(r=>['superadmin','hrms_hr_full'].includes(r))??false;
+
   const assignees=useQuery({queryKey:['hrms','employee-assignees',item.entity_id,item.workflow_id,item.current_state],
-    queryFn:()=>request<{items:{id:string;name:string}[];current:string|null;fixed:boolean;unsupported?:boolean}>(`/hrms/employee-work/${item.entity_id}/assignees?workflow_id=${item.workflow_id}`),enabled:open&&canAssign&&!readOnly});
+    queryFn:()=>request<{items:{id:string;name:string}[];current:string|null;fixed:boolean;can_assign?:boolean;terminal?:boolean;unsupported?:boolean;self_id?:string}>(`/hrms/employee-work/${item.entity_id}/assignees?workflow_id=${item.workflow_id}`),enabled:open&&!readOnly});
+  const destination=useQuery({queryKey:['hrms','employee-handover',item.entity_id,item.workflow_id,handover],
+    queryFn:()=>request<{items:{id:string;name:string}[];fixed:boolean;terminal?:boolean;can_assign?:boolean}>(`/hrms/employee-work/${item.entity_id}/assignees?workflow_id=${item.workflow_id}&trigger=${encodeURIComponent(handover!)}`),enabled:open&&!!handover});
+  const destinationId=nextAssignee||(destination.data?.fixed?destination.data.items[0]?.id??'':'');
   const assignment=useMutation({mutationFn:(user_id:string)=>request(`/hrms/employee-work/${item.entity_id}/assignee`,{method:'PUT',body:JSON.stringify({workflow_id:item.workflow_id,user_id})}),onSuccess:()=>{void client.invalidateQueries({queryKey:['hrms']});}});
   const hasManagerField=[...(form.data?.fields??[]),...(form.data?.previous_fields??[])].some(f=>f.field==='reports_to_employee_code');
   const employees=useQuery({queryKey:['hrms','employees'],queryFn:()=>request<{entity_id:string;employee_code:string;full_name:string;employment_status:string}[]>('/hrms/employees'),enabled:open&&hasManagerField});
@@ -41,6 +45,8 @@ export function EmployeeWorkflowActions({item,readOnly=false,open:controlledOpen
   const managerAdapters={reports_to_employee_code:{options:managerOptions}};
   const stale=changedState||(!readOnly&&Boolean(form.data&&form.data.current_state!==item.current_state));
   const action=useMutation({mutationFn:async(trigger:string|null)=>{
+    if(pendingTransition.current) return request(`/hrms/employee-work/${item.entity_id}/actions`,{
+      method:'POST',body:JSON.stringify({workflow_id:item.workflow_id,...pendingTransition.current})});
     const latest=await work.refetch();
     const active=latest.data?.find(row=>row.entity_id===item.entity_id&&row.workflow_id===item.workflow_id);
     if(latest.isError) throw latest.error;
@@ -55,29 +61,39 @@ export function EmployeeWorkflowActions({item,readOnly=false,open:controlledOpen
     const changed=Object.fromEntries(editable.filter(f=>input[f.field]!==undefined && input[f.field]!==form.data?.values[f.field]).map(f=>[f.field,input[f.field]]));
     if(!selected?.cancellation&&Object.keys(changed).length) await request(`/hrms/employee-work/${item.entity_id}/form`,{
       method:'PUT',body:JSON.stringify({workflow_id:item.workflow_id,values:changed})});
-    if(trigger) await request(`/hrms/employee-work/${item.entity_id}/actions`,{
-      method:'POST',body:JSON.stringify({workflow_id:item.workflow_id,trigger,idempotency_key:key})});
-  },onSuccess:()=>{setValues(null);setCancelTrigger(null);setKey(createRequestId());setOpen(false);void client.invalidateQueries({queryKey:['hrms']});},onError:()=>{void client.invalidateQueries({queryKey:['hrms']});}});
+    if(trigger) {pendingTransition.current={trigger,next_assignee_id:destination.data?.terminal?null:destinationId||null,idempotency_key:key}; await request(`/hrms/employee-work/${item.entity_id}/actions`,{
+      method:'POST',body:JSON.stringify({workflow_id:item.workflow_id,...pendingTransition.current})});}
+  },onSuccess:()=>{pendingTransition.current=null;setHandover(null);setNextAssignee('');setValues(null);setCancelTrigger(null);setKey(createRequestId());setOpen(false);void client.invalidateQueries({queryKey:['hrms']});},onError:(error)=>{if ('status' in error && error.status===422) {pendingTransition.current=null;setKey(createRequestId());} void client.invalidateQueries({queryKey:['hrms']});}});
   const linkAccount=useMutation({mutationFn:()=>request(`/hrms/employee-work/${item.entity_id}/existing-account`,{
     method:'POST',body:JSON.stringify({workflow_id:item.workflow_id,user_id:form.data?.existing_account?.user_id})}),
     onSuccess:()=>{setValues(null);void client.invalidateQueries({queryKey:['hrms']});}});
   return <>{controlledOpen===undefined&&<button type="button" className="hrms-outline-button" onClick={()=>setOpen(true)}>{readOnly?'View details':'Open task'}</button>}
     <Sheet open={open} onOpenChange={setOpen}><SheetContent className="hrms-brand hrms-employee-form overflow-y-auto data-[side=right]:w-full data-[side=right]:sm:max-w-3xl">
       <SheetHeader><SheetTitle>{item.title}</SheetTitle><p>{form.data?.current_state??item.current_state}</p></SheetHeader>
-      <RecordTabs key={item.entity_id} entityId={item.entity_id} workflowId={item.workflow_id} scope="employee">
+      <RecordTabs key={item.entity_id} entityId={item.entity_id} workflowId={item.workflow_id} scope="employee" actions={<>         {!readOnly&&current&&<section className="rounded-xl border p-4 space-y-3" aria-label="Workflow handover">
+          <label className="block">Move to<select aria-label="Move to" className="hrms-input" value={handover??''} disabled={action.isPending||!!pendingTransition.current} onChange={e=>{setHandover(e.target.value||null);setNextAssignee('');}}>
+            <option value="">Choose an action</option>{current.actions.map(step=><option key={step.trigger} value={step.trigger}>{step.label||step.to_state}</option>)}
+          </select></label>
+          {destination.isLoading&&<p role="status">Loading eligible assignees…</p>}
+          {destination.isError&&<p role="alert">{getApiErrorMessage(destination.error)} <button type="button" onClick={()=>void destination.refetch()}>Retry</button></p>}
+          {handover&&destination.data&&!destination.data.terminal&&<label className="block">Next assignee *<select aria-label="Next assignee" className="hrms-input" value={destinationId} disabled={destination.data.fixed||action.isPending||!!pendingTransition.current} onChange={e=>setNextAssignee(e.target.value)}>
+            <option value="">Select an eligible assignee</option>{destination.data.items.map(u=><option key={u.id} value={u.id}>{u.name}</option>)}
+          </select>{!destination.data.items.length&&<p>No eligible assignee is configured for this stage. Ask an administrator to review native role permissions.</p>}</label>}
+          {handover&&<button type="button" className="hrms-primary-button" disabled={action.isPending||!destination.isSuccess||(!destination.data?.terminal&&!destinationId)||!!pendingTransition.current} onClick={()=>current.actions.find(a=>a.trigger===handover)?.cancellation?setCancelTrigger(handover):action.mutate(handover)}>Continue</button>}
+        </section>}
+ </>}>
       {form.isLoading&&<p role="status">Loading configured form…</p>}
       {form.isError&&<p role="alert">{getApiErrorMessage(form.error)} <button onClick={()=>void form.refetch()}>Retry</button></p>}
       {stale&&<p role="status">This task has moved forward or is no longer assigned to you. Close this panel to see the current tasks.</p>}
       {work.isError&&<p role="alert">Unable to refresh task access. <button onClick={()=>void work.refetch()}>Retry</button></p>}
       {form.data&&!stale&&<form onSubmit={e=>{e.preventDefault();if(e.target===e.currentTarget)action.mutate(null);}} className="space-y-5 mt-5">
-        {canAssign&&!readOnly&&assignees.data&&!assignees.data.unsupported&&<div><label htmlFor="onboarding-assignee">Assigned to</label><select id="onboarding-assignee" className="hrms-input" value={assignees.data.current??''} disabled={assignees.data.fixed||assignment.isPending} onChange={e=>assignment.mutate(e.target.value)}><option value="" disabled>Select an eligible assignee</option>{assignees.data.items.map(u=><option key={u.id} value={u.id}>{u.name}</option>)}</select></div>}
+        {!readOnly&&assignees.data?.can_assign&&assignees.data&&!assignees.data.unsupported&&<div><label htmlFor="onboarding-assignee">Assigned to</label><select id="onboarding-assignee" className="hrms-input" value={assignees.data.current??''} disabled={assignees.data.fixed||assignment.isPending} onChange={e=>assignment.mutate(e.target.value)}><option value="" disabled>Select an eligible assignee</option>{assignees.data.items.map(u=><option key={u.id} value={u.id}>{u.name}</option>)}</select>{!assignees.data.fixed&&assignees.data.self_id&&assignees.data.items.some(u=>u.id===assignees.data?.self_id)&&<button type="button" className="hrms-outline-button mt-2" disabled={assignment.isPending||assignees.data.current===assignees.data.self_id} onClick={()=>assignment.mutate(assignees.data!.self_id!)}>Assign to me</button>}</div>}
         {assignees.isError&&<p role="alert">Could not load eligible assignees. <button type="button" onClick={()=>void assignees.refetch()}>Retry</button></p>}
         {form.data.payroll_mode&&<p role="status">{form.data.payroll_mode==='mock'?'UAT mode: approval creates a simulated Payroll record only.':form.data.payroll_mode==='live'?'Live mode: approval creates an employee in Razorpay Payroll.':'Payroll registration is disabled.'}</p>}
         {assignment.isError&&<p role="alert">{getApiErrorMessage(assignment.error)}</p>}
         {form.data.verifier_feedback && <section aria-label="Verifier feedback" className="rounded-xl border border-blue-200 bg-blue-50 p-4"><h3 className="font-semibold">Changes requested</h3><p className="whitespace-pre-wrap break-words mt-2">{form.data.verifier_feedback}</p></section>}
         {form.data.feedback_status==='submitted'&&<p role="status">Corrections submitted — awaiting HR review</p>}
         {form.data.previous_feedback&&<details><summary>Previous feedback · Resolved by HR</summary><p className="whitespace-pre-wrap break-words mt-2">{form.data.previous_feedback}</p><p className="hrms-muted mt-2">HR approved the details and moved onboarding forward. No correction action is pending.</p></details>}
-        {!!form.data.previous_fields.length&&<details><summary>Previously entered details</summary><div className="grid gap-4 sm:grid-cols-2 mt-4"><NativeFormFields fields={form.data.previous_fields}><ConfiguredInputs adapters={managerAdapters} entityId={item.entity_id} values={form.data.values} onChange={()=>{}}/></NativeFormFields></div></details>}
         {form.data.asset_section&&<OnboardingAssets employeeId={item.entity_id} workflowId={item.workflow_id} employeeName={item.title} readOnly={readOnly||!item.actions.length}/>}
         {form.data.existing_account&&<section className="rounded-xl border border-blue-200 bg-blue-50 p-4" aria-label="Existing account">
           <h3 className="font-semibold">An account already exists</h3>
@@ -89,11 +105,12 @@ export function EmployeeWorkflowActions({item,readOnly=false,open:controlledOpen
         {hasManagerField&&employees.isLoading&&<p role="status">Loading reporting manager names…</p>}
         {hasManagerField&&employees.isError&&<p role="alert">Could not load reporting manager names. <button type="button" onClick={()=>void employees.refetch()}>Try again</button></p>}
         <h3>{form.data.name}</h3><p className="hrms-muted">For questions or corrections, use Comments and @mention the relevant assignee.</p><div className="grid gap-4 sm:grid-cols-2"><NativeFormFields fields={(readOnly?form.data.fields.map(f=>({...f,read_only:true})):form.data.fields).filter(f=>!form.data?.asset_section||f.field!=='issued_asset_references')}><EmployeeProfileInputs fields={readOnly?form.data.fields.map(f=>({...f,read_only:true})):form.data.fields.filter(f=>!form.data?.asset_section||f.field!=='issued_asset_references')} adapters={managerAdapters} entityId={item.entity_id} values={values??form.data.values} onChange={v=>{setValues(v);setKey(createRequestId());}}/></NativeFormFields></div>
+        {!!form.data.previous_fields.length&&<details><summary>Previously entered details</summary><div className="grid gap-4 sm:grid-cols-2 mt-4"><NativeFormFields fields={form.data.previous_fields}><ConfiguredInputs adapters={managerAdapters} entityId={item.entity_id} values={form.data.values} onChange={()=>{}}/></NativeFormFields></div></details>}
         {!readOnly&&work.isSuccess&&current&&<div className="flex flex-wrap gap-3"><button className="hrms-outline-button" disabled={action.isPending} type="submit">Save details</button>
-        {current.actions.map(step=><button key={step.trigger} type="button" className="hrms-primary-button" disabled={action.isPending||(!step.cancellation&&!!form.data?.existing_account)} onClick={()=>step.cancellation?setCancelTrigger(step.trigger):action.mutate(step.trigger)}>{step.label||step.to_state}</button>)}</div>}
+        </div>}
         {cancelTrigger&&<section role="alert" className="rounded-xl border p-4"><p>Cancel this onboarding? Unsaved form edits will be discarded. Login access will remain unchanged.</p><div className="flex gap-3 mt-3"><button type="button" className="hrms-outline-button" onClick={()=>setCancelTrigger(null)}>Keep onboarding</button><button type="button" className="hrms-primary-button" disabled={action.isPending} onClick={()=>action.mutate(cancelTrigger)}>Confirm cancellation</button></div></section>}
       </form>}
-      {action.isError&&<p role="alert" className="text-red-700">{getApiErrorMessage(action.error)}</p>}
+      {action.isError&&<div role="alert" className="text-red-700">{getApiErrorMessage(action.error)}{pendingTransition.current&&<><p>The handover has not been confirmed. Retry the same request to finish safely.</p><button type="button" disabled={action.isPending} onClick={()=>action.mutate(pendingTransition.current!.trigger)}>Retry handover</button></>}</div>}
       </RecordTabs>
     </SheetContent></Sheet></>;
 }

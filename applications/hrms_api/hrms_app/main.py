@@ -1,5 +1,6 @@
 """HRMS API and browser gateway. The platform is an internal upstream service."""
 from contextlib import asynccontextmanager
+from datetime import date
 from json import JSONDecodeError
 import logging
 import asyncio
@@ -34,6 +35,10 @@ from .wfh import WfhService, PolicyInput, RequestInput, DecisionInput
 from .assets import AssetService, AssetCommand, AssetBatchCommand, AssetCreateBatchCommand
 
 
+class RecordDueDate(BaseModel):
+    due_date: date | None
+
+
 class EmployeeAccessRequest(BaseModel):
     idempotency_key: str = Field(min_length=8, max_length=128)
 
@@ -47,6 +52,7 @@ class OfferCommand(BaseModel):
 
 
 class EmployeeWorkflowAction(BaseModel):
+    next_assignee_id: UUID | None = None
     workflow_id: UUID
     trigger: str = Field(min_length=1, max_length=200)
     idempotency_key: str = Field(min_length=8, max_length=128)
@@ -274,14 +280,15 @@ def create_app(platform=None, journal=None):
 
     @app.post('/v1/api/hrms/employee-work/{entity_id}/actions')
     def employee_action(entity_id: UUID, payload: EmployeeWorkflowAction, current=Depends(actor)):
-        from .employee_work import transition_employee
-        return transition_employee(platform, current, str(entity_id), str(payload.workflow_id),
-                                   payload.trigger, payload.idempotency_key, journal=journal)
+        from .onboarding_handover import transition_with_handover
+        return transition_with_handover(platform, current, str(entity_id), str(payload.workflow_id),
+                                   payload.trigger, payload.idempotency_key, journal=journal,
+                                   next_assignee_id=str(payload.next_assignee_id) if payload.next_assignee_id else None)
 
     @app.get('/v1/api/hrms/employee-work/{entity_id}/assignees')
-    def employee_assignees(entity_id: UUID, workflow_id: UUID, current=Depends(actor)):
+    def employee_assignees(entity_id: UUID, workflow_id: UUID, trigger: str | None = None, current=Depends(actor)):
         from .onboarding_routing import assignees
-        return assignees(platform, current, str(entity_id), str(workflow_id))
+        return assignees(platform, current, str(entity_id), str(workflow_id), trigger)
 
     @app.put('/v1/api/hrms/employee-work/{entity_id}/assignee')
     def employee_assign(entity_id: UUID, payload: EmployeeAccountLink, current=Depends(actor)):
@@ -569,7 +576,26 @@ def create_app(platform=None, journal=None):
         }
         if scope not in sources:
             raise AppError(404, 'Unknown record scope')
-        authorize_record(platform, current, str(entity_id), sources[scope]())
+        rows = sources[scope]()
+        record = authorize_record(platform, current, str(entity_id), rows)
+        return record, rows
+
+    @app.get('/v1/api/hrms/records/{entity_id}/{scope}/metadata')
+    def record_metadata(entity_id: UUID, scope: str, workflow_id: UUID | None = None, current=Depends(actor)):
+        from .record_collaboration import metadata
+        record, rows = collaboration_access(current, entity_id, scope)
+        return metadata(platform, current, record, rows, str(workflow_id) if workflow_id else None)
+
+    @app.put('/v1/api/hrms/records/{entity_id}/{scope}/due-date')
+    def record_due_date(entity_id: UUID, scope: str, payload: RecordDueDate, current=Depends(actor)):
+        collaboration_access(current, entity_id, scope)
+        return platform.request('PUT', f'/entity-records/{entity_id}', token=current.token,
+                                json={'due_date': payload.due_date.isoformat() if payload.due_date else None})
+
+    @app.delete('/v1/api/hrms/records/{entity_id}/{scope}')
+    def archive_record(entity_id: UUID, scope: str, current=Depends(actor)):
+        collaboration_access(current, entity_id, scope)
+        return platform.request('DELETE', f'/entity-records/{entity_id}', token=current.token)
 
     @app.get('/v1/api/hrms/records/{entity_id}/{scope}/activity')
     def record_activity(entity_id: UUID, scope: str, limit: int = Query(50, ge=1, le=200),
@@ -616,11 +642,10 @@ def create_app(platform=None, journal=None):
             from starlette.concurrency import run_in_threadpool
             await run_in_threadpool(platform.actor, token)
         elif (request.method == 'GET' and path == 'config/file-types') or path.startswith('filehandler/'):
-            from .employee_work import authorize_employee_file
+            from .record_collaboration import authorize_document
             from starlette.concurrency import run_in_threadpool
             current = await run_in_threadpool(platform.actor, token)
-            if not await run_in_threadpool(offboarding.authorize_file, current, request.method, path, dict(request.query_params)):
-                await run_in_threadpool(authorize_employee_file, platform, current, request.method, path, dict(request.query_params))
+            await run_in_threadpool(authorize_document, platform, current, request.method, path, dict(request.query_params), offboarding)
         elif request.method == 'POST' and (path == 'entity-records' or
                 (path.startswith('workflow-state-machines/') and path.endswith('/enrollments'))):
             from .offers import authorize_offer_request

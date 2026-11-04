@@ -147,6 +147,8 @@ def employee_work(platform, actor):
                 "workflow_label": row["machine_display_name"],
                 "current_state": row["current_state"],
                 "due_date": row.get("sla_due_at") or row.get("due_date"),
+                "assignee_id": row.get("assignee_id"),
+                "assignee_name": row.get("assignee_name"),
                 "actions": options,
                 "is_own_onboarding": own,
                 "feedback_status": feedback_stage(workflow, row["current_state"])
