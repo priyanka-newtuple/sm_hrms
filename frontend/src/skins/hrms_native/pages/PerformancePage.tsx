@@ -1,3 +1,4 @@
+import { MoveTo } from '../components/record/MoveTo';
 import { FieldLabel } from '../forms/FieldLabel';
 import { RecordTabs } from '../components/record/RecordTabs';
 import { createRequestId } from '../requestId';
@@ -9,7 +10,7 @@ import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/skins/hrms_native/components/record/Sheet';
 import { getApiErrorMessage, request } from '@/core/services/api/client';
 import { PageHero } from '../components/PageHero';
 import { awaitingYou } from './performanceAwaiting';
@@ -144,14 +145,14 @@ export function PerformanceDetail({ entityId }: { entityId: string }) {
   const readable = Object.entries(row.data).filter(([key, v]) => v !== null && v !== '' && !key.endsWith('_id') && !['participants', 'created_by', 'identifier'].includes(key));
   return <section className="hrms-brand hrms-performance-detail">
     <div><h2 className="hrms-case-name">{value(row.data, 'employee_name') || value(row.data, 'name') || row.employee_name}</h2><p className="text-sm text-muted-foreground">{row.cycle_name} · {label(row.state)}{row.due_date ? ` · due ${row.due_date}` : ''}</p></div>
-    <RecordTabs key={entityId} entityId={entityId} scope="performance">
+    <RecordTabs key={entityId} entityId={entityId} scope="performance" actions={!action&&<MoveTo actions={row.actions.map(a=>({trigger:a,label:transitionLabel(configured,a)}))} onAction={a=>setAction({name:a,item:row})}/>} >
     <WorkflowStages entityId={entityId} />
     {row.kind === 'HRMS.PerformanceReview' && <p className="text-sm text-muted-foreground">Employee: {value(row.data, 'employee_name')} → Manager: {value(row.data, 'manager_name')} → Calibration: {value(row.data, 'calibrator_name')} → HR publication → Employee acknowledgement</p>}
     <dl className="hrms-surface hrms-detail-grid">{readable.map(([key, val]) => <div key={key}><dt className="text-xs text-muted-foreground">{label(key)}</dt><dd className="whitespace-pre-wrap break-words text-sm">{String(val)}</dd></div>)}</dl>
     {Array.isArray(row.data.participants) && <div className="hrms-surface hrms-review-card"><h3 className="font-medium">Participants</h3>{(row.data.participants as Data[]).map(p => <p key={value(p, 'employee_id')} className="mt-2 text-sm">{value(p, 'employee_name')} · Manager: {value(p, 'manager_name')} · Calibration: {value(p, 'calibrator_name')}</p>)}</div>}
     {row.goals && <div className="space-y-3"><h3 className="font-semibold">Goals · {row.goals.reduce((sum, g) => sum + Number(g.data.weight), 0)}% total weight</h3>{row.goals.map(goal => <article key={goal.id} className="hrms-surface hrms-review-card"><div className="flex justify-between gap-3"><h4 className="font-medium">{value(goal.data, 'title')} · {value(goal.data, 'weight')}%</h4><span className="text-xs">{label(goal.state)}</span></div><p className="mt-2 text-sm">{value(goal.data, 'measurement')}</p><p className="text-sm text-muted-foreground">Target: {value(goal.data, 'target_date')} · {value(goal.data, 'evidence')}</p>{Boolean(goal.data.manager_comment) && <p className="mt-2 text-sm">Manager: {value(goal.data, 'manager_comment')}</p>}{goal.actions?.map(a => <Button key={a} variant="outline" className="hrms-outline-button mt-2" onClick={() => setAction({ name: a, item: goal })}>{label(a)}</Button>)}</article>)}</div>}
     {Boolean(row.feedback?.length) && <div className="space-y-3"><h3 className="font-semibold">Project feedback</h3>{row.feedback?.map(f => <article key={f.id} className="hrms-surface hrms-review-card"><p>{value(f.data, 'project_reference')} · {value(f.data, 'reviewer_name')} · {label(f.state)}</p><p className="text-sm">{value(f.data, 'contribution')}</p><p className="text-sm">{value(f.data, 'collaboration')}</p>{Boolean(f.data.rating) && <p className="text-sm">Rating: {value(f.data, 'rating')} / 5</p>}{Boolean(f.data.cancel_reason) && <p className="text-sm text-muted-foreground">Cancelled: {value(f.data, 'cancel_reason')}</p>}{f.actions?.map(a => <Button key={a} variant="outline" className="hrms-outline-button mt-2 mr-2" onClick={() => setAction({ name: a, item: f })}>{label(a)}</Button>)}</article>)}</div>}
-    {!action && <div className="flex flex-wrap gap-2">{row.actions.map(a => <Button className="hrms-primary-button" variant="primary" size="md" key={a} onClick={() => setAction({ name: a, item: row })}>{transitionLabel(configured,a)}</Button>)}{row.actions.length === 0 && <p className="text-sm text-muted-foreground">No action is assigned to you at this stage.</p>}</div>}
+
     {!action && query.data?.can_manage && <AddedSteps entityId={row.id} />}
     {action && <ActionForm key={`${action.item.id}:${action.name}`} item={action.item} action={action.name} done={() => setAction(null)} />}
   </RecordTabs></section>;

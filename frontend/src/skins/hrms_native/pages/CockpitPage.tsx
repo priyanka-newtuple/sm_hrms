@@ -12,7 +12,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { request, getApiErrorMessage } from '@/core/services/api/client';
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/skins/hrms_native/components/record/Sheet';
 import { useHrmsCapabilities } from '../capabilities';
 import { WorkflowStages } from '../workflows/WorkflowConfiguration';
 import { AddedSteps } from '../workflows/AddedSteps';

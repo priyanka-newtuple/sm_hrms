@@ -3,7 +3,7 @@ import { Plus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { OfferEditor } from './OfferEditor';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/skins/hrms_native/components/record/Sheet';
 import { usePermissions } from '@/core/hooks/usePermissions';
 import { getApiErrorMessage } from '@/core/services/api/client';
 import { useWorkflowCatalog } from '../workflows/useWorkflowCatalog';

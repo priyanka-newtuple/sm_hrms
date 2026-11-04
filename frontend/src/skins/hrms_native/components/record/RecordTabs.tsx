@@ -1,15 +1,18 @@
 import { useId, useState, type ReactNode } from 'react';
+import { RecordToolbar } from './RecordToolbar';
 import RecordActivity from './RecordActivity';
 import RecordComments from './RecordComments';
 
 /** Keep Details mounted so tab changes never discard a partly completed form. */
-export function RecordTabs({ entityId, workflowId, scope, children }: {
-  entityId: string; workflowId?: string; scope: string; children: ReactNode;
+export function RecordTabs({ entityId, workflowId, scope, children, actions }: {
+  entityId: string; workflowId?: string; scope: string; children: ReactNode; actions?: ReactNode;
 }) {
   const id = useId();
   const [tab, setTab] = useState('Details');
+  const [archived, setArchived] = useState(false);
   const [visited, setVisited] = useState<string[]>(['Details']);
   return <div className="hrms-record-tabs">
+    <RecordToolbar entityId={entityId} workflowId={workflowId} scope={scope} onArchived={()=>setArchived(true)}/>{!archived&&actions}
     <div role="tablist" aria-label="Record information" className="flex gap-2 border-b border-blue-100 mb-5">
       {['Details', 'Activity', 'Comments'].map(label => <button key={label} type="button"
         role="tab" id={`${id}-${label}`} aria-selected={tab === label} aria-controls={`${id}-${label}-panel`}
@@ -20,7 +23,7 @@ export function RecordTabs({ entityId, workflowId, scope, children }: {
     </div>
     {['Details', 'Activity', 'Comments'].map(label => <div key={label} role="tabpanel"
       id={`${id}-${label}-panel`} aria-labelledby={`${id}-${label}`} hidden={tab !== label}>
-      {label === 'Details' ? children : visited.includes(label) && (label === 'Activity'
+      {label === 'Details' ? (!archived&&children) : visited.includes(label) && (label === 'Activity'
         ? <RecordActivity entityId={entityId} scope={scope} orgUsers={[]} />
         : <RecordComments entityId={entityId} workflowId={workflowId} scope={scope} />)}
     </div>)}

@@ -113,6 +113,11 @@ def reconcile_profile_assignee(platform, workflow, enrollment):
         platform.call("PUT", f"/entity-records/{enrollment['entity_id']}/assignee",
                       json={"assignee_id": user_id})
     elif not profile and assigned == user_id:
+        from .onboarding_routing import managed
+        if managed(workflow):
+            # The transition handover owns assignment in the current workflow.
+            # Do not undo a permitted explicit choice on a later worker poll.
+            return
         # Subsequent steps return to the configured role's queue.
         platform.call("PUT", f"/entity-records/{enrollment['entity_id']}/assignee",
                       json={"assignee_id": None})

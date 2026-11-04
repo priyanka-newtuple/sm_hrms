@@ -8,7 +8,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { CalendarDays, LayoutGrid, ListChecks, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/skins/hrms_native/components/record/Sheet';
 import Card from '@/core/components/Card';
 import { useAuth } from '@/core/auth';
 import { usePersistentState } from '@/core/hooks';

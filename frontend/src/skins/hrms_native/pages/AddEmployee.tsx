@@ -3,7 +3,7 @@ import { ConfiguredForm, ConfiguredInputs, useFormSchema, commandValues, employe
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Plus } from 'lucide-react';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/skins/hrms_native/components/record/Sheet';
 import { useHrmsCapabilities } from '../capabilities';
 import { getApiErrorMessage, request } from '../../../core/services/api/client';
 

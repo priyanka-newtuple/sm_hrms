@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { request, getApiErrorMessage } from '@/core/services/api/client';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/skins/hrms_native/components/record/Sheet';
 import { ConfiguredInputs, type Field } from '../forms/ConfiguredForm';
 import { RecordTabs } from '../components/record/RecordTabs';
+import { MoveTo } from '../components/record/MoveTo';
 import { createRequestId } from '../requestId';
 import { useHrmsCapabilities } from '../capabilities';
 
@@ -64,7 +65,7 @@ export function OffboardingEditor({entityId}:{entityId?:string}){
   const d=item.data;
   const fields=d.fields.filter(f=>!internal.has(f.field)||(d.simplified&&f.field==='completed_at')).map(f=>({...f,type:['notified_date','requested_last_day','confirmed_last_day'].includes(f.field)?'date':f.type,read_only:f.read_only||(!!id&&f.field==='employee_id')||(values.departure_verified==='yes'&&['confirmed_last_day','exit_type'].includes(f.field))}));
   const pending=fields.filter(f=>f.field.startsWith('exit_')&&f.enum_values?.includes('Yes')&&values[f.field]==='No');
-  const form=<>{id&&d.employee_participation===false&&<p className="hrms-notice mb-4">This case uses the earlier workflow version. Employee handover assignment and automatic stage emails apply to new cases; this case retains its existing approval history.</p>}<p className="mb-3">Assigned to: {d.assignee_name||'Awaiting assignment'}</p><p className="hrms-eyebrow mb-4">{d.state??d.workflow.definition.initial_state}</p>
+  const form=<>{id&&d.employee_participation===false&&<p className="hrms-notice mb-4">This case uses the earlier workflow version. Employee handover assignment and automatic stage emails apply to new cases; this case retains its existing approval history.</p>}{!id&&<p className="hrms-eyebrow mb-4">{d.state??d.workflow.definition.initial_state}</p>}
     {d.employee&&<p className="mb-5">{['first_name','last_name','employee_code','department','designation'].map(k=>String(d.employee?.[k]??'')).filter(Boolean).join(' · ')}</p>}
     {id&&<details className="hrms-surface p-4 mb-5"><summary>Linked assets, allocations and direct reports</summary>{related.isLoading?<p role="status">Checking linked records…</p>:related.isError?<p role="alert">Unable to check linked records. <button onClick={()=>void related.refetch()}>Retry</button></p>:Object.entries(related.data??{}).map(([label,section])=><div key={label} className="mt-3"><strong>{label.replaceAll('_',' ')}</strong>{section.error?<p role="alert">{section.error}</p>:section.items?.length?<ul>{section.items.map(r=><li key={String(r.entity_id)}>{String(r.asset_name||r.identifier||r.employee_code||r.entity_id)}{r.end_date?` · End date ${r.end_date}`:''}</li>)}</ul>:<p>No linked records found.</p>}</div>)}<p className="text-sm mt-3">Review these records and record clearance evidence below. This does not automatically return assets or end allocations.</p></details>}
     <p className="text-sm mb-5">{d.simplified?'After the exit interview, Super Admin disables HRMS access on or after the last working day. HR then marks offboarding complete.':'Confirm departure to mark the employee Inactive and remove HRMS access. External account removal, handover and settlement require recorded confirmation.'}</p>
@@ -77,7 +78,7 @@ export function OffboardingEditor({entityId}:{entityId?:string}){
     {d.simplified&&routing.isError&&<p role="alert">Unable to load clearance assignees. <button onClick={()=>void routing.refetch()}>Retry</button></p>}
     {!d.simplified&&assignees.isError&&<p role="alert">Unable to load approvers and coordinators. <button onClick={()=>void assignees.refetch()}>Retry</button></p>}
     {employees.isError&&<p role="alert">Unable to load employee options. <button onClick={()=>void employees.refetch()}>Retry</button></p>}
-    {!!d.actions?.length&&<div className="hrms-form-actions">{d.actions.map(a=><button key={a.trigger} disabled={busy||dirty} className="hrms-primary-button" onClick={()=>void perform(a.trigger)}>{a.label||a.trigger.replaceAll('_',' ')}</button>)}</div>}
+
   </>;
-  return <div className="p-6">{id?<RecordTabs entityId={id} workflowId={d.workflow.id} scope="offboarding">{form}</RecordTabs>:form}</div>;
+  return <div className="p-6">{id?<RecordTabs entityId={id} workflowId={d.workflow.id} scope="offboarding" actions={<MoveTo actions={d.actions??[]} disabled={busy||dirty} onAction={trigger=>void perform(trigger)}/>} >{form}</RecordTabs>:form}</div>;
 }

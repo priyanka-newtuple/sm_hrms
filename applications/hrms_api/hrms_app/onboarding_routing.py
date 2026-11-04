@@ -52,54 +52,72 @@ def context(platform, actor, entity_id, workflow_id):
     return record, workflow, enrollment['current_state']
 
 
-def assignees(platform, actor, entity_id, workflow_id):
+def can_edit(platform, actor):
+    permissions = platform.request('GET', '/roles/my-permissions', token=actor.token)
+    return any(g.get('entity_type') == 'HRMS.Employee' and g.get('action') == 'edit'
+               and g.get('allowed') for g in permissions.get('entity_permissions', []))
+
+
+def assignees(platform, actor, entity_id, workflow_id, trigger=None):
     record, workflow, state = context(platform, actor, entity_id, workflow_id)
+    editable = can_edit(platform, actor)
+    if not editable:
+        return {'items': [], 'current': record.get('assignee_id'), 'fixed': True, 'can_assign': False}
+    if trigger:
+        from .employee_work import employee_work
+        item = next((r for r in employee_work(platform, actor)
+                     if r['entity_id'] == entity_id and r['workflow_id'] == workflow_id), {})
+        selected = next((a for a in item.get('actions', []) if a['trigger'] == trigger), None)
+        if not selected:
+            raise AppError(403, 'This workflow action is not available to you')
+        state = selected['to_state']
     tags = state_tags(workflow, state)
-    if not actor.roles & {'hrms_hr_full', 'superadmin'}:
-        raise AppError(403, 'HR Full or Super Admin must manage onboarding assignments')
     if 'terminal' in tags:
-        return {'items': [], 'current': record.get('assignee_id'), 'fixed': True}
+        return {'items': [], 'current': record.get('assignee_id'), 'fixed': True, 'can_assign': True, 'terminal': True, 'state': state}
     if not managed(workflow):
         return {'items': [], 'current': record.get('assignee_id'), 'fixed': True, 'unsupported': True}
-    from .onboarding_account_link import approval_step
     fixed = fixed_user(workflow, state, record)
     from .employee_work import is_employee_profile_step, is_owner_signoff_step
     is_fixed = is_employee_profile_step(workflow, state) or is_owner_signoff_step(workflow, state)
     outgoing = {t['key'] for t in workflow['definition']['transitions']
                 if t.get('from') == state and not cancellation(workflow, t)}
     items = []
+    role_cache = {}
     for user in platform.users():
         if user.get('organization_id') != actor.organization_id or user.get('status') != 'active':
             continue
         if user.get('email') == platform.email:
             continue
         memberships = platform.call('GET', f"/roles/users/{user['id']}/roles")
-        roles = set()
+        system_role = False
         grants = set()
+        workflows = set()
         for membership in memberships:
             if membership['organization_id'] != actor.organization_id:
                 raise AppError(403, 'Role organization mismatch')
-            role = platform.call('GET', '/roles/' + membership['role_id'])
+            role_id = membership['role_id']
+            if role_id not in role_cache:
+                role_cache[role_id] = platform.call('GET', '/roles/' + role_id)
+            role = role_cache[role_id]
             if role['organization_id'] != actor.organization_id:
                 raise AppError(403, 'Role organization mismatch')
-            roles.add(role['name'])
+            system_role = system_role or bool(role.get('is_system'))
+            workflows.update(g['machine_name'] for g in role.get('workflow_permissions', []))
             grants.update((g['machine_name'], g['transition_key']) for g in role.get('transition_permissions', []))
         if is_fixed and user['id'] != fixed:
             continue
-        admin_step = approval_step(workflow, state) or payroll_step(workflow, state)
-        if admin_step and 'superadmin' not in roles:
-            continue
-        if not admin_step and roles == {'superadmin'} and not is_fixed:
-            continue
-        if not (admin_step or is_fixed) and not any((workflow['machine_name'], k) in grants for k in outgoing):
+        # Candidate eligibility follows configured native transition grants, never HRMS role names.
+        if not system_role and (workflow['machine_name'] not in workflows or
+                not any((workflow['machine_name'], k) in grants for k in outgoing)):
             continue
         items.append({'id': user['id'], 'name': user.get('full_name') or user['email']})
-    return {'items': items, 'current': record.get('assignee_id'), 'fixed': is_fixed}
+    return {'items': items, 'current': record.get('assignee_id'), 'fixed': is_fixed, 'can_assign': True, 'state': state,
+            'self_id': getattr(actor, 'user_id', None)}
 
 
 def assign(platform, actor, entity_id, workflow_id, user_id):
     options = assignees(platform, actor, entity_id, workflow_id)
-    if user_id not in {u['id'] for u in options['items']}:
+    if not options.get('can_assign') or user_id not in {u['id'] for u in options['items']}:
         raise AppError(422, 'Choose an active assignee authorized for this onboarding stage')
     return platform.request('PUT', f'/entity-records/{entity_id}/assignee', token=actor.token,
                             json={'assignee_id': user_id})

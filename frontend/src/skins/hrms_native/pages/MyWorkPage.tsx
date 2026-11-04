@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ArrowRight, BriefcaseBusiness, CalendarCheck2, FileCheck2, Home, TrendingUp, UserRoundPlus, type LucideIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { request } from '@/core/services/api/client';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/skins/hrms_native/components/record/Sheet';
 import { useAuth } from '../../../core/auth';
 import { useHrmsCapabilities } from '../capabilities';
 import { PageHero } from '../components/PageHero';

@@ -184,3 +184,13 @@ def test_payroll_workflow_account_approval_waits_for_human_transition(monkeypatc
     reconcile_employee(s,w,e,[APPROVAL_TAG])
     assert p.data['account_approved'] is True
     assert not any(path.endswith('/transitions') for path,_ in p.writes)
+
+
+def test_managed_handover_preserves_explicit_assignment_during_reconciliation(monkeypatch):
+    from hrms_app.employee_lifecycle import reconcile_profile_assignee
+    monkeypatch.setenv('HRMS_EMPLOYEE_PAYROLL_FORM_ID', 'payroll')
+    record = {'organization_id': 'org', 'data': {'platform_user_id': 'employee-user'}, 'assignee_id': 'employee-user'}
+    platform = SimpleNamespace(org='org', record=lambda _: record,
+        call=lambda *a, **k: pytest.fail('Reconciliation must not clear an explicit handover'))
+    workflow = {'definition': {'states': [{'name':'Payroll', 'method_refs':[{'method_id':'payroll'}]}]}}
+    reconcile_profile_assignee(platform, workflow, {'entity_id':'employee', 'current_state':'Provisioning'})
