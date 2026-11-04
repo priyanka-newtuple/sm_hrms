@@ -269,6 +269,7 @@ def employee_form(platform, actor, entity_id, workflow_id):
         {
             **f,
             "read_only": f.get("read_only")
+            or f["field"] == "account_approved"  # Verified by the native account bridge, never a human assertion.
             or terminal
             or other_employee_profile
             or (is_owner_signoff_step(workflow, enrollment["current_state"])

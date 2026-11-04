@@ -438,3 +438,27 @@ def test_cancel_from_approval_does_not_link_account_or_create_payroll(monkeypatc
     transition_employee(p,a,'employee','workflow','next','cancel-key')
     assert [method for method,_,_ in calls if method!='GET']==['POST']
     assert calls[-1][1]=='/entities/employee/transitions'
+
+
+def test_account_approval_is_system_controlled_even_for_superadmin():
+    from hrms_app.employee_work import employee_form, save_employee_form
+    p, actor, calls = setup()
+    original = p.request
+
+    def request(method, path, **kwargs):
+        if path == '/roles/my-permissions':
+            return {'field_permissions': []}
+        if path == '/entity-records/employee':
+            assert method == 'GET', 'Human must not write approval status'
+            return {'organization_id': 'org', 'data': {'account_approved': False}}
+        if path.startswith('/workflow-state-machines/'):
+            return {'definition': {'method_schemas': [{
+                'state_name': 'Employee Registration', 'method_name': 'Approval',
+                'fields': [{'field': 'account_approved', 'type': 'boolean', 'read_only': False}],
+            }]}}
+        return original(method, path, **kwargs)
+
+    p.request = request
+    assert employee_form(p, actor, 'employee', 'workflow')['fields'][0]['read_only']
+    with pytest.raises(AppError, match='Only editable fields'):
+        save_employee_form(p, actor, 'employee', 'workflow', {'account_approved': True})
