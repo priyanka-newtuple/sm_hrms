@@ -4,7 +4,7 @@ import { Calendar, Trash2 } from 'lucide-react';
 import { request, getApiErrorMessage } from '@/core/services/api/client';
 
 type Metadata = {current_state?:string;state_entered_at?:string;due_date?:string;created_at?:string;updated_at?:string;assignee_name?:string;can_edit_due_date:boolean;can_archive:boolean};
-const dateLabel=(value?:string)=>value?new Date(value).toLocaleDateString(): '—';
+const dateLabel=(value?:string)=>value?new Date(/^\d{4}-\d{2}-\d{2}$/.test(value)?`${value}T00:00:00`:value).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}): '—';
 export function RecordToolbar({entityId,scope,workflowId,onArchived}:{entityId:string;scope:string;workflowId?:string;onArchived?:()=>void}) {
   const client=useQueryClient();
   const [confirmArchive,setConfirmArchive]=useState(false);
@@ -16,10 +16,10 @@ export function RecordToolbar({entityId,scope,workflowId,onArchived}:{entityId:s
   if(meta.isPending)return <p role="status" className="hrms-muted py-3">Loading record status…</p>;
   if(meta.isError)return <p role="alert">Could not load record controls. <button type="button" onClick={()=>void meta.refetch()}>Retry</button></p>;
   const data=meta.data;
-  return <section aria-label="Record controls" className="space-y-4 py-4">
+  return <section aria-label="Record controls" className="hrms-record-toolbar space-y-4 py-4">
     <div className="flex flex-wrap items-center gap-3">
       {data.current_state&&<span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-sm font-semibold text-[#0047AB]">{data.current_state}</span>}
-      <label className="flex items-center gap-2 text-sm"><Calendar size={16}/>Due date<input aria-label="Due date" type="date" value={data.due_date?.slice(0,10)??''} disabled={!data.can_edit_due_date||change.isPending||archive.isSuccess} onChange={e=>change.mutate(e.target.value)} className="rounded-lg border px-2 py-1"/></label>
+      <label className="hrms-record-due"><span><Calendar size={16}/>Due date</span><input aria-label="Due date" type="date" value={data.due_date?.slice(0,10)??''} disabled={!data.can_edit_due_date||change.isPending||archive.isSuccess} onChange={e=>change.mutate(e.target.value)} className="hrms-field-input"/></label>
       {data.can_archive&&!archive.isSuccess&&<button type="button" className="ml-auto rounded-lg p-2 text-slate-500" aria-label="Archive record" title="Archive record" onClick={()=>setConfirmArchive(true)}><Trash2 size={18}/></button>}
     </div>
     {data.assignee_name&&<p className="text-sm">Assignee: <strong>{data.assignee_name}</strong></p>}
