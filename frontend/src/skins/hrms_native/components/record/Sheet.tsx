@@ -39,7 +39,7 @@ export function SheetContent({ children, className = '', style, ...props }: Comp
     };
   }, [open, owner]);
   const preview = open && top === owner && docs.length > 0;
-  return <Native.SheetContent {...props} className="hrms-brand flex-row gap-0 overflow-hidden p-0"
+  return <Native.SheetContent {...props} className="hrms-brand hrms-record-sheet flex-row gap-0 overflow-hidden p-0"
     style={{ ...style, width: preview ? (collapsed ? '59rem' : '90rem') : '56rem', maxWidth: '100vw' }}>
     {preview && <Suspense fallback={<p role="status" className="p-4">Loading document preview…</p>}><DocumentPreviewPanel layout="sheet" /></Suspense>}
     <DocumentPreviewAvailable.Provider value={open && top === owner}>
