@@ -130,7 +130,7 @@ export function ProjectControls() {
         { label: 'Pending approvals', value: board.data.requests.filter(r => r.state === 'pending').length, tone: 'attention' },
       ] : undefined} />
     {board.isError && <p role="alert">{getApiErrorMessage(board.error)}</p>}
-    <Sheet open={Boolean(action)} onOpenChange={open=>{if(!open)setAction(null);}}><SheetContent className="hrms-brand hrms-review-drawer overflow-y-auto data-[side=right]:w-full data-[side=right]:sm:max-w-4xl"><SheetHeader><SheetTitle>{action === 'create_customer' ? 'Add customer' : 'Create project'}</SheetTitle></SheetHeader>{action && <div className="p-6"><ProjectAction key={action} action={action} done={()=>setAction(null)} /></div>}</SheetContent></Sheet>
+    <Sheet open={Boolean(action)} onOpenChange={open=>{if(!open)setAction(null);}}><SheetContent className="hrms-brand hrms-review-drawer overflow-y-auto data-[side=right]:w-full data-[side=right]:sm:max-w-4xl"><SheetHeader><SheetTitle>{action === 'create_customer' ? 'Add customer' : 'Create project'}</SheetTitle></SheetHeader>{action && <div className="hrms-form-body"><ProjectAction key={action} action={action} done={()=>setAction(null)} /></div>}</SheetContent></Sheet>
     <ProjectRecovery />
   </div>;
 }

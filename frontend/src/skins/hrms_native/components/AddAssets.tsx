@@ -29,7 +29,7 @@ export function AddAssets({done}:{done:()=>void}) {
    const payload=batch??{data:formValues(fields,values,excluded),units,idempotency_key:createRequestId()};
    setBatch(payload);mutation.mutate(payload);
  }
- return <form className="p-6 space-y-5" onSubmit={e=>{e.preventDefault();e.stopPropagation();if(review)submit();else setReview(true);}}>
+ return <form className="hrms-form-body space-y-5" onSubmit={e=>{e.preventDefault();e.stopPropagation();if(review)submit();else setReview(true);}}>
  <p>Enter shared details once. Each item receives its own Asset ID automatically when saved.</p>
  {pending.isError&&<p role="alert">Could not check unfinished batches. <button type="button" onClick={()=>void pending.refetch()}>Retry</button></p>}
  {!batch&&pending.data?.items.map(p=><div className="hrms-notice" key={p.idempotency_key}>Unfinished batch: {p.units.length} × {String(p.data.asset_name??'Asset')}. <button type="button" className="hrms-outline-button" onClick={()=>{setBatch(p);setValues(p.data);setUnits(p.units);setReview(true);mutation.reset();}}>Resume batch</button></div>)}
@@ -42,6 +42,6 @@ export function AddAssets({done}:{done:()=>void}) {
  {review&&!batch&&<p role="status">Review {units.length} items above, then create them.</p>}
  {mutation.isError&&<p role="alert">{getApiErrorMessage(mutation.error)}. Retry this batch to check unfinished items safely.</p>}
  {mutation.data&&<section role="status"><h3>{mutation.data.items.filter(i=>i.status==='created').length} of {mutation.data.total} assets created</h3>{mutation.data.items.map(i=><p key={i.item}>Item {i.item}: {i.status==='created'?i.identifier??'Created':i.message}</p>)}</section>}
- <div className="flex justify-end gap-3"><button type="button" className="hrms-outline-button" disabled={mutation.isPending} onClick={done}>{mutation.data?.complete?'Done':'Close'}</button>{review&&!batch&&<button type="button" className="hrms-outline-button" onClick={()=>setReview(false)}>Back</button>}{!mutation.data?.complete&&<button className="hrms-primary-button" disabled={mutation.isPending}>{mutation.isPending?'Creating…':batch?'Retry unfinished items':review?`Create ${units.length} assets`:'Review assets'}</button>}</div>
+ <div className="hrms-form-actions"><button type="button" className="hrms-outline-button" disabled={mutation.isPending} onClick={done}>{mutation.data?.complete?'Done':'Close'}</button>{review&&!batch&&<button type="button" className="hrms-outline-button" onClick={()=>setReview(false)}>Back</button>}{!mutation.data?.complete&&<button className="hrms-primary-button" disabled={mutation.isPending}>{mutation.isPending?'Creating…':batch?'Retry unfinished items':review?`Create ${units.length} assets`:'Review assets'}</button>}</div>
  </form>;
 }

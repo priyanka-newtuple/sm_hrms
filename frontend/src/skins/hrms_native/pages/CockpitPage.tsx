@@ -156,7 +156,7 @@ function ContentCockpit({entityId,tabs}:{entityId?:string;tabs?:React.ReactNode}
     :<ListEmpty title={filtered?'Nothing matches these filters':`No ${CONTENT_LABELS[categoryIndex].toLowerCase()} yet`} text={filtered?'Try another status or search, or reset the filters.':board.creatable.includes(kind)?'Create a draft to get started.':'Content shared with your role will appear here.'} action={filtered?<button type="button" onClick={()=>{setStatus('all');setAudience('all');setSearch('');}}>Show everything</button>:undefined}/>}
     <Pager paged={paged} noun={CONTENT_LABELS[categoryIndex].toLowerCase()}/>
    </section>
-   <Sheet open={creating} onOpenChange={setCreating}><SheetContent className="hrms-brand hrms-review-drawer overflow-y-auto data-[side=right]:w-full data-[side=right]:sm:max-w-4xl"><SheetHeader><SheetTitle>Add {contentNames[categoryIndex]}</SheetTitle></SheetHeader><div className="p-6">{creating&&<Editor key={kind} kind={kind} board={board} done={()=>setCreating(false)}/>}</div></SheetContent></Sheet>
+   <Sheet open={creating} onOpenChange={setCreating}><SheetContent className="hrms-brand hrms-review-drawer overflow-y-auto data-[side=right]:w-full data-[side=right]:sm:max-w-4xl"><SheetHeader><SheetTitle>Add {contentNames[categoryIndex]}</SheetTitle></SheetHeader><div className="hrms-form-body">{creating&&<Editor key={kind} kind={kind} board={board} done={()=>setCreating(false)}/>}</div></SheetContent></Sheet>
   </>}
   {item&&board&&<section className="hrms-content-detail">
    {!entityId&&<button className="hrms-outline-button hrms-content-back" onClick={()=>{setSelected(null);setEditing(false);}}>Back to content</button>}

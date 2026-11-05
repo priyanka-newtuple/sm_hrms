@@ -267,11 +267,13 @@ def employee_form(platform, actor, entity_id, workflow_id):
             and not grants.get(key, {}).get("mask_value")
         )
 
+    from .onboarding_payroll import FIELDS as payroll_result_fields
     form["fields"] = [
         {
             **f,
             "read_only": f.get("read_only")
             or f["field"] == "account_approved"  # Verified by the native account bridge, never a human assertion.
+            or f["field"] in payroll_result_fields  # Written only by the approved integration action.
             or terminal
             or other_employee_profile
             or (is_owner_signoff_step(workflow, enrollment["current_state"])

@@ -18,7 +18,7 @@ vi.mock('@/core/services/api/client', () => ({getApiErrorMessage: String, reques
   if (path.includes('/form')) return {name:'Verification',fields:[],previous_fields:[],values:{},current_state:'Verification'};
   throw new Error(path);
 }}));
-vi.mock('../components/record/RecordTabs', () => ({RecordTabs:({children,actions}:any)=><>{actions}{children}</>}));
+vi.mock('../components/record/RecordTabs', () => ({RecordTabs:({children,actions}:any)=><><div aria-label="Record actions">{actions}</div>{children}</>}));
 vi.mock('@/skins/hrms_native/components/record/Sheet', () => ({
   Sheet:({children}:any)=><>{children}</>, SheetContent:({children}:any)=><div>{children}</div>,
   SheetHeader:({children}:any)=><div>{children}</div>, SheetTitle:({children}:any)=><h1>{children}</h1>,
@@ -47,6 +47,10 @@ it('retries an uncertain handover with the same assignment and idempotency key',
   fireEvent.change(await screen.findByLabelText('Next assignee'),{target:{value:'office'}});
   fireEvent.click(screen.getByRole('button',{name:'Continue'}));
   const retry=await screen.findByRole('button',{name:'Retry handover'});
+  expect(retry.closest('[aria-label="Record actions"]')).not.toBeNull();
+  expect(screen.getAllByRole('alert')).toHaveLength(1);
+  expect((screen.getByRole('button',{name:'Save details'}) as HTMLButtonElement).disabled).toBe(true);
+  expect((screen.getByRole('button',{name:'Continue'}) as HTMLButtonElement).disabled).toBe(true);
   state.fail=false;fireEvent.click(retry);
   await waitFor(()=>expect(state.writes).toHaveLength(2));
   expect(state.writes[1]).toEqual(state.writes[0]);
