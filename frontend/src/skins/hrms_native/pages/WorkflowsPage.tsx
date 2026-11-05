@@ -1,3 +1,4 @@
+import { useHrmsCapabilities } from '../capabilities';
 import { OffboardingEditor } from './OffboardingPage';
 import { OfferEditor } from './OfferEditor';
 import CockpitPage, { CONTENT_TYPES } from './CockpitPage';
@@ -74,6 +75,8 @@ const FIELDS: ColumnField[] = [
 const DEFAULT_FIELDS = ['employee_name', 'identifier', 'workflow', 'owner', 'next_action', 'state'];
 
 export default function WorkflowsPage() {
+  const caps = useHrmsCapabilities();
+  const [creatingOffboarding, setCreatingOffboarding] = useState(false);
   const [createdEmployee, setCreatedEmployee] = useState<CreatedEmployee | null>(null);
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -156,6 +159,7 @@ export default function WorkflowsPage() {
         <div className="hrms-workflow-toolbar-actions">
           <div className="hrms-workflow-export"><ExportDropdown entities={list.filtered} schemaFields={FIELDS} workflowName={workflow?.name ?? 'Workflow'}/></div>
           {workflow?.entity_type==='HRMS.Employee' && <AddEmployee onCreated={setCreatedEmployee}/>}
+          {workflow?.entity_type==='HRMS.Offboarding' && caps.data?.capabilities.includes('employee:exit') && <Button onClick={() => setCreatingOffboarding(true)}>+ Start offboarding</Button>}
         </div>
     </section>
     {workflow?.entity_type==='HRMS.Employee' && <EmployeeCreatedNotice created={createdEmployee}/>}
@@ -174,6 +178,12 @@ export default function WorkflowsPage() {
           <Button className="hrms-outline-button" variant="outline" size="sm" disabled={list.page + 1 >= pageCount} onClick={() => list.setPage(page => page + 1)}>Next</Button>
         </div>} />
     </Card>)}</>}
+    <Sheet open={creatingOffboarding} onOpenChange={setCreatingOffboarding}>
+      <SheetContent className="hrms-brand overflow-y-auto data-[side=right]:w-full data-[side=right]:sm:max-w-4xl hrms-review-drawer">
+        <SheetHeader><SheetTitle>Employee offboarding</SheetTitle></SheetHeader>
+        {creatingOffboarding && <OffboardingEditor/>}
+      </SheetContent>
+    </Sheet>
     {selected?.employee_work && <EmployeeWorkflowActions
       key={`${selected.entity_id}:${selected.employee_work.workflow_id}`}
       item={selected.employee_work} readOnly={!selected.employee_work.actions.length}

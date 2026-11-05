@@ -1,22 +1,20 @@
-import { canOpenModule } from '../moduleAccess';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { ChevronDown, CornerDownLeft, LogOut } from 'lucide-react';
+import { ChevronDown, CornerDownLeft, LogOut, Mail } from 'lucide-react';
 import { useAuth } from '../../../core/auth';
 import { useHrmsCapabilities } from '../capabilities';
 import TenantHeader from '../components/TenantHeader';
-import { Illustration } from '../components/Illustration';
 import { usePrefersReducedMotion } from '../components/useReducedMotion';
 import {
-  AnimIcon, BellIcon, BookTextIcon, BriefcaseBusinessIcon, CalendarDaysIcon, LayoutGridIcon, MenuIcon, PanelLeftCloseIcon,
-  PanelLeftOpenIcon, SearchIcon, SettingsIcon, SlidersHorizontalIcon, TrendingUpIcon, UsersIcon,
-  WorkflowIcon, XIcon, ZapIcon, type AnimatedIcon,
+  AnimIcon, BookTextIcon, MenuIcon, PanelLeftCloseIcon,
+  PanelLeftOpenIcon, SearchIcon, SettingsIcon,
+  WorkflowIcon, XIcon, ZapIcon,
 } from '../animated-icons';
 import { useWorkflowCatalog } from '../workflows/useWorkflowCatalog';
-import { useWaitingActions, type WaitingSource } from './useWaitingActions';
+import { useWaitingActions } from './useWaitingActions';
 
-interface NavItem { path: string; label: string; icon: AnimatedIcon; badge?: number; keywords?: string; comingSoon?: boolean }
-interface NavGroup { label: string; standalone?: boolean; items: NavItem[] }
+import { buildNavigation, isNavigationActive, type NavItem, type NavGroup } from './navigation';
+import { useInboxStatus } from '../pages/UatInbox';
 
 const COLLAPSE_KEY = 'hrms.sidebar.collapsed';
 const readCollapsed = () => { try { return localStorage.getItem(COLLAPSE_KEY) === '1'; } catch { return false; } };
@@ -35,18 +33,13 @@ function useDismiss(open: boolean, close: () => void, root: RefObject<HTMLElemen
 }
 
 /* ── Sidebar ───────────────────────────────────────────────── */
-function Sidebar({ groups, settings, collapsed, onToggle, waiting, motion }: {
+function Sidebar({ groups, settings, collapsed, onToggle }: {
   groups: NavGroup[]; settings: NavItem | null; collapsed: boolean; onToggle: () => void;
-  waiting: ReturnType<typeof useWaitingActions>; motion: boolean;
 }) {
   const [folded, setFolded] = useState<Record<string, boolean>>({});
   const nav = useRef<HTMLElement>(null);
   const pill = useRef<HTMLSpanElement>(null);
   const { pathname, search } = useLocation();
-  const catalog = useWorkflowCatalog(groups.some(group=>group.items.some(item=>item.path==='/hrms/workflows')));
-  const selectedWorkflow = new URLSearchParams(search).get('workflow');
-  const [workflowsExpanded, setWorkflowsExpanded] = useState(false);
-
   const moveTo = useCallback((target: HTMLElement | null) => {
     const host = nav.current, node = pill.current;
     if (!host || !node) return;
@@ -59,7 +52,7 @@ function Sidebar({ groups, settings, collapsed, onToggle, waiting, motion }: {
     node.style.height = `${target.offsetHeight}px`;
   }, []);
   const rest = useCallback(() => moveTo(nav.current?.querySelector<HTMLElement>('a[aria-current="page"]') ?? null), [moveTo]);
-  useLayoutEffect(rest, [rest, pathname, collapsed, groups, folded, workflowsExpanded]);
+  useLayoutEffect(rest, [rest, pathname, collapsed, groups, folded, search]);
 
   const toggleLabel = collapsed ? 'Expand sidebar' : 'Collapse sidebar';
   return <aside className="hrms-ws-sidebar" aria-label="Workspace">
@@ -72,38 +65,21 @@ function Sidebar({ groups, settings, collapsed, onToggle, waiting, motion }: {
 
     <nav ref={nav} aria-label="Main navigation" className="hrms-side-nav" onMouseLeave={rest} onBlur={rest}>
       <span ref={pill} className="hrms-side-pill" aria-hidden="true" />
-      {groups.map(group => <section key={group.label} className="hrms-side-group" aria-label={group.label}>
-        {!group.standalone && <h2><button type="button" className="hrms-side-group-toggle" aria-expanded={!folded[group.label]} onClick={() => setFolded(previous => ({ ...previous, [group.label]: !previous[group.label] }))}>{group.label}<ChevronDown size={14} style={{ transform: folded[group.label] ? "rotate(-90deg)" : undefined }} /></button></h2>}
-        {(collapsed || !folded[group.label]) && group.items.map(item => item.comingSoon ? <div key={item.path} className="hrms-side-link hrms-side-coming" data-label={`${item.label} — Coming soon`} aria-disabled="true"><AnimIcon icon={item.icon} size={19} /><span className="hrms-side-label">{item.label}<small>Coming soon</small></span></div> : <div key={item.path}><NavLink to={item.path} className="hrms-side-link" data-label={item.label}
-          aria-expanded={item.path==='/hrms/workflows'&&!collapsed?workflowsExpanded:undefined}
-          aria-controls={item.path==='/hrms/workflows'&&!collapsed?'hrms-workflow-links':undefined}
-          onClick={()=>{if(item.path==='/hrms/workflows')setWorkflowsExpanded(value=>!value);}}
+      {groups.map(group => <section key={group.label} className={`hrms-side-group${group.standalone ? '' : ' hrms-side-category'}`} aria-label={group.label}>
+        {!group.standalone && <h2><button type="button" className="hrms-side-group-toggle" aria-expanded={!folded[group.label]} onClick={() => setFolded(previous => ({ ...previous, [group.label]: !previous[group.label] }))}>
+          <AnimIcon icon={group.icon ?? WorkflowIcon} size={19}/><span>{group.label}</span><ChevronDown size={14} style={{ transform: folded[group.label] ? 'rotate(-90deg)' : undefined }}/>
+        </button></h2>}
+        {(collapsed || !folded[group.label]) && group.items.map(item => <Link key={item.path} to={item.path} className="hrms-side-link" data-label={item.label}
+          aria-current={isNavigationActive(item.path, pathname, search) ? 'page' : undefined}
           onMouseEnter={event => moveTo(event.currentTarget)} onFocus={event => moveTo(event.currentTarget)}>
-          <AnimIcon icon={item.icon} size={19} />
+          {item.path === '/hrms/uat-inbox' ? <Mail size={19} aria-hidden="true"/> : <AnimIcon icon={item.icon} size={19}/>}
           <span className="hrms-side-label">{item.label}</span>
-          {item.path==='/hrms/workflows'&&!collapsed&&<ChevronDown size={14} className="hrms-workflow-chevron" style={{transform:workflowsExpanded?undefined:'rotate(-90deg)'}} aria-hidden="true"/>}
           {item.badge ? <span className="hrms-side-badge" aria-label={`${item.badge} waiting`}>{item.badge > 99 ? '99+' : item.badge}</span> : null}
-        </NavLink>
-        {item.path==='/hrms/workflows' && !collapsed && workflowsExpanded && <>
-          <nav id="hrms-workflow-links" className="hrms-workflow-nav" aria-label="Workflows">
-            {catalog.isLoading && pathname!=='/hrms/workflows' && <p>Loading workflows…</p>}
-            {catalog.isError && <button onClick={()=>void catalog.refetch()}>Could not load workflows. Retry</button>}
-            {catalog.data?.map(workflow=><Link key={workflow.machine_name} to={`/hrms/workflows?workflow=${encodeURIComponent(workflow.machine_name)}`} aria-current={pathname==='/hrms/workflows'&&selectedWorkflow===workflow.machine_name?'page':undefined}>{workflow.name}</Link>)}
-            {catalog.data?.length===0 && <p>No published workflows</p>}
-          </nav>
-        </>}
-        </div>)}
+        </Link>)}
       </section>)}
     </nav>
 
     <div className="hrms-side-bottom">
-      {!collapsed && <Link to="/hrms/my-work" className="hrms-side-card" data-anim-trigger>
-        <Illustration name="all-clear" animate={motion} className="hrms-side-card-art" />
-        <span>
-          <strong>{waiting.loading ? 'Checking your work…' : waiting.total > 0 ? `${waiting.total} ${waiting.total === 1 ? 'action' : 'actions'} waiting` : 'You’re all caught up'}</strong>
-          <small>{waiting.total > 0 ? 'Open My Tasks to review them' : 'New tasks and approvals appear here'}</small>
-        </span>
-      </Link>}
       {settings && <NavLink to={settings.path} className="hrms-side-link hrms-side-settings" data-label={settings.label}>
         <AnimIcon icon={settings.icon} size={19} /><span className="hrms-side-label">{settings.label}</span>
       </NavLink>}
@@ -187,26 +163,6 @@ function Popover({ label, trigger, children, className = '' }: { label: string; 
   </div>;
 }
 
-function NotificationBell({ waiting, motion }: { waiting: ReturnType<typeof useWaitingActions>; motion: boolean }) {
-  const total = waiting.total;
-  return <Popover label="Waiting on you" className="hrms-bell" trigger={({ ref, open, toggle }) =>
-    <button ref={ref} type="button" className="hrms-top-icon" aria-expanded={open} aria-haspopup="dialog" onClick={toggle}
-      aria-label={total > 0 ? `Notifications: ${total} waiting` : 'Notifications: nothing waiting'}>
-      <AnimIcon icon={BellIcon} size={19} every={motion && total > 0 ? 6000 : undefined} />
-      {total > 0 && <span className="hrms-bell-dot">{total > 9 ? '9+' : total}</span>}
-    </button>}>
-    {close => <>
-      <header className="hrms-pop-head"><strong>Waiting on you</strong><span>{waiting.loading ? 'Checking…' : `${total} total`}</span></header>
-      {total === 0 && !waiting.loading
-        ? <div className="hrms-pop-empty"><Illustration name="all-clear" animate={motion} className="hrms-pop-art" /><p>You’re all caught up.</p></div>
-        : <ul className="hrms-pop-list">{waiting.sources.map((source: WaitingSource) => <li key={source.key}>
-            <Link to={source.path} onClick={close} data-active={source.count > 0}><span>{source.label}</span><b>{source.count}</b></Link>
-          </li>)}</ul>}
-      <Link to="/hrms/my-work" className="hrms-pop-foot" onClick={close}>Open My Tasks</Link>
-    </>}
-  </Popover>;
-}
-
 function UserMenu({ name, email, roles, initials, canConfigure, onSignOut }: { name: string; email: string; roles: string[]; initials: string; canConfigure: boolean; onSignOut: () => void }) {
   return <Popover label="Account" className="hrms-user-menu" trigger={({ ref, open, toggle }) =>
     <button ref={ref} type="button" className="hrms-user-button" aria-expanded={open} aria-haspopup="dialog" onClick={toggle} aria-label={`Account: ${name}`}>
@@ -236,39 +192,22 @@ export function WorkspaceShell() {
   const [collapsed, setCollapsed] = useState(readCollapsed);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const [drawerPath, setDrawerPath] = useState(location.pathname);
+  const route = location.pathname + location.search;
+  const [drawerPath, setDrawerPath] = useState(route);
+  const catalog = useWorkflowCatalog();
+  const inbox = useInboxStatus();
   const allowed = (capability: string) => caps.data?.capabilities.includes(capability) ?? false;
 
   // Close the mobile drawer after navigating (state derived during render, no effect needed).
-  if (drawerPath !== location.pathname) { setDrawerPath(location.pathname); if (drawerOpen) setDrawerOpen(false); }
+  if (drawerPath !== route) { setDrawerPath(route); if (drawerOpen) setDrawerOpen(false); }
 
   const onboardingOnly = caps.data?.roles.includes('hrms_onboarding_employee') ?? false;
-  const groups: NavGroup[] = [
-    { label: 'Workspace', standalone: true, items: [
-      { path: '/hrms/my-work', label: 'My Tasks', icon: ZapIcon, badge: waiting.total, keywords: 'home assigned tasks approvals completion' },
-      ...(permissions?.permissions.includes('workflow:read') ? [{ path: '/hrms/workflows', label: 'Workflows', icon: WorkflowIcon, keywords: 'workflow states transitions approvals' }] : []),
-      ...(allowed('platform:configure') && permissions?.permissions.includes('agent:read') ? [{ path: '/agent', label: 'Agent Mode', icon: ZapIcon, keywords: 'AI assistant chat agents' }] : []),
-      ...(allowed('employee:read') ? [{ path: '/hrms/employees', label: 'Org Directory', icon: UsersIcon, keywords: 'employees directory people staff' }] : []),
-    ] },
-    { label: 'Self Service', items: [
-      ...(!canOpenModule('leave', caps.data) ? [] : [{ path: '/hrms/leave', label: 'Leave Requests', icon: CalendarDaysIcon, keywords: 'time off vacation holiday' }]),
-      ...(allowed('wfh:view') ? [{ path: '/hrms/work-from-home', label: 'Work from Home', icon: CalendarDaysIcon, keywords: 'remote work location calendar' }] : []),
-      ...(canOpenModule('performance', caps.data) ? [{ path: '/hrms/performance', label: 'Performance', icon: TrendingUpIcon, keywords: 'goals reviews feedback cycle' }] : []),
-    ] },
-    { label: 'Delivery', items: allowed('project:view') ? [
-      { path: '/hrms/customers', label: 'Customers', icon: UsersIcon, keywords: 'clients contacts accounts' },
-      { path: '/hrms/projects', label: 'Projects', icon: BriefcaseBusinessIcon, keywords: 'customers delivery' },
-      { path: '/hrms/allocations', label: 'Allocations', icon: LayoutGridIcon, keywords: 'capacity staffing' },
-    ] : [] },
-    { label: 'Management', standalone: true, items: [
-      ...((allowed('cockpit:view') || allowed('onboarding:view')) ? [{ path: '/hrms/cockpit', label: 'HR Cockpit', icon: SlidersHorizontalIcon, keywords: 'onboarding policies holidays careers publish HR' }] : []),
-      ...((allowed('asset:view') || allowed('asset:manage')) ? [{ path: '/hrms/assets', label: 'Asset Management', icon: LayoutGridIcon, keywords: 'inventory equipment laptops issue' }] : []),
-    ] },
-  ].map(group => onboardingOnly ? {...group, items:group.items.filter(item=>item.path==='/hrms/my-work')} : group).filter(group => group.items.length);
+  const groups = buildNavigation(caps.data, catalog.data ?? [], waiting.total, inbox.data?.enabled === true, permissions?.permissions ?? []);
   const settings: NavItem | null = allowed('platform:configure') ? { path: '/settings', label: 'Settings', icon: SettingsIcon, keywords: 'configuration roles forms' } : null;
-  const paletteItems = [...groups.flatMap(group => group.items).filter(item => !item.comingSoon), ...(onboardingOnly ? [] : [{ path: '/hrms/content', label: 'Company resources', icon: BookTextIcon, keywords: 'policies learning holidays careers published' }]), ...(settings ? [settings] : [])];
+  const extraWorkflows: NavItem[] = onboardingOnly || !permissions?.permissions.includes('workflow:read') ? [] : (catalog.data ?? []).map(workflow => ({path: `/hrms/workflows?workflow=${encodeURIComponent(workflow.machine_name)}`, label: workflow.name, icon: WorkflowIcon})).filter(item => !groups.some(group => group.items.some(link => link.path === item.path)));
+  const paletteItems = [...extraWorkflows, ...groups.flatMap(group => group.items), ...(onboardingOnly ? [] : [{ path: '/hrms/content', label: 'Company resources', icon: BookTextIcon, keywords: 'policies learning holidays careers published' }]), ...(settings ? [settings] : [])];
 
-  const current = groups.flatMap(group => group.items.map(item => ({ ...item, group: group.standalone ? item.label : group.label }))).find(item => location.pathname.startsWith(item.path))
+  const current = groups.flatMap(group => group.items.map(item => ({ ...item, group: group.standalone ? item.label : group.label }))).find(item => isNavigationActive(item.path, location.pathname, location.search))
     ?? (location.pathname.startsWith('/settings') && settings ? { ...settings, group: 'Configuration' } : location.pathname.startsWith('/hrms/content') ? { ...paletteItems.find(i => i.path === '/hrms/content')!, group: 'Resources' } : null);
   const roles = caps.data?.roles.map(roleName) ?? [];
   const initials = (user?.fullName ?? '').split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]?.toUpperCase()).join('') || '·';
@@ -290,7 +229,7 @@ export function WorkspaceShell() {
   const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
 
   return <div className={`hrms-brand hrms-ws-shell${motion ? ' hrms-ws--motion' : ''}`} data-collapsed={collapsed} data-drawer={drawerOpen}>
-    <Sidebar groups={groups} settings={settings} collapsed={collapsed} onToggle={toggleCollapsed} waiting={waiting} motion={motion} />
+    <Sidebar groups={groups} settings={settings} collapsed={collapsed} onToggle={toggleCollapsed} />
     {drawerOpen && <div className="hrms-side-scrim" onClick={() => setDrawerOpen(false)} aria-hidden="true" />}
 
     <div className="hrms-ws-main">
@@ -306,7 +245,6 @@ export function WorkspaceShell() {
           <AnimIcon icon={SearchIcon} size={16} /><span>Search or jump to…</span><kbd>{isMac ? '⌘' : 'Ctrl'} K</kbd>
         </button>
         <div className="hrms-top-actions">
-          <NotificationBell waiting={waiting} motion={motion} />
           <UserMenu name={user?.fullName ?? 'Signed in'} email={user?.email ?? ''} roles={roles} initials={initials} canConfigure={Boolean(settings)} onSignOut={() => void logout()} />
         </div>
       </header>

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Mail, RefreshCw, Download } from 'lucide-react';
+import { RefreshCw, Download } from 'lucide-react';
 import { request } from '@/core/services/api/client';
 import { useHrmsCapabilities } from '../capabilities';
 
@@ -9,14 +9,9 @@ type Address = { Name?: string; Address: string };
 type Message = { ID: string; Subject: string; Created: string; From: Address; To: Address[]; Cc?: Address[]; Bcc?: Address[]; Text?: string; HTML?: string; Attachments?: { PartID: string; FileName: string }[] };
 const addresses = (items?: Address[]) => (items || []).map(item => item.Address).join(', ');
 
-function useInboxStatus() {
+export function useInboxStatus() {
   const caps = useHrmsCapabilities();
   return useQuery({ queryKey: ['hrms', 'uat-mail', 'status', caps.data?.roles], queryFn: () => request<{ enabled: boolean }>('/hrms/uat-mail/status'), enabled: Boolean(caps.data), staleTime: 0, gcTime: 0, refetchInterval: 30000 });
-}
-
-export function UatInboxLink() {
-  const status = useInboxStatus();
-  return status.data?.enabled ? <Link className="hrms-text-link inline-flex items-center gap-2 my-3" to="/hrms/uat-inbox"><Mail size={18}/>UAT email inbox</Link> : null;
 }
 
 export default function UatInbox() {

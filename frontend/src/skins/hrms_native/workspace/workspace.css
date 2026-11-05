@@ -48,13 +48,6 @@
 .hrms-ws-shell[data-collapsed=true] .hrms-side-link:hover::after, .hrms-ws-shell[data-collapsed=true] .hrms-side-link:focus-visible::after { opacity:1; transform:translate(0,-50%); }
 
 .hrms-side-bottom { display:grid; gap:8px; padding-top:12px; border-top:1px solid #eef1f6; }
-.hrms-side-card { position:relative; overflow:hidden; display:flex; align-items:center; gap:10px; padding:10px 12px 10px 6px; border:1px solid #dfe8f7; border-radius:18px; background:linear-gradient(120deg,#f3f7ff,#ffffff); color:var(--ink); text-decoration:none; transition:border-color .3s ease, box-shadow .3s ease, transform .3s ease; }
-.hrms-side-card:hover { border-color:#c9d9f2; box-shadow:0 16px 30px -22px rgba(0,47,116,.5); transform:translateY(-1px); }
-.hrms-side-card:focus-visible { outline:2px solid var(--cobalt); outline-offset:2px; }
-.hrms-side-card-art { flex-shrink:0; width:84px!important; height:72px!important; margin:-8px -6px -8px -10px; }
-.hrms-side-card-art svg { transform:scale(1.7); transform-origin:center 60%; }
-.hrms-side-card strong { display:block; font-size:13px; font-weight:600; }
-.hrms-side-card small { display:block; color:#6b7385; font-size:11px; line-height:1.4; }
 
 /* ── Top bar ────────────────────────────────────────────────── */
 .hrms-ws-main { display:flex; flex:1; flex-direction:column; min-width:0; min-height:100vh; }
@@ -74,8 +67,6 @@
 .hrms-top-icon:hover, .hrms-top-icon[aria-expanded=true] { border-color:#c9d4e6; background:#f3f7ff; color:var(--cobalt); }
 .hrms-top-icon:focus-visible, .hrms-user-button:focus-visible { outline:2px solid var(--cobalt); outline-offset:2px; }
 .hrms-top-menu { display:none; }
-.hrms-bell-dot { position:absolute; top:-5px; right:-5px; min-width:19px; height:19px; padding:0 5px; border:2px solid #f6f8fc; border-radius:999px; background:#e2574c; color:white; font-family:var(--mono); font-size:10px; line-height:15px; }
-.hrms-ws--motion .hrms-bell-dot { animation:hrms-badge-in .5s var(--ease-out) both; }
 .hrms-user-button { display:flex; align-items:center; gap:10px; height:44px; padding:0 10px 0 4px; border:1px solid #e1e7f0; border-radius:999px; background:white; transition:border-color .2s ease, box-shadow .2s ease; }
 .hrms-user-button:hover, .hrms-user-button[aria-expanded=true] { border-color:#c9d4e6; box-shadow:0 8px 20px -16px rgba(10,31,77,.5); }
 .hrms-ws-avatar { display:grid; place-items:center; flex-shrink:0; width:36px; height:36px; border-radius:50%; background:linear-gradient(140deg,#2f6fd6,var(--cobalt) 55%,var(--cobalt-deep)); color:white; font-size:12px; font-weight:600; }
@@ -406,3 +397,12 @@
 .hrms-workflow-board-icon { display:grid; place-items:center; width:34px; height:34px; border-radius:10px; background:#edf3ff; color:#0047ab; }
 .hrms-workflow-board-heading h2 { margin:0; color:#102452; font-size:15px; font-weight:600; }
 .hrms-workflow-board-meta { color:#71809a; font-size:13px; font-weight:400; }
+
+/* Cockpits are primary navigation groups with consistently indented children. */
+.hrms-side-category h2 { padding:0; font-family:inherit; font-size:14px; font-weight:600; letter-spacing:normal; text-transform:none; color:#4b5568; }
+.hrms-side-category .hrms-side-group-toggle { display:flex; align-items:center; gap:12px; width:100%; min-height:42px; padding:0 12px; border-radius:14px; text-align:left; }
+.hrms-side-category .hrms-side-group-toggle span:not(.hrms-anim-icon) { flex:1; }
+.hrms-side-category .hrms-side-group-toggle .hrms-anim-icon { width:30px; color:#7a879d; }
+.hrms-side-category .hrms-side-group-toggle:hover { background:#edf3fd; color:var(--cobalt); }
+.hrms-side-category .hrms-side-group-toggle:focus-visible { outline:2px solid var(--cobalt); outline-offset:-2px; }
+.hrms-ws-shell[data-collapsed=false] .hrms-side-category > .hrms-side-link { padding-left:28px; }
