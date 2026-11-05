@@ -19586,7 +19586,7 @@
         "field_type": "text",
         "description": "Razorpay Employee ID",
         "settings": {
-          "read_only": true,
+          "read_only": false,
           "required": false
         }
       }
@@ -19601,7 +19601,7 @@
         "field_type": "text",
         "description": "Razorpay People ID",
         "settings": {
-          "read_only": true,
+          "read_only": false,
           "required": false
         }
       }
@@ -19616,7 +19616,7 @@
         "field_type": "text",
         "description": "Payroll integration mode",
         "settings": {
-          "read_only": true,
+          "read_only": false,
           "required": false
         }
       }

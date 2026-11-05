@@ -462,3 +462,22 @@ def test_account_approval_is_system_controlled_even_for_superadmin():
     assert employee_form(p, actor, 'employee', 'workflow')['fields'][0]['read_only']
     with pytest.raises(AppError, match='Only editable fields'):
         save_employee_form(p, actor, 'employee', 'workflow', {'account_approved': True})
+
+
+@pytest.mark.parametrize('key', ['razorpay_employee_id', 'razorpay_people_id', 'razorpay_mode'])
+def test_payroll_results_cannot_be_forged_through_form_even_by_admin(monkeypatch, key):
+    import hrms_app.employee_work as module
+    p, a, _ = setup()
+    original = p.request
+    def request(method, path, **kwargs):
+        if path == '/roles/my-permissions': return {'field_permissions': []}
+        if path == '/entity-records/employee': return {'organization_id':'org', 'data':{}}
+        if path.startswith('/workflow-state-machines/'):
+            return {'definition': {'states': [], 'method_schemas': []}}
+        return original(method, path, **kwargs)
+    p.request = request
+    monkeypatch.setattr('hrms_app.form_config.state_form', lambda *args: {'name':'Payroll', 'fields':[{'field':key,'type':'string','read_only':False}]})
+    form = module.employee_form(p,a,'employee','workflow')
+    assert form['fields'][0]['read_only']
+    with pytest.raises(AppError, match='Only editable fields'):
+        module.save_employee_form(p,a,'employee','workflow',{key:'forged'})

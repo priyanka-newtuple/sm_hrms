@@ -436,3 +436,25 @@
  .hrms-record-toolbar dl > div { padding:10px; }
  .hrms-record-tabs > [role=tablist] button { padding:12px; }
 }
+
+/* Custom forms share the same drawer spacing as configured workflow forms. */
+.hrms-record-panel :where(form, fieldset, .hrms-form-body) { min-width: 0; max-width: 100%; }
+.hrms-record-panel fieldset { margin-inline: 0; }
+.hrms-record-panel .hrms-form-body { padding: 0; }
+.hrms-record-panel form.hrms-surface { border: 0; border-radius: 0; box-shadow: none; padding: 0; }
+.hrms-record-panel :where(label, dd, .hrms-form-summary) { overflow-wrap: anywhere; }
+.hrms-record-panel .hrms-form-actions { flex-wrap: wrap; gap: 12px; }
+.hrms-record-panel .hrms-form-actions > button { max-width: 100%; white-space: normal; }
+.hrms-form-summary { padding: 16px 20px; border: 1px solid #dce4f1; border-radius: 18px; background: #f8faff; }
+.hrms-form-summary p { color: #71809a; margin-top: 4px; }
+.hrms-asset-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.hrms-asset-search { grid-column: 1 / -1; }
+.hrms-asset-options { display: grid; gap: 10px; }
+.hrms-asset-option { display: flex; align-items: flex-start; gap: 12px; padding: 16px; border: 1px solid #dce4f1; border-radius: 14px; cursor: pointer; }
+.hrms-asset-option > span { min-width: 0; overflow-wrap: anywhere; }
+.hrms-asset-option[data-selected=true] { border-color: #0047ab; background: #f1f6ff; }
+.hrms-asset-option:focus-within { outline: 3px solid #0047ab20; outline-offset: 2px; }
+.hrms-selected-asset { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 10px 0; overflow-wrap: anywhere; }
+.hrms-selected-asset > span { min-width: 0; }
+.hrms-selected-asset > button { flex-shrink: 0; color: #0047ab; }
+@media (max-width: 640px) { .hrms-asset-filters { grid-template-columns: minmax(0, 1fr); } }

@@ -86,3 +86,34 @@ def test_unsafe_modes_fail_closed(monkeypatch,mode):
     with pytest.raises(AppError): payroll.register(p,j,a,'employee')
     assert db.row is None
 
+
+
+def test_writeback_denial_preserves_receipt_and_retries_without_recreating(monkeypatch):
+    p,j,a,r,w,db=fixture(monkeypatch)
+    original=p.request
+    def denied(method, path, **kwargs):
+        if method == 'PUT':
+            raise AppError(403, 'Not allowed to edit read-only fields')
+        return original(method, path, **kwargs)
+    p.request=denied
+    with pytest.raises(AppError, match='existing registration will be reused') as error:
+        payroll.register(p,j,a,'employee')
+    assert error.value.status == 403
+    assert db.row[3]['employee-id'] == 1
+    assert not w
+    p.request=original
+    monkeypatch.setattr(payroll,'create_person',lambda *args:pytest.fail('must reuse receipt'))
+    assert payroll.register(p,j,a,'employee')['razorpay_employee_id'] == '1'
+    assert len(w) == 1
+
+
+def test_release_does_not_globally_lock_integration_result_fields():
+    import json
+    from pathlib import Path
+    package=next((parent / 'configuration/hrms/release.json' for parent in Path(__file__).resolve().parents if (parent / 'configuration/hrms/release.json').is_file()), None)
+    if package is None:
+        pytest.skip('Release configuration is validated separately outside the application image')
+    release=json.loads(package.read_text(encoding='utf-8'))
+    fields={obj['match']:obj['payload'] for obj in release['objects'] if obj['kind']=='field'}
+    for key in payroll.FIELDS:
+        assert fields[key]['settings']['read_only'] is False

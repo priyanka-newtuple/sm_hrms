@@ -99,5 +99,10 @@ def register(platform, journal, actor, entity_id, *, db=None):
             outcome = row[3]
         # Receipt survives write-back/transition failure. A retry reuses it, including by another admin.
         values = dict(zip(FIELDS, (str(outcome['employee-id']), str(outcome['people-id']), selected_mode)))
-        platform.request('PUT', '/entity-records/' + entity_id, token=actor.token, json={'data': values})
+        try:
+            platform.request('PUT', '/entity-records/' + entity_id, token=actor.token, json={'data': values})
+        except AppError as exc:
+            raise AppError(exc.status, 'Payroll registration is recorded, but its IDs could not be saved to HRMS. '
+                           'Ask an administrator to check the Payroll field configuration and permissions, '
+                           'then retry this handover. The existing registration will be reused.') from exc
         return values
