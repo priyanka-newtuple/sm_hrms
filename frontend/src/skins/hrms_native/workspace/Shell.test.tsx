@@ -1,0 +1,33 @@
+import { afterEach, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import { WorkspaceShell } from './Shell';
+vi.mock('../../../core/auth', () => ({ useAuth: () => ({user:{fullName:'Test Admin',email:'test@example.com'}, logout:vi.fn(), permissions:{permissions:['workflow:read']}}) }));
+vi.mock('../capabilities', () => ({useHrmsCapabilities: () => ({data:{roles:['superadmin'], capabilities:['platform:configure','onboarding:view','employee:exit','project:view']}})}));
+vi.mock('../components/TenantHeader', () => ({default: () => <div>Test workspace</div>}));
+vi.mock('../workflows/useWorkflowCatalog', () => ({useWorkflowCatalog: () => ({data:[{entity_type:'HRMS.Employee', machine_name:'onboarding',name:'Add Employee'},{entity_type:'HRMS.Offboarding',machine_name:'exit',name:'Employee offboarding'}]})}));
+vi.mock('../pages/UatInbox', () => ({useInboxStatus: () => ({data:{enabled:true}})}));
+vi.mock('./useWaitingActions', () => ({useWaitingActions: () => ({total:2,loading:false,sources:[]})}));
+afterEach(cleanup);
+it('removes duplicate task indicators and provides a top-level mailbox', () => {
+  render(<MemoryRouter initialEntries={['/hrms/my-work']}><WorkspaceShell/></MemoryRouter>);
+  const nav = screen.getByRole('navigation',{name:'Main navigation'});
+  expect(within(nav).getByRole('link',{name:/My Tasks/}).getAttribute('aria-current')).toBe('page');
+  expect(within(nav).getByLabelText('2 waiting')).toBeTruthy();
+  expect(within(nav).getByRole('link',{name:'UAT email inbox'}).getAttribute('href')).toBe('/hrms/uat-inbox');
+  expect(screen.queryByRole('button',{name:/Notifications/})).toBeNull();
+  expect(screen.queryByText('2 actions waiting')).toBeNull();
+  expect(screen.getByRole('link',{name:'Settings'})).toBeTruthy();
+});
+it('navigates between grouped workflows with a single active link', () => {
+  render(<MemoryRouter initialEntries={['/hrms/workflows?workflow=onboarding']}><WorkspaceShell/></MemoryRouter>);
+  const nav = screen.getByRole('navigation',{name:'Main navigation'});
+  const offboarding = within(nav).getByRole('link',{name:'Offboarding'});
+  fireEvent.click(offboarding);
+  expect(offboarding.getAttribute('aria-current')).toBe('page');
+  expect(within(nav).getByRole('link',{name:'Onboarding'}).getAttribute('aria-current')).toBeNull();
+  fireEvent.click(within(nav).getByRole('button',{name:'HR Cockpit'}));
+  expect(within(nav).queryByRole('link',{name:'Onboarding'})).toBeNull();
+  fireEvent.click(within(nav).getByRole('button',{name:'HR Cockpit'}));
+  expect(within(nav).getByRole('link',{name:'Onboarding'})).toBeTruthy();
+});
