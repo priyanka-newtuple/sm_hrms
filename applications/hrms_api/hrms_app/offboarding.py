@@ -237,13 +237,13 @@ class OffboardingService:
             ('allocations', 'HRMS.Allocation', ['identifier','employee_id','project_id','end_date'], lambda d:d.get('employee_id')==employee_id),
         ]:
             try:
-                result[label] = {'items':[{'entity_id':r['entity_id'],**r['data']} for r in self.platform.records(kind,fields) if predicate(r['data'])]}
+                result[label] = {'items':[{'entity_id':r['entity_id'],**r['data']} for r in self.platform.records(kind,fields,token=actor.token) if predicate(r['data'])]}
             except AppError as e:
                 result[label] = {'error':'Unable to verify linked records. Check this clearance manually.', 'status':e.status}
         employee, _ = self.employee(actor,employee_id)
         code = employee['data'].get('employee_code')
         result['direct_reports'] = {'items':[{'entity_id':r['entity_id'],'employee_code':r['data'].get('employee_code')}
-            for r in self.service.employees() if code and r['data'].get('reports_to_employee_code')==code and r['data'].get('employment_status')=='active']}
+            for r in self.platform.records('HRMS.Employee', ['employee_code','reports_to_employee_code','employment_status'], token=actor.token) if code and r['data'].get('reports_to_employee_code')==code and r['data'].get('employment_status')=='active']}
         return result
 
     def save(self, actor, payload, entity_id=None):

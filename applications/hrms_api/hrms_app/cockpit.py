@@ -13,7 +13,7 @@ from .custom_fields import custom_keys
 from .cockpit_catalog import INTERNAL, TYPES
 from .errors import AppError
 from .form_config import configured_form
-from .policy import capabilities, require
+from .policy import projected_records, entity_allowed, capabilities, require
 from .workflow_config import configured_workflow_rows, offers_step
 
 # Native field types a content value is checked against. `datetime` is where date
@@ -123,7 +123,7 @@ class CockpitService:
         """Active users, other than the actor, whose roles grant cockpit:approve."""
         candidates = [
             u
-            for u in self.platform.users()
+            for u in self.platform.users(token=actor.token)
             if u.get("status") == "active"
             and u.get("email") != self.platform.email
             and u["id"] != actor.user_id
@@ -203,7 +203,9 @@ class CockpitService:
     def board(self, actor):
         require(actor, "cockpit:view")
         everything = self.snapshot()
-        rows = [r for r in everything if self.visible(actor, r)]
+        readable = {kind: projected_records(self.platform, actor, kind,
+                    [key for row in everything if row['kind'] == kind for key in row['data']]) for kind in TYPES}
+        rows = [r for r in everything if self.visible(actor, r) and r['entity_id'] in readable[r['kind']]]
         presentations = configured_workflow_rows(
             self.platform,
             [{"entity_id": r["entity_id"], "next_action": ""} for r in rows],
@@ -220,6 +222,7 @@ class CockpitService:
                 {
                     **r,
                     **cfg,
+                    "data": readable[r["kind"]][r["entity_id"]]["data"],
                     "actions": [
                         a
                         for a in self.actions(actor, r, everything)
@@ -231,11 +234,11 @@ class CockpitService:
             )
         return {
             "items": result,
-            "creatable": [t for t in TYPES if can_author(actor, t)],
+            "creatable": [t for t in TYPES if can_author(actor, t) and entity_allowed(actor, t, "create")],
             "approvers": self.people(actor),
             "people": [
                 {"id": u["id"], "name": u["full_name"]}
-                for u in self.platform.users()
+                for u in self.platform.users(token=actor.token)
                 if u.get("status") == "active" and u.get("email") != self.platform.email
             ],
         }
@@ -477,7 +480,7 @@ class CockpitService:
                         "author_name": next(
                             (
                                 u["full_name"]
-                                for u in self.platform.users()
+                                for u in self.platform.users(token=actor.token)
                                 if u["id"] == actor.user_id
                             ),
                             "HR",
@@ -575,23 +578,23 @@ class CockpitService:
                         entity_id = self.platform.create_record(
                             step["kind"],
                             {**step["data"], "hrms_operation_key": key},
-                            actor.user_id,
+                            actor.user_id, token=actor.token,
                         )["entity_id"]
                     self.platform.enroll(
-                        entity_id, pack_by_type(step["kind"]).machine_name
+                        entity_id, pack_by_type(step["kind"]).machine_name, token=actor.token
                     )
                 elif step["op"] == "patch":
                     self.platform.call(
                         "PUT",
                         f"/entity-records/{entity_id}",
-                        json={"data": step["data"]},
+                        token=actor.token, json={"data": step["data"]},
                     )
                 else:
                     try:
                         self.platform.call(
                             "POST",
                             f"/entities/{entity_id}/transitions",
-                            json={
+                            token=actor.token, json={
                                 "entity_id": entity_id,
                                 "trigger": step["trigger"],
                                 "idempotency_key": key,

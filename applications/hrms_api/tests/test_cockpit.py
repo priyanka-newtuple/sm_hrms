@@ -13,7 +13,7 @@ from test_performance import UNMIGRATED_TENANT, Journal, Platform, actor
 def system():
     p, j = Platform(), Journal()
     p.email = "service@test.local"
-    p.users = lambda: [
+    p.users = lambda **kwargs: [
         {"id": "author", "full_name": "Author", "status": "active"},
         {"id": "approver", "full_name": "Approver", "status": "active"},
     ]
@@ -354,7 +354,7 @@ def test_unpublished_items_are_need_to_know(system):
 # HC-1: an opening follows its job description across revisions
 def test_an_opening_keeps_working_after_its_job_description_is_revised(system, monkeypatch):
     s, p, _j = system
-    p.users = lambda: [{"id": u, "full_name": u.title(), "status": "active"} for u in ("author", "approver", "manager")]
+    p.users = lambda **kwargs: [{"id": u, "full_name": u.title(), "status": "active"} for u in ("author", "approver", "manager")]
     jd = run(s, actor("author", "hrms_hr_full"), "new", "create", {"title": "Engineer", "body": "Build", "audience": "public",
              "approver_id": "approver"}, kind="HRMS.JobDescription")
     publish(s, jd)

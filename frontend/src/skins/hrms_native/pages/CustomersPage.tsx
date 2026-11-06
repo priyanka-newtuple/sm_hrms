@@ -8,7 +8,7 @@ import { ProjectAction } from './ProjectsPage';
 type Customer = {id:string;name:string;contact_name?:string;contact_email?:string;currency?:string};
 export default function CustomersPage() {
  const caps=useHrmsCapabilities();
- const allowed=caps.data?.capabilities.includes('project:view')??false;
+ const allowed=caps.data?.capabilities.includes('customer:view')??false;
  const [search,setSearch]=useState('');
  const [creating,setCreating]=useState(false);
  const query=useQuery({queryKey:['hrms','customers'],queryFn:()=>request<{items:Customer[];can_create:boolean}>('/hrms/customers'),enabled:allowed});

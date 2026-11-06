@@ -19,7 +19,7 @@ class Service:
     def employees(self):
         return self.people
 
-    def users(self):
+    def users(self, *, token=None):
         return []
 
     def onboarding(self, actor):

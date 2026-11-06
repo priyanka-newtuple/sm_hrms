@@ -11,7 +11,7 @@ from .errors import AppError
 from .performance_contracts import (ApproverChange, Assessment, Calibration, Comment, CycleInput,
                                     FeedbackInput, FeedbackReassignment, FeedbackRequest, GoalInput,
                                     Participants, Reassignment)
-from .policy import capabilities, require
+from .policy import capabilities, require, projected_records
 from .service import name
 
 CYCLE = 'HRMS.PerformanceCycle'
@@ -69,9 +69,9 @@ class PerformanceService:
                               (actor.organization_id, actor.user_id)).fetchall()
             return [dict(idempotency_key=key, **progress['performance_request']) for key, progress in rows]
 
-    def user_options(self):
+    def user_options(self, *, token=None):
         users = []
-        for user in self.platform.users():
+        for user in self.platform.users(token=token):
             if user.get('status') != 'active' or user.get('email') == self.platform.email:
                 continue
             caps = self.platform.user_capabilities(user['id'])
@@ -80,9 +80,9 @@ class PerformanceService:
 
     def options(self, actor):
         require(actor, 'performance:manage')
-        users = self.user_options()
+        users = self.user_options(token=actor.token)
         active = {u['id'] for u in users}
-        employees = self.hrms.employees()
+        employees = list(projected_records(self.platform, actor, 'HRMS.Employee', ['first_name', 'last_name', 'employment_status', 'platform_user_id', 'employee_code', 'reports_to_employee_code']).values())
         result = []
         for row in employees:
             d = row['data']
@@ -248,6 +248,35 @@ class PerformanceService:
                     data={k:v for k,v in row['data'].items() if k != 'hrms_operation_key'},
                     employee_name=review['data']['employee_name'], actions=self.allowed(actor, row, snap),
                     due_date=self.due_date(FEEDBACK, row['state'], cycle)))
+        # Internal snapshots serve business rules only. Every returned value must
+        # come from the native human-token projection (including masked values).
+        readable = {kind: projected_records(self.platform, actor, kind,
+                    [key for row in snap[kind] for key in row['data']]) for kind in TYPES}
+        def project(items, kind):
+            result = []
+            for item in items:
+                native = readable[kind].get(item['id'])
+                if native is None:
+                    continue
+                item['data'] = {key: value for key, value in native['data'].items() if key in item['data']}
+                result.append(item)
+            return result
+        cycles = project(cycles, CYCLE)
+        reviews = project(reviews, REVIEW)
+        for review in reviews:
+            review['goals'] = project(review['goals'], GOAL)
+            review['feedback'] = project(review['feedback'], FEEDBACK)
+            cycle = readable[CYCLE].get(review['data'].get('cycle_id'), {'data': {}})
+            review['cycle_name'] = cycle['data'].get('name', '')
+            review['due_date'] = self.due_date(REVIEW, review['state'], cycle) if review['due_date'] else None
+        for cycle in cycles:
+            cycle['due_date'] = self.due_date(CYCLE, cycle['state'], cycle)
+        assigned = project(assigned, FEEDBACK)
+        for feedback in assigned:
+            review = readable[REVIEW].get(feedback['data'].get('review_id'), {'data': {}})
+            feedback['employee_name'] = review['data'].get('employee_name', '')
+            cycle = readable[CYCLE].get(review['data'].get('cycle_id'), {'data': {}})
+            feedback['due_date'] = self.due_date(FEEDBACK, feedback['state'], cycle)
         return dict(cycles=cycles, reviews=reviews, assigned_feedback=assigned, can_manage=manage)
 
     def workflows(self, actor):
@@ -561,14 +590,13 @@ class PerformanceService:
             else:
                 check(operation.progress.get('creating') != index, 'Creation result is uncertain; an administrator must reconcile before retrying')
                 operation.checkpoint(creating=index)
-                record = self.platform.create_record(step['kind'], {**step['data'], 'hrms_operation_key': marker}, step['owner'])
+                record = self.platform.create_record(step['kind'], {**step['data'], 'hrms_operation_key': marker}, step['owner'], token=actor.token)
                 entity_id = record['entity_id']
-            self.platform.enroll(entity_id, pack_by_type(step['kind']).machine_name)
+            self.platform.enroll(entity_id, pack_by_type(step['kind']).machine_name, token=actor.token)
             refs[step['target']] = entity_id
         elif step['op'] == 'patch':
-            record = self.platform.record(step['target'])
-            self.platform.call('PUT', f"/entity-records/{step['target']}", json={'data': {**record['data'], **step['data']}})
+            self.platform.call('PUT', f"/entity-records/{step['target']}", token=actor.token, json={'data': step['data']})
         else:
-            self.platform.call('POST', f"/entities/{step['target']}/transitions", json={
+            self.platform.call('POST', f"/entities/{step['target']}/transitions", token=actor.token, json={
                 'entity_id': step['target'], 'trigger': step['trigger'], 'idempotency_key': marker,
                 'inputs': {'hrms_actor_id': actor.user_id, 'hrms_operation_key': key}})

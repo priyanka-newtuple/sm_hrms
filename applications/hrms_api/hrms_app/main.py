@@ -149,11 +149,6 @@ def create_app(platform=None, journal=None):
         if not authorization.lower().startswith('bearer '):
             raise AppError(401, 'Sign in to continue')
         current = platform.actor(authorization.split(' ', 1)[1])
-        if 'hrms_onboarding_employee' in current.roles:
-            path = request.url.path
-            allowed = path in {'/v1/api/hrms/employee-work', '/v1/api/hrms/capabilities', '/v1/api/hrms/organization'} or path.startswith('/v1/api/hrms/employee-work/')
-            if not allowed:
-                raise AppError(403, 'Complete your onboarding before accessing other modules')
         return current
 
     @app.get('/v1/api/hrms/my-offboarding')
@@ -399,7 +394,8 @@ def create_app(platform=None, journal=None):
     @app.get('/v1/api/hrms/capabilities')
     def get_capabilities(current=Depends(actor)):
         return {'capabilities': sorted(capabilities(current)), 'roles': sorted(current.roles),
-                'employee_profile': 'hrms_onboarding_employee' not in current.roles and service.has_employee_profile(current)}
+                'permission_revision': current.permission_revision,
+                'employee_profile': service.has_employee_profile(current)}
 
     @app.get('/v1/api/hrms/organization')
     def current_organization(current=Depends(actor)):

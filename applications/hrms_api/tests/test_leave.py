@@ -38,10 +38,10 @@ class Platform:
         self.leave = []
         self.accounts = []
 
-    def users(self):
+    def users(self, *, token=None):
         return self.accounts
 
-    def records(self, kind, fields):
+    def records(self, kind, fields, *, token=None):
         if kind == 'HRMS.Allocation':
             return [dict(entity_id=f'alloc-{i}', data=dict(employee_id=e, project_id=p, start_date=s, end_date=t))
                     for i, (e, p, s, t, _) in enumerate(self.allocations)]
@@ -52,7 +52,7 @@ class Platform:
             return self.leave
         return self.people
 
-    def record(self, entity_id):
+    def record(self, entity_id, *, token=None):
         employee = entity_id.removesuffix('-leave')
         return dict(entity_id=entity_id, entity_type_id='leave-type',
                     data=dict(employee_id=employee, start_date=self.start, end_date=LEAVE_END))
@@ -68,7 +68,7 @@ class Platform:
             steps = {'pending': [{'trigger': 'approve', 'to_state': 'approved'}, {'trigger': 'reject', 'to_state': 'rejected'},
                                  {'trigger': 'cancel', 'to_state': 'cancelled'}],
                      'approved': [] if self.old_workflow else [{'trigger': 'cancel', 'to_state': 'cancelled'}]}
-            return {'current_state': self.state, 'available_transitions': steps.get(self.state, [])}
+            return {'current_state': self.state, 'available_transitions': [{**step, 'allowed': True} for step in steps.get(self.state, [])]}
         assert path == '/entity-types/HRMS.LeaveRequest'
         return {'entity_type_id': 'leave-type'}
 
@@ -308,7 +308,7 @@ def test_steps_follow_their_names_in_settings_and_disappear_when_removed():
     def renamed(method, path, **kwargs):
         if path.endswith('/transitions/available'):
             return {'current_state': 'pending', 'available_transitions': [
-                {'trigger': 'manager_approve', 'label': 'Approve leave', 'to_state': 'approved'}]}  # reject removed
+                {'trigger': 'manager_approve', 'label': 'Approve leave', 'to_state': 'approved', 'allowed': True}]}  # reject removed
         return original(method, path, **kwargs)
     platform.call = renamed
     result = HrmsService(platform, None, 'example.com').leave_actions(actor('lead-user', 'hrms_manager'), 'dev-leave')

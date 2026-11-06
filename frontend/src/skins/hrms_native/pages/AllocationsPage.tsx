@@ -47,7 +47,7 @@ export default function AllocationsPage() {
 
   if (caps.isPending) return <p className="p-6" role="status">Loading allocation access…</p>;
   if (caps.isError) return <div className="p-6" role="alert">Unable to load access. <button onClick={() => void caps.refetch()}>Retry</button></div>;
-  if (!caps.data.capabilities.includes('project:view')) return <p className="p-6" role="alert">You do not have access to Allocations.</p>;
+  if (!caps.data.capabilities.includes('allocation:view')) return <p className="p-6" role="alert">You do not have access to Allocations.</p>;
 
   return <main className="hrms-workspace-page hrms-project-page">
     <PageHero title="Allocations" intro="See who is working where, and plan the next assignment." illustration="allocations"

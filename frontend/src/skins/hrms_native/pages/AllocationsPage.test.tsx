@@ -15,7 +15,7 @@ vi.mock('./ProjectsPage', () => ({
 const project = (id: string, allowed: boolean) => ({id, kind: 'HRMS.Project', project_name: id, state: 'active', data: {}, actions: allowed ? ['request_allocation'] : []});
 function show(path = '/hrms/allocations') {return render(<MemoryRouter initialEntries={[path]}><AllocationsPage /></MemoryRouter>);}
 beforeEach(() => {
-  state.caps = {data: {capabilities: ['project:view']}};
+  state.caps = {data: {capabilities: ['allocation:view']}};
   state.board = {isSuccess: true, refetch: state.retry, data: {
     projects: [project('Managed project', true), project('Read only project', false)],
     allocations: [{id: 'a1', kind: 'HRMS.Allocation', state: 'active', project_name: 'Managed project', actions: [], data: {project_id: 'Managed project', employee_name: 'Mira', project_role_name: 'Engineer', percentage: 50}}],

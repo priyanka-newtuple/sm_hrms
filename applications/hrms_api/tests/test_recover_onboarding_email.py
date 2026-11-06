@@ -21,7 +21,7 @@ class API:
     def record(self, eid):
         return {'organization_id': self.org, 'data': {'platform_user_id': 'user', 'work_email': 'test@example.com'}}
 
-    def users(self):
+    def users(self, *, token=None):
         return [{'id': 'user', 'organization_id': self.org, 'status': self.status, 'auth_type': 'local', 'email': 'test@example.com'}]
 
     def request(self, method, path, **kwargs):

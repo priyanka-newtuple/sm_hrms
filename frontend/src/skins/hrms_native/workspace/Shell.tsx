@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { ChevronDown, CornerDownLeft, LogOut, Mail } from 'lucide-react';
+import { ChevronDown, CornerDownLeft, LogOut } from 'lucide-react';
 import { useAuth } from '../../../core/auth';
 import { useHrmsCapabilities } from '../capabilities';
 import TenantHeader from '../components/TenantHeader';
@@ -72,7 +72,7 @@ function Sidebar({ groups, settings, collapsed, onToggle }: {
         {(collapsed || !folded[group.label]) && group.items.map(item => <Link key={item.path} to={item.path} className="hrms-side-link" data-label={item.label}
           aria-current={isNavigationActive(item.path, pathname, search) ? 'page' : undefined}
           onMouseEnter={event => moveTo(event.currentTarget)} onFocus={event => moveTo(event.currentTarget)}>
-          {item.path === '/hrms/uat-inbox' ? <Mail size={19} aria-hidden="true"/> : <AnimIcon icon={item.icon} size={19}/>}
+          <AnimIcon icon={item.icon} size={19}/>
           <span className="hrms-side-label">{item.label}</span>
           {item.badge ? <span className="hrms-side-badge" aria-label={`${item.badge} waiting`}>{item.badge > 99 ? '99+' : item.badge}</span> : null}
         </Link>)}

@@ -19,21 +19,21 @@ TODAY = date.today()
 
 
 def actor(user_id, role):
-    return Actor(user_id, 'org', 'human', frozenset({role}), grants({role}))
+    return Actor(user_id, 'org', 'human', frozenset({role}), grants({role}) | {'entity_record:read', 'entity_record:write'}, tuple({'entity_type': 'HRMS.Employee', 'action': action, 'allowed': True} for action in ('view', 'create', 'edit')))
 
 
 class DirectoryPlatform:
     """One employee created as a standard employee whose account was later made Finance in Settings."""
     org = 'org'
 
-    def records(self, kind, fields):
+    def records(self, kind, fields, *, token=None):
         if kind != 'HRMS.Employee':
             return []
         return [dict(entity_id='e1', data=dict(first_name='Fin', last_name='Person', employee_code='E1',
                                                work_email='fin@newtuple.com', employment_status='active',
                                                platform_user_id='u1', hrms_role='hrms_employee'))]
 
-    def users(self):
+    def users(self, *, token=None):
         return [dict(id='u1', role='hrms_finance', status='active', auth_type='local', organization_id='org')]
 
     def request(self, method, path, **kwargs):
@@ -113,13 +113,13 @@ class StaffPlatform:
         self.dev_roles = dev_roles
         self.writes = []
 
-    def records(self, kind, fields):
+    def records(self, kind, fields, *, token=None):
         return deepcopy(list(self.rows.values())) if kind == 'HRMS.Employee' else []
 
-    def record(self, key):
+    def record(self, key, *, token=None):
         return deepcopy(self.rows[key])
 
-    def users(self):
+    def users(self, *, token=None):
         return [dict(id=u, status=s, role='hrms_employee', organization_id='org') for u, s in self.status.items()]
 
     def states(self, machine):
@@ -134,7 +134,7 @@ class StaffPlatform:
             return [dict(role_name=r, organization_id='org') for r in self.dev_roles]
         self.writes.append((method, path))
         if method == 'PUT' and path.startswith('/entity-records/'):
-            self.rows[path.rsplit('/', 1)[-1]]['data'] = kwargs['json']['data']
+            self.rows[path.rsplit('/', 1)[-1]]['data'].update(kwargs['json']['data'])
         elif path.endswith('/suspend'):
             if self.status[path.split('/')[2]] == 'suspended':
                 raise AppError(400, 'User is not an active member of this organization')
@@ -306,3 +306,19 @@ def test_directory_workflow_errors_are_not_shown_as_not_started(status):
     else:
         with pytest.raises(AppError):
             service.directory(actor('hr', 'hrms_hr_full'))
+
+
+def test_native_employee_write_denial_does_not_suspend_login():
+    platform = StaffPlatform()
+    original = platform.call
+    def denied(method, path, **kwargs):
+        if method == 'PUT' and path.startswith('/entity-records/'):
+            assert kwargs['token'] == 'human'
+            raise AppError(403, 'Native field permission denied')
+        return original(method, path, **kwargs)
+    platform.call = denied
+    request = EmployeeExitRequest(last_working_day=TODAY, reason='resignation', idempotency_key='native-denial')
+    with pytest.raises(AppError, match='Native field permission denied'):
+        service(platform).exit_employee(hr(), 'dev', request)
+    assert platform.status['dev-user'] == 'active'
+    assert not any(path.endswith('/suspend') for _, path in platform.writes)

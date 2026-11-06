@@ -45,16 +45,16 @@ class ManagedPlatform(Platform):
         self.data = {t['id']: {} for t in self.items}
         self.case = dict(employee_id='employee', template_key='default_onboarding', template_version=2)
 
-    def records(self, kind, fields):
+    def records(self, kind, fields, *, token=None):
         if kind == 'HRMS.OnboardingCase':
             return [dict(entity_id='case', data=self.case)]
         return super().records(kind, fields)
 
-    def users(self):
+    def users(self, *, token=None):
         return [dict(id='owner', full_name='Assigned Owner', status='active'),
                 dict(id='deputy', full_name='Deputy', status='active')]
 
-    def record(self, key):
+    def record(self, key, *, token=None):
         return dict(entity_id=key, data=self.case if key == 'case' else {**self.data[key]})
 
     def call(self, method, path, **kwargs):

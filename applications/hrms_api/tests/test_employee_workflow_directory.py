@@ -4,7 +4,7 @@ from hrms_app.workflow_view import employee_workflow_rows
 
 
 def test_directory_includes_completed_native_onboarding_without_personal_profile(monkeypatch):
-    actor = SimpleNamespace(organization_id='org', roles={'superadmin'},
+    actor = SimpleNamespace(organization_id='org', system_role=False, entity_permissions=(), roles={'superadmin'},
                             permissions={'tenant.org.hrms.onboarding:view'})
     items = [dict(entity_id='employee', workflow_id='native-version', title='Employee',
                   identifier='EMP-1', current_state='Custom completed state', completed=True,
@@ -18,7 +18,7 @@ def test_directory_includes_completed_native_onboarding_without_personal_profile
 
 
 def test_directory_does_not_fetch_employee_work_without_permission(monkeypatch):
-    actor = SimpleNamespace(organization_id='org', roles=set(), permissions=set())
+    actor = SimpleNamespace(organization_id='org', system_role=False, entity_permissions=(), roles=set(), permissions=set())
     def forbidden(*args):
         raise AssertionError('Should not query onboarding')
     monkeypatch.setattr('hrms_app.employee_work.onboarding_tracker', forbidden)

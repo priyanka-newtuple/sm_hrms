@@ -106,6 +106,8 @@ def system():
             onboarding=lambda actor: [],
         )
     )
+    original_records = platform.records
+    platform.records = lambda kind, fields, **kwargs: (service.hrms.employees() if kind == "HRMS.Employee" else original_records(kind, fields, **kwargs))
     service.people = lambda actor=None: deepcopy(people)
     return service, platform, journal, ids
 
@@ -643,9 +645,10 @@ def test_customer_directory_respects_access_and_omits_contract_values(system):
     assert 'contract_value' not in board['items'][0]
     from dataclasses import replace
     limited = replace(actor(ids['outsider'], 'hrms_project_manager'), permissions=frozenset({'tenant.org.hrms.project:view'}))
-    assert service.customers(limited)['items'] == []
     with pytest.raises(AppError):
-        service.customers(actor(ids['employee'], 'unknown_role'))
+        service.customers(limited)
+    with pytest.raises(AppError):
+        service.customers(replace(actor(ids['employee'], 'unknown_role'), entity_permissions=()))
 
 
 def test_customer_native_field_removal_and_added_required_field(system, monkeypatch):

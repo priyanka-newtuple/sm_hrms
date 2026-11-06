@@ -29,7 +29,7 @@ class Platform:
     def record(self, eid):
         return {"organization_id": self.org, "data": deepcopy(self.data)}
 
-    def users(self):
+    def users(self, *, token=None):
         return deepcopy(self.people)
 
     def request(self, method, path, **kwargs):

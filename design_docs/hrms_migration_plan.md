@@ -268,3 +268,30 @@ and the Project workflow republished. Legacy configuration was retained, not del
 Production was not changed: the supplied screenshot already shows native forms, fields
 and an HRMS.WorkFromHomeRequest entity association. Production workflow pins were not
 independently inspected in this session.
+
+### Native permission consistency (2026-11-06, local implementation)
+
+HRMS record navigation now derives Employee, Customer, Project, Allocation and Asset
+visibility from native Entity Access and the native record-read permission. An empty
+Manager Cockpit is hidden. A parallel HRMS `view` capability no longer grants these
+record menus when native Entity Access denies them.
+
+Interactive reads and mutations in the updated employee, leave, project, asset,
+offboarding, content, performance and WFH paths pass the signed-in human token to
+existing public platform APIs. Native record filtering, field projection and mutation
+checks remain authoritative. Authorization failures never fall back to the application
+service identity. Service reads remain for internal relationship and business-rule
+checks; service writes remain for trusted system consequences such as generated IDs.
+Business constraints (ownership, designated approvers and no self-approval) remain
+additional restrictions, never permission grants.
+
+The capabilities query refreshes on window focus and every 30 seconds. Changes to its
+permission revision invalidate HRMS queries so revoked access is not retained in the
+current page's cached views. Backend enforcement applies independently of this refresh.
+To remove Manager Cockpit, disable View on all three Customer, Project and Allocation
+entities across the user's assigned roles; grants from another role can still apply.
+
+This change does not modify native core or production role configuration. Internal
+orchestration and historical idempotency responses are not a new authorization API;
+further extensions must continue to use native human-token operations rather than
+reimplementing the native evaluator in HRMS.

@@ -89,3 +89,84 @@ def test_migration_resumes_checkpoint_and_never_reapplies_after_completion(monke
     migration.migrate_native_permissions(api, 'test')
     assert api.writes == writes
     assert api.keys == {'entity_record:read'}
+
+
+@pytest.mark.parametrize('capability,entity', [
+    ('customer:view', 'HRMS.Customer'), ('project:view', 'HRMS.Project'),
+    ('allocation:view', 'HRMS.Allocation'), ('asset:view', 'HRMS.Asset'),
+    ('employee:read', 'HRMS.Employee'),
+])
+def test_native_entity_view_is_the_only_record_visibility_grant(capability, entity):
+    person = Actor('u', 'org', 'human', frozenset({'hrms_employee'}),
+                   frozenset({'entity_record:read', permission_key('org', capability)}))
+    assert capability not in capabilities(person)
+    granted = replace(person, entity_permissions=({'entity_type': entity, 'action': 'view', 'allowed': True},))
+    assert capability in capabilities(granted)
+    assert capability not in capabilities(replace(granted, permissions=frozenset()))
+    assert capability not in capabilities(replace(granted, entity_permissions=()))
+
+
+def test_native_entity_grants_are_additive_across_roles_and_specific_to_entity():
+    person = Actor('u', 'org', 'human', frozenset({'hrms_employee', 'viewer'}),
+                   frozenset({'entity_record:read'}), (
+        {'entity_type': 'HRMS.Project', 'action': 'view', 'allowed': False},
+        {'entity_type': 'HRMS.Project', 'action': 'view', 'allowed': True},
+    ))
+    assert capabilities(person) == {'project:view'}
+
+
+def test_authorized_record_reads_use_human_token_and_keep_native_projection():
+    import httpx
+    from hrms_app.platform import PlatformClient
+    requests = []
+    def respond(request):
+        requests.append(request)
+        return httpx.Response(200, json={'items': [
+            {'entity_id': 'p', 'organization_id': 'org', 'summary_fields': {'name': 'Allowed project'}}
+        ], 'has_more': False})
+    with httpx.MockTransport(respond) as transport:
+        api = PlatformClient('http://platform/', 'org', 'service', 'unused', transport=transport)
+        try:
+            rows = api.records('HRMS.Project', ['name', 'budget'], token='human')
+        finally:
+            api.close()
+    assert len(requests) == 1
+    assert requests[0].headers['authorization'] == 'Bearer human'
+    assert rows[0]['data'] == {'name': 'Allowed project'}
+
+
+def test_denied_human_record_reads_never_retry_as_service():
+    import httpx
+    from hrms_app.platform import PlatformClient
+    calls = []
+    def respond(request):
+        calls.append(request)
+        return httpx.Response(403, json={'detail': 'no role grants this permission'})
+    api = PlatformClient('http://platform/', 'org', 'service', 'unused', transport=httpx.MockTransport(respond))
+    try:
+        with pytest.raises(AppError):
+            api.records('HRMS.Project', ['name'], token='human')
+    finally:
+        api.close()
+    assert len(calls) == 1
+    assert calls[0].headers['authorization'] == 'Bearer human'
+
+
+@pytest.mark.parametrize('status', [401, 403])
+def test_denied_human_transition_never_retries_or_uses_service(status):
+    import httpx
+    from hrms_app.platform import PlatformClient
+    calls = []
+    def respond(request):
+        calls.append(request)
+        return httpx.Response(status, json={'detail': 'Permission denied'})
+    api = PlatformClient('http://platform/', 'org', 'service', 'unused', transport=httpx.MockTransport(respond))
+    try:
+        with pytest.raises(AppError) as error:
+            api.call('POST', '/entities/record/transitions', token='human',
+                     json={'trigger': 'approve'})
+        assert error.value.status == status
+    finally:
+        api.close()
+    assert len(calls) == 1
+    assert calls[0].headers['authorization'] == 'Bearer human'

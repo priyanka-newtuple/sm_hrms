@@ -29,7 +29,7 @@ class Platform:
                            assigned_to='owner', due_date=None) for s in DEFAULT_ONBOARDING_STEPS]
         self.writes = []
 
-    def records(self, kind, fields):
+    def records(self, kind, fields, *, token=None):
         if kind == 'HRMS.Employee':
             return [dict(entity_id='employee', data=dict(first_name='Test', last_name='Employee', employee_code='EMP-1'))]
         return [dict(entity_id='case', data=dict(employee_id='employee', template_key='default_onboarding', template_version=1))]
@@ -43,7 +43,7 @@ class Platform:
     def states(self, machine):
         return {'case': self.state}
 
-    def users(self):
+    def users(self, *, token=None):
         return [dict(id='owner', full_name='Assigned Owner')]
 
     def call(self, method, path, **kwargs):
@@ -118,7 +118,7 @@ class BrokenCasePlatform(Platform):
         super().__init__()
         self.broken = broken
 
-    def records(self, kind, fields):
+    def records(self, kind, fields, *, token=None):
         rows = super().records(kind, fields)
         if kind == 'HRMS.Employee':
             return rows

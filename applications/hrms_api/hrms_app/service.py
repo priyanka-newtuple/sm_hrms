@@ -12,7 +12,7 @@ from .errors import AppError
 from .form_config import active_workflow, configured_form
 from .employee_access import identity_roles
 from .onboarding_template import DEFAULT_ONBOARDING_STEPS, REPORTING_MANAGER, TEMPLATES
-from .policy import capabilities, require
+from .policy import capabilities, require, projected_records
 
 EMPLOYEE = 'HRMS.Employee'
 CASE = 'HRMS.OnboardingCase'
@@ -134,8 +134,15 @@ class HrmsService:
     def directory(self, actor):
         require(actor, 'employee:read')
         keys = custom_keys(self.platform, EMPLOYEE)
-        rows = self.platform.records(EMPLOYEE, EMPLOYEE_FIELDS + keys)
-        users = {u['id']: u for u in self.platform.users()}
+        rows = self.platform.records(EMPLOYEE, EMPLOYEE_FIELDS + keys, token=actor.token)
+        users = {}
+        users_readable = True
+        try:
+            users = {u['id']: u for u in self.platform.users(token=actor.token)}
+        except AppError as exc:
+            if exc.status != 403:
+                raise
+            users_readable = False
         from .employee_work import employee_enrollments
         workflow_states = {}
         workflow_access = True
@@ -153,7 +160,7 @@ class HrmsService:
             user = users.get(row['data'].get('platform_user_id'))
             if user and user.get('role'):
                 item['role'] = user['role']  # Current role; the employee record keeps the role it was created with.
-            item['account_status'] = user['status'] if user else 'not_linked'
+            item['account_status'] = user['status'] if user else ('not_linked' if users_readable else 'unknown')
             item['uses_google_sign_in'] = bool(user and user.get('auth_type') == 'google')
             item['can_setup_access'] = bool(user and user.get('organization_id') == actor.organization_id
                 and user['status'] in {'pending', 'active'} and item['employment_status'] == 'active'
@@ -286,7 +293,7 @@ class HrmsService:
                 return op.result
             rows = self.employees()
             employee = self._editable_employee(rows, employee_id)
-            record = self.platform.record(employee_id)
+            record = self.platform.record(employee_id, token=actor.token)
             custom = check_custom(self.platform, EMPLOYEE, request.custom, record['data'])
             supplied = {k:v for k,v in payload.items() if k not in {'idempotency_key','reports_to_entity_id','custom'}}
             patch = editable_values(self.platform, EMPLOYEE, supplied, current=record['data'],
@@ -298,9 +305,9 @@ class HrmsService:
                 editable_values(self.platform, EMPLOYEE, relationship, current=record['data'],
                     excluded={f['field'] for f in configured_form(self.platform, EMPLOYEE)['fields'] if f['field']!='reports_to_employee_code'})
                 data.update(relationship)
-            self.platform.call('PUT', f'/entity-records/{employee_id}', json={'data': data})
+            self.platform.call('PUT', f'/entity-records/{employee_id}', token=actor.token, json={'data': {k:v for k,v in data.items() if record['data'].get(k)!=v}})
             self.journal.audit(db, actor, 'employee.updated', employee_id)
-            result = self.employee_item({**employee, 'data': data}, rows, list(custom))
+            result = self.employee_item(self.platform.record(employee_id, token=actor.token), list(projected_records(self.platform, actor, EMPLOYEE, EMPLOYEE_FIELDS).values()), list(custom))
             op.finish(result)
             return result
 
@@ -315,29 +322,33 @@ class HrmsService:
             if op.result:
                 return op.result
             rows = self.employees()
-            employee = self._editable_employee(rows, employee_id)
+            employee = (next((row for row in rows if row['entity_id'] == employee_id), None)
+                        if op.progress.get('exit_record_saved') else self._editable_employee(rows, employee_id))
+            if employee is None:
+                raise AppError(404, 'Employee was not found')
             joined = employee['data'].get('date_joined')
             never_joined = request.reason == 'did_not_join'
             if joined and not never_joined and request.last_working_day.isoformat() < str(joined)[:10]:
                 raise AppError(400, 'The last working day cannot be before the joining date')
             user_id = employee['data'].get('platform_user_id')
-            identity = next((u for u in self.platform.users() if u['id'] == user_id), None) if user_id else None
+            identity = next((u for u in self.platform.users(token=actor.token) if u['id'] == user_id), None) if user_id else None
             leaving = never_joined or request.last_working_day <= datetime.now(UTC).date()
-            record = self.platform.record(employee_id)['data']
+            record = self.platform.record(employee_id, token=actor.token)['data']
             editable_values(self.platform, EMPLOYEE, {k:v for k,v in request.model_dump(mode='json',exclude_unset=True).items() if k!='idempotency_key'}, current={'last_working_day':record.get('last_working_day'),'reason':record.get('exit_reason'),'note':record.get('exit_note')}, aliases={'exit_reason':'reason','exit_note':'note'}, excluded={f['field'] for f in configured_form(self.platform, EMPLOYEE)['fields'] if f['field'] not in {'last_working_day','exit_reason','exit_note'}})
             # Completing a notice period without a new note keeps the note recorded with the resignation.
             data = {**record, 'last_working_day': payload['last_working_day'],
                     'exit_reason': request.reason, 'exit_note': request.note or record.get('exit_note'),
                     'employment_status': OFFBOARDED if leaving else 'active'}
+            self.platform.call('PUT', f'/entity-records/{employee_id}', token=actor.token, json={'data': {k: v for k, v in data.items() if k in {'last_working_day', 'exit_reason', 'exit_note', 'employment_status'}}})
+            op.checkpoint(exit_record_saved=True)
             if leaving and identity and identity['status'] in {'active', 'pending'}:
-                self._end_access(op, user_id, identity['status'])
-            self.platform.call('PUT', f'/entity-records/{employee_id}', json={'data': data})
+                self._end_access(op, user_id, identity['status'], token=actor.token)
             self.journal.audit(db, actor, 'employee.offboarded' if leaving else 'employee.notice_recorded', employee_id)
-            result = self.employee_item({**employee, 'data': data}, rows)
+            result = self.employee_item(self.platform.record(employee_id, token=actor.token), list(projected_records(self.platform, actor, EMPLOYEE, EMPLOYEE_FIELDS).values()))
             op.finish(result)
             return result
 
-    def _end_access(self, op, user_id, status):
+    def _end_access(self, op, user_id, status, *, token):
         """Suspend the leaver's membership here; an invite never activated is also rejected so it
         cannot be approved later. A retry tolerates steps the interrupted attempt already did."""
         retry = op.progress.get('suspend_requested')
@@ -345,9 +356,9 @@ class HrmsService:
         steps = ['suspend'] + (['reject'] if status == 'pending' else [])
         for step in steps:
             try:
-                self.platform.call('POST', f'/users/{user_id}/{step}')
-            except AppError:
-                if not retry:
+                self.platform.call('POST', f'/users/{user_id}/{step}', token=token)
+            except AppError as exc:
+                if exc.status in {401, 403} or not retry:
                     raise
 
     def withdraw_exit(self, actor, employee_id, idempotency_key):
@@ -361,10 +372,10 @@ class HrmsService:
             employee = self._editable_employee(rows, employee_id)
             if not employee['data'].get('last_working_day'):
                 raise AppError(409, 'This employee has no exit to withdraw')
-            data = {**self.platform.record(employee_id)['data'], 'last_working_day': None, 'exit_reason': None, 'exit_note': None}
-            self.platform.call('PUT', f'/entity-records/{employee_id}', json={'data': data})
+            data = {**self.platform.record(employee_id, token=actor.token)['data'], 'last_working_day': None, 'exit_reason': None, 'exit_note': None}
+            self.platform.call('PUT', f'/entity-records/{employee_id}', token=actor.token, json={'data': {k: v for k, v in data.items() if k in {'last_working_day', 'exit_reason', 'exit_note', 'employment_status'}}})
             self.journal.audit(db, actor, 'employee.exit_withdrawn', employee_id)
-            result = self.employee_item({**employee, 'data': data}, rows)
+            result = self.employee_item(self.platform.record(employee_id, token=actor.token), list(projected_records(self.platform, actor, EMPLOYEE, EMPLOYEE_FIELDS).values()))
             op.finish(result)
             return result
 
@@ -537,7 +548,7 @@ class HrmsService:
                         reports_to_employee_code=manager['data'].get('employee_code') if manager else None,
                         hrms_operation_key=marker)
             if not existing:
-                existing = self._create_once(op, 'employee', EMPLOYEE, data, actor.user_id, rows, marker)
+                existing = self._create_once(op, 'employee', EMPLOYEE, data, actor.user_id, rows, marker, token=actor.token)
             employee_id = existing['entity_id']
             op.checkpoint(employee_id=employee_id)
             # The public registration API creates a pending account without activating login.
@@ -564,7 +575,7 @@ class HrmsService:
                 self.platform.call('PUT', f"/roles/users/{identity['id']}/role", json={'role_id': role['id']})
                 op.checkpoint(role_assigned=True)
             current = self.platform.record(employee_id)
-            data = {**current['data'], 'employee_code': current['data']['identifier'], 'platform_user_id': identity['id']}
+            data = {'employee_code': current['data']['identifier'], 'platform_user_id': identity['id']}
             self.platform.call('PUT', f'/entity-records/{employee_id}', json={'data': data})
             # Enrol only after the native account and employee links are complete, so
             # initial-state actions can use the final employee data. Keep retries on
@@ -576,10 +587,11 @@ class HrmsService:
                         raise AppError(409, 'Employee workflow enrollment outcome is uncertain; reconciliation is required')
                 else:
                     op.checkpoint(employee_enrollment_requested=True)
-                    state = self.platform.enroll(employee_id, machine)
+                    state = self.platform.enroll(employee_id, machine, token=actor.token)
                 op.checkpoint(employee_enrolled=True, employee_workflow_state=state)
-            final = self.platform.record(employee_id)
-            result = dict(employee=self.employee_item(final, rows),
+            final = self.platform.record(employee_id, token=actor.token)
+            visible_rows = list(projected_records(self.platform, actor, EMPLOYEE, EMPLOYEE_FIELDS).values())
+            result = dict(employee=self.employee_item(final, visible_rows),
                           workflow=dict(machine_name=machine, current_state=op.progress['employee_workflow_state']),
                           account_status=identity['status'], idempotent=False)
             self.journal.audit(db, actor, 'employee.created', employee_id)
@@ -617,12 +629,12 @@ class HrmsService:
                 data[key] = _typed(field.get('description') or key, field, value)
             marker = hashlib.sha256(f'{actor.organization_id}:employee:{request.idempotency_key}'.encode()).hexdigest()
             data.update(hrms_role=request.role, employment_status='active', hrms_operation_key=marker)
-            employee = self._create_once(op, 'employee', EMPLOYEE, data, actor.user_id, rows, marker)
+            employee = self._create_once(op, 'employee', EMPLOYEE, data, actor.user_id, rows, marker, token=actor.token)
             employee_id = employee['entity_id']
             machine = op.progress.get('employee_workflow') or workflow['machine_name']
             op.checkpoint(employee_workflow=machine, employee_id=employee_id)
             current = self.platform.record(employee_id)
-            self.platform.call('PUT', f'/entity-records/{employee_id}', json={'data': {**current['data'], 'employee_code': current['data']['identifier']}})
+            self.platform.call('PUT', f'/entity-records/{employee_id}', json={'data': {'employee_code': current['data']['identifier']}})
             if not op.progress.get('employee_enrolled'):
                 if op.progress.get('employee_enrollment_requested'):
                     state = self.platform.states(machine).get(employee_id)
@@ -630,16 +642,18 @@ class HrmsService:
                         raise AppError(409, 'Employee enrollment requires reconciliation')
                 else:
                     op.checkpoint(employee_enrollment_requested=True)
-                    state = self.platform.enroll(employee_id, machine)
+                    state = self.platform.enroll(employee_id, machine, token=actor.token)
                 op.checkpoint(employee_enrolled=True, employee_workflow_state=state)
-            result = dict(employee=self.employee_item(self.platform.record(employee_id), rows),
+            final = self.platform.record(employee_id, token=actor.token)
+            visible_rows = list(projected_records(self.platform, actor, EMPLOYEE, EMPLOYEE_FIELDS).values())
+            result = dict(employee=self.employee_item(final, visible_rows),
                           workflow=dict(machine_name=machine, current_state=op.progress['employee_workflow_state']),
                           account_status='not_created', idempotent=False)
             self.journal.audit(db, actor, 'employee.registered', employee_id)
             op.finish(result)
             return result
 
-    def _create_once(self, op, key, entity_type, data, owner, rows, marker):
+    def _create_once(self, op, key, entity_type, data, owner, rows, marker, *, token=None):
         existing = next((r for r in rows if r['data'].get('hrms_operation_key') == marker), None)
         if existing:
             return existing
@@ -648,7 +662,7 @@ class HrmsService:
             raise AppError(409, 'Creation outcome is uncertain; reconciliation is required')
         op.checkpoint(**{f'{key}_requested': True})
         try:
-            return self.platform.create_record(entity_type, data, owner)
+            return self.platform.create_record(entity_type, data, owner, **({"token": token} if token is not None else {}))
         except AppError as exc:
             if exc.status < 500:
                 op.checkpoint(**{f'{key}_requested': False})
@@ -670,7 +684,8 @@ class HrmsService:
         if view not in {'mine', 'approvals'}:
             raise AppError(400, 'view must be mine or approvals')
         by_id = {e['entity_id']: e for e in employees}
-        names = {key: name(e) for key, e in by_id.items()}
+        readable_employees = projected_records(self.platform, actor, EMPLOYEE, EMPLOYEE_FIELDS)
+        names = {key: name(e) for key, e in readable_employees.items()}
         states = self.platform.states('hrms_leaverequest')
         keys = custom_keys(self.platform, LEAVE)
         rows = [r for r in self.platform.records(LEAVE, LEAVE_FIELDS + keys) if r['data'].get('employee_id') in by_id]
@@ -687,11 +702,14 @@ class HrmsService:
         wfh = WfhService(self)
         calendars = wfh.holiday_calendars()
         holidays = lambda r: wfh.holiday_dates(by_id[r['data']['employee_id']]['data'].get('work_location'), calendars)
+        readable = projected_records(self.platform, actor, LEAVE, LEAVE_FIELDS + keys)
+        rows = [readable[r['entity_id']] for r in rows if r['entity_id'] in readable]
         return [dict(entity_id=r['entity_id'], identifier=r['data'].get('identifier') or '',
-                     employee_name=names[r['data']['employee_id']], start_date=r['data']['start_date'],
-                     end_date=r['data']['end_date'], leave_type=r['data']['leave_type'], reason=r['data'].get('reason'),
+                     employee_name=names.get(r['data'].get('employee_id'), ''), start_date=r['data'].get('start_date'),
+                     end_date=r['data'].get('end_date'), leave_type=r['data'].get('leave_type'), reason=r['data'].get('reason'),
                      custom=custom_values(r['data'], keys),
-                     days=leave_days(r['data']['start_date'], r['data']['end_date'], holidays(r)),
+                     days=leave_days(r['data']['start_date'], r['data']['end_date'], holidays(r))
+                          if all(r['data'].get(k) for k in ('start_date', 'end_date', 'employee_id')) else None,
                      state=states.get(r['entity_id'], 'not_enrolled')) for r in rows[offset:offset + limit]]
 
     def create_leave(self, actor, request):
@@ -733,14 +751,15 @@ class HrmsService:
             data = {**request.model_dump(mode='json', exclude_unset=True, exclude={'idempotency_key', 'custom'}), **custom}
             data.update(employee_id=own['entity_id'], manager_id=manager['entity_id'] if manager else None,
                         hrms_operation_key=marker)
-            row = self._create_once(op, 'leave', LEAVE, data, actor.user_id, rows, marker)
-            state = self.platform.enroll(row['entity_id'], 'hrms_leaverequest')
+            row = self._create_once(op, 'leave', LEAVE, data, actor.user_id, rows, marker, token=actor.token)
+            state = self.platform.enroll(row['entity_id'], 'hrms_leaverequest', token=actor.token)
             result = dict(entity_id=row['entity_id'], identifier=row['data'].get('identifier') or '', state=state, idempotent=False)
             self.journal.audit(db, actor, 'leave.created', row['entity_id'])
             op.finish(result)
             return result
 
     def leave_actions(self, actor, entity_id):
+        self.platform.record(entity_id, token=actor.token)
         row = self.platform.record(entity_id)
         leave_type = self.platform.call('GET', f'/entity-types/{LEAVE}')
         if row['entity_type_id'] != leave_type['entity_type_id']:
@@ -766,19 +785,19 @@ class HrmsService:
         else:
             allowed = []
         # Offer each step under the name Settings → Funnels gives it, and not at all if it was removed.
-        offered = self._offered(entity_id, allowed) if allowed else {}
+        offered = self._offered(entity_id, allowed, token=actor.token) if allowed else {}
         return dict(entity_id=entity_id, current_state=state, available_transitions=[
             dict(trigger=t, label=offered[t], allowed=True) for t in allowed if t in offered])
 
-    def _offered(self, entity_id, triggers):
+    def _offered(self, entity_id, triggers, *, token=None):
         """HRMS leave steps the current state offers, each with its configured label."""
         from .workflow_config import step_targets
-        available = self.platform.call('GET', f'/entities/{entity_id}/transitions/available')
+        available = self.platform.call('GET', f'/entities/{entity_id}/transitions/available', token=token)
         state, options = available.get('current_state'), available.get('available_transitions', [])
         result = {}
         for trigger in triggers:
             match = next((t for t in options if t['trigger'] == trigger or t.get('to_state') in step_targets(LEAVE, state, trigger)), None)
-            if match:
+            if match and match.get('allowed', False):
                 result[trigger] = match.get('label') or trigger.title()
         return result
 
@@ -792,7 +811,7 @@ class HrmsService:
             if trigger not in [t['trigger'] for t in available['available_transitions']]:
                 raise AppError(403, 'This leave action is not available to you')
             self.journal.audit(db, actor, f'leave.{trigger}.requested', entity_id)
-            result = self.platform.call('POST', f'/entities/{entity_id}/transitions', json={
+            result = self.platform.call('POST', f'/entities/{entity_id}/transitions', token=actor.token, json={
                 'entity_id': entity_id, 'trigger': trigger,
                 'idempotency_key': f'hrms:{actor.user_id}:{key}'})
             self.journal.audit(db, actor, f'leave.{trigger}.completed', entity_id)

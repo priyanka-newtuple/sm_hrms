@@ -8,7 +8,7 @@ from .catalog import pack_by_type
 from .custom_fields import check_custom, custom_keys
 from .form_values import editable_values
 from .errors import AppError
-from .policy import capabilities, require
+from .policy import capabilities, require, projected_records
 from .service import name, LEAVE, LEAVE_FIELDS
 from .wfh_catalog import POLICY, REQUEST
 from .workflow_config import configured_workflow_rows
@@ -79,8 +79,8 @@ class WfhService:
             AND operation_key<>%s AND result IS NULL AND progress ? 'wfh_plan' LIMIT 1""", (org, key)).fetchone()
         check(not row, 'A WFH operation is incomplete. Retry that operation before making another change.', 409)
 
-    def transition(self, entity_id, trigger, key):
-        return self.platform.call('POST', f'/entities/{entity_id}/transitions', json={
+    def transition(self, actor, entity_id, trigger, key):
+        return self.platform.call('POST', f'/entities/{entity_id}/transitions', token=actor.token, json={
             'entity_id': entity_id, 'trigger': trigger, 'idempotency_key': key})
 
     def holiday_calendars(self):
@@ -122,13 +122,15 @@ class WfhService:
         entity_id = plan.get('entity_id')
         if plan['mode'] == 'create':
             row = self.service._create_once(op, 'wfh', plan['kind'], plan['data'], actor.user_id,
-                                            self.rows(plan['kind']), plan['data']['hrms_operation_key'])
+                                            self.rows(plan['kind']), plan['data']['hrms_operation_key'], token=actor.token)
             entity_id = row['entity_id']
-            self.platform.enroll(entity_id, pack_by_type(plan['kind']).machine_name)
+            self.platform.enroll(entity_id, pack_by_type(plan['kind']).machine_name, token=actor.token)
         elif plan['mode'] == 'update':
-            self.platform.call('PUT', f'/entity-records/{entity_id}', json={'data': plan['data']})
+            current = self.platform.record(entity_id)
+            changes = {k: v for k, v in plan['data'].items() if current['data'].get(k) != v}
+            self.platform.call('PUT', f'/entity-records/{entity_id}', token=actor.token, json={'data': changes})
         if plan.get('trigger'):
-            self.transition(entity_id, plan['trigger'], key)
+            self.transition(actor, entity_id, plan['trigger'], key)
         result = {'entity_id': entity_id}
         self.journal.audit(op.db if hasattr(op, 'db') else None, actor, f'wfh.{plan["action"]}', entity_id, key)
         op.finish(result)
@@ -227,37 +229,47 @@ class WfhService:
         own_id = own[0]['entity_id'] if len(own) == 1 else None
         states = self.states(REQUEST)
         rows = [r for r in self.rows(REQUEST) if r['data']['year'] == year]
+        readable = projected_records(self.platform, actor, REQUEST,
+                                     [key for row in rows for key in row['data']])
+        readable_employees = projected_records(self.platform, actor, 'HRMS.Employee',
+                                               ['first_name', 'last_name', 'department'])
         visible, calendar = [], []
         for row in rows:
             d = row['data']; employee = employees.get(d['employee_id'])
-            if not employee:
+            if not employee or row['entity_id'] not in readable:
                 continue
+            public = readable[row['entity_id']]['data']
+            public_employee = readable_employees.get(public.get('employee_id'), {'data': {}})
+            public_dates = sorted(set((public.get('dates') or '').splitlines()))
             state = states.get(row['entity_id'], 'pending')
             if state == 'approved':
-                calendar.append(dict(employee_id=d['employee_id'], employee_name=name(employee),
-                                     department=employee['data'].get('department', ''), dates=sorted(request_dates(row))))
+                calendar.append(dict(employee_id=public.get('employee_id'), employee_name=name(public_employee),
+                                     department=public_employee['data'].get('department', ''), dates=public_dates))
             if d['employee_id'] == own_id or 'wfh:approve' in caps:
                 actions = []
                 if d['employee_id'] == own_id and state in {'pending', 'approved'} and min(request_dates(row)) >= date.today().isoformat():
                     actions = ['cancel']
                 elif d['employee_id'] != own_id and 'wfh:approve' in caps and state == 'pending':
                     actions = ['approve', 'reject'] if min(request_dates(row)) >= date.today().isoformat() else ['reject']
-                visible.append(dict(entity_id=row['entity_id'], employee_name=name(employee), dates=sorted(request_dates(row)),
-                                    reason=d.get('reason', ''), state=state, actions=actions, is_mine=d['employee_id'] == own_id))
+                visible.append(dict(entity_id=row['entity_id'], employee_name=name(public_employee), dates=public_dates,
+                                    reason=public.get('reason', ''), state=state, actions=actions, is_mine=d['employee_id'] == own_id))
         visible = configured_workflow_rows(self.platform, visible)
         for row in visible:
             transitions = row['workflow_configuration']['transitions']
             row['actions'] = [a for a in row['actions'] if any(t['trigger'] == a and t['from_state'] == row['current_state'] for t in transitions)]
         policy = self.policy(year)
+        if policy:
+            policy = projected_records(self.platform, actor, POLICY, list(policy['data'])).get(policy['entity_id'])
         policy_data = {k: policy['data'].get(k) for k in ('year','annual_days','notice_days','revision', *custom_keys(self.platform,POLICY))} if policy else None
-        mine = [r for r in rows if r['data']['employee_id'] == own_id]
+        mine = [readable[r['entity_id']] for r in rows if r['data']['employee_id'] == own_id
+                and r['entity_id'] in readable and readable[r['entity_id']]['data'].get('dates')]
         today = date.today().isoformat()
         approved = set().union(*(request_dates(r) for r in mine if states.get(r['entity_id']) == 'approved'))
         pending = set().union(*(request_dates(r) for r in mine if states.get(r['entity_id'], 'pending') == 'pending'))
         return dict(policy=policy_data, requests=visible, calendar=calendar, can_configure='wfh:configure' in caps,
                     can_approve='wfh:approve' in caps, can_request=bool(own_id and own[0]['data'].get('employment_status') == 'active' and 'wfh:request' in caps),
                     balance=dict(used=sum(d < today for d in approved), upcoming=sum(d >= today for d in approved), pending=len(pending),
-                                 remaining=max(0, (policy_data['annual_days'] if policy else 0)-len(approved | pending))))
+                                 remaining=max(0, ((policy_data.get('annual_days') or 0) if policy_data else 0)-len(approved | pending))))
 
     def inbox(self, actor):
         check(actor.organization_id == self.platform.org, 'Organization mismatch', 403)
@@ -274,7 +286,7 @@ class WfhService:
                      identifier='', current_state=r['state'], workflow_label='Work from home',
                      owner_name='HR' if r['state'] == 'pending' else r['employee_name'],
                      next_action=', '.join(r['actions']), progress=', '.join(r['dates']),
-                     due_date=min(r['dates']), leave=None, leave_view=None, wfh=r)
+                     due_date=min(r['dates']) if r['dates'] else None, leave=None, leave_view=None, wfh=r)
                 for year in sorted(years) for r in self.board(actor, year)['requests']]
 
     def check_leave_conflict(self, db, actor, employee_id, start_date, end_date):

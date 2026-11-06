@@ -13,7 +13,12 @@ from hrms_app.platform import Actor
 
 
 def actor(user, *roles):
-    return Actor(user, 'org', '', frozenset(roles), grants(roles))
+    return Actor(user, 'org', user, frozenset(roles),
+                 grants(roles) | frozenset({'entity_record:read', 'entity_record:write'}),
+                 tuple({'entity_type': kind, 'action': action, 'allowed': True}
+                       for kind in ('HRMS.Employee', 'HRMS.Project', 'HRMS.Customer', 'HRMS.Allocation', 'HRMS.Asset', 'HRMS.ProjectChange', 'HRMS.AllocationChange')
+                       for action in ('view', 'create', 'edit')),
+                 bool(set(roles) & {'admin', 'superadmin'}))
 
 
 # Native configuration reads for a tenant whose forms are not on method blocks yet.
@@ -40,23 +45,26 @@ class Platform:
                               state=state or pack_by_type(kind).initial_state)
         return self.rows[key]
 
-    def records(self, kind, fields):
+    def records(self, kind, fields, *, token=None):
         return deepcopy([r for r in self.rows.values() if r['kind'] == kind])
 
-    def users(self):
+    def users(self, *, token=None):
         return [dict(id='admin', full_name='Admin User', status='active', email='admin@example.com')]
 
     def states(self, machine):
         return {r['entity_id']: r['state'] for r in self.rows.values() if pack_by_type(r['kind']).machine_name == machine}
 
-    def record(self, entity_id):
+    def record(self, entity_id, *, token=None):
         return deepcopy(self.rows[entity_id])
 
-    def create_record(self, kind, data, owner):
+    def create_record(self, kind, data, owner, *, token=None):
         return self.add(kind, data)
 
-    def enroll(self, entity_id, machine):
+    def enroll(self, entity_id, machine, *, token=None):
         return self.rows[entity_id]['state']
+
+    def request(self, method, path, *, token=None, **kwargs):
+        return self.call(method, path, **kwargs)
 
     def call(self, method, path, **kwargs):
         if method=='GET' and path in UNMIGRATED_TENANT:
@@ -65,7 +73,7 @@ class Platform:
             return {'items':[pack_by_type(kwargs['params']['entity_type']).form_request()]}
         data = kwargs['json']
         if method == 'PUT':
-            self.rows[path.rsplit('/', 1)[1]]['data'] = deepcopy(data['data'])
+            self.rows[path.rsplit('/', 1)[1]]['data'].update(deepcopy(data['data']))
             return
         if data['idempotency_key'] in self.completed:
             return

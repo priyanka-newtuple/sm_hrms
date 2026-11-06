@@ -18,10 +18,10 @@ class Platform:
         self.writes = []
         self.fail_email = False
 
-    def records(self, *args):
+    def records(self, *args, **kwargs):
         return [deepcopy(self.employee)]
 
-    def users(self):
+    def users(self, *, token=None):
         return [deepcopy(self.identity)]
 
     def call(self, method, path, **kwargs):
@@ -141,25 +141,25 @@ class ProvisioningPlatform(Platform):
         self.enroll_calls = 0
         self.fail_enroll = False
 
-    def users(self):
+    def users(self, *, token=None):
         return super().users() if self.has_identity else []
 
-    def records(self, kind, fields):
+    def records(self, kind, fields, *, token=None):
         return deepcopy([r for r in self.rows.values() if r['kind'] == kind])
 
-    def create_record(self, kind, data, owner):
+    def create_record(self, kind, data, owner, *, token=None):
         key = f'row-{len(self.rows)}'
         row = dict(entity_id=key, kind=kind, data={**data, 'identifier': key})
         self.rows[key] = row
         return deepcopy(row)
 
-    def record(self, key):
+    def record(self, key, *, token=None):
         return deepcopy(self.rows[key])
 
     def states(self, machine):
         return {key: state for (key, name), state in self.enrollments.items() if name == machine}
 
-    def enroll(self, key, machine):
+    def enroll(self, key, machine, *, token=None):
         assert self.rows[key]['data']['platform_user_id'] == 'user'
         self.enroll_calls += 1
         self.enrollments[key, machine] = 'Employee Registration'
@@ -199,7 +199,7 @@ class ProvisioningPlatform(Platform):
             self.roles = {kwargs['json']['role_id']}
             return
         if path.startswith('/entity-records/'):
-            self.rows[path.rsplit('/', 1)[-1]]['data'] = kwargs['json']['data']
+            self.rows[path.rsplit('/', 1)[-1]]['data'].update(kwargs['json']['data'])
             return
         return super().call(method, path, **kwargs)
 
@@ -216,7 +216,7 @@ def test_registration_without_email_creates_only_employee_and_enrollment(monkeyp
     fields.append({'field': 'date_joined', 'type': 'datetime'})
     monkeypatch.setattr(form_config, 'registration_form', lambda p: {'fields': fields})
     p = ProvisioningPlatform(False)
-    def enroll(eid, machine):
+    def enroll(eid, machine, *, token=None):
         p.enroll_calls += 1
         p.enrollments[eid, machine] = 'Employee Registration'
         return 'Employee Registration'

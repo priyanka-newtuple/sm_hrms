@@ -26,9 +26,11 @@ FORM_ACCESS = {
     **{kind: {'cockpit:view'} for kind in COCKPIT_TYPES},
     'HRMS.Employee': {'employee:create', 'employee:read'},
     'HRMS.LeaveRequest': {'leave:create'},
-    **{kind: {'project:view'} for kind in ('HRMS.Project', 'HRMS.ProjectChange', 'HRMS.Customer', 'HRMS.Allocation', 'HRMS.AllocationChange', 'HRMS.ProjectRole')},
+    **{kind: {'project:view'} for kind in ('HRMS.Project', 'HRMS.ProjectChange', 'HRMS.Allocation', 'HRMS.AllocationChange', 'HRMS.ProjectRole')},
     **{kind: set() for kind in ('HRMS.PerformanceCycle', 'HRMS.PerformanceGoal', 'HRMS.PerformanceReview', 'HRMS.ProjectFeedback')},
 }
+FORM_ACCESS['HRMS.Customer'] = {'customer:view'}
+FORM_ACCESS['HRMS.Allocation'] = {'allocation:view', 'project:view'}
 PRESENTATION_KEYS = ('field', 'description', 'placeholder', 'required', 'read_only', 'col_span', 'type', 'enum_values')
 METHOD_PAGE_LIMIT = 100
 

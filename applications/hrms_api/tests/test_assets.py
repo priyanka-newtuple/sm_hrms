@@ -235,7 +235,7 @@ def test_bulk_create_and_replay(system):
     from hrms_app.assets import AssetCreateBatchCommand
     s, p, j = system
     original = p.create_record
-    def create_native(kind, data, owner):
+    def create_native(kind, data, owner, *, token=None):
         return original(kind, {**data, 'identifier': f'AST-{len(p.rows)}'}, owner)
     p.create_record = create_native
     cmd = AssetCreateBatchCommand(data={'asset_name': 'Monitor', 'asset_category':'Monitor', 'asset_condition':'Good'}, units=[{}, {}, {}], idempotency_key='bulk-create-1')
@@ -261,7 +261,7 @@ def test_bulk_retry_completed_children_not_duplicated(system):
     s, p, j = system
     original = p.create_record
     attempts = []
-    def failing(kind, data, owner):
+    def failing(kind, data, owner, *, token=None):
         attempts.append(data)
         if len(attempts) == 2:
             raise AppError(422, 'Temporary rejection')
@@ -295,8 +295,8 @@ def test_bulk_recovers_lost_create_response(system):
     s,p,j=system
     original=p.create_record
     attempts=[]
-    def lost(kind,data,owner):
-        result=original(kind,data,owner)
+    def lost(kind,data,owner, **kwargs):
+        result=original(kind,data,owner, **kwargs)
         attempts.append(result)
         if len(attempts)==1:raise AppError(502,'Response lost')
         return result

@@ -4,7 +4,7 @@ const workflows = [
   { entity_type: 'HRMS.Employee', machine_name: 'employee custom', name: 'Add Employee' },
   { entity_type: 'HRMS.Offboarding', machine_name: 'exit', name: 'Employee offboarding' },
 ];
-const caps = { roles: ['hrms_hr_full'], employee_profile: true, capabilities: ['onboarding:view', 'employee:exit', 'cockpit:view', 'project:view', 'asset:view', 'leave:create', 'wfh:view', 'employee:read'] };
+const caps = { roles: ['hrms_hr_full'], employee_profile: true, capabilities: ['onboarding:view', 'employee:exit', 'cockpit:view', 'project:view', 'customer:view', 'allocation:view', 'asset:view', 'leave:create', 'wfh:view', 'employee:read'] };
 describe('workspace navigation', () => {
   it('groups workflow links and preserves record destinations and task count', () => {
     const groups = buildNavigation(caps, workflows, 2, true, ['workflow:read']);
@@ -12,6 +12,11 @@ describe('workspace navigation', () => {
     expect(groups.find(g => g.label === 'Manager Cockpit')?.items.map(i => i.path)).toEqual(['/hrms/customers','/hrms/projects','/hrms/allocations']);
     expect(groups[0].items[0].badge).toBe(2);
     expect(groups.find(g => g.label === 'Employee Self Service')?.items.map(i => i.label)).toEqual(['Leave Requests','Work from Home']);
+  });
+  it('shows only individually authorized Manager Cockpit records', () => {
+    const groups = buildNavigation({roles:['hrms_employee'],capabilities:['project:view']}, [], 0, false, []);
+    expect(groups.find(g => g.label === 'Manager Cockpit')?.items.map(i => i.label)).toEqual(['Projects']);
+    expect(buildNavigation({roles:['hrms_employee'],capabilities:['asset:manage']}, [], 0, false, []).flatMap(g => g.items).map(i => i.label)).toEqual(['My Tasks']);
   });
   it('places the configured UAT inbox at level one, never in HR Cockpit', () => {
     const groups = buildNavigation(caps, workflows, 0, true, ['workflow:read']);
@@ -22,8 +27,8 @@ describe('workspace navigation', () => {
     const groups = buildNavigation({roles:[],capabilities:[]}, [], 0, false, []);
     expect(groups.flatMap(g => g.items).map(i => i.label)).toEqual(['My Tasks']);
   });
-  it('retains the restricted first-time employee navigation', () => {
-    expect(buildNavigation({...caps,roles:['hrms_onboarding_employee']},workflows,1,true,['workflow:read']).flatMap(g => g.items).map(i => i.label)).toEqual(['My Tasks']);
+  it('uses native grants rather than a special onboarding role name', () => {
+    expect(buildNavigation({...caps,roles:['hrms_onboarding_employee']},workflows,1,true,['workflow:read'])).toEqual(buildNavigation(caps,workflows,1,true,['workflow:read']));
   });
   it('preserves cockpit access when native workflow read is not granted', () => {
     expect(buildNavigation(caps,workflows,0,false,[]).find(g => g.label === 'HR Cockpit')?.items[0].path).toBe('/hrms/cockpit?area=onboarding');

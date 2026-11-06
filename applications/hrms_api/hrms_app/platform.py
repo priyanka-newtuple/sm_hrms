@@ -1,6 +1,8 @@
 """The only runtime adapter to the platform: public HTTP contracts, no core imports."""
 from __future__ import annotations
 
+import hashlib
+import json
 import re
 import threading
 import time
@@ -22,6 +24,9 @@ class Actor:
     token: str
     roles: frozenset[str]
     permissions: frozenset[str]
+    entity_permissions: tuple[dict, ...] = ()
+    system_role: bool = False
+    permission_revision: str = ""
 
 
 class PlatformClient:
@@ -75,25 +80,26 @@ class PlatformClient:
                 self._expires = time.monotonic() + 240
             return self._token
 
-    def call(self, method, path, **kwargs):
+    def call(self, method, path, *, token=None, **kwargs):
+        send = self._send if token is None else lambda method, path, **options: self.request(method, path, token=token, **options)
         try:
-            return self._send(method, path, **kwargs)
+            return send(method, path, **kwargs)
         except AppError as exc:
             match = TRANSITION_PATH.match(path)
             trigger = (kwargs.get('json') or {}).get('trigger')
             if method != 'POST' or not match or not trigger or exc.status not in {400, 404, 409, 422}:
                 raise
-            renamed = self.renamed_trigger(match.group(1), trigger)
+            renamed = self.renamed_trigger(match.group(1), trigger, token=token)
             if not renamed:
                 raise
-            return self._send(method, path, **{**kwargs, 'json': {**kwargs['json'], 'trigger': renamed}})
+            return send(method, path, **{**kwargs, 'json': {**kwargs['json'], 'trigger': renamed}})
 
-    def renamed_trigger(self, entity_id, trigger):
+    def renamed_trigger(self, entity_id, trigger, *, token=None):
         """The trigger an HRMS step has after it was renamed in Settings → Funnels: the one transition
         from the current state to the state the step leads to. None when it was not renamed, or
         when the step cannot be told apart, so the platform's own refusal stands."""
         from .catalog import PACKS
-        available = self._send('GET', f'/entities/{entity_id}/transitions/available')
+        available = self.call('GET', f'/entities/{entity_id}/transitions/available', token=token)
         options = available.get('available_transitions', [])
         if any(t['trigger'] == trigger for t in options):
             return None
@@ -133,13 +139,17 @@ class PlatformClient:
             raise AppError(403, 'The session identity does not match its permissions')
         return Actor(user['id'], org, token,
                      frozenset(r['name'] for r in permissions['roles']),
-                     frozenset(permissions['permissions']))
+                     frozenset(permissions['permissions']),
+                     tuple(permissions.get('entity_permissions', ())),
+                     any(r.get('is_system', False) for r in permissions['roles']),
+                     hashlib.sha256(json.dumps(permissions, sort_keys=True).encode()).hexdigest())
 
     def user_capabilities(self, user_id):
         """Native role grants for candidate approvers, without granting the service role admin."""
         from .policy import capabilities
         memberships = self.call('GET', f'/roles/users/{user_id}/roles')
-        roles, grants = set(), set()
+        roles, grants, entities = set(), set(), []
+        system_role = False
         for membership in memberships:
             if membership['organization_id'] != self.org:
                 raise AppError(403, 'Role belongs to another organization')
@@ -147,17 +157,20 @@ class PlatformClient:
             if role['organization_id'] != self.org:
                 raise AppError(403, 'Role belongs to another organization')
             roles.add(role['name'])
-            grants.update(p['permission_key'] for p in role['permissions'])
-        return capabilities(Actor(user_id, self.org, '', frozenset(roles), frozenset(grants)))
+            grants.update(p['permission_key'] for p in role['permissions'] if p.get('allowed', True) and p.get('permission_key'))
+            entities.extend(role.get('entity_permissions', ()))
+            system_role |= bool(role.get('is_system'))
+        return capabilities(Actor(user_id, self.org, '', frozenset(roles), frozenset(grants), tuple(entities), system_role))
 
-    def records(self, entity_type: str, fields: list[str]) -> list[dict]:
+    def records(self, entity_type: str, fields: list[str], *, token: str | None = None) -> list[dict]:
         """Use the platform cursor API; never silently truncate an aggregation."""
         result, cursor = [], None
         while True:
             params = {'entity_type_name': entity_type, 'fields': ','.join(fields), 'limit': 200}
             if cursor:
                 params['cursor'] = cursor
-            page = self.call('GET', '/entity-records/summary', params=params)
+            page = (self.request('GET', '/entity-records/summary', token=token, params=params)
+                    if token is not None else self.call('GET', '/entity-records/summary', params=params))
             for row in page['items']:
                 if row['organization_id'] != self.org:
                     raise AppError(502, 'Platform returned data outside the configured organization')
@@ -169,16 +182,17 @@ class PlatformClient:
                 raise AppError(502, 'Platform returned an incomplete entity page')
             cursor = next_cursor
 
-    def record(self, entity_id):
-        row = self.call('GET', f'/entity-records/{entity_id}')
+    def record(self, entity_id, *, token=None):
+        send = self.call if token is None else lambda method, path, **kwargs: self.request(method, path, token=token, **kwargs)
+        row = send('GET', f'/entity-records/{entity_id}')
         if row['organization_id'] != self.org:
             raise AppError(404, 'Record was not found')
         return row
 
-    def users(self):
+    def users(self, *, token=None):
         result, offset = [], 0
         while True:
-            rows = self.call('GET', '/users', params={'limit': 200, 'offset': offset})
+            rows = self.call('GET', '/users', token=token, params={'limit': 200, 'offset': offset})
             result.extend(rows)
             if len(rows) < 200:
                 return result
@@ -215,18 +229,20 @@ class PlatformClient:
     def tasks(self, entity_id):
         return self.steps_by_case().get(entity_id, [])
 
-    def create_record(self, entity_type, data, owner_id):
+    def create_record(self, entity_type, data, owner_id, *, token=None):
         type_row = self.call('GET', f'/entity-types/{entity_type}')
-        return self.call('POST', '/entity-records', json={
+        send = self.call if token is None else lambda method, path, **kwargs: self.request(method, path, token=token, **kwargs)
+        return send('POST', '/entity-records', json={
             'organization_id': self.org, 'entity_type_id': type_row['entity_type_id'],
             'data': data, 'owner_id': owner_id})
 
-    def enroll(self, entity_id, machine):
+    def enroll(self, entity_id, machine, *, token=None):
         machine = self.machine_name(machine)
         state = self.states(machine).get(entity_id)
         if state:
             return state
-        return self.call('POST', f'/workflow-state-machines/{machine}/enrollments',
+        send = self.call if token is None else lambda method, path, **kwargs: self.request(method, path, token=token, **kwargs)
+        return send('POST', f'/workflow-state-machines/{machine}/enrollments',
                          json={'entity_id': entity_id})['current_state']
 
     def machine_name(self, name):

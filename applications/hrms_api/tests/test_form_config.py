@@ -11,7 +11,7 @@ from test_performance import UNMIGRATED_TENANT
 
 
 def actor(role):
-    return Actor('user', 'org', 'human', frozenset({role}), grants({role}))
+    return Actor('user', 'org', 'human', frozenset({role}), grants({role}), system_role=role == 'superadmin')
 
 
 def platform(**routes):

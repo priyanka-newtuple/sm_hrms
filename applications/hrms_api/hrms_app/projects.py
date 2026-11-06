@@ -9,7 +9,7 @@ from .form_values import record_input
 from .custom_fields import custom_keys
 from .install_project_roles import PICKLIST_NAME
 from .performance import PerformanceService, check, parse
-from .policy import capabilities, require
+from .policy import capabilities, require, entity_allowed
 from .project_catalog import (
     ALLOCATION,
     ALLOCATION_CHANGE,
@@ -261,14 +261,14 @@ class ProjectsService:
             )
             else []
         )
-        snap = self.snapshot()
-        can_create = "project:create" in capabilities(actor)
-        employees = self.hrms.employees()
+        customers = self.authorized_rows(actor, CUSTOMER)
+        can_create = "project:create" in capabilities(actor) and entity_allowed(actor, PROJECT, "create")
+        employees = list(self.authorized_rows(actor, "HRMS.Employee").values())
         managers = self.manager_options(actor, people, employees)
         return {
             "customers": [
                 {"id": r["entity_id"], "name": r["data"]["name"]}
-                for r in snap[CUSTOMER]
+                for r in customers.values()
             ]
             if can_create
             else [],
@@ -289,7 +289,7 @@ class ProjectsService:
             ],
             "current_user_id": actor.user_id,
             "can_create": can_create,
-            "can_create_customer": "customer:create" in capabilities(actor),
+            "can_create_customer": "customer:create" in capabilities(actor) and entity_allowed(actor, CUSTOMER, "create"),
         }
 
     def project_roles(self, actor):
@@ -447,22 +447,32 @@ class ProjectsService:
             )
         return self.allocation_values(actor, project, data, snap, allocation_id)[4]
 
+    def authorized_rows(self, actor, kind):
+        if not entity_allowed(actor, kind):
+            return {}
+        pack = pack_by_type(kind)
+        rows = self.platform.records(kind, ['identifier', *[f['field'] for f in pack.fields],
+                                            *custom_keys(self.platform, kind)], token=actor.token)
+        return {row['entity_id']: row for row in rows}
+
     def customers(self, actor):
-        require(actor, "project:view")
+        require(actor, "customer:view")
         snap = self.snapshot()
+        authorized = {kind: self.authorized_rows(actor, kind) for kind in TYPES}
         caps = capabilities(actor)
         full_directory = bool({"customer:create", "project:create", "project:read_all"} & caps)
         linked = {p["data"].get("customer_id") for p in snap[PROJECT] if self.visible(actor, p, snap)}
         fields = ("name", "contact_name", "contact_email", "currency") if full_directory else ("name",)
         return {"items": sorted([
-            {"id": row["entity_id"], **{key: row["data"].get(key, "") for key in fields}}
-            for row in snap[CUSTOMER] if full_directory or row["entity_id"] in linked
-        ], key=lambda row: row["name"].casefold()), "can_create": "customer:create" in caps}
+            {"id": row["entity_id"], **{key: authorized[CUSTOMER][row["entity_id"]]["data"].get(key, "") for key in fields}}
+            for row in snap[CUSTOMER] if row["entity_id"] in authorized[CUSTOMER] and (full_directory or row["entity_id"] in linked)
+        ], key=lambda row: row["name"].casefold()), "can_create": "customer:create" in caps and entity_allowed(actor, CUSTOMER, "create")}
 
     def dashboard(self, actor):
-        require(actor, "project:view")
+        check(bool({"project:view", "allocation:view"} & capabilities(actor)), "Record access is required", 403)
         snap = self.snapshot()
-        projects = [p for p in snap[PROJECT] if self.visible(actor, p, snap)]
+        authorized = {kind: self.authorized_rows(actor, kind) for kind in TYPES}
+        projects = [p for p in snap[PROJECT] if p["entity_id"] in authorized[PROJECT] and self.visible(actor, p, snap)]
         ids = {p["entity_id"]: p for p in projects}
         own = {
             e["entity_id"]
@@ -471,7 +481,7 @@ class ProjectsService:
         }
 
         def item(row, project):
-            data = {k: v for k, v in row["data"].items() if k != "hrms_operation_key"}
+            data = {k: v for k, v in authorized[row["kind"]][row["entity_id"]]["data"].items() if k != "hrms_operation_key"}
             if not self.commercial(actor, project):
                 data = {k: v for k, v in data.items() if k not in COMMERCIAL}
                 if "proposed" in data:
@@ -483,15 +493,15 @@ class ProjectsService:
                 "kind": row["kind"],
                 "state": row["state"],
                 "data": data,
-                "project_name": project["data"]["name"],
-                "owner_name": project["data"]["pm_name"],
+                "project_name": authorized[PROJECT].get(project["entity_id"], {}).get("data", {}).get("name", ""),
+                "owner_name": authorized[PROJECT].get(project["entity_id"], {}).get("data", {}).get("pm_name", ""),
                 "actions": self.allowed(actor, row, snap),
             }
 
         allocations = [
             a
             for a in snap[ALLOCATION]
-            if a["data"]["project_id"] in ids
+            if a["entity_id"] in authorized[ALLOCATION] and a["data"]["project_id"] in ids
             and (
                 "project:read_all" in capabilities(actor)
                 or self.manage(actor, ids[a["data"]["project_id"]])
@@ -502,7 +512,7 @@ class ProjectsService:
             c
             for kind in (CHANGE, ALLOCATION_CHANGE)
             for c in snap[kind]
-            if c["data"]["project_id"] in ids
+            if c["entity_id"] in authorized[kind] and c["data"]["project_id"] in ids
             and (
                 self.manage(actor, ids[c["data"]["project_id"]])
                 or c["data"]["requested_by_id"] == actor.user_id
@@ -518,14 +528,12 @@ class ProjectsService:
             "projects": [item(p, p) for p in projects],
             "allocations": [item(a, ids[a["data"]["project_id"]]) for a in allocations],
             "requests": [item(c, ids[c["data"]["project_id"]]) for c in changes],
-            "can_create": "project:create" in capabilities(actor),
-            "can_create_customer": "customer:create" in capabilities(actor),
+            "can_create": "project:create" in capabilities(actor) and entity_allowed(actor, PROJECT, "create"),
+            "can_create_customer": "customer:create" in capabilities(actor) and entity_allowed(actor, CUSTOMER, "create"),
         }
 
     def workflows(self, actor):
-        if "project:view" not in capabilities(actor):
-            return []
-        if "project:view" not in capabilities(actor):
+        if not {"project:view", "allocation:view"} & capabilities(actor):
             return []
         board = self.dashboard(actor)
         return [
@@ -961,8 +969,8 @@ class ProjectsService:
             ]
 
     def execute(self, actor, target, request):
-        require(actor, "project:view")
         check(actor.organization_id == self.platform.org, "Organization mismatch", 403)
+        require(actor, "customer:view" if request.action == "create_customer" else "project:view")
         key = "projects:" + request.idempotency_key
         with self.journal.lock(actor.organization_id) as db:
             operation = self.journal.operation(
@@ -1032,27 +1040,30 @@ class ProjectsService:
                             "Creation outcome is uncertain; reconcile before retrying",
                         )
                         operation.checkpoint(creating=index)
-                        entity_id = self.platform.create_record(
-                            step["kind"],
-                            {**values, "hrms_operation_key": marker},
-                            actor.user_id,
-                        )["entity_id"]
+                        try:
+                            entity_id = self.platform.create_record(
+                                step["kind"],
+                                {**values, "hrms_operation_key": marker},
+                                actor.user_id, token=actor.token,
+                            )["entity_id"]
+                        except AppError as exc:
+                            if exc.status < 500:
+                                operation.checkpoint(creating=None)
+                            raise
                     if pack_by_type(step["kind"]).states:
                         self.platform.enroll(
-                            entity_id, pack_by_type(step["kind"]).machine_name
+                            entity_id, pack_by_type(step["kind"]).machine_name, token=actor.token
                         )
                     refs[step["target"]] = entity_id
                 elif step["op"] == "patch":
-                    record = self.platform.record(step["target"])
-                    self.platform.call(
-                        "PUT",
-                        f"/entity-records/{step['target']}",
-                        json={"data": {**record["data"], **values}},
+                    self.platform.request(
+                        "PUT", f"/entity-records/{step['target']}",
+                        token=actor.token, json={"data": values},
                     )
                 else:
                     self.platform.call(
                         "POST",
-                        f"/entities/{step['target']}/transitions",
+                        f"/entities/{step['target']}/transitions", token=actor.token,
                         json={
                             "entity_id": step["target"],
                             "trigger": step["trigger"],

@@ -160,8 +160,8 @@ def test_lost_create_response_recovers_same_native_record(system, monkeypatch):
     s, p, _ = system
     policy(s)
     original = p.create_record
-    def lost_response(*args):
-        original(*args)
+    def lost_response(*args, **kwargs):
+        original(*args, **kwargs)
         raise AppError(503, 'Connection lost after write')
     monkeypatch.setattr(p, 'create_record', lost_response)
     with pytest.raises(AppError):

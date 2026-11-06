@@ -24,7 +24,7 @@ const label = (s: string) => s.replaceAll('_', ' ').replace(/^./, c => c.toUpper
 const val = (d: Data, k: string) => String(d[k] ?? '');
 const input = 'hrms-field-input';
 export const PROJECT_KINDS = ['HRMS.Project', 'HRMS.ProjectChange', 'HRMS.Allocation', 'HRMS.AllocationChange'];
-export const useProjects = () => { const caps=useHrmsCapabilities(); return useQuery({ queryKey: ['hrms', 'projects'], queryFn: () => request<Board>('/hrms/projects'), enabled: caps.data?.capabilities.includes('project:view') ?? false }); };
+export const useProjects = () => { const caps=useHrmsCapabilities(); return useQuery({ queryKey: ['hrms', 'projects'], queryFn: () => request<Board>('/hrms/projects'), enabled: caps.data?.capabilities.some(cap => ['project:view', 'allocation:view'].includes(cap)) ?? false }); };
 const projectSystemFields = ['created_by','revision','identifier','hrms_operation_key','customer_name','pm_name','dm_name'];
 const allocationSystemFields = ['created_by','revision','identifier','hrms_operation_key','project_id','employee_name','project_role_name'];
 const customerSystemFields = ['created_by','identifier','hrms_operation_key'];
