@@ -64,7 +64,10 @@ def test_cockpit_approvers_are_unchanged_by_concurrent_role_lookups():
     users += [dict(id='off', full_name='Inactive', status='suspended', email='off@example.com'),
               dict(id='svc', full_name='Service', status='active', email='svc@example.com')]
     roles = {u['id']: 'hrms_hr_full' if int(u['id'][1:]) % 3 == 0 else 'hrms_employee' for u in users[:12]}
-    platform = SimpleNamespace(email='svc@example.com', users=lambda: users,
+    def human_users(*, token):
+        assert token == 'human'
+        return users
+    platform = SimpleNamespace(email='svc@example.com', users=human_users,
                                user_capabilities=lambda user: {'cockpit:approve'} if roles[user] == 'hrms_hr_full' else set(),
                                call=lambda method, path, **kw: [dict(role_name=roles[path.split('/')[3]], organization_id='org')])
     approvers = CockpitService(platform, None).people(Actor('u3', 'org', 'human', frozenset({'hrms_hr_full'}), grants({'hrms_hr_full'})))

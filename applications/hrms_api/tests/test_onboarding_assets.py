@@ -28,7 +28,7 @@ def test_multiple_asset_evidence_excludes_other_employee_and_unissued():
 def test_issue_requires_current_work_and_exact_employee(monkeypatch):
     import hrms_app.onboarding_assets as module
     from hrms_app.assets import AssetCommand
-    actor=SimpleNamespace(organization_id='org',roles=set(),permissions={'tenant.org.hrms.asset:manage'},token='human')
+    actor=SimpleNamespace(organization_id='org',roles=set(),permissions={'tenant.org.hrms.asset:manage'},token='human',system_role=False,entity_permissions=())
     assets=SimpleNamespace(platform=object(),execute=lambda *a:pytest.fail('Should not issue'))
     command=AssetCommand(action='issue',idempotency_key='test-key-1',data={'issued_employee_id':'other'})
     monkeypatch.setattr(module,'context',lambda *a:({},False))

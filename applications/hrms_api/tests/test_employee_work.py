@@ -8,7 +8,8 @@ from hrms_app.errors import AppError
 def setup(allowed=True, org="org"):
     calls = []
     actor = SimpleNamespace(
-        token="human-token", organization_id="org", user_id="user", roles={"superadmin"}
+        token="human-token", organization_id="org", user_id="user", roles={"superadmin"},
+        system_role=False, entity_permissions=()
     )
 
     def request(method, path, **kw):
