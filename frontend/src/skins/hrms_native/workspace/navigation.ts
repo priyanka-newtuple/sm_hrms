@@ -1,3 +1,4 @@
+import { canViewOffers, canViewContent } from '../cockpitAccess';
 import { canOpenModule } from '../moduleAccess';
 import { BriefcaseBusinessIcon, TrendingUpIcon, UsersIcon, UserRoundPlusIcon, type AnimatedIcon } from '../animated-icons';
 import { TaskMenuIcon, HrMenuIcon, OffboardingMenuIcon, OfferMenuIcon, PublishingMenuIcon, CustomerMenuIcon, AllocationMenuIcon, AssetMenuIcon, LeaveMenuIcon, HomeMenuIcon, AgentMenuIcon, DirectoryMenuIcon, MailMenuIcon } from './navigationIcons';
@@ -24,10 +25,8 @@ export function buildNavigation(caps: Capabilities | undefined, workflows: Workf
     { label: 'HR Cockpit', icon: HrMenuIcon, items: [
       ...(allowed('onboarding:view') || hasWorkflow('HRMS.Employee') ? [{ path: workflowLink('HRMS.Employee', '/hrms/cockpit?area=onboarding'), label: 'Onboarding', icon: UserRoundPlusIcon }] : []),
       ...(allowed('employee:exit') || hasWorkflow('HRMS.Offboarding') ? [{ path: workflowLink('HRMS.Offboarding', '/hrms/cockpit?area=offboarding'), label: 'Offboarding', icon: OffboardingMenuIcon }] : []),
-      ...(allowed('cockpit:view') ? [
-        { path: '/hrms/cockpit?area=offers', label: 'Offers', icon: OfferMenuIcon },
-        { path: '/hrms/cockpit?area=publishing', label: 'Content & publishing', icon: PublishingMenuIcon },
-      ] : []),
+      ...(canViewOffers(caps) ? [{ path: '/hrms/cockpit?area=offers', label: 'Offers', icon: OfferMenuIcon }] : []),
+      ...(canViewContent(caps) ? [{ path: '/hrms/cockpit?area=publishing', label: 'Content & publishing', icon: PublishingMenuIcon }] : []),
     ] },
     { label: 'Manager Cockpit', icon: BriefcaseBusinessIcon, items: [
       ...(allowed('customer:view') ? [{ path: '/hrms/customers', label: 'Customers', icon: CustomerMenuIcon }] : []),

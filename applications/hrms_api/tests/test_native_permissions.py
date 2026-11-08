@@ -95,6 +95,12 @@ def test_migration_resumes_checkpoint_and_never_reapplies_after_completion(monke
     ('customer:view', 'HRMS.Customer'), ('project:view', 'HRMS.Project'),
     ('allocation:view', 'HRMS.Allocation'), ('asset:view', 'HRMS.Asset'),
     ('employee:read', 'HRMS.Employee'),
+    ('offer:view', 'hrms_offer'),
+    ('content:policy:view', 'HRMS.Policy'),
+    ('content:learning:view', 'HRMS.LearningEvent'),
+    ('content:holiday:view', 'HRMS.HolidayCalendar'),
+    ('content:job-description:view', 'HRMS.JobDescription'),
+    ('content:job-opening:view', 'HRMS.JobOpening'),
 ])
 def test_native_entity_view_is_the_only_record_visibility_grant(capability, entity):
     person = Actor('u', 'org', 'human', frozenset({'hrms_employee'}),
@@ -170,3 +176,17 @@ def test_denied_human_transition_never_retries_or_uses_service(status):
         api.close()
     assert len(calls) == 1
     assert calls[0].headers['authorization'] == 'Bearer human'
+
+
+def test_delivery_manager_visibility_requires_native_record_access():
+    person = Actor('u', 'org', 'human', frozenset({'hrms_delivery_manager'}),
+                   frozenset({'entity_record:read', permission_key('org', 'project:view'),
+                              permission_key('org', 'customer:create')}))
+    assert not {'project:view', 'customer:view', 'allocation:view'} & capabilities(person)
+    grants = tuple({'entity_type': entity, 'action': 'view', 'allowed': True}
+                   for entity in ('HRMS.Customer', 'HRMS.Project', 'HRMS.Allocation'))
+    granted = replace(person, entity_permissions=grants)
+    assert {'project:view', 'customer:view', 'allocation:view'} <= capabilities(granted)
+    revoked = replace(granted, entity_permissions=grants[1:])
+    assert 'customer:view' not in capabilities(revoked)
+    assert {'project:view', 'allocation:view'} <= capabilities(revoked)

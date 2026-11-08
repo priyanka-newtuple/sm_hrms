@@ -34,7 +34,7 @@ describe('workspace navigation', () => {
     expect(buildNavigation(caps,workflows,0,false,[]).find(g => g.label === 'HR Cockpit')?.items[0].path).toBe('/hrms/cockpit?area=onboarding');
   });
   it('preserves Offers and publishing access', () => {
-    expect(buildNavigation(caps,workflows,0,false,[]).flatMap(g => g.items).map(i => i.label)).toEqual(expect.arrayContaining(['Offers','Content & publishing']));
+    expect(buildNavigation({...caps,capabilities:[...caps.capabilities,'offer:view','content:policy:view']},workflows,0,false,[]).flatMap(g => g.items).map(i => i.label)).toEqual(expect.arrayContaining(['Offers','Content & publishing']));
   });
   it('selects only the matching query-specific navigation item', () => {
     expect(isNavigationActive('/hrms/workflows?workflow=exit','/hrms/workflows','?workflow=exit&case=123')).toBe(true);
@@ -44,3 +44,14 @@ describe('workspace navigation', () => {
     expect(isNavigationActive('/hrms/projects','/hrms/projects-extra','')).toBe(false);
   });
 });
+
+ it('hides Offers and publishing when only broad cockpit access remains', () => {
+   const labels = buildNavigation(caps, workflows, 0, false, []).flatMap(g => g.items).map(i => i.label);
+   expect(labels).not.toContain('Offers');
+   expect(labels).not.toContain('Content & publishing');
+ });
+ it('shows Delivery Manager records independently of the role name', () => {
+   const groups = buildNavigation({roles:['hrms_delivery_manager'],capabilities:['customer:view','project:view','allocation:view']}, [], 0, false, []);
+   expect(groups.find(g => g.label === 'Manager Cockpit')?.items.map(i => i.label)).toEqual(['Customers','Projects','Allocations']);
+   expect(buildNavigation({roles:['hrms_delivery_manager'],capabilities:[]}, [], 0, false, []).some(g => g.label === 'Manager Cockpit')).toBe(false);
+ });

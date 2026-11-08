@@ -3,7 +3,7 @@ import {cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react';
 import {QueryClient,QueryClientProvider} from '@tanstack/react-query';
 import AssetsPage, {AssetForm} from './AssetsPage';
 const state=vi.hoisted(()=>({fail:false,duplicate:false,posts:[] as Record<string,unknown>[]}));
-vi.mock('../capabilities',()=>({useHrmsCapabilities:()=>({data:{capabilities:['asset:manage']}})}));
+vi.mock('../capabilities',()=>({useHrmsCapabilities:()=>({data:{capabilities:['asset:view','asset:manage']}})}));
 vi.mock('../components/PageHero',()=>({PageHero:({actions}:{actions:React.ReactNode})=><div>{actions}</div>}));
 vi.mock('@/core/services/api/client',()=>({getApiErrorMessage:(e:Error)=>e.message,request:async(path:string,options?:{body:string})=>{
  if(path.includes('pending-'))return {items:[]};

@@ -1,3 +1,4 @@
+import { accessibleContentTypes, canViewContent } from '../cockpitAccess';
 import type { MyExit } from '../pages/MyOffboardingPage';
 import { useQuery } from '@tanstack/react-query';
 import { request } from '@/core/services/api/client';
@@ -44,7 +45,8 @@ export function useWaitingActions() {
   const pendingLeave = leaveApprovals.data?.filter(item => item.state === 'pending') ?? [];
   // Same rule as the Performance page's "Awaiting you".
   const performanceActions = performance.data ? awaitingYou(performance.data) : [];
-  const cockpitActions = cockpit.data?.items.filter(item => item.actions.includes('approve') || item.actions.includes('publish')) ?? [];
+  const contentTypes = accessibleContentTypes(caps.data);
+  const cockpitActions = cockpit.data?.items.filter(item => contentTypes.includes(item.kind) && (item.actions.includes('approve') || item.actions.includes('publish'))) ?? [];
   const projectActions = projects.data?.requests.filter(r => r.state === 'pending' && r.actions.includes('approve')) ?? [];
 
   const sources: WaitingSource[] = [
@@ -53,7 +55,7 @@ export function useWaitingActions() {
     { key: 'users' as const, label: 'New user approvals', path: '/settings?tab=users', count: userApprovals.data?.length ?? 0, loading: userApprovals.isLoading || userApprovals.isError, error: userApprovals.isError, retry: () => void userApprovals.refetch(), show: isSuperAdmin },
     { key: 'wfh' as const, label: 'WFH approvals', path: '/hrms/my-work', count: wfh.data?.length ?? 0, loading: wfh.isLoading, error: wfh.isError, retry: () => void wfh.refetch(), show: has('wfh:approve') },
     { key: 'leave' as const, label: 'Leave approvals', path: '/hrms/leave', count: pendingLeave.length, loading: leaveApprovals.isLoading, error: leaveApprovals.isError && !isForbidden(leaveApprovals.error), retry: () => void leaveApprovals.refetch(), show: caps.data?.employee_profile === true && !isForbidden(leaveApprovals.error) },
-    { key: 'cockpit' as const, label: 'HR content', path: '/hrms/cockpit', count: cockpitActions.length, loading: cockpit.isLoading, error: cockpit.isError, retry: () => void cockpit.refetch(), show: has('cockpit:view') },
+    { key: 'cockpit' as const, label: 'HR content', path: '/hrms/cockpit', count: cockpitActions.length, loading: cockpit.isLoading, error: cockpit.isError, retry: () => void cockpit.refetch(), show: canViewContent(caps.data) },
     { key: 'projects' as const, label: 'Projects', path: '/hrms/projects', count: projectActions.length, loading: projects.isLoading, error: projects.isError, retry: () => void projects.refetch(), show: has('project:view') },
     { key: 'performance' as const, label: 'Performance', path: '/hrms/performance', count: performanceActions.length, loading: performance.isLoading, error: false, retry: () => void performance.refetch(), show: performance.isSuccess },
   ].flatMap(({ show, ...source }) => (show ? [source] : []));

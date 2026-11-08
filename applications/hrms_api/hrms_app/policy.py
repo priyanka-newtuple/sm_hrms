@@ -10,6 +10,12 @@ ENTITY_READ_CAPABILITIES = {
     'project:view': ('HRMS.Project',),
     'allocation:view': ('HRMS.Allocation',),
     'asset:view': ('HRMS.Asset',),
+    'offer:view': ('hrms_offer',),
+    'content:policy:view': ('HRMS.Policy',),
+    'content:learning:view': ('HRMS.LearningEvent',),
+    'content:holiday:view': ('HRMS.HolidayCalendar',),
+    'content:job-description:view': ('HRMS.JobDescription',),
+    'content:job-opening:view': ('HRMS.JobOpening',),
 }
 
 

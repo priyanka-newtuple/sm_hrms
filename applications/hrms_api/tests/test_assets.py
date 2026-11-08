@@ -307,3 +307,25 @@ def test_bulk_recovers_lost_create_response(system):
     assert s.create_many(who,cmd)['complete']
     assert len(p.records(ASSET,[]))==2
     assert len(attempts)==2
+
+
+@pytest.mark.parametrize('status', [403, 503])
+def test_inventory_action_lookup_denial_preserves_read_access(system, status):
+    s, platform, _ = system
+    asset_id = create(s)
+    viewer = actor('office', 'hrms_office_admin')
+    tokens = []
+    def denied(method, path, token=None, **kwargs):
+        tokens.append(token)
+        raise AppError(status, 'Action lookup failed')
+    platform.request = denied
+    if status == 403:
+        board = s.board(viewer)
+        assert board['can_manage'] is True
+        assert board['items'][0]['id'] == asset_id
+        assert board['items'][0]['actions'] == ['edit']
+    else:
+        with pytest.raises(AppError) as error:
+            s.board(viewer)
+        assert error.value.status == 503
+    assert tokens == [viewer.token]

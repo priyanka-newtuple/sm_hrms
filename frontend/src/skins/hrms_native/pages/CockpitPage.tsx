@@ -1,3 +1,4 @@
+import { accessibleContentTypes, canViewContent, canViewOffers } from '../cockpitAccess';
 import OffboardingPage from './OffboardingPage';
 import CreateOffer from './CreateOffer';
 import { RecordTabs } from '../components/record/RecordTabs';
@@ -69,7 +70,7 @@ export function useCockpitBoard() {
  return useQuery({
   queryKey: ['hrms', 'cockpit'],
   queryFn: () => request<Board>('/hrms/cockpit'),
-  enabled: caps.data?.capabilities.includes('cockpit:view') ?? false,
+  enabled: canViewContent(caps.data),
  });
 }
 
@@ -98,7 +99,7 @@ export default function CockpitPage({entityId}:{entityId?:string}) {
  if(caps.isError)return <p role="alert">Could not load HR access. <button onClick={()=>void caps.refetch()}>Try again</button></p>;
  const allowed=(cap:string)=>caps.data?.capabilities.includes(cap)??false;
  // Work from home lives on its own page; its approvals are on My Tasks.
- const areas=[...(allowed('cockpit:view')?[{id:'offers',label:'Offers'}]:[]),...(allowed('onboarding:view')?[{id:'onboarding',label:'Onboarding'}]:[]),...(allowed('employee:exit')?[{id:'offboarding',label:'Offboarding'}]:[]),...(allowed('cockpit:view')?[{id:'publishing',label:'Content & publishing'}]:[])];
+ const areas=[...(canViewOffers(caps.data)?[{id:'offers',label:'Offers'}]:[]),...(allowed('onboarding:view')?[{id:'onboarding',label:'Onboarding'}]:[]),...(allowed('employee:exit')?[{id:'offboarding',label:'Offboarding'}]:[]),...(canViewContent(caps.data)?[{id:'publishing',label:'Content & publishing'}]:[])];
  if(!areas.length)return <p className="p-6">HR Cockpit is not available to your role.</p>;
  const area=areas.find(a=>a.id===params.get('area'))?.id??areas[0].id;
  const tabs=<><Segmented variant="underline" label="HR Cockpit areas" value={area} onChange={id=>setParams({area:id})} segments={areas.map(a=>({id:a.id,label:a.label,badge:undefined}))}/></>;
@@ -107,11 +108,11 @@ export default function CockpitPage({entityId}:{entityId?:string}) {
 }
 
 function ContentCockpit({entityId,tabs}:{entityId?:string;tabs?:React.ReactNode}) {
- const caps=useHrmsCapabilities();const client=useQueryClient();const [params,setParams]=useSearchParams();const kind=CONTENT_TYPES[Math.max(0,contentSlugs.indexOf(params.get('type')??''))];const [creating,setCreating]=useState(false);const [selected,setSelected]=useState<string|null>(entityId??null);const [editing,setEditing]=useState(false);const [pending,setPending]=useState<{id:string;action:string;revision:number;key:string;data?:Data}|null>(null);const [newApprover,setNewApprover]=useState<string|null>(null);
+ const caps=useHrmsCapabilities();const client=useQueryClient();const [params,setParams]=useSearchParams();const visibleTypes=accessibleContentTypes(caps.data);const requestedKind=CONTENT_TYPES[Math.max(0,contentSlugs.indexOf(params.get('type')??''))];const kind=visibleTypes.includes(requestedKind)?requestedKind:(visibleTypes[0]??CONTENT_TYPES[0]);const [creating,setCreating]=useState(false);const [selected,setSelected]=useState<string|null>(entityId??null);const [editing,setEditing]=useState(false);const [pending,setPending]=useState<{id:string;action:string;revision:number;key:string;data?:Data}|null>(null);const [newApprover,setNewApprover]=useState<string|null>(null);
  const [status,setStatus]=useState('active');const [audience,setAudience]=useState('all');const [search,setSearch]=useState('');
  const query=useCockpitBoard();
  const act=useMutation({mutationFn:(p:NonNullable<typeof pending>)=>request<{entity_id:string}>(`/hrms/cockpit/${p.id}/actions`,{method:'POST',body:JSON.stringify({action:p.action,data:p.data??{},expected_revision:p.revision,idempotency_key:p.key})}),onSuccess:async(result)=>{setSelected(result.entity_id);setPending(null);setNewApprover(null);await client.invalidateQueries({queryKey:['hrms']});}});
- const board=query.data;const item=board?.items.find(r=>r.entity_id===(entityId??selected));
+ const board=query.data?{...query.data,items:query.data.items.filter(r=>visibleTypes.includes(r.kind))}:undefined;const item=board?.items.find(r=>r.entity_id===(entityId??selected));
  const categoryIndex=CONTENT_TYPES.indexOf(kind);
  const ofKind=board?.items.filter(r=>r.kind===kind)??[];
  const statusFilter=STATUS_FILTERS.find(f=>f.value===status)??STATUS_FILTERS[0];
@@ -121,7 +122,7 @@ function ContentCockpit({entityId,tabs}:{entityId?:string;tabs?:React.ReactNode}
  const filtered=status!=='active'||audience!=='all'||search!=='';
  const chooseKind=(t:string)=>{setParams(p=>{p.set('type',contentSlugs[CONTENT_TYPES.indexOf(t)]);return p;});setSelected(null);setCreating(false);setEditing(false);setSearch('');};
  if(caps.isLoading)return <p className="p-6">Loading access…</p>;
- if(!caps.data?.capabilities.includes('cockpit:view'))return <p className="p-6">HR Cockpit is not available to your role.</p>;
+ if(!canViewContent(caps.data))return <p className="p-6">HR Cockpit is not available to your role.</p>;
  return <main className={`hrms-brand ${entityId?'hrms-cockpit-embedded':'hrms-workspace-page'} hrms-cockpit-page`}>
   {!entityId&&<PageHero title="HR Cockpit" intro="Share knowledge, opportunities, and what’s coming next." illustration="cockpit" tabs={tabs}
     actions={<Link className="hrms-outline-button" to="/hrms/content">Published information <ArrowUpRight size={16}/></Link>}
@@ -136,7 +137,7 @@ function ContentCockpit({entityId,tabs}:{entityId?:string;tabs?:React.ReactNode}
   {board&&!entityId&&!item&&<>
    <section className="hrms-lk-card hrms-cockpit-list" aria-label={CONTENT_LABELS[categoryIndex]}>
     <div className="hrms-lk-card-head">
-     <Segmented label="Content categories" value={kind} onChange={chooseKind} segments={CONTENT_TYPES.map((t,i)=>({id:t,label:CONTENT_LABELS[i],icon:contentIcons[i],count:board.items.filter(r=>r.kind===t&&r.state!=='archived'&&!r.superseded).length}))}/>
+     <Segmented label="Content categories" value={kind} onChange={chooseKind} segments={visibleTypes.map(t=>({id:t,label:CONTENT_LABELS[CONTENT_TYPES.indexOf(t)],icon:contentIcons[CONTENT_TYPES.indexOf(t)],count:board.items.filter(r=>r.kind===t&&r.state!=='archived'&&!r.superseded).length}))}/>
      {board.creatable.includes(kind)&&<button type="button" className="hrms-primary-button hrms-lk-add" onClick={()=>setCreating(true)}><Plus size={16}/>Add {contentNames[categoryIndex]}</button>}
     </div>
     <Toolbar>

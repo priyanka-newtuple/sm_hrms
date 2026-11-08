@@ -1,3 +1,4 @@
+import { canViewOffers } from '../cockpitAccess';
 import { useState } from 'react';
 import { Plus } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -11,7 +12,7 @@ import { useHrmsCapabilities } from '../capabilities';
 
 export default function CreateOffer() {
   const { data: capabilities } = useHrmsCapabilities();
-  const allowed = capabilities?.capabilities.includes('cockpit:view') ?? false;
+  const allowed = canViewOffers(capabilities);
   const catalog = useWorkflowCatalog(allowed);
   const offers = (catalog.data ?? []).filter(w => w.entity_type.toLowerCase().replace(/[._]/g, '') === 'hrmsoffer');
   const [selected, setSelected] = useState('');
