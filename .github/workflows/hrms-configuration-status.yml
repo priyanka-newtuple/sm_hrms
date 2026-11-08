@@ -2,6 +2,10 @@ name: HRMS configuration status
 on:
   workflow_dispatch:
     inputs:
+      resume_worker:
+        description: Resume the existing HRMS worker after a failed deployment
+        type: boolean
+        default: false
       restart_api:
         description: Restart only an unhealthy HRMS native API
         type: boolean
@@ -22,6 +26,7 @@ jobs:
           HOST: ${{ vars.HRMS_DEPLOY_HOST }}
           USER: ${{ vars.HRMS_DEPLOY_USER }}
           PORT: ${{ vars.HRMS_DEPLOY_PORT }}
+          RESUME_WORKER: ${{ inputs.resume_worker }}
           RESTART_API: ${{ inputs.restart_api }}
         run: |
           set -euo pipefail
@@ -32,13 +37,26 @@ jobs:
           chmod 600 ~/.ssh/hrms ~/.ssh/known_hosts
           trap 'rm -f ~/.ssh/hrms' EXIT
           [[ "$RESTART_API" == true || "$RESTART_API" == false ]]
-          ssh -i ~/.ssh/hrms -o BatchMode=yes -o StrictHostKeyChecking=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=6 -p "$PORT" "$USER@$HOST" "bash -s -- '$RESTART_API'" <<'REMOTE' > status.txt
+          [[ "$RESUME_WORKER" == true || "$RESUME_WORKER" == false ]]
+          ssh -i ~/.ssh/hrms -o BatchMode=yes -o StrictHostKeyChecking=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=6 -p "$PORT" "$USER@$HOST" "bash -s -- '$RESTART_API' '$RESUME_WORKER'" <<'REMOTE' > status.txt
           set -euo pipefail
           base=/opt/newtuple-hrms
           release=$(readlink -f "$base/current")
           [[ "$release" == "$base/releases/"* ]]
           export IMAGE_TAG=${release##*/}
           [[ "$IMAGE_TAG" =~ ^[a-f0-9]{40}$ ]]
+          if [[ "$2" == true ]]; then
+            exec 8>"$base/deploy.lock"; flock -n 8
+            test -z "$(docker ps -q --filter label=com.docker.compose.project=newtuple-hrms-production --filter label=com.docker.compose.service=platform-install)"
+            api=$(docker ps -q --filter label=com.docker.compose.project=newtuple-hrms-production --filter label=com.docker.compose.service=platform-api)
+            test "$(docker inspect --format '{{.State.Health.Status}}' "$api")" = healthy
+            worker=$(docker ps -aq --filter label=com.docker.compose.project=newtuple-hrms-production --filter label=com.docker.compose.service=platform-worker)
+            [[ "$worker" =~ ^[a-f0-9]+$ ]]
+            docker start "$worker" < /dev/null
+            test "$(docker inspect --format '{{.State.Running}}' "$worker")" = true
+            echo 'Existing HRMS worker resumed; no containers recreated or data changed.'
+            flock -u 8
+          fi
           api=$(docker ps -q --filter label=com.docker.compose.project=newtuple-hrms-production --filter label=com.docker.compose.service=platform-api)
           docker logs --since 45m --tail 5000 "$api" 2>&1 | python3 -c 'import sys,json; data=sys.stdin.read(); markers={"missing_approval_template":"no notification.new_user template", "missing_admin_recipients":"no admin emails provided", "missing_mail_service":"mail service not available", "smtp_validated":"SMTP credentials validated successfully", "smtp_send_failed":"Unexpected error sending email via SMTP", "smtp_auth_failed":"SMTP authentication failed", "smtp_exception":"SMTP error:", "smtp_sent":"Email sent successfully via SMTP", "smtp_load_failed":"Failed to load smtp integration", "missing_notifications_manager":"notifications_manager not set", "deferred_send_exception":"deferred send_email failed", "notification_exception":"notify_admins_new_user failed"}; print(json.dumps({key:data.count(marker) for key,marker in markers.items()}))'
           docker inspect --format '{{json .State.Health}}' "$api" < /dev/null
