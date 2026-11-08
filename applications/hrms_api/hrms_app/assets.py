@@ -73,7 +73,13 @@ class AssetService:
             if manager:
                 actions.append('edit')
                 if state == 'available' and not data.get('issued_employee_id'):
-                    available = self.platform.request('GET', f"/entities/{row['entity_id']}/transitions/available", token=actor.token)
+                    try:
+                        available = self.platform.request('GET', f"/entities/{row['entity_id']}/transitions/available", token=actor.token)
+                    except AppError as exc:
+                        if exc.status != 403:
+                            raise
+                        # Read access does not imply permission to inspect workflow actions.
+                        available = {'available_transitions': []}
                     if any(t['trigger'] == 'issue' or t.get('to_state') == 'issued' for t in available.get('available_transitions', [])):
                         actions.append('issue')
             # Native row filters and field visibility already shaped this response.
