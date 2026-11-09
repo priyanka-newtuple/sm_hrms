@@ -166,7 +166,10 @@ def make_plan(package, actual, baseline, organization):
         desired = expected.get(key)
         current, previous = actual.get(key), baseline.get(key)
         if desired is None:
-            decision = 'retirement_required'
+            # Removing a still-present object would silently leave it unmanaged.
+            # When the destination already lacks it (for example a role deleted
+            # in Settings), package and destination agree: nothing is written.
+            decision = 'retired' if current is None else 'retirement_required'
         elif current == desired:
             decision = 'unchanged' if previous else 'adopt'
         elif previous is None and current is None:
