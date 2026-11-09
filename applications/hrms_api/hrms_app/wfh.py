@@ -57,7 +57,8 @@ class WfhService:
         return self.platform.records(kind, [*fields, *custom_keys(self.platform,kind), 'identifier', 'hrms_operation_key'])
 
     def validate_form(self, actor, kind, data, previous=None):
-        excluded={'employee_id','policy_id','revision','hrms_operation_key'}
+        # Stored records carry the platform's generated identifier; it is never user input.
+        excluded={'employee_id','policy_id','revision','hrms_operation_key','identifier'}
         editable_values(self.platform,kind,{k:v for k,v in data.items() if k not in excluded},excluded=excluded,current=previous)
 
     def states(self, kind):
@@ -120,17 +121,26 @@ class WfhService:
     def apply_plan(self, actor, op, key):
         plan = op.progress['wfh_plan']
         entity_id = plan.get('entity_id')
-        if plan['mode'] == 'create':
-            row = self.service._create_once(op, 'wfh', plan['kind'], plan['data'], actor.user_id,
-                                            self.rows(plan['kind']), plan['data']['hrms_operation_key'], token=actor.token)
-            entity_id = row['entity_id']
-            self.platform.enroll(entity_id, pack_by_type(plan['kind']).machine_name, token=actor.token)
-        elif plan['mode'] == 'update':
-            current = self.platform.record(entity_id)
-            changes = {k: v for k, v in plan['data'].items() if current['data'].get(k) != v}
-            self.platform.call('PUT', f'/entity-records/{entity_id}', token=actor.token, json={'data': changes})
-        if plan.get('trigger'):
-            self.transition(actor, entity_id, plan['trigger'], key)
+        try:
+            if plan['mode'] == 'create':
+                row = self.service._create_once(op, 'wfh', plan['kind'], plan['data'], actor.user_id,
+                                                self.rows(plan['kind']), plan['data']['hrms_operation_key'], token=actor.token)
+                entity_id = row['entity_id']
+                op.checkpoint(wfh_written=True)
+                self.platform.enroll(entity_id, pack_by_type(plan['kind']).machine_name, token=actor.token)
+            elif plan['mode'] == 'update':
+                current = self.platform.record(entity_id)
+                changes = {k: v for k, v in plan['data'].items() if current['data'].get(k) != v}
+                self.platform.call('PUT', f'/entity-records/{entity_id}', token=actor.token, json={'data': changes})
+                op.checkpoint(wfh_written=True)
+            if plan.get('trigger'):
+                self.transition(actor, entity_id, plan['trigger'], key)
+        except AppError as exc:
+            # A definite rejection of the first write changed nothing: do not let it
+            # reserve every other WFH operation. Uncertain outcomes stay reserved.
+            if exc.status < 500 and not op.progress.get('wfh_written') and not op.progress.get('wfh_requested'):
+                op.release('wfh_plan')
+            raise
         result = {'entity_id': entity_id}
         self.journal.audit(op.db if hasattr(op, 'db') else None, actor, f'wfh.{plan["action"]}', entity_id, key)
         op.finish(result)
@@ -154,11 +164,17 @@ class WfhService:
                           'Allowance cannot be lower than an employee’s pending and approved bookings', 409)
                 data = {**(row['data'] if row else {}), **payload.model_dump(exclude_unset=True, exclude={'idempotency_key','custom'}), **check_custom(self.platform,POLICY,payload.custom,row['data'] if row else None)}
                 data['revision'] += 1
-                data['hrms_operation_key'] = hashlib.sha256(key.encode()).hexdigest()
+                if row:
+                    # An update keeps the creation marker; rewriting it is not the user's edit.
+                    data.pop('hrms_operation_key', None)
+                else:
+                    data['hrms_operation_key'] = hashlib.sha256(key.encode()).hexdigest()
                 self.validate_form(actor, POLICY, data, row['data'] if row else None)
+                # Saving also activates a policy left in draft (e.g. an earlier activation was refused).
+                draft = not row or self.states(POLICY).get(row['entity_id'], 'draft') == 'draft'
                 op.checkpoint(wfh_plan={'mode': 'update' if row else 'create', 'kind': POLICY,
                     'entity_id': row['entity_id'] if row else None, 'data': data,
-                    'trigger': None if row else 'activate', 'action': 'policy_saved'})
+                    'trigger': 'activate' if draft else None, 'action': 'policy_saved'})
             return self.apply_plan(actor, op, key)
 
     def create(self, actor, payload):

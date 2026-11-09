@@ -20,8 +20,8 @@ Passwords are in the git-ignored `.hrms-demo-local/users.json`. See `hrms_demo_u
 
 | Role | View | Create/manage | Decide requests | Commercial values |
 | --- | --- | --- | --- | --- |
-| Delivery Manager | All operational projects; own/assigned drafts | All operational projects and allocations | Named DM for allocation requests made by another person | All |
-| Project Manager | Assigned projects | Create with self as PM; manage assigned projects/allocations | No default project approval grant | Assigned projects |
+| Delivery Manager | All operational projects; own/assigned drafts | All operational projects and allocations | None by default; requests they raise go to the project PM | All |
+| Project Manager | Assigned projects | Create with self as PM; manage assigned projects/allocations | Allocation requests on their project raised by someone else; their own requests go to an independent `project:approve` holder | Assigned projects |
 | Super Admin | All, including drafts | All | Named independent project approver; DM-originated allocation requests | All |
 | HR Full / HR Basic | All operational projects/allocations; approved request history | None | None | Hidden |
 | Finance | All operational projects/allocations; approved request history | None | None by default | Visible |

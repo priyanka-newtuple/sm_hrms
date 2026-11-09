@@ -105,6 +105,7 @@ class Journal:
         op = SimpleNamespace(actor=who.user_id, payload=payload, result=None, progress={})
         op.checkpoint = lambda **values: op.progress.update(deepcopy(values))
         op.finish = lambda result: setattr(op, 'result', deepcopy(result))
+        op.release = lambda name: op.progress.pop(name, None)
         self.ops[key] = op
         return op
 

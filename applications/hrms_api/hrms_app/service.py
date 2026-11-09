@@ -1,21 +1,18 @@
 """HRMS composition and business rules over the native platform HTTP API."""
 from __future__ import annotations
 
-from datetime import UTC, date, datetime, time, timedelta
+from datetime import UTC, date, datetime, timedelta
 import hashlib
 import secrets
-import json
 
 from .form_values import editable_values
 from .custom_fields import check_custom, custom_keys, custom_values
 from .errors import AppError
 from .form_config import active_workflow, configured_form
 from .employee_access import identity_roles
-from .onboarding_template import DEFAULT_ONBOARDING_STEPS, REPORTING_MANAGER, TEMPLATES
 from .policy import capabilities, require, projected_records
 
 EMPLOYEE = 'HRMS.Employee'
-CASE = 'HRMS.OnboardingCase'
 LEAVE = 'HRMS.LeaveRequest'
 ALLOCATION_FIELDS = ['project_id', 'employee_id', 'start_date', 'end_date']
 LIVE_ALLOCATION = {'planned', 'active'}
@@ -25,16 +22,9 @@ EMPLOYEE_FIELDS = ['identifier', 'employee_code', 'first_name', 'last_name', 'wo
                    'notice_period_days', 'phone', 'last_working_day', 'exit_reason', 'exit_note',
                    'hrms_operation_key']
 OFFBOARDED = 'offboarded'
-CASE_FIELDS = ['identifier', 'employee_id', 'template_key', 'template_version', 'cancelled_at', 'cancelled_by',
-               'cancel_reason', 'hrms_operation_key']
 LEAVE_FIELDS = ['identifier', 'employee_id', 'manager_id', 'start_date', 'end_date',
                 'leave_type', 'reason', 'hrms_operation_key']
-ROLE_NAMES = {'hrms_office_admin': 'Office Admin', 'hrms_finance': 'Finance',
-              'hrms_hr_full': 'HR Full', 'hrms_hr_basic': 'HR Basic',
-              'hrms_delivery_manager': 'Delivery Manager', REPORTING_MANAGER: 'Reporting manager'}
-DONE = {'COMPLETED', 'CANCELLED'}  # a skipped step no longer holds anything up
 SICK_LEAVE_BACKDATE_DAYS = 7
-INVITE_STEP = next(s for s in DEFAULT_ONBOARDING_STEPS if s.key == 'hrms_invitation')
 
 
 def fingerprint(request):
@@ -48,14 +38,6 @@ def fingerprint(request):
 
 def name(row):
     return f"{row['data'].get('first_name', '')} {row['data'].get('last_name', '')}".strip()
-
-
-def task_for_step(tasks, step):
-    matches = [task for task in tasks if task.get('stage') == f'onboarding-step-{step.sequence}'
-               or (task.get('description') or '').startswith(f'HRMS onboarding step {step.sequence};')]
-    if len(matches) > 1:
-        raise AppError(409, 'Duplicate onboarding tasks require reconciliation')
-    return matches[0] if matches else None
 
 
 def leave_days(start, end, holidays):
@@ -186,80 +168,6 @@ class HrmsService:
                     roles=roles, role_labels=role_labels)
 
 
-    def onboarding(self, actor, case_id=None):
-        employees = {r['entity_id']: r for r in self.employees()}
-        cases = self.platform.records(CASE, CASE_FIELDS)
-        if case_id:
-            cases = [c for c in cases if c['entity_id'] == case_id]
-        states = self.platform.states('hrms_onboardingcase')
-        users = {u['id']: u['full_name'] for u in self.platform.users()}
-        steps_by_case = self.platform.steps_by_case()
-        caps, result = capabilities(actor), []
-        for case in cases:
-            tasks = steps_by_case.get(case['entity_id'], [])
-            if 'onboarding:view' not in caps and not any(t.get('assigned_to') == actor.user_id for t in tasks):
-                continue
-            try:
-                template = TEMPLATES.get(case['data'].get('template_version'))
-                if template is None or case['data'].get('template_key') != 'default_onboarding':
-                    raise AppError(409, 'This onboarding template version is not supported')
-                employee = employees.get(case['data'].get('employee_id'))
-                if employee is None:
-                    raise AppError(409, 'Onboarding employee was not found')
-                done = {s.sequence for s in template if (t := task_for_step(tasks, s)) and t['status'] in DONE}
-                skipped = {s.sequence for s in template if (t := task_for_step(tasks, s)) and t['status'] == 'CANCELLED'}
-                # A cancelled onboarding (no-show, withdrawn offer) keeps its workflow state but is shown as cancelled.
-                state = 'cancelled' if case['data'].get('cancelled_at') else states.get(case['entity_id'], 'not_started')
-                manage = 'onboarding:manage' in caps and state == 'in_progress'
-                steps = []
-                for step in template:
-                    task = task_for_step(tasks, step)
-                    readiness = ('skipped' if step.sequence in skipped else 'completed' if step.sequence in done else 'waiting'
-                                 if any(d not in done for d in step.depends_on) else 'ready')
-                    open_task = bool(task and task['status'] not in DONE)
-                    steps.append(dict(sequence=step.sequence, task_id=task['id'] if task else None,
-                        title=step.title, status=task['status'].lower() if task else 'not_started',
-                        readiness=readiness, owner_name=users.get(task.get('assigned_to'), 'Unassigned') if task else 'Unassigned',
-                        owner_role=ROLE_NAMES.get(step.assignee_role, 'New employee'),
-                        due_date=task.get('due_date') if task else None, depends_on=list(step.depends_on),
-                        assigned_to_me=bool(task and task.get('assigned_to') == actor.user_id),
-                        can_complete=bool(open_task and state == 'in_progress' and readiness == 'ready'
-                            and ('onboarding:manage' in caps or task.get('assigned_to') == actor.user_id)),
-                        can_manage=bool(open_task and manage)))
-                result.append(dict(entity_id=case['entity_id'], identifier=case['data'].get('identifier') or '',
-                    employee_entity_id=employee['entity_id'], employee_name=name(employee),
-                    employee_code=employee['data'].get('employee_code') or '', designation=employee['data'].get('designation') or '',
-                    department=employee['data'].get('department') or '', state=state, completed_steps=len(done),
-                    total_steps=len(template), steps=steps, cancel_reason=case['data'].get('cancel_reason'),
-                    can_complete_case=manage and len(done) == len(template), can_cancel=manage))
-            except AppError:
-                if case_id:
-                    raise  # Acting on this case needs it readable.
-                continue  # One unreadable case must not hide everyone else's onboarding.
-        if case_id and not result:
-            raise AppError(404, 'Onboarding case was not found or is not assigned to you')
-        return sorted(result, key=lambda r: r['employee_name'].casefold())
-
-    def complete_step(self, actor, case_id, sequence):
-        with self.journal.lock(actor.organization_id) as db:
-            case = self.onboarding(actor, case_id)[0]
-            step = next((s for s in case['steps'] if s['sequence'] == sequence), None)
-            if step is None:
-                raise AppError(404, 'Onboarding step was not found')
-            task = next(t for t in self.platform.tasks(case_id) if t['id'] == step['task_id']) if step['task_id'] else None
-            if not task or ('onboarding:manage' not in capabilities(actor) and task.get('assigned_to') != actor.user_id):
-                raise AppError(403, 'Only the assigned owner or HR manager can complete this step')
-            if step['status'] != 'completed':
-                if not step['can_complete']:
-                    raise AppError(409, 'Complete prerequisite steps first; the case must be in progress')
-                # Record intent before the remote mutation; operation outcome remains in platform task state.
-                self.journal.audit(db, actor, 'onboarding.step.complete.requested', step['task_id'])
-                self.platform.call('POST', f"/entities/{step['task_id']}/transitions", json={
-                    'entity_id': step['task_id'], 'trigger': 'complete',
-                    'idempotency_key': f"hrms:step:{actor.user_id}:{step['task_id']}"})
-                self.journal.audit(db, actor, 'onboarding.step.completed', step['task_id'])
-            return self.onboarding(actor, case_id)[0]
-
     def _editable_employee(self, rows, employee_id):
         employee = next((r for r in rows if r['entity_id'] == employee_id), None)
         if not employee:
@@ -378,120 +286,6 @@ class HrmsService:
             result = self.employee_item(self.platform.record(employee_id, token=actor.token), list(projected_records(self.platform, actor, EMPLOYEE, EMPLOYEE_FIELDS).values()))
             op.finish(result)
             return result
-
-    def complete_invite_step(self, employee_id):
-        """After Super Admin approves a hire's account, mark "Invite employee to HRMS" done, once the work
-        account it depends on exists. Best effort: activation has already succeeded, and the step
-        can still be completed by hand now that the account is active."""
-        cases = [c for c in self.platform.records(CASE, CASE_FIELDS) if c['data'].get('employee_id') == employee_id]
-        if not cases:
-            return
-        states = self.platform.states('hrms_onboardingcase')
-        for case in cases:
-            if states.get(case['entity_id']) != 'in_progress':
-                continue
-            try:
-                tasks = self.platform.tasks(case['entity_id'])
-                invite = task_for_step(tasks, INVITE_STEP)
-                if not invite or invite['status'] in {'COMPLETED', 'CANCELLED'}:
-                    continue
-                if any((t := task_for_step(tasks, s)) is None or t['status'] != 'COMPLETED'
-                       for s in DEFAULT_ONBOARDING_STEPS if s.sequence in INVITE_STEP.depends_on):
-                    continue
-                self.platform.call('POST', f"/entities/{invite['id']}/transitions", json={
-                    'entity_id': invite['id'], 'trigger': 'complete', 'idempotency_key': f"hrms:invite:{invite['id']}"})
-            except AppError:
-                continue
-
-    def complete_case(self, actor, case_id):
-        require(actor, 'onboarding:manage')
-        with self.journal.lock(actor.organization_id) as db:
-            case = self.onboarding(actor, case_id)[0]
-            if case['state'] != 'completed':
-                if not case['can_complete_case']:
-                    raise AppError(409, 'Complete all onboarding steps before closing the case')
-                self.journal.audit(db, actor, 'onboarding.complete.requested', case_id)
-                self.platform.call('POST', f'/entities/{case_id}/transitions', json={
-                    'entity_id': case_id, 'trigger': 'complete',
-                    'idempotency_key': f'hrms:{actor.user_id}:complete:{case_id}'})
-                self.journal.audit(db, actor, 'onboarding.completed', case_id)
-            return self.onboarding(actor, case_id)[0]
-
-    def _open_case_step(self, actor, case_id, sequence):
-        require(actor, 'onboarding:manage')
-        case = self.onboarding(actor, case_id)[0]
-        step = next((s for s in case['steps'] if s['sequence'] == sequence), None)
-        if step is None:
-            raise AppError(404, 'Onboarding step was not found')
-        if not step['can_manage']:
-            raise AppError(409, 'Only open steps of an onboarding in progress can be changed')
-        return step
-
-    def onboarding_assignees(self, actor):
-        """Active accounts HR can hand an onboarding step to."""
-        require(actor, 'onboarding:manage')
-        return sorted(({'id': u['id'], 'name': u.get('full_name') or u.get('email', '')} for u in self.platform.users()
-                       if u.get('status') == 'active' and u.get('email') != getattr(self.platform, 'email', None)),
-                      key=lambda u: u['name'].casefold())
-
-    def update_step(self, actor, case_id, sequence, assigned_to, due_date):
-        """HR hands a step to someone else or moves its due date."""
-        with self.journal.lock(actor.organization_id) as db:
-            step = self._open_case_step(actor, case_id, sequence)
-            active = {u['id'] for u in self.platform.users() if u.get('status') == 'active'}
-            if assigned_to and assigned_to not in active:
-                raise AppError(400, 'Assign the step to an active user')
-            record = self.platform.record(step['task_id'])
-            data = {**record['data'], **({'assigned_to': assigned_to} if assigned_to else {}),
-                    **({'due_date': datetime.combine(due_date, time(12), tzinfo=UTC).isoformat()} if due_date else {})}
-            self.platform.call('PUT', f"/entity-records/{step['task_id']}", json={'data': data})
-            self.journal.audit(db, actor, 'onboarding.step.updated', step['task_id'])
-            return self.onboarding(actor, case_id)[0]
-
-    def skip_step(self, actor, case_id, sequence, reason):
-        """A step that does not apply to this hire (no laptop needed, say). Later steps stop waiting on it."""
-        with self.journal.lock(actor.organization_id) as db:
-            step = self._open_case_step(actor, case_id, sequence)
-            self._cancel_step(db, actor, step['task_id'], reason)
-            return self.onboarding(actor, case_id)[0]
-
-    def _cancel_step(self, db, actor, task_id, reason):
-        record = self.platform.record(task_id)
-        self.platform.call('PUT', f'/entity-records/{task_id}', json={'data': {**record['data'], 'skip_reason': reason}})
-        self.platform.call('POST', f'/entities/{task_id}/transitions', json={
-            'entity_id': task_id, 'trigger': 'cancel', 'idempotency_key': f'hrms:skip:{task_id}'})
-        self.journal.audit(db, actor, 'onboarding.step.skipped', task_id)
-
-    def cancel_onboarding(self, actor, case_id, reason):
-        """The hire will not join (no-show, withdrawn offer): open steps are cancelled and the case is
-        shown as cancelled. Their exit is recorded separately in Org Directory."""
-        require(actor, 'onboarding:manage')
-        with self.journal.lock(actor.organization_id) as db:
-            case = self.onboarding(actor, case_id)[0]
-            if case['state'] == 'cancelled':
-                return case
-            if not case['can_cancel']:
-                raise AppError(409, 'Only an onboarding in progress can be cancelled')
-            self._cancel_case(db, actor, case_id, reason)
-            return self.onboarding(actor, case_id)[0]
-
-    def _cancel_case(self, db, actor, case_id, reason):
-        record = self.platform.record(case_id)
-        self.platform.call('PUT', f'/entity-records/{case_id}', json={'data': {
-            **record['data'], 'cancelled_at': datetime.now(UTC).isoformat(), 'cancelled_by': actor.user_id, 'cancel_reason': reason}})
-        for task in self.platform.tasks(case_id):
-            if task['status'] not in DONE:
-                self._cancel_step(db, actor, task['id'], reason)
-        self.journal.audit(db, actor, 'onboarding.cancelled', case_id)
-
-    def end_onboarding_of_leaver(self, actor, employee_id):
-        """Someone offboarded before finishing onboarding: their open onboarding is cancelled."""
-        states = self.platform.states('hrms_onboardingcase')
-        with self.journal.lock(actor.organization_id) as db:
-            for case in self.platform.records(CASE, CASE_FIELDS):
-                if (case['data'].get('employee_id') == employee_id and not case['data'].get('cancelled_at')
-                        and states.get(case['entity_id']) == 'in_progress'):
-                    self._cancel_case(db, actor, case['entity_id'], 'Employee left before onboarding finished')
 
     def create_employee(self, actor, request):
         require(actor, 'employee:create')

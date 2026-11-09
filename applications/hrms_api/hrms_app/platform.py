@@ -27,6 +27,7 @@ class Actor:
     entity_permissions: tuple[dict, ...] = ()
     system_role: bool = False
     permission_revision: str = ""
+    field_permissions: tuple[dict, ...] = ()
 
 
 class PlatformClient:
@@ -142,7 +143,8 @@ class PlatformClient:
                      frozenset(permissions['permissions']),
                      tuple(permissions.get('entity_permissions', ())),
                      any(r.get('is_system', False) for r in permissions['roles']),
-                     hashlib.sha256(json.dumps(permissions, sort_keys=True).encode()).hexdigest())
+                     hashlib.sha256(json.dumps(permissions, sort_keys=True).encode()).hexdigest(),
+                     tuple(permissions.get('field_permissions', ())))
 
     def user_capabilities(self, user_id):
         """Native role grants for candidate approvers, without granting the service role admin."""
@@ -214,27 +216,25 @@ class PlatformClient:
             if not page['items']:
                 raise AppError(502, 'Platform returned an incomplete workflow page')
 
-    def steps_by_case(self):
-        rows = self.records('HRMS.OnboardingStep', ['case_id', 'sequence', 'title',
-            'description', 'assigned_to', 'due_date', 'legacy_task_id'])
-        states = self.states('hrms_onboardingstep')
-        grouped = {}
-        for row in rows:
-            grouped.setdefault(row['data'].get('case_id'), []).append(dict(id=row['entity_id'], stage=f"onboarding-step-{row['data']['sequence']}",
-                     title=row['data']['title'], description=row['data'].get('description'),
-                     assigned_to=row['data'].get('assigned_to'), due_date=row['data'].get('due_date'),
-                     status=states.get(row['entity_id'], 'not_started').upper()))
-        return grouped
-
-    def tasks(self, entity_id):
-        return self.steps_by_case().get(entity_id, [])
-
     def create_record(self, entity_type, data, owner_id, *, token=None):
+        """Create as the human (native create/field grants apply) when a token is given.
+
+        `hrms_operation_key` is HRMS's internal idempotency marker, not business
+        data: the service identity writes it, so human roles never need a field
+        grant for it. A lost marker write leaves the caller's operation marked
+        as requested, which stops replay for reconciliation instead of duplicating.
+        """
         type_row = self.call('GET', f'/entity-types/{entity_type}')
-        send = self.call if token is None else lambda method, path, **kwargs: self.request(method, path, token=token, **kwargs)
-        return send('POST', '/entity-records', json={
-            'organization_id': self.org, 'entity_type_id': type_row['entity_type_id'],
-            'data': data, 'owner_id': owner_id})
+        body = {'organization_id': self.org, 'entity_type_id': type_row['entity_type_id'], 'owner_id': owner_id}
+        if token is None:
+            return self.call('POST', '/entity-records', json={**body, 'data': data})
+        marker = data.get('hrms_operation_key')
+        created = self.request('POST', '/entity-records', token=token, json={
+            **body, 'data': {k: v for k, v in data.items() if k != 'hrms_operation_key'}})
+        if marker:
+            self.call('PUT', f"/entity-records/{created['entity_id']}", json={'data': {'hrms_operation_key': marker}})
+            created = {**created, 'data': {**created.get('data', {}), 'hrms_operation_key': marker}}
+        return created
 
     def enroll(self, entity_id, machine, *, token=None):
         machine = self.machine_name(machine)

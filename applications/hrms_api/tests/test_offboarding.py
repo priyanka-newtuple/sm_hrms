@@ -15,8 +15,11 @@ from hrms_app.policy import permission_key
 
 @pytest.mark.parametrize('role', ['superadmin', 'hrms_hr_full'])
 def test_new_offboarding_form_uses_initial_stage_and_native_field_access(role):
+    # Field grants arrive with the session's native permissions; a system role bypasses them.
     actor = Actor('hr', 'org', 'human', frozenset({role}),
-                  frozenset({permission_key('org', 'employee:exit')}))
+                  frozenset({permission_key('org', 'employee:exit')}), system_role=role == 'superadmin',
+                  field_permissions=({'entity_type': 'HRMS.Offboarding', 'field_name': 'exit_type',
+                                      'can_view': True, 'can_edit': True},))
     initial = [{'field': name, 'type': 'string'} for name in ('exit_type', 'hr_notes')]
     later = [{'field': 'exit_interview_notes', 'type': 'string'}]
     workflow = {'id': 'workflow', 'entity_type': 'HRMS.Offboarding', 'organization_id': 'org',
@@ -28,12 +31,9 @@ def test_new_offboarding_form_uses_initial_stage_and_native_field_access(role):
         assert method == 'GET' and kwargs['token'] == 'human'
         if path == '/workflow-state-machines':
             return {'published_items': [workflow]}
-        if path == '/workflow-state-machines/workflow':
-            return workflow
-        assert path == '/roles/my-permissions'
-        return {'field_permissions': [{'entity_type': 'HRMS.Offboarding',
-                'field_name': 'exit_type', 'can_view': True, 'can_edit': True}]}
-    off = OffboardingService(SimpleNamespace(platform=SimpleNamespace(request=request), journal=None))
+        assert path == '/workflow-state-machines/workflow'
+        return workflow
+    off =OffboardingService(SimpleNamespace(platform=SimpleNamespace(request=request), journal=None))
     config = off.config(actor)
     assert config['previous_fields'] == []
     assert [field['field'] for field in config['fields']] == (
@@ -101,7 +101,7 @@ def case(monkeypatch):
             item['values'].update(deepcopy(kwargs['json']['data']));item['values_hash']=digest(item['values'])
         return {}
     platform=SimpleNamespace(call=write,users=lambda:[identity])
-    def end_access(op, uid, status):
+    def end_access(op, uid, status, *, token):  # HrmsService._end_access contract
         identity['status']='suspended';op.checkpoint(suspend_requested=True)
     service=SimpleNamespace(platform=platform,journal=Journal(),_end_access=end_access)
     off=OffboardingService(service)
@@ -303,3 +303,12 @@ def test_hr_can_complete_after_verified_access_removal(case):
     assert item['values']['completed_at']
     assert item['values']['clearance_verified']=='yes'
     assert identity['status']=='suspended'
+
+
+def test_state_form_lists_a_field_shared_by_two_blocks_once():
+    off = OffboardingService(SimpleNamespace(platform=None, journal=None))
+    workflow = {'definition': {'entity_schema': {'fields': []}, 'method_schemas': [
+        {'state_name': 'Not Started', 'fields': [{'field': 'exit_type'}, {'field': 'confirmed_last_day'}]},
+        {'state_name': 'Not Started', 'fields': [{'field': 'confirmed_last_day'}, {'field': 'hr_notes'}]},
+        {'state_name': 'Completed', 'fields': [{'field': 'final_notes'}]}]}}
+    assert [f['field'] for f in off.fields(workflow, 'Not Started')] == ['exit_type', 'confirmed_last_day', 'hr_notes']

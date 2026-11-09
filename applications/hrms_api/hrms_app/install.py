@@ -139,7 +139,9 @@ def install():
     runtime_packs = [p for p in PACKS if p.entity_type in RUNTIME_TYPES]
     role_spec = dict(name=service_name, display_name='HRMS Application Service',
         description='Internal API client for HRMS; never assign to a human user',
-        permissions=[{'permission_key': key} for key in ['entity_record:write', 'workflow:read', 'workflow:write',
+        # entity_record:read also gates assignment history (offboarding participants);
+        # email_template:read is needed by native offboarding notifications.
+        permissions=[{'permission_key': key} for key in ['entity_record:read', 'entity_record:write', 'email_template:read', 'workflow:read', 'workflow:write',
             'file:read', 'file:write', 'user:read', 'user:write', 'role:read', 'form:read', 'integration:read',
             'field_library:read', 'method_library:read']],
         entity_permissions=[{'entity_type': p.entity_type, 'action': action}

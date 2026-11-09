@@ -27,6 +27,22 @@ def entity_allowed(actor, entity_type, action='view'):
     )
 
 
+def field_access(actor, entity_type, fields):
+    """Present fields exactly as native field permissions expose them to this user.
+
+    Mirrors the platform: a system role sees everything; a role with no field
+    grants on the entity sees none; otherwise only viewable, unmasked fields are
+    shown and those without edit access are read-only. Native writes still recheck.
+    """
+    if actor.system_role:
+        return list(fields)
+    grants = {g['field_name']: g for g in actor.field_permissions if g.get('entity_type') == entity_type}
+    grants.setdefault('identifier', {'can_view': True})  # the platform always returns it
+    return [{**f, 'read_only': bool(f.get('read_only')) or not grants[f['field']].get('can_edit')}
+            for f in fields
+            if grants.get(f['field'], {}).get('can_view') and not grants[f['field']].get('mask_value')]
+
+
 def require_entity(actor, entity_type, action='view'):
     if not entity_allowed(actor, entity_type, action):
         raise AppError(403, f'{action.capitalize()} access to {entity_type} is required')
