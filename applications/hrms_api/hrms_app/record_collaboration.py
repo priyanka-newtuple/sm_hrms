@@ -1,5 +1,6 @@
 """Native collaboration through the same HRMS record visibility as its detail view."""
 from .errors import AppError
+from .policy import entity_allowed
 
 
 def authorize_record(platform, actor, entity_id, rows):
@@ -39,12 +40,13 @@ def metadata(platform, actor, record, rows, workflow_id=None):
     entity_id = str(record['entity_id'])
     candidates = [r for r in rows if str(r.get('entity_id') or r.get('id')) == entity_id]
     row = next((r for r in candidates if not workflow_id or r.get('workflow_id') == workflow_id), {})
-    kind = row.get('entity_type')
-    permissions = platform.request('GET', '/roles/my-permissions', token=actor.token)
+    # Module rows differ in shape; the native record is the authority for its type.
+    kind = row.get('entity_type') or next(
+        (t['name'] for t in platform.call('GET', '/entity-types')['items']
+         if t['entity_type_id'] == record['entity_type_id']), None)
     def permitted(action):
-        return bool(kind) and any(g.get('entity_type') == kind and g.get('action') == action
-                                 and g.get('allowed') for g in permissions.get('entity_permissions', []))
-    return dict(entity_id=entity_id, current_state=row.get('current_state'),
+        return bool(kind) and entity_allowed(actor, kind, action)
+    return dict(entity_id=entity_id, current_state=row.get('current_state') or row.get('state'),
                 state_entered_at=row.get('state_entered_at'), due_date=record.get('due_date'),
                 created_at=record.get('created_at'), updated_at=record.get('updated_at'),
                 assignee_id=record.get('assignee_id'), assignee_name=row.get('assignee_name'),

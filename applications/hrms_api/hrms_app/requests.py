@@ -90,21 +90,5 @@ class EmployeeExitRequest(BaseModel):
     idempotency_key: str = Field(min_length=8, max_length=128)
 
 
-class OnboardingStepUpdateRequest(BaseModel):
-    """Hand a step to someone else, move its due date, or both."""
-    assigned_to: str | None = Field(default=None, max_length=64)
-    due_date: date | None = None
-
-    @model_validator(mode="after")
-    def something_changes(self) -> Self:
-        if not self.assigned_to and not self.due_date:
-            raise ValueError("Choose a new owner or a new due date")
-        return self
-
-
-class OnboardingReasonRequest(BaseModel):
-    reason: str = Field(min_length=1, max_length=2000)
-
-
 class EmployeeOperationRequest(BaseModel):
     idempotency_key: str = Field(min_length=8, max_length=128)

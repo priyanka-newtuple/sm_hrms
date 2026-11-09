@@ -145,6 +145,39 @@ def test_replay_and_uncertain_transition_blocks_other_mutations(system):
     assert p.rows[first['entity_id']]['state'] == 'approved'
 
 
+def test_definite_rejection_does_not_block_other_wfh_operations(system):
+    s, p, _ = system
+    policy(s)
+    first = create(s)
+    p.fail_trigger, p.fail_status = 'approve', 403
+    with pytest.raises(AppError):
+        decide(s, first['entity_id'], 'approve')
+    # Nothing changed upstream, so other employees can still request WFH.
+    assert create(s, 'other', key='another-request-key')['entity_id']
+    assert p.rows[first['entity_id']]['state'] == 'pending'
+
+
+def test_existing_policy_with_generated_identifier_can_be_updated(system):
+    s, p, _ = system
+    created = policy(s)
+    p.rows[created['entity_id']]['data']['identifier'] = 'WFH-0001'  # as the platform stores it
+    marker = p.rows[created['entity_id']]['data']['hrms_operation_key']
+    policy(s, days=12, revision=1, key='policy-key-0002')
+    assert p.rows[created['entity_id']]['data']['annual_days'] == 12
+    # The user's update never rewrites HRMS's internal creation marker.
+    assert p.rows[created['entity_id']]['data']['hrms_operation_key'] == marker
+
+
+def test_saving_activates_a_policy_left_in_draft(system):
+    s, p, _ = system
+    # e.g. a policy record added in native Settings that was never activated
+    entity = p.add('HRMS.WorkFromHomePolicy', {'year': 2026, 'annual_days': 5, 'notice_days': 0, 'revision': 0},
+                   state='draft')['entity_id']
+    policy(s, revision=0, key='policy-key-0002')
+    assert p.rows[entity]['state'] == 'active'
+    assert create(s)['entity_id']
+
+
 def test_leave_conflicts_both_directions(system):
     s, p, j = system
     policy(s)

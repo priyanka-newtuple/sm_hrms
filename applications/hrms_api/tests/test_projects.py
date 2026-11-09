@@ -413,7 +413,7 @@ def test_failure_after_approval_transition_resumes_without_duplicate(system):
     assert len(service.snapshot()[PROJECT]) == 1
 
 
-def test_allocation_approval_completes_only_ready_authorized_onboarding_step(system):
+def test_allocation_approval_does_not_depend_on_retired_onboarding(system):
     service, platform, _, ids = system
     project = open_project(system)
     step = platform.add(
@@ -421,24 +421,14 @@ def test_allocation_approval_completes_only_ready_authorized_onboarding_step(sys
         {"case_id": "case", "sequence": 8, "title": "Allocate to project"},
         state="open",
     )["entity_id"]
-    service.hrms.onboarding = lambda who: [
-        {
-            "employee_entity_id": ids["employee_record"],
-            "steps": [
-                {
-                    "sequence": 8,
-                    "task_id": step,
-                    "can_complete": who.user_id == ids["sa"],
-                }
-            ],
-        }
-    ]
+    # Onboarding now runs on the native Employee workflow; the case model may be retired.
+    service.hrms.onboarding = lambda who: pytest.fail("Approval must not read legacy onboarding cases")
     change = perform(system, "pm", project, "request_allocation", allocation_data(ids))[
         "entity_id"
     ]
     perform(system, "pm", change, "submit")
     perform(system, "sa", change, "approve")
-    assert platform.rows[step]["state"] == "completed"
+    assert platform.rows[step]["state"] == "open"
     assert len(service.snapshot()[ALLOCATION]) == 1
 
 
@@ -610,6 +600,20 @@ def test_creation_submits_to_independent_approver_and_retry_is_idempotent(system
         perform(system, "pm", change, "approve")
     perform(system, "sa", change, "approve")
     assert platform.rows[platform.rows[change]["data"]["project_id"]]["state"] == "active"
+    assert len(service.snapshot()[PROJECT]) == 1
+
+
+def test_rejected_first_step_does_not_block_other_project_operations(system):
+    service, platform, _, ids = system
+    original = platform.create_record
+    def refused(*args, **kwargs):
+        raise AppError(403, "Not allowed to edit fields: practice")
+    platform.create_record = refused
+    with pytest.raises(AppError, match="practice"):
+        perform(system, "pm", "new", "create_project", project_data(ids), key="refused-key-1")
+    platform.create_record = original
+    # Nothing was written, so the tenant is not left waiting for a recovery that cannot succeed.
+    perform(system, "pm", "new", "create_project", project_data(ids))
     assert len(service.snapshot()[PROJECT]) == 1
 
 

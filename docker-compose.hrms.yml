@@ -203,6 +203,8 @@ services:
       HRMS_RAZORPAY_API_KEY: ${HRMS_RAZORPAY_API_KEY:-}
       HRMS_EMPLOYEE_SIGNOFF_FORM_ID: ${HRMS_EMPLOYEE_SIGNOFF_FORM_ID:-}
       HRMS_EMPLOYEE_COMPLETE_FORM_ID: ${HRMS_EMPLOYEE_COMPLETE_FORM_ID:-}
+      # Links in offboarding emails point at the local web app (production sets its own).
+      HRMS_PUBLIC_URL: ${HRMS_PUBLIC_URL:-http://localhost:5182}
     ports: ["127.0.0.1:8012:8000"]
     depends_on:
       platform-install:

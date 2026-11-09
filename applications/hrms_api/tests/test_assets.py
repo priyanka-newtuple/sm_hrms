@@ -66,6 +66,17 @@ def test_inventory_issue_privacy_and_replay(system):
     assert len(j.audits) == 2
 
 
+def test_employee_without_directory_access_sees_own_issued_assets(system):
+    s, _, _ = system
+    aid = create(s)
+    command(s, 'issue', {'issued_employee_id': 'employee-one', 'issued_date': '2026-01-01'}, aid)
+    # Asset view only: no Entity Access to HRMS.Employee.
+    one = replace(actor('one', 'hrms_employee'), entity_permissions=(
+        {'entity_type': ASSET, 'action': 'view', 'allowed': True},))
+    assert [i['id'] for i in s.board(one)['items']] == [aid]
+    assert s.board(replace(one, user_id='two'))['items'] == []
+
+
 def test_native_permissions_and_cross_record_scope(system):
     s, _, _ = system
     aid = create(s)
@@ -275,6 +286,38 @@ def test_bulk_retry_completed_children_not_duplicated(system):
     assert s.create_many(who, cmd)['complete']
     assert len(p.records(ASSET, [])) == 2
     assert len(j.audits) == 2
+
+
+def test_rejected_create_does_not_block_other_asset_operations(system):
+    s, p, _ = system
+    original = p.create_record
+    def rejected(kind, data, owner, **kwargs):
+        raise AppError(403, 'Not allowed to edit fields: asset_notes')
+    p.create_record = rejected
+    with pytest.raises(AppError) as e:
+        command(s, 'create', {'asset_name': 'Rejected', 'asset_category': 'Laptop', 'asset_condition': 'Good'},
+                key='asset-key-rejected')
+    assert e.value.status == 403
+    p.create_record = original
+    # Nothing was created, so later creates and edits are not reserved behind it.
+    aid = create(s)
+    assert command(s, 'edit', {'asset_name': 'Changed'}, aid)['entity_id'] == aid
+
+
+def test_uncertain_create_stays_reserved(system):
+    s, p, _ = system
+    original = p.create_record
+    def lost(kind, data, owner, **kwargs):
+        original(kind, data, owner, **kwargs)
+        raise AppError(502, 'Response lost')
+    p.create_record = lost
+    with pytest.raises(AppError):
+        command(s, 'create', {'asset_name': 'Unknown', 'asset_category': 'Laptop', 'asset_condition': 'Good'},
+                key='asset-key-unknown')
+    p.create_record = original
+    with pytest.raises(AppError) as e:
+        create(s, asset_tag='NT-002', serial_number='SN2')
+    assert e.value.status == 409
 
 
 def test_bulk_forbidden_and_quantity_bounds(system):

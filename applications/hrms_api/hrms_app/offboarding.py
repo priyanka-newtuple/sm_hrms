@@ -8,7 +8,7 @@ from urllib.parse import urlsplit
 
 from .errors import AppError
 from .offboarding_simple import enabled as simplified, departure_due, ROUTING, role_grants
-from .policy import require, capabilities
+from .policy import require, capabilities, field_access
 from .offboarding_catalog import ENTITY, MACHINE, SYSTEM_FIELDS
 from .offer_documents import digest
 from .employee_work import transition_grants
@@ -94,7 +94,7 @@ class OffboardingService:
         if not entity_id or not any(r['entity_id']==entity_id for r in self.rows(actor)):
             return False
         item=self.detail(actor,entity_id)
-        fields=item['fields'] if upload else self.visible_fields(actor,item['workflow']['definition']['entity_schema']['fields'])
+        fields=item['fields'] if upload else field_access(actor, ENTITY, item['workflow']['definition']['entity_schema']['fields'])
         field=next((f for f in fields if f['field']==field_key and f['type']=='document'),None)
         if not field or (upload and (not item['editable'] or field.get('read_only'))):
             raise AppError(403,'Document is not available in this offboarding state')
@@ -148,7 +148,12 @@ class OffboardingService:
 
     def fields(self, workflow, state):
         schemas = workflow['definition'].get('method_schemas', [])
-        fields = [f for s in schemas if s['state_name'] == state for f in s['fields']]
+        # A state may pin several forms that share a field; render each field once.
+        fields, seen = [], set()
+        for f in (f for s in schemas if s['state_name'] == state for f in s['fields']):
+            if f['field'] not in seen:
+                seen.add(f['field'])
+                fields.append(f)
         return fields or workflow['definition']['entity_schema']['fields']
 
     def inbox(self, actor):
@@ -173,16 +178,8 @@ class OffboardingService:
 
     def config(self, actor):
         w = self.workflow(actor)
-        fields=self.visible_fields(actor,self.fields(w, w['definition']['initial_state']))
+        fields=field_access(actor, ENTITY, self.fields(w, w['definition']['initial_state']))
         return dict(simplified=simplified(w), workflow=w, previous_fields=[], fields=[f for f in fields if f['field'] not in SYSTEM|EMPLOYEE_FIELDS])
-
-    def visible_fields(self, actor, fields):
-        if 'superadmin' in actor.roles:
-            return fields
-        permissions=self.call(actor,'GET','/roles/my-permissions')
-        grants={g['field_name']:g for g in permissions.get('field_permissions',[]) if g['entity_type']==ENTITY}
-        return [{**f,'read_only':f.get('read_only',False) or not grants[f['field']].get('can_edit')}
-                for f in fields if grants.get(f['field'],{}).get('can_view') and not grants[f['field']].get('mask_value')]
 
     def detail(self, actor, entity_id):
         UUID(entity_id)
@@ -217,9 +214,9 @@ class OffboardingService:
             prior = {f['field']: f for schema in graph.get('method_schemas', [])
                      if schema['state_name'] in earlier for f in schema['fields']
                      if f['field'] not in current_keys | SYSTEM and f['field'] in r['data']}
-            previous_fields = [dict(f, read_only=True) for f in self.visible_fields(actor, list(prior.values()))]
+            previous_fields = [dict(f, read_only=True) for f in field_access(actor, ENTITY, list(prior.values()))]
         return dict(simplified=simplified(w), entity_id=entity_id, values=r['data'], values_hash=digest(r['data']), state=state['current_state'],assignee_id=assigned,assignee_name=people.get(assigned),employee_participation=participation,
-            workflow=w, previous_fields=previous_fields, fields=[{**f,'read_only':True} if f['field'] in EMPLOYEE_FIELDS|SYSTEM|(CONTACT_KEYS if staged_forms(w) else set()) else f for f in self.visible_fields(actor,self.fields(w, state['current_state']))], editable=not terminal and (not employee_step or is_checklist(w)) and (not simplified(w) or assigned == actor.user_id),
+            workflow=w, previous_fields=previous_fields, fields=[{**f,'read_only':True} if f['field'] in EMPLOYEE_FIELDS|SYSTEM|(CONTACT_KEYS if staged_forms(w) else set()) else f for f in field_access(actor, ENTITY, self.fields(w, state['current_state']))], editable=not terminal and (not employee_step or is_checklist(w)) and (not simplified(w) or assigned == actor.user_id),
             employee={k: employee['data'].get(k) for k in ('employee_code','first_name','last_name','department','designation','date_joined','employment_status')},
             actions=[a for a in actions.get('available_transitions', []) if a['trigger'] in permitted and a['trigger'] not in EMPLOYEE_TRIGGERS
                      and (not employee_step or (is_checklist(w) and a['trigger']=='confirm_departure'))
@@ -433,7 +430,7 @@ class OffboardingService:
                 if trigger == 'disable_hrms_access' and not identity:
                     raise AppError(409, 'Linked HRMS account is required to verify access removal')
                 if identity and identity['status'] in {'active','pending'}:
-                    self.service._end_access(op, identity['id'], identity['status'])
+                    self.service._end_access(op, identity['id'], identity['status'], token=actor.token)
                     verified = next(u for u in self.platform.users() if u['id'] == identity['id'])
                     if verified['status'] in {'active','pending'}:
                         raise AppError(409, 'HRMS access removal could not be verified; retry')

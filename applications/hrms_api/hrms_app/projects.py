@@ -4,9 +4,10 @@ import hashlib
 from datetime import UTC, date, datetime, timedelta
 
 from .catalog import pack_by_type
-from .form_config import form_configuration
+from .form_config import configured_form
 from .form_values import record_input
 from .custom_fields import custom_keys
+from .errors import AppError
 from .install_project_roles import PICKLIST_NAME
 from .performance import PerformanceService, check, parse
 from .policy import capabilities, require, entity_allowed
@@ -295,7 +296,8 @@ class ProjectsService:
     def project_roles(self, actor):
         """The Allocation form's role select; a plain-text role field offers the tenant's role picklist."""
         missing = 'Configure the Project role picklist in the Allocation form in Settings'
-        form = form_configuration(self.platform, actor, ALLOCATION)
+        # Validation reads the configured choices, not the viewer's field presentation.
+        form = configured_form(self.platform, ALLOCATION)
         field = next((f for f in form['fields'] if f['field'] == 'project_role_id'), None)
         check(field is not None, missing, 409)
         if field.get('type') == 'enum':
@@ -932,16 +934,6 @@ class ProjectsService:
                     patch(allocation, {})
                 else:
                     patch(allocation, proposed)
-                if row["kind"] == ALLOCATION_CHANGE and d["kind"] != "release":
-                    # Complete the ready project-allocation onboarding step only when this
-                    # approver is also entitled to complete it. Native writes precede this step.
-                    for case in self.hrms.onboarding(actor):
-                        if case["employee_entity_id"] == proposed["employee_id"]:
-                            for step in case["steps"]:
-                                if step["sequence"] == 8 and step["can_complete"]:
-                                    transition(
-                                        {"entity_id": step["task_id"]}, "complete"
-                                    )
                 patch(
                     row,
                     {
@@ -1011,69 +1003,17 @@ class ProjectsService:
             for index in range(
                 operation.progress["step"], len(operation.progress["project_plan"])
             ):
-                step = dict(operation.progress["project_plan"][index])
-                if step["op"] != "create" and step["target"].startswith("$"):
-                    step["target"] = refs[step["target"][1:]]
-                marker = hashlib.sha256(
-                    f"{actor.organization_id}:{key}:{index}".encode()
-                ).hexdigest()
-                values = {
-                    k: refs[v[1:]]
-                    if isinstance(v, str) and v.startswith("$") and v[1:] in refs
-                    else v
-                    for k, v in step.get("data", {}).items()
-                }
-                if step["op"] == "create":
-                    rows = self.platform.records(step["kind"], ["hrms_operation_key"])
-                    matches = [
-                        r for r in rows if r["data"].get("hrms_operation_key") == marker
-                    ]
-                    check(
-                        len(matches) <= 1,
-                        "Duplicate project records require reconciliation",
-                    )
-                    if matches:
-                        entity_id = matches[0]["entity_id"]
-                    else:
-                        check(
-                            operation.progress.get("creating") != index,
-                            "Creation outcome is uncertain; reconcile before retrying",
-                        )
-                        operation.checkpoint(creating=index)
-                        try:
-                            entity_id = self.platform.create_record(
-                                step["kind"],
-                                {**values, "hrms_operation_key": marker},
-                                actor.user_id, token=actor.token,
-                            )["entity_id"]
-                        except AppError as exc:
-                            if exc.status < 500:
-                                operation.checkpoint(creating=None)
-                            raise
-                    if pack_by_type(step["kind"]).states:
-                        self.platform.enroll(
-                            entity_id, pack_by_type(step["kind"]).machine_name, token=actor.token
-                        )
-                    refs[step["target"]] = entity_id
-                elif step["op"] == "patch":
-                    self.platform.request(
-                        "PUT", f"/entity-records/{step['target']}",
-                        token=actor.token, json={"data": values},
-                    )
-                else:
-                    self.platform.call(
-                        "POST",
-                        f"/entities/{step['target']}/transitions", token=actor.token,
-                        json={
-                            "entity_id": step["target"],
-                            "trigger": step["trigger"],
-                            "idempotency_key": marker,
-                            "inputs": {
-                                "hrms_actor_id": actor.user_id,
-                                "hrms_operation_key": key,
-                            },
-                        },
-                    )
+                try:
+                    self._apply_step(actor, key, operation, index, refs)
+                except AppError as error:
+                    # A lost create response stays reserved (`creating` is still set).
+                    if error.status < 500 and index == 0 and operation.progress.get("creating") is None:
+                        # The platform refused the first change, so nothing was applied:
+                        # release the reservation instead of blocking every project operation.
+                        for field in ("project_plan", "project_capabilities", "project_request", "step", "refs", "creating"):
+                            operation.progress.pop(field, None)
+                        operation.checkpoint()
+                    raise
                 operation.checkpoint(step=index + 1, refs=refs, creating=None)
             result = {
                 "entity_id": refs.get("created", target),
@@ -1088,3 +1028,69 @@ class ProjectsService:
             )
             operation.finish(result)
             return result
+
+    def _apply_step(self, actor, key, operation, index, refs):
+        """One planned native write, idempotent through its per-step marker."""
+        step = dict(operation.progress["project_plan"][index])
+        if step["op"] != "create" and step["target"].startswith("$"):
+            step["target"] = refs[step["target"][1:]]
+        marker = hashlib.sha256(
+            f"{actor.organization_id}:{key}:{index}".encode()
+        ).hexdigest()
+        values = {
+            k: refs[v[1:]]
+            if isinstance(v, str) and v.startswith("$") and v[1:] in refs
+            else v
+            for k, v in step.get("data", {}).items()
+        }
+        if step["op"] == "create":
+            rows = self.platform.records(step["kind"], ["hrms_operation_key"])
+            matches = [
+                r for r in rows if r["data"].get("hrms_operation_key") == marker
+            ]
+            check(
+                len(matches) <= 1,
+                "Duplicate project records require reconciliation",
+            )
+            if matches:
+                entity_id = matches[0]["entity_id"]
+            else:
+                check(
+                    operation.progress.get("creating") != index,
+                    "Creation outcome is uncertain; reconcile before retrying",
+                )
+                operation.checkpoint(creating=index)
+                try:
+                    entity_id = self.platform.create_record(
+                        step["kind"],
+                        {**values, "hrms_operation_key": marker},
+                        actor.user_id, token=actor.token,
+                    )["entity_id"]
+                except AppError as exc:
+                    if exc.status < 500:
+                        operation.checkpoint(creating=None)
+                    raise
+            if pack_by_type(step["kind"]).states:
+                self.platform.enroll(
+                    entity_id, pack_by_type(step["kind"]).machine_name, token=actor.token
+                )
+            refs[step["target"]] = entity_id
+        elif step["op"] == "patch":
+            self.platform.request(
+                "PUT", f"/entity-records/{step['target']}",
+                token=actor.token, json={"data": values},
+            )
+        else:
+            self.platform.call(
+                "POST",
+                f"/entities/{step['target']}/transitions", token=actor.token,
+                json={
+                    "entity_id": step["target"],
+                    "trigger": step["trigger"],
+                    "idempotency_key": marker,
+                    "inputs": {
+                        "hrms_actor_id": actor.user_id,
+                        "hrms_operation_key": key,
+                    },
+                },
+            )

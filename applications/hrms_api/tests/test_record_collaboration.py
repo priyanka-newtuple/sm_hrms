@@ -119,15 +119,21 @@ def test_document_authorization_uses_file_owner_not_unrelated_offboarding_permis
 def test_metadata_only_exposes_native_granted_controls():
     from types import SimpleNamespace
     from hrms_app.record_collaboration import metadata
-    p = SimpleNamespace(request=lambda *a, **k: {'entity_permissions': [
+    from dataclasses import replace
+    actor = replace(ACTOR, entity_permissions=(
         {'entity_type': 'HRMS.Employee', 'action': 'edit', 'allowed': True},
-        {'entity_type': 'HRMS.Employee', 'action': 'delete', 'allowed': False}]})
-    record = {'entity_id': 'employee'}
+        {'entity_type': 'HRMS.Employee', 'action': 'delete', 'allowed': False},
+        {'entity_type': 'HRMS.Asset', 'action': 'delete', 'allowed': True}))
+    p = SimpleNamespace(call=lambda method, path: {'items': [{'entity_type_id': 'asset-type', 'name': 'HRMS.Asset'}]})
+    record = {'entity_id': 'employee', 'entity_type_id': 'employee-type'}
     rows = [{'entity_id': 'employee', 'workflow_id': 'onboard', 'entity_type': 'HRMS.Employee', 'current_state': 'Review'}]
-    data = metadata(p, ACTOR, record, rows, 'onboard')
+    data = metadata(p, actor, record, rows, 'onboard')
     assert data['can_edit_due_date'] and not data['can_archive']
     assert data['current_state'] == 'Review'
-    assert not metadata(p, ACTOR, record, rows, 'other')['can_edit_due_date']
+    assert not metadata(p, actor, record, rows, 'other')['can_edit_due_date']
+    # Inventory rows carry `id`/`state` only; the native record supplies the type.
+    asset = metadata(p, actor, {'entity_id': 'asset', 'entity_type_id': 'asset-type'}, [{'id': 'asset', 'state': 'issued'}])
+    assert asset['can_archive'] and asset['current_state'] == 'issued' and not asset['can_edit_due_date']
 
 
 def test_record_writes_keep_human_permission_enforcement(monkeypatch):

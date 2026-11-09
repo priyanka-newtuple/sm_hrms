@@ -1,6 +1,5 @@
 """Native HRMS route responses."""
 
-from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel
@@ -63,34 +62,3 @@ class EmployeeCreateResponse(BaseModel):
     account_status: str = "pending"
     idempotent: bool = False
 
-
-class OnboardingStepItem(BaseModel):
-    sequence: int
-    task_id: str | None = None
-    title: str
-    status: str
-    readiness: str
-    owner_name: str
-    owner_role: str
-    due_date: datetime | None = None
-    depends_on: list[int]
-    can_complete: bool = False
-    assigned_to_me: bool = False  # Owned by the reader; HR may complete others' steps too.
-    can_manage: bool = False  # HR may reassign, re-date or skip it.
-
-
-class OnboardingCaseItem(BaseModel):
-    entity_id: str
-    identifier: str
-    employee_entity_id: str
-    employee_name: str
-    employee_code: str
-    designation: str
-    department: str
-    state: str
-    completed_steps: int
-    total_steps: int
-    can_complete_case: bool = False
-    can_cancel: bool = False
-    cancel_reason: str | None = None
-    steps: list[OnboardingStepItem]

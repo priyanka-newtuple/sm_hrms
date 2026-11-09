@@ -5,7 +5,6 @@ import pytest
 
 from hrms_app.employee_access import google_sign_in_ready, setup_access
 from hrms_app.errors import AppError
-from hrms_app.onboarding_template import DEFAULT_ONBOARDING_STEPS
 from hrms_app.service import HrmsService
 from test_employee_access import Journal, Platform, actor
 
@@ -17,8 +16,8 @@ class OnboardingPlatform(Platform):
 
     def __init__(self, id_step_done=True, fail_transition=False):
         super().__init__()
-        self.tasks_by_step = {s.sequence: dict(id=f'task-{s.sequence}', stage=f'onboarding-step-{s.sequence}', status='OPEN')
-                              for s in DEFAULT_ONBOARDING_STEPS}
+        # Steps of a retired (pre-native) onboarding case; activation must never touch them.
+        self.tasks_by_step = {n: dict(id=f'task-{n}', stage=f'onboarding-step-{n}', status='OPEN') for n in range(1, 9)}
         if id_step_done:
             self.tasks_by_step[1]['status'] = 'COMPLETED'
         self.fail_transition = fail_transition

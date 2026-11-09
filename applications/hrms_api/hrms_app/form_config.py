@@ -13,7 +13,7 @@ import re
 
 from .catalog import pack_by_type
 from .errors import AppError
-from .policy import capabilities
+from .policy import capabilities, field_access
 
 from .cockpit_catalog import TYPES as COCKPIT_TYPES
 
@@ -47,7 +47,9 @@ def form_configuration(platform, actor, entity_type, purpose='record'):
     form = registration_form(platform) if entity_type == 'HRMS.Employee' and purpose == 'registration' else configured_form(platform, entity_type)
     # Fields added in Settings, which HRMS screens render alongside their own (see custom_fields).
     built_in = {f['field'] for f in pack_by_type(entity_type).fields} | {'hrms_operation_key', 'identifier'}
-    return {**form, 'fields': [{**f, 'custom': f['field'] not in built_in} for f in form['fields']]}
+    # Registration creates a new person; its fields are not record field grants.
+    fields = form['fields'] if purpose == 'registration' else field_access(actor, entity_type, form['fields'])
+    return {**form, 'fields': [{**f, 'custom': f['field'] not in built_in} for f in fields]}
 
 
 def configured_form(platform, entity_type):

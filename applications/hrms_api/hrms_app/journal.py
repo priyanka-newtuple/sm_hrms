@@ -67,6 +67,11 @@ class Operation:
                            WHERE organization_id=%s AND operation_key=%s''',
                         (Jsonb(self.progress), self.org, self.key))
 
+    def release(self, name):
+        """Drop a reservation after a definite rejection that changed nothing."""
+        self.progress.pop(name, None)
+        self.checkpoint()
+
     def finish(self, result):
         self.db.execute('''UPDATE operations SET result=%s, updated_at=now()
                            WHERE organization_id=%s AND operation_key=%s''',

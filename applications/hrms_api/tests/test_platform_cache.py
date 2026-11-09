@@ -72,3 +72,21 @@ def test_cockpit_approvers_are_unchanged_by_concurrent_role_lookups():
                                call=lambda method, path, **kw: [dict(role_name=roles[path.split('/')[3]], organization_id='org')])
     approvers = CockpitService(platform, None).people(Actor('u3', 'org', 'human', frozenset({'hrms_hr_full'}), grants({'hrms_hr_full'})))
     assert approvers == [{'id': f'u{i}', 'name': f'User {i}'} for i in (0, 6, 9)]  # u3 is the actor
+
+
+def test_human_create_leaves_the_internal_marker_to_the_service_identity():
+    c = PlatformClient('http://platform.test', 'org', 'svc@example.com', 'secret',
+                       transport=httpx.MockTransport(lambda request: httpx.Response(500)))
+    human, service = [], []
+    c.request = lambda method, path, token='', **kw: human.append((method, path, token, kw['json'])) or {
+        'entity_id': 'new', 'data': kw['json']['data']}
+    def call(method, path, **kw):
+        service.append((method, path, kw.get('json')))
+        return {'entity_type_id': 'asset-type'} if method == 'GET' else {}
+    c.call = call
+    created = c.create_record('HRMS.Asset', {'asset_name': 'Laptop', 'hrms_operation_key': 'asset:k1'}, 'owner', token='human')
+    # Native create/field grants are checked against the human, without the marker.
+    assert human == [('POST', '/entity-records', 'human', {'organization_id': 'org', 'entity_type_id': 'asset-type',
+                                                           'owner_id': 'owner', 'data': {'asset_name': 'Laptop'}})]
+    assert service[-1] == ('PUT', '/entity-records/new', {'data': {'hrms_operation_key': 'asset:k1'}})
+    assert created['data']['hrms_operation_key'] == 'asset:k1'

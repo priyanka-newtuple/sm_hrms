@@ -10,8 +10,13 @@ from hrms_app.platform import Actor
 from test_performance import UNMIGRATED_TENANT
 
 
-def actor(role):
-    return Actor('user', 'org', 'human', frozenset({role}), grants({role}), system_role=role == 'superadmin')
+def actor(role, fields=()):
+    return Actor('user', 'org', 'human', frozenset({role}), grants({role}), system_role=role == 'superadmin',
+                 field_permissions=tuple(fields))
+
+
+def field_grant(kind, name, view=True, edit=True, mask=False):
+    return {'entity_type': kind, 'field_name': name, 'can_view': view, 'can_edit': edit and view, 'mask_value': mask}
 
 
 def platform(**routes):
@@ -74,9 +79,27 @@ def test_native_picklist_labels_are_resolved():
         {'field': 'leave_type', 'picklist_id': 'leave-kinds'}]}
     api = platform(**{'/forms/config': {'items': [form]}, '/config/picklists': {'items': [
         {'id': 'leave-kinds', 'options': [{'value': 'annual', 'label': 'Annual leave'}, 'sick']}]}})
-    result = form_configuration(api, actor('hrms_employee'), kind)
+    employee = actor('hrms_employee', fields=[field_grant(kind, 'leave_type')])
+    result = form_configuration(api, employee, kind)
     assert result['fields'][0]['enum_values'] == ['annual', 'sick']
     assert result['fields'][0]['enum_labels'] == {'annual': 'Annual leave'}
+
+
+def test_form_follows_native_field_permissions():
+    kind = 'HRMS.Asset'
+    form = {'schema_key': pack_by_type(kind).schema_key, 'name': 'Asset', 'fields': [
+        {'field': f} for f in ('identifier', 'asset_name', 'serial_number', 'asset_notes', 'purchase_cost')]}
+    api = platform(**{'/forms/config': {'items': [form]}})
+    office_admin = actor('hrms_office_admin', fields=[
+        field_grant(kind, 'asset_name'), field_grant(kind, 'serial_number', edit=False),
+        field_grant(kind, 'purchase_cost', mask=True), field_grant(kind, 'asset_notes', view=False)])
+    shown = {f['field']: f['read_only'] for f in form_configuration(api, office_admin, kind)['fields']}
+    # Hidden and masked fields are omitted; view-only fields cannot be edited.
+    assert shown == {'identifier': True, 'asset_name': False, 'serial_number': True}
+    # Like the platform: no field grants on the entity means no fields at all.
+    assert [f['field'] for f in form_configuration(api, actor('hrms_office_admin'), kind)['fields']] == ['identifier']
+    # A system role bypasses field permissions.
+    assert len(form_configuration(api, actor('superadmin'), kind)['fields']) == 5
 
 
 def test_a_migrated_type_follows_its_active_workflow_not_the_legacy_form():

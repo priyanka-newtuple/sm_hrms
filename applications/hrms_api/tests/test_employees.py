@@ -12,8 +12,6 @@ from hrms_app.platform import Actor
 from hrms_app.policy import capabilities
 from hrms_app.requests import EmployeeExitRequest, EmployeeUpdateRequest
 from hrms_app.service import HrmsService, LeaveApprovers
-from test_onboarding import Journal as OnboardingJournal
-from test_onboarding import Platform as OnboardingPlatform
 
 TODAY = date.today()
 
@@ -64,13 +62,6 @@ def test_the_directory_shows_the_accounts_current_role():
     rows = HrmsService(DirectoryPlatform(), None, 'newtuple.com').directory(actor('hr', 'hrms_hr_full'))
     assert [(r['entity_id'], r['role']) for r in rows] == [('e1', 'hrms_finance')]
     assert rows[0]['onboarding_state'] == 'Email Setup'
-
-
-def test_onboarding_cases_need_onboarding_view_not_directory_read():
-    service = HrmsService(OnboardingPlatform(), OnboardingJournal(), 'newtuple.com')
-    assert service.onboarding(actor('viewer-user', 'viewer')) == []        # viewer reads the directory only
-    assert len(service.onboarding(actor('hr-user', 'hrms_hr_basic'))) == 1
-    assert len(service.onboarding(actor('owner', 'hrms_employee'))) == 1   # a step owner still sees their case
 
 
 def test_only_superadmin_has_account_activation():

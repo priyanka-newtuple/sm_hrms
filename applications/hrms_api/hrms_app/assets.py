@@ -60,7 +60,8 @@ class AssetService:
         employees = self.platform.records('HRMS.Employee', [
             'first_name', 'last_name', 'employee_code', 'department', 'designation',
             'work_email', 'employment_status', 'platform_user_id'], token=actor.token) if entity_allowed(actor, 'HRMS.Employee') else []
-        own = {r['entity_id'] for r in employees if r['data'].get('platform_user_id') == actor.user_id}
+        # The account's own linked profile, as for leave: reading the directory is not required.
+        own = {r['entity_id'] for r in self.service.employees() if r['data'].get('platform_user_id') == actor.user_id}
         states = self.platform.states('hrms_asset')
         names = {r['entity_id']: ' '.join(str(r['data'].get(k, '')) for k in ('first_name', 'last_name')).strip() for r in employees}
         items = []
@@ -184,8 +185,15 @@ class AssetService:
         data = op.progress['asset_plan']
         if command.action == 'create':
             marker = 'asset:' + command.idempotency_key
-            row = self.service._create_once(op, 'asset', ASSET, {**data, 'hrms_operation_key': marker},
-                actor.user_id, rows, marker, token=actor.token)
+            try:
+                row = self.service._create_once(op, 'asset', ASSET, {**data, 'hrms_operation_key': marker},
+                    actor.user_id, rows, marker, token=actor.token)
+            except AppError as exc:
+                # A definite rejection created nothing: release the reservation so it
+                # cannot block every other asset operation. Unknown outcomes stay reserved.
+                if exc.status < 500 and not op.progress.get('asset_requested'):
+                    op.checkpoint(asset_plan=None)
+                raise
             entity_id = row['entity_id']
             if not op.progress.get('asset_enrolled'):
                 # Recover a lost enrollment response without enrolling the item twice.
