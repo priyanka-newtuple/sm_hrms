@@ -64,6 +64,8 @@ class FakeNative:
     (obj(), None, obj(), 'conflict'),
     (obj(), obj(options=['manual']), obj(), 'conflict'),
     (obj(), obj(), None, 'retirement_required'),
+    (obj(), obj(options=['manual']), None, 'retirement_required'),
+    (obj(), None, None, 'retired'),
 ])
 def test_three_way(before, current, desired, decision):
     # Keep a second object so testing removal still uses a nonempty package.
@@ -130,6 +132,29 @@ def test_apply_verifies_and_noop_does_not_write():
     plan, _, _ = inspection(native, p, journal.read())
     apply(native, p, plan, journal)
     assert native.writes == ['Departments']
+
+
+def test_object_removed_in_destination_and_package_retires_without_writes():
+    # e.g. a role deleted in production Settings and dropped from the release.
+    other = obj('Other')
+    native = FakeNative({'Other': other})
+    journal = MemoryJournal({'status': 'applied', 'baseline': {'Other': other, 'Departments': obj()}})
+    plan, _, _ = inspection(native, package(other), journal.read())
+    assert not plan['blocked']
+    result = apply(native, package(other), plan, journal)
+    assert result['status'] == 'applied'
+    assert native.writes == []
+    assert set(result['baseline']) == {'Other'}
+
+
+def test_retiring_object_still_in_destination_blocks():
+    other = obj('Other')
+    native = FakeNative({'Other': other, 'Departments': obj()})
+    journal = MemoryJournal({'status': 'applied', 'baseline': {'Other': other, 'Departments': obj()}})
+    plan, _, _ = inspection(native, package(other), journal.read())
+    with pytest.raises(ConfigurationError):
+        apply(native, package(other), plan, journal)
+    assert not native.writes
 
 
 def test_conflict_never_writes():

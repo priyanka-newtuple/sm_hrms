@@ -66,6 +66,10 @@ def test_all_human_roles_can_submit_their_own_checklist():
         if obj['kind'] != 'role' or 'application_service' in obj['key']:
             continue
         role = obj['payload']
+        # Production Settings own which roles take part in offboarding (e.g.
+        # Office Admin has no workflow access); those with access must submit.
+        if not role['workflow_permissions']:
+            continue
         assert any(t['transition_key'] == 'v4_submit_checklist_1' for t in role['transition_permissions'])
         for key in ('employee_notification_email', 'exit_projects_handed_over', 'exit_tasks_updated'):
             assert any(f['entity_type'] == 'HRMS.Offboarding' and f['field_name'] == key and f['can_view'] and f['can_edit'] for f in role['field_permissions'])
