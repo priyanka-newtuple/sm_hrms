@@ -49,13 +49,22 @@ def test_offer_board_reads_human_scoped_enrollments():
     from hrms_app.offers import offer_workflow_rows
     a=actor();a=Actor(a.user_id,a.organization_id,a.token,a.roles,a.permissions|{'workflow:read'})
     class Board:
+        def __init__(self): self.listed=[]
+        def active_machines(self):
+            # Names only, from the shared listing; includes a workflow this person cannot read.
+            return {'hrms_offer':['offers','hidden-offers'],'HRMS.Employee':['employees']}
         def request(self, method, path, token, **kwargs):
             assert token=='human-token'
             if path=='/workflow-state-machines':
+                machine=kwargs['params']['machine_name']; self.listed.append(machine)
+                if machine=='hidden-offers': raise AppError(403,'no role grants this permission')
                 return {'published_items':[{'machine_name':'offers','entity_type':'hrms_offer','is_active':True,'version':1,'name':'Offers','definition':{'states':[{'name':'Draft','tags':['initial']}]}}]}
             assert kwargs['params']['machine_name']=='offers'
             return {'items':[{'entity_id':ID,'entity_type':'hrms_offer','organization_id':ORG,'machine_name':'offers','machine_version':1,'current_state':'Draft','summary_fields':{'identifier':'Offer 1'}}],'has_more':False}
-    rows=offer_workflow_rows(Board(),a)
+    board=Board()
+    rows=offer_workflow_rows(board,a)
     assert len(rows)==1 and rows[0]['title']=='Offer 1'
     assert rows[0]['workflow_configuration']['machine_name']=='offers'
     assert not rows[0]['is_terminal']
+    # Only offer workflows are read, never the whole catalog; an unreadable one stays hidden.
+    assert sorted(board.listed)==['hidden-offers','offers']

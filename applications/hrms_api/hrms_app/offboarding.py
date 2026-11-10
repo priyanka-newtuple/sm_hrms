@@ -166,9 +166,12 @@ class OffboardingService:
         return result
 
     def workflows(self, actor):
-        result = []
+        result, definitions = [], {}
         for r in self.rows(actor):
-            w = self.call(actor, 'GET', f"/workflow-state-machines/{r['workflow_id']}")
+            # One read per workflow version in this request, not one per case.
+            if r['workflow_id'] not in definitions:
+                definitions[r['workflow_id']] = self.call(actor, 'GET', f"/workflow-state-machines/{r['workflow_id']}")
+            w = definitions[r['workflow_id']]
             states = [dict(name=s['name'],label=s['name'],terminal='terminal' in s.get('tags',[])) for s in w['definition']['states']]
             result.append(dict(entity_id=r['entity_id'],entity_type=ENTITY,title=r['summary_fields'].get('identifier') or r['entity_id'],
                 identifier=r['summary_fields'].get('identifier'),current_state=r['current_state'],state_label=r['current_state'],

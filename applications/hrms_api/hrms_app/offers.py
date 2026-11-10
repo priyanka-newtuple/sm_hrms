@@ -26,8 +26,18 @@ def offer_workflow_rows(platform, actor):
     if 'cockpit:view' not in capabilities(actor) or 'workflow:read' not in actor.permissions:
         return []
     read = lambda path, **kwargs: platform.request('GET', path, token=actor.token, **kwargs)
-    catalog = read('/workflow-state-machines', params={'scope': 'published'})
-    offers = {w['machine_name']: w for w in catalog.get('published_items', []) if is_offer(w.get('entity_type')) and w.get('is_active')}
+    # Offer machine names come from the shared listing; each workflow is then read with the
+    # human token, so one the person cannot see stays hidden exactly as before.
+    offers = {}
+    for machine in [m for kind, names in platform.active_machines().items() if is_offer(kind) for m in names]:
+        try:
+            listed = read('/workflow-state-machines', params={'scope': 'published', 'machine_name': machine})
+        except AppError as exc:
+            if exc.status in {403, 404}:
+                continue
+            raise
+        offers.update({w['machine_name']: w for w in listed.get('published_items', [])
+                       if is_offer(w.get('entity_type')) and w.get('is_active')})
     rows = []
     for machine, workflow in offers.items():
         offset = 0

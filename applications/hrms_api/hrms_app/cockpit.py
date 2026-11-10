@@ -201,6 +201,20 @@ class CockpitService:
         )
 
     def board(self, actor):
+        """The content page: items plus the approver and people pickers it offers."""
+        return {
+            "items": self.items(actor),
+            "creatable": [t for t in TYPES if can_author(actor, t) and entity_allowed(actor, t, "create")],
+            "approvers": self.people(actor),
+            "people": [
+                {"id": u["id"], "name": u["full_name"]}
+                for u in self.platform.users(token=actor.token)
+                if u.get("status") == "active" and u.get("email") != self.platform.email
+            ],
+        }
+
+    def items(self, actor):
+        """Content records this person may see, with their permitted actions."""
         require(actor, "cockpit:view")
         everything = self.snapshot()
         readable = {kind: projected_records(self.platform, actor, kind,
@@ -232,16 +246,7 @@ class CockpitService:
                     "expired": bool(self.expired(r)),
                 }
             )
-        return {
-            "items": result,
-            "creatable": [t for t in TYPES if can_author(actor, t) and entity_allowed(actor, t, "create")],
-            "approvers": self.people(actor),
-            "people": [
-                {"id": u["id"], "name": u["full_name"]}
-                for u in self.platform.users(token=actor.token)
-                if u.get("status") == "active" and u.get("email") != self.platform.email
-            ],
-        }
+        return result
 
     def feed(self, employee=False, kinds=TYPES):
         latest = {}
@@ -631,5 +636,6 @@ class CockpitService:
                 "next_action": ", ".join(r["actions"]),
                 "progress": r["data"].get("audience", "employees"),
             }
-            for r in self.board(actor)["items"]
+            # The list needs only the records; pickers (and their per-user role lookups) are not used.
+            for r in self.items(actor)
         ]
