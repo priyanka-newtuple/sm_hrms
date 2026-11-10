@@ -46,6 +46,22 @@ def event_stage(event, workflow):
     return None
 
 
+def employee_recipient(values, workflow, people):
+    """Where the leaver's stage email goes, decided when the notice is queued.
+
+    While their HRMS account is active and departure is not confirmed they still
+    work here, so use their official (login) email. Once access ends, use the
+    personal address they agreed to. Without one, fall back to the official email.
+    """
+    user = people.get(values.get('offboarding_employee_user_id')) or {}
+    if user.get('status') == 'active' and values.get('departure_verified') != 'yes':
+        return user.get('email')
+    personal = values.get('employee_notification_email')
+    if staged_forms(workflow) and not simplified(workflow) and values.get('notification_email_confirmed') != 'Yes':
+        personal = None  # these versions require the employee to confirm the address first
+    return personal or user.get('email')
+
+
 def dispatch(platform, journal, event, source, workflow, notice_workflow, templates):
     stage = event_stage(event, workflow)
     if not stage:
@@ -58,12 +74,11 @@ def dispatch(platform, journal, event, source, workflow, notice_workflow, templa
     values = source['data']
     actor = Actor('hrms-notifications', platform.org, '', frozenset(), frozenset())
     recipients = ['employee_notification_email', 'offboarding_coordinator_email']
-    people = {}
+    people = {u['id']: u for u in platform.users()}
     if simplified(workflow):
         recipients += ['offboarding_project_manager_id', 'offboarding_office_admin_id']
         if values.get('offboarding_access_admin_id'):
             recipients.append('offboarding_access_admin_id')
-        people = {u['id']: u for u in platform.users()}
     with journal.lock(platform.org + ':exit-notifications') as db:
         for field in recipients:
             key = hashlib.sha256((event['id'] + ':' + field).encode()).hexdigest()
@@ -74,10 +89,8 @@ def dispatch(platform, journal, event, source, workflow, notice_workflow, templa
                 recipient = values.get(field)
                 if field.endswith('_id'):
                     recipient = people.get(recipient, {}).get('email')
-                if field == 'employee_notification_email' and staged_forms(workflow):
-                    if (not simplified(workflow) and values.get('notification_email_confirmed') != 'Yes') or not recipient:
-                        user = next((u for u in platform.users() if u['id'] == values.get('offboarding_employee_user_id')), None)
-                        recipient = user.get('email') if user else None
+                if field == 'employee_notification_email':
+                    recipient = employee_recipient(values, workflow, people)
                 envelope = dict(notice_key=key, recipient=recipient, template_id=template,
                                 workspace_url=values.get('offboarding_workspace_url'),
                                 employee_code=values.get('exit_employee_code'), source_entity_id=source['entity_id'],

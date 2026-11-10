@@ -21,6 +21,7 @@ class Journal:
 class Platform:
     org = 'org'
     def __init__(self): self.rows = []; self.enrolled = set(); self.lose_create_response = False
+    def users(self): return []
     def records(self, *args): return deepcopy(self.rows)
     def call(self, method, path, **kwargs):
         if path.startswith('/entity-types/'): return {'entity_type_id': 'notice'}
@@ -141,3 +142,26 @@ def test_simplified_flow_notifies_employee_and_all_selected_assignees():
     dispatch(p,j,*args)
     assert len(p.rows) == 4
     assert {r['data']['recipient'] for r in p.rows} == {'employee@example.test','hr@example.test','pm@example.test','office@example.test'}
+
+
+@pytest.mark.parametrize('account,departed,expected', [
+    ('active', None, 'work@example.test'),        # still employed: official mailbox
+    ('active', 'yes', 'employee@example.test'),   # departure confirmed: personal address
+    ('suspended', None, 'employee@example.test'), # HRMS access removed: personal address
+])
+def test_employee_email_is_official_while_employed_then_personal(account, departed, expected):
+    p, j = Platform(), Journal()
+    args = list(inputs())
+    args[1]['data'].update(offboarding_employee_user_id='employee', departure_verified=departed)
+    p.users = lambda: [{'id': 'employee', 'email': 'work@example.test', 'status': account}]
+    dispatch(p, j, *args)
+    assert {r['data']['recipient'] for r in p.rows} == {'hr@example.test', expected}
+
+
+def test_departed_employee_without_personal_address_falls_back_to_official_email():
+    p, j = Platform(), Journal()
+    args = list(inputs())
+    args[1]['data'].update(offboarding_employee_user_id='employee', employee_notification_email='')
+    p.users = lambda: [{'id': 'employee', 'email': 'work@example.test', 'status': 'suspended'}]
+    dispatch(p, j, *args)
+    assert {r['data']['recipient'] for r in p.rows} == {'hr@example.test', 'work@example.test'}
