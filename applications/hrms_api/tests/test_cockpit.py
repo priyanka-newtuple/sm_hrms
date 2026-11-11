@@ -106,6 +106,18 @@ def test_publication_requires_independent_approval_and_safe_projection(system):
     assert s.feed() == []
 
 
+def test_workflow_list_does_not_build_approver_or_people_pickers(system, monkeypatch):
+    from hrms_app import cockpit
+    s, p, _j = system
+    id = draft(s)
+    monkeypatch.setattr(cockpit, "configured_workflow_rows", lambda platform, rows: [
+        {**r, "current_state": p.rows[r["entity_id"]]["state"], "workflow_configuration": {"transitions": []}} for r in rows])
+    s.people = lambda who: pytest.fail("Workflows must not look up approvers")
+    p.users = lambda **kwargs: pytest.fail("Workflows must not list users")
+    rows = s.workflows(actor("author", "hrms_hr_full"))
+    assert [r["entity_id"] for r in rows] == [id]
+
+
 def test_revision_keeps_previous_publication_until_published_and_withdrawal_does_not_resurrect(
     system,
 ):

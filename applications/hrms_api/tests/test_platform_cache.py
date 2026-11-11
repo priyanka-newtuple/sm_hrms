@@ -90,3 +90,22 @@ def test_human_create_leaves_the_internal_marker_to_the_service_identity():
                                                            'owner_id': 'owner', 'data': {'asset_name': 'Laptop'}})]
     assert service[-1] == ('PUT', '/entity-records/new', {'data': {'hrms_operation_key': 'asset:k1'}})
     assert created['data']['hrms_operation_key'] == 'asset:k1'
+
+
+def test_request_reads_share_identical_gets_only_within_the_block():
+    from hrms_app.platform import request_reads
+    sent = []
+    def upstream(request):
+        sent.append((request.method, str(request.url), request.headers.get('authorization')))
+        return httpx.Response(200, json={'items': [{'name': 'Departments'}]})
+    c = PlatformClient('http://platform.test', 'org', 'svc@example.com', 'secret', transport=httpx.MockTransport(upstream))
+    with request_reads():
+        first = c.request('GET', '/config/picklists', token='human')
+        first['items'].clear()  # a caller changing its copy must not affect the next one
+        assert c.request('GET', '/config/picklists', token='human')['items'] == [{'name': 'Departments'}]
+        c.request('GET', '/config/picklists', token='other-human')  # never shared across callers
+        c.request('GET', '/config/picklists', token='human', params={'limit': 5})
+        c.request('POST', '/config/picklists', token='human', json={})  # writes always go through
+        c.request('POST', '/config/picklists', token='human', json={})
+    c.request('GET', '/config/picklists', token='human')  # fresh again after the request
+    assert len(sent) == 6

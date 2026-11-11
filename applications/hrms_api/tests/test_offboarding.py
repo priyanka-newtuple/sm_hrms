@@ -312,3 +312,16 @@ def test_state_form_lists_a_field_shared_by_two_blocks_once():
         {'state_name': 'Not Started', 'fields': [{'field': 'confirmed_last_day'}, {'field': 'hr_notes'}]},
         {'state_name': 'Completed', 'fields': [{'field': 'final_notes'}]}]}}
     assert [f['field'] for f in off.fields(workflow, 'Not Started')] == ['exit_type', 'confirmed_last_day', 'hr_notes']
+
+
+def test_workflow_list_reads_each_definition_once():
+    reads = []
+    definition = {'id': 'wf', 'name': 'Employee offboarding', 'version': 2, 'machine_name': 'offboarding',
+                  'definition': {'states': [{'name': 'Draft', 'tags': []}], 'transitions': []}}
+    off = OffboardingService(SimpleNamespace(platform=None, journal=None))
+    off.rows = lambda actor: [{'entity_id': f'case-{n}', 'workflow_id': 'wf', 'current_state': 'Draft',
+                               'summary_fields': {'identifier': f'EXT-{n}'}} for n in range(3)]
+    off.call = lambda actor, method, path: reads.append(path) or definition
+    rows = off.workflows(None)
+    assert [r['identifier'] for r in rows] == ['EXT-0', 'EXT-1', 'EXT-2']
+    assert reads == ['/workflow-state-machines/wf']

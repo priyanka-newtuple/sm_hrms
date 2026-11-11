@@ -1,4 +1,6 @@
 """HRMS API and browser gateway. The platform is an internal upstream service."""
+from concurrent.futures import ThreadPoolExecutor
+import contextvars
 from contextlib import asynccontextmanager
 from datetime import date
 from json import JSONDecodeError
@@ -14,7 +16,7 @@ from pydantic import BaseModel, Field
 from .errors import AppError
 from .google_auth import google_auth
 from .journal import Journal
-from .platform import PlatformClient
+from .platform import PlatformClient, request_reads
 from .policy import capabilities, require
 from .settings_gateway import configuration_route, authorize_configuration
 from .field_access import changes_forms, sync_service_access
@@ -33,6 +35,9 @@ from .projects import ProjectsService
 from .project_contracts import Action as ProjectAction
 from .wfh import WfhService, PolicyInput, RequestInput, DecisionInput
 from .assets import AssetService, AssetCommand, AssetBatchCommand, AssetCreateBatchCommand
+
+# Workflows reads its independent modules side by side, bounded for the shared server.
+WORKFLOW_SOURCE_WORKERS = 4
 
 
 class RecordDueDate(BaseModel):
@@ -465,9 +470,19 @@ def create_app(platform=None, journal=None):
     def workflows(current=Depends(actor)):
         from .workflow_config import configured_workflow_rows
         from .offers import offer_workflow_rows
-        # One record without a usable enrollment must not hide everyone's other work.
-        return configured_workflow_rows(platform, workflow_rows(service, current) + performance.workflows(current) + projects.workflows(current) + cockpit.workflows(current) + wfh.workflows(current),
-                                        skip_unenrolled=True) + employee_workflow_rows(platform, current) + offer_workflow_rows(platform, current) + offboarding.workflows(current)
+        # Modules are independent reads with the human token: run them side by side (bounded,
+        # to spare the shared server) and join in the usual order. Any module error still fails.
+        sources = [lambda: workflow_rows(service, current), lambda: performance.workflows(current),
+                   lambda: projects.workflows(current), lambda: cockpit.workflows(current), lambda: wfh.workflows(current),
+                   lambda: employee_workflow_rows(platform, current), lambda: offer_workflow_rows(platform, current),
+                   lambda: offboarding.workflows(current)]
+        # Modules repeat the same configuration and record reads; share them for this load only.
+        with request_reads(), ThreadPoolExecutor(max_workers=WORKFLOW_SOURCE_WORKERS) as pool:
+            results = [future.result() for future in
+                       [pool.submit(contextvars.copy_context().run, source) for source in sources]]
+            # One record without a usable enrollment must not hide everyone's other work.
+            return configured_workflow_rows(platform, [row for rows in results[:5] for row in rows],
+                                            skip_unenrolled=True) + [row for rows in results[5:] for row in rows]
 
     @app.get('/v1/api/hrms/projects')
     def project_dashboard(current=Depends(actor)):
