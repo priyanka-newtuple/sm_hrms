@@ -482,3 +482,54 @@ def test_payroll_results_cannot_be_forged_through_form_even_by_admin(monkeypatch
     assert form['fields'][0]['read_only']
     with pytest.raises(AppError, match='Only editable fields'):
         module.save_employee_form(p,a,'employee','workflow',{key:'forged'})
+
+
+def payroll_form_system(monkeypatch, data):
+    import hrms_app.employee_work as module
+    monkeypatch.setenv('HRMS_RAZORPAY_MODE', 'mock')
+    p, a, calls = setup()
+    original = p.request
+    stage = {'state_name': 'Employee Registration', 'fields': [{'field': f} for f in
+             ('razorpay_employee_id', 'razorpay_people_id', 'razorpay_mode')]}
+    def request(method, path, **kwargs):
+        if path == '/roles/my-permissions': return {'field_permissions': []}
+        if path == '/entity-records/employee':
+            if method == 'PUT':
+                calls.append(('PUT', path, kwargs)); return {}
+            return {'organization_id': 'org', 'data': data}
+        if path.startswith('/workflow-state-machines/'):
+            return {'definition': {'states': [], 'method_schemas': [stage]}}
+        return original(method, path, **kwargs)
+    p.request = request
+    p.records = lambda kind, fields: [{'entity_id': 'other', 'data': {'razorpay_employee_id': '43'}}]
+    monkeypatch.setattr('hrms_app.form_config.state_form', lambda *args: {'name': 'Payroll', 'fields': [
+        {'field': f, 'type': 'string', 'read_only': False} for f in ('razorpay_employee_id', 'razorpay_people_id', 'razorpay_mode')]})
+    return module, p, a, calls
+
+
+def test_payroll_stage_suggests_an_editable_employee_number(monkeypatch):
+    module, p, a, calls = payroll_form_system(monkeypatch, {'employee_code': 'EMP-0042'})
+    form = module.employee_form(p, a, 'employee', 'workflow')
+    editable = {f['field'] for f in form['fields'] if not f['read_only']}
+    assert editable == {'razorpay_employee_id'}  # people ID and mode stay system-written
+    assert form['values']['razorpay_employee_id'] == '42' and form['payroll_number_suggested']
+    with pytest.raises(AppError, match='already used'):
+        module.save_employee_form(p, a, 'employee', 'workflow', {'razorpay_employee_id': '43'})
+    module.save_employee_form(p, a, 'employee', 'workflow', {'razorpay_employee_id': '0108'})
+    assert calls[-1][2]['json']['data'] == {'razorpay_employee_id': '108'}
+
+
+def test_registered_employee_number_cannot_be_changed(monkeypatch):
+    module, p, a, _ = payroll_form_system(monkeypatch, {'employee_code': 'EMP-0042', 'razorpay_employee_id': '42', 'razorpay_mode': 'mock'})
+    form = module.employee_form(p, a, 'employee', 'workflow')
+    assert all(f['read_only'] for f in form['fields']) and 'payroll_number_suggested' not in form
+
+
+def test_payroll_stage_is_found_from_its_native_form_fields(monkeypatch):
+    from hrms_app.onboarding_routing import payroll_step
+    monkeypatch.delenv('HRMS_EMPLOYEE_PAYROLL_FORM_ID', raising=False)
+    workflow = {'definition': {'states': [{'name': 'Payroll Registration', 'method_refs': [{'method_id': 'renamed-form'}]}],
+                'method_schemas': [{'state_name': 'Payroll Registration', 'fields': [{'field': 'razorpay_employee_id'}]},
+                                   {'state_name': 'IT', 'fields': [{'field': 'github_access'}]}]}}
+    # No startup binding needed: the published definition identifies the stage.
+    assert payroll_step(workflow, 'Payroll Registration') and not payroll_step(workflow, 'IT')
