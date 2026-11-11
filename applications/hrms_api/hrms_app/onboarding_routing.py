@@ -89,6 +89,11 @@ def assignees(platform, actor, entity_id, workflow_id, trigger=None):
         return {'items': [], 'current': record.get('assignee_id'), 'fixed': True, 'unsupported': True}
     fixed = fixed_user(workflow, state, record)
     from .employee_work import is_employee_profile_step, is_owner_signoff_step
+    if trigger and is_employee_profile_step(workflow, state) and not any(
+            u['id'] == fixed and u.get('status') == 'active' for u in platform.users()):
+        # The handover creates and activates the employee's login, then assigns the employee.
+        return {'items': [], 'current': record.get('assignee_id'), 'fixed': True, 'can_assign': True,
+                'state': state, 'employee_account': True}
     is_fixed = is_employee_profile_step(workflow, state) or is_owner_signoff_step(workflow, state)
     outgoing = {t['key'] for t in workflow['definition']['transitions']
                 if t.get('from') == state and not cancellation(workflow, t)}

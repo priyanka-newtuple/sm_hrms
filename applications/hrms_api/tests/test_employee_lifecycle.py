@@ -57,7 +57,10 @@ class Platform:
     def call(self, method, path, **kwargs):
         if path == "/roles":
             return [{"id": r, "name": r} for r in [ONBOARDING_ROLE, "hrms_employee"]]
-        self.writes.append((path, kwargs["json"]))
+        self.writes.append((path, kwargs.get("json") or {}))
+        if path == "/users/user/approve":
+            self.people[0]["status"] = "active"
+            return {}
         if path == "/entity-records/employee":
             self.data.update(kwargs["json"]["data"])
         if path == "/entities/employee/transitions":
@@ -75,19 +78,17 @@ def system():
     return p, s, w, e
 
 
-def test_pending_native_account_waits_for_approval_then_invites_once_and_grants_role_only_at_completion():
+def test_account_approval_step_activates_the_created_login_invites_once_and_continues():
     p, s, w, e = system()
     reconcile_employee(s, w, e, [APPROVAL_TAG])
     reconcile_employee(s, w, e, [APPROVAL_TAG])
-    assert len(p.people) == 1
+    assert len(p.people) == 1 and p.people[0]["status"] == "active"
     assert p.data["platform_user_id"] == "user"
-    assert not p.data.get("account_approved")
-    assert not any(path.endswith("/transitions") for path, _ in p.writes)
-    p.people[0]["status"] = "active"
-    reconcile_employee(s, w, e, [APPROVAL_TAG])
-    reconcile_employee(s, w, e, [APPROVAL_TAG])
+    assert sum(path == "/users/user/approve" for path, _ in p.writes) == 1
     assert sum(path == "/auth/forgot-password" for path, _ in p.writes) == 1
     assert p.data["account_approved"] is True
+    moves = [body for path, body in p.writes if path.endswith("/transitions")]
+    assert {m["idempotency_key"] for m in moves} == {"account-approved:employee"}
     assert not any(body.get("role_id") == "hrms_employee" for _, body in p.writes)
     reconcile_employee(s, w, e, [COMPLETE_TAG])
     reconcile_employee(s, w, e, [COMPLETE_TAG])
@@ -96,8 +97,6 @@ def test_pending_native_account_waits_for_approval_then_invites_once_and_grants_
 
 def test_unknown_invitation_outcome_does_not_repeat_or_advance():
     p, s, w, e = system()
-    reconcile_employee(s, w, e, [APPROVAL_TAG])
-    p.people[0]["status"] = "active"
     p.email_fails = True
     with pytest.raises(AppError):
         reconcile_employee(s, w, e, [APPROVAL_TAG])
@@ -175,15 +174,35 @@ def test_final_hr_signoff_does_not_grant_portal_access_before_completion():
     assert sum(body.get('role_id') == 'hrms_employee' for _,body in p.writes)==1
 
 
-def test_payroll_workflow_account_approval_waits_for_human_transition(monkeypatch):
+def test_older_payroll_workflow_continues_past_account_approval_but_not_to_cancellation(monkeypatch):
     monkeypatch.setenv('HRMS_EMPLOYEE_PAYROLL_FORM_ID','payroll')
+    monkeypatch.setenv('HRMS_EMPLOYEE_CANCELLED_FORM_ID','cancelled')
     p,s,w,e=system()
-    w['definition']['states']=[{'name':'Payroll','method_refs':[{'method_id':'payroll'}]}]
-    reconcile_employee(s,w,e,[APPROVAL_TAG])
-    p.people[0]['status']='active'
+    w['definition']['states']=[{'name':'Payroll','method_refs':[{'method_id':'payroll'}]},
+                               {'name':'Cancelled','method_refs':[{'method_id':'cancelled'}]}]
+    w['definition']['transitions'].append({'from':'Approval','to_state':'Cancelled','trigger':'cancel'})
     reconcile_employee(s,w,e,[APPROVAL_TAG])
     assert p.data['account_approved'] is True
-    assert not any(path.endswith('/transitions') for path,_ in p.writes)
+    assert [b['trigger'] for path,b in p.writes if path.endswith('/transitions')] == ['approved']
+
+
+def test_handover_never_activates_a_login_this_onboarding_did_not_create():
+    from hrms_app.employee_lifecycle import ensure_account
+    p, s, w, e = system()
+    p.data['platform_user_id'] = 'someone'
+    p.people = [{'id': 'someone', 'email': p.data['work_email'], 'organization_id': p.org, 'status': 'pending'}]
+    with s.journal.lock(p.org) as db, pytest.raises(AppError, match='Settings'):
+        ensure_account(p, s.journal, db, 'employee', 'newtuple.com')
+    assert not any(path.endswith('/approve') for path, _ in p.writes)
+
+
+def test_handover_requires_a_company_work_email():
+    from hrms_app.employee_lifecycle import ensure_account
+    p, s, w, e = system()
+    p.data['work_email'] = 'personal@gmail.com'
+    with s.journal.lock(p.org) as db, pytest.raises(AppError, match='newtuple.com'):
+        ensure_account(p, s.journal, db, 'employee', 'newtuple.com')
+    assert not p.writes
 
 
 def test_managed_handover_preserves_explicit_assignment_during_reconciliation(monkeypatch):

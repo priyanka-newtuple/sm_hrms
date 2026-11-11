@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { EmployeeWorkflowActions } from './EmployeeWorkflowActions';
 import type { EmployeeWork } from '../workspace/useWaitingActions';
 
-const state = vi.hoisted(() => ({writes: [] as Record<string, unknown>[], fail: false, allowed: true}));
+const state = vi.hoisted(() => ({writes: [] as Record<string, unknown>[], fail: false, allowed: true, employee: false}));
 const item = {entity_id:'employee', workflow_id:'workflow', current_state:'Verification', title:'Test employee',
   actions:[{trigger:'approve', label:'Approve details and send to IT', to_state:'IT'}]} as EmployeeWork;
 vi.mock('@/core/services/api/client', () => ({getApiErrorMessage: String, request: async (path:string, options?:{body?:string}) => {
@@ -14,6 +14,7 @@ vi.mock('@/core/services/api/client', () => ({getApiErrorMessage: String, reques
     return {};
   }
   if (path === '/hrms/employee-work') return [{...item, actions:state.allowed?item.actions:[]}];
+  if (path.includes('/assignees') && path.includes('trigger=') && state.employee) return {items:[],fixed:true,can_assign:true,employee_account:true};
   if (path.includes('/assignees')) return {items:[{id:'office',name:'Office Admin'}],fixed:false,can_assign:true,current:null};
   if (path.includes('/form')) return {name:'Verification',fields:[],previous_fields:[],values:{},current_state:'Verification'};
   throw new Error(path);
@@ -26,15 +27,22 @@ vi.mock('@/skins/hrms_native/components/record/Sheet', () => ({
 vi.mock('./OnboardingAssets', () => ({OnboardingAssets:()=>null}));
 vi.mock('./EmployeeProfileInputs', () => ({EmployeeProfileInputs:()=>null}));
 vi.mock('../forms/ConfiguredForm', () => ({ConfiguredInputs:()=>null,NativeFormFields:({children}:any)=><>{children}</>}));
-afterEach(()=>{cleanup();state.writes=[];state.fail=false;state.allowed=true;});
+afterEach(()=>{cleanup();state.writes=[];state.fail=false;state.allowed=true;state.employee=false;});
 function show() {
   const client=new QueryClient({defaultOptions:{queries:{retry:false},mutations:{retry:false}}});
   render(<QueryClientProvider client={client}><EmployeeWorkflowActions item={item} open/></QueryClientProvider>);
 }
+it('shows one assignee field: the current owner, then the next stage assignee',async()=>{
+  show();
+  expect(await screen.findAllByLabelText('Assignee')).toHaveLength(1);
+  fireEvent.change(await screen.findByLabelText('Move to'),{target:{value:'approve'}});
+  expect(await screen.findByText(/Assignee for IT/)).toBeTruthy();
+  expect(screen.getAllByLabelText('Assignee')).toHaveLength(1);
+});
 it('requires an eligible next assignee before handing verification to IT',async()=>{
   show();
   fireEvent.change(await screen.findByLabelText('Move to'),{target:{value:'approve'}});
-  const next=await screen.findByLabelText('Next assignee');
+  const next=await screen.findByLabelText('Assignee');
   expect((screen.getByRole('button',{name:'Continue'}) as HTMLButtonElement).disabled).toBe(true);
   fireEvent.change(next,{target:{value:'office'}});
   fireEvent.click(screen.getByRole('button',{name:'Continue'}));
@@ -44,7 +52,7 @@ it('requires an eligible next assignee before handing verification to IT',async(
 it('retries an uncertain handover with the same assignment and idempotency key',async()=>{
   state.fail=true;show();
   fireEvent.change(await screen.findByLabelText('Move to'),{target:{value:'approve'}});
-  fireEvent.change(await screen.findByLabelText('Next assignee'),{target:{value:'office'}});
+  fireEvent.change(await screen.findByLabelText('Assignee'),{target:{value:'office'}});
   fireEvent.click(screen.getByRole('button',{name:'Continue'}));
   const retry=await screen.findByRole('button',{name:'Retry handover'});
   expect(retry.closest('[aria-label="Record actions"]')).not.toBeNull();
@@ -54,6 +62,15 @@ it('retries an uncertain handover with the same assignment and idempotency key',
   state.fail=false;fireEvent.click(retry);
   await waitFor(()=>expect(state.writes).toHaveLength(2));
   expect(state.writes[1]).toEqual(state.writes[0]);
+});
+it('hands the next step to the employee without choosing an assignee',async()=>{
+  state.employee=true;show();
+  fireEvent.change(await screen.findByLabelText('Move to'),{target:{value:'approve'}});
+  expect(await screen.findByText(/creates their HRMS login/)).toBeTruthy();
+  expect(screen.queryByText(/Assignee for/)).toBeNull();
+  fireEvent.click(screen.getByRole('button',{name:'Continue'}));
+  await waitFor(()=>expect(state.writes).toHaveLength(1));
+  expect(state.writes[0]).toMatchObject({trigger:'approve',next_assignee_id:null});
 });
 it('does not offer a transition that native workflow permissions exclude',async()=>{
   state.allowed=false;show();

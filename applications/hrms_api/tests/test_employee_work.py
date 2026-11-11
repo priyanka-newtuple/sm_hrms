@@ -533,3 +533,26 @@ def test_payroll_stage_is_found_from_its_native_form_fields(monkeypatch):
                                    {'state_name': 'IT', 'fields': [{'field': 'github_access'}]}]}}
     # No startup binding needed: the published definition identifies the stage.
     assert payroll_step(workflow, 'Payroll Registration') and not payroll_step(workflow, 'IT')
+
+
+def test_handing_email_setup_to_the_employee_creates_their_login_before_moving(monkeypatch):
+    monkeypatch.setenv('HRMS_EMPLOYEE_PROFILE_FORM_ID', 'profile')
+    p, a, calls = setup()
+    original = p.request
+    def request(method, path, **kwargs):
+        value = original(method, path, **kwargs)
+        if path.startswith('/workflow-state-machines/'):
+            value['definition']['states'] = [{'name': 'Email Setup', 'method_refs': [{'method_id': 'profile'}]}]
+        return value
+    p.request = request
+    order = []
+    from hrms_app import employee_lifecycle
+    monkeypatch.setattr(employee_lifecycle, 'ensure_account',
+                        lambda platform, journal, db, eid, domain: order.append(('account', eid, domain)))
+    original_request = p.request
+    p.request = lambda method, path, **kw: (order.append(('move',)) if method == 'POST' else None) or original_request(method, path, **kw)
+    with pytest.raises(AppError, match='journal'):
+        transition_employee(p, a, 'employee', 'workflow', 'next', 'no-journal')
+    order.clear()
+    transition_employee(p, a, 'employee', 'workflow', 'next', 'to-profile', journal=object(), _db=object())
+    assert order == [('account', 'employee', 'newtuple.com'), ('move',)]

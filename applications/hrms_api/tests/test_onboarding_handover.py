@@ -99,3 +99,23 @@ def test_terminal_transition_does_not_need_next_assignee(setup, monkeypatch):
     run(None)
     assert state['moves'] == 1
     assert not state['assignments']
+
+
+def test_handover_to_the_employee_assigns_the_login_the_transition_created(monkeypatch, setup):
+    run, state, op = setup
+    monkeypatch.setattr(handover.routing, 'assignees', lambda *args: {
+        'can_assign': True, 'state': 'IT', 'items': [], 'fixed': True, 'employee_account': True})
+    writes = []
+    platform = SimpleNamespace(record=lambda _: {'data': {'platform_user_id': 'employee-user'}},
+                               call=lambda method, path, **kw: writes.append((path, kw['json'])))
+    result = handover.transition_with_handover(platform, SimpleNamespace(organization_id='org'), 'e', 'w',
+                                               'approve', 'request-key', SimpleNamespace(
+                                                   lock=setup_lock, operation=lambda *args: op), None)
+    assert result == {'current_state': 'IT'}
+    assert writes == [('/entity-records/e/assignee', {'assignee_id': 'employee-user'})]
+    assert state['assignments'] == []
+
+
+@contextmanager
+def setup_lock(org):
+    yield object()

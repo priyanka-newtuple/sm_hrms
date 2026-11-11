@@ -14,21 +14,27 @@ APPROVAL_TAG = "hrms:account-approval"
 COMPLETE_TAG = "hrms:grant-employee-access"
 
 
+def bridge(organization_id):
+    """The journal identity of account automation (no platform token)."""
+    return Actor("hrms-account-bridge", organization_id, "", frozenset(), frozenset())
+
+
 def reconcile(service):
     platform = service.platform
     approval = os.getenv("HRMS_EMPLOYEE_APPROVAL_FORM_ID")
     complete = os.getenv("HRMS_EMPLOYEE_COMPLETE_FORM_ID")
-    if not approval or not complete:
+    if not complete:
         return
     workflows = platform.call(
         "GET", "/workflow-state-machines", params={"scope": "published"}
     )["published_items"]
+    # Current versions grant final access at completion; older ones also have Account Approval.
     workflows = [
         w
         for w in workflows
         if w["entity_type"] == "HRMS.Employee"
         and any(
-            any(r["method_id"] == approval for r in s.get("method_refs", []))
+            any(r["method_id"] in {approval, complete} for r in s.get("method_refs", []))
             for s in w["definition"]["states"]
         )
     ]
@@ -123,10 +129,87 @@ def reconcile_profile_assignee(platform, workflow, enrollment):
                       json={"assignee_id": None})
 
 
+def work_domain():
+    return os.environ.get("HRMS_WORK_EMAIL_DOMAIN", "newtuple.com").strip().lower()
+
+
+def ensure_account(platform, journal, db, eid, domain):
+    """The employee's active HRMS login, with the restricted onboarding role and an emailed invitation.
+
+    Called when onboarding hands over to the employee. Creates and activates the login
+    on first use; it only ever activates the login this onboarding created, and reuses
+    an existing login only when an administrator explicitly linked it. Every step is
+    checkpointed in the journal, so a retry resumes instead of duplicating. The caller
+    holds the tenant journal lock (`db`).
+    """
+    p = platform
+    record = p.record(eid)
+    data = record["data"]
+    if data.get("employment_status") in {"offboarded", "inactive"}:
+        raise AppError(409, "An employee who has left cannot be given onboarding access")
+    op = journal.operation(db, bridge(p.org), "employee-account:" + eid, {"entity_id": eid})
+    roles = {r["name"]: r for r in p.call("GET", "/roles")}
+    if ONBOARDING_ROLE not in roles:
+        raise AppError(409, "Configure the native Onboarding Employee role first")
+    email = str(data.get("work_email") or "").strip().lower()
+    if not email or email.rsplit("@", 1)[-1] != domain:
+        raise AppError(409, f"Enter the employee's company work email (@{domain}) first")
+    users = p.users()
+    identity = next((u for u in users if u["id"] == data.get("platform_user_id")), None)
+    if identity is None:
+        existing = next((u for u in users if u["email"].lower() == email), None)
+        if existing and existing["id"] != op.progress.get("created_user_id"):
+            raise AppError(409, f"{email} already has an HRMS login. An administrator can link it "
+                                "to this employee from this task, or use a different work email.")
+        if existing:
+            identity = existing
+        else:
+            if op.progress.get("create_requested"):
+                raise AppError(409, "Account creation outcome requires administrator reconciliation")
+            op.checkpoint(create_requested=True)
+            response = p.request("POST", "/auth/register", json={
+                "email": email,
+                "full_name": f"{data.get('first_name', '')} {data.get('last_name', '')}",
+                "password": secrets.token_urlsafe(48),
+                "role": ONBOARDING_ROLE,
+            })
+            if (response.get("organization_id") != p.org
+                    or response.get("approval_type") != "pending_org_admin"):
+                raise AppError(409, "Native account registration did not return a pending tenant user")
+            op.checkpoint(created_user_id=response["user_id"])
+            identity = next(u for u in p.users() if u["id"] == response["user_id"])
+        p.call("PUT", f"/roles/users/{identity['id']}/role",
+               json={"role_id": roles[ONBOARDING_ROLE]["id"]})
+        p.call("PUT", f"/entity-records/{eid}", json={"data": {"platform_user_id": identity["id"]}})
+    if identity["organization_id"] != p.org or identity["email"].lower() != email:
+        raise AppError(409, "Employee account link does not match")
+    existing_account = op.progress.get("existing_account_id") == identity["id"]
+    if (identity["status"] == "pending" and not existing_account
+            and identity["id"] == op.progress.get("created_user_id")):
+        # Handing onboarding to the employee is the approval: activate the login it created.
+        p.call("POST", f"/users/{identity['id']}/approve")
+        identity = {**identity, "status": "active"}
+    if identity["status"] != "active":
+        raise AppError(409, f"The employee's login is {identity['status']}. "
+                            "An administrator must review it in Settings → Users.")
+    # Native approval can grant Viewer; replace it with the restricted onboarding role.
+    if not existing_account and not op.progress.get("restricted_role_set"):
+        p.call("PUT", f"/roles/users/{identity['id']}/role",
+               json={"role_id": roles[ONBOARDING_ROLE]["id"]})
+        op.checkpoint(restricted_role_set=True)
+    if not existing_account and not op.progress.get("invitation_requested"):
+        op.checkpoint(invitation_requested=True)
+        p.request("POST", "/auth/forgot-password", json={"email": email})
+        op.checkpoint(invitation_sent=True)
+    if not existing_account and not op.progress.get("invitation_sent"):
+        raise AppError(409, "Invitation outcome needs reconciliation before proceeding")
+    return identity
+
+
 def reconcile_employee(service, workflow, enrollment, tags):
     p = service.platform
     eid = enrollment["entity_id"]
-    actor = Actor("hrms-account-bridge", p.org, "", frozenset(), frozenset())
+    actor = bridge(p.org)
     with service.journal.lock(p.org) as db:
         record = p.record(eid)
         if record["organization_id"] != p.org:
@@ -134,103 +217,18 @@ def reconcile_employee(service, workflow, enrollment, tags):
         data = record["data"]
         if data.get('employment_status') in {'offboarded', 'inactive'}:
             return  # An unfinished onboarding must not recreate access after departure.
-        op = service.journal.operation(
-            db, actor, "employee-account:" + eid, {"entity_id": eid}
-        )
-        roles = {r["name"]: r for r in p.call("GET", "/roles")}
-        if ONBOARDING_ROLE not in roles:
-            raise AppError(409, "Configure the native Onboarding Employee role first")
-        identity = next(
-            (u for u in p.users() if u["id"] == data.get("platform_user_id")), None
-        )
         if APPROVAL_TAG in tags:
-            email = str(data.get("work_email") or "").strip().lower()
-            if not email or email.rsplit("@", 1)[-1] != service.domain:
-                raise AppError(
-                    409, "A company work email is required before account approval"
-                )
-            if identity is None:
-                existing = next(
-                    (u for u in p.users() if u["email"].lower() == email), None
-                )
-                if existing and existing["id"] != op.progress.get("created_user_id"):
-                    raise AppError(
-                        409,
-                        "This email already has an account; administrator reconciliation is required",
-                    )
-                if existing:
-                    identity = existing
-                else:
-                    if op.progress.get("create_requested"):
-                        raise AppError(
-                            409,
-                            "Account creation outcome requires administrator reconciliation",
-                        )
-                    op.checkpoint(create_requested=True)
-                    response = p.request(
-                        "POST",
-                        "/auth/register",
-                        json={
-                            "email": email,
-                            "full_name": f"{data.get('first_name', '')} {data.get('last_name', '')}",
-                            "password": secrets.token_urlsafe(48),
-                            "role": ONBOARDING_ROLE,
-                        },
-                    )
-                    if (
-                        response.get("organization_id") != p.org
-                        or response.get("approval_type") != "pending_org_admin"
-                    ):
-                        raise AppError(
-                            409,
-                            "Native account registration did not return a pending tenant user",
-                        )
-                    op.checkpoint(created_user_id=response["user_id"])
-                    identity = next(
-                        u for u in p.users() if u["id"] == response["user_id"]
-                    )
-                p.call(
-                    "PUT",
-                    f"/roles/users/{identity['id']}/role",
-                    json={"role_id": roles[ONBOARDING_ROLE]["id"]},
-                )
-                data = {**data, "platform_user_id": identity["id"]}
-                p.call("PUT", f"/entity-records/{eid}", json={"data": data})
-            if (
-                identity["organization_id"] != p.org
-                or identity["email"].lower() != email
-            ):
-                raise AppError(409, "Employee account link does not match")
-            if identity["status"] != "active":
-                return
-            # Native approval can grant Viewer; replace it with the restricted onboarding role.
-            existing_account = op.progress.get("existing_account_id") == identity['id']
-            if not existing_account and not op.progress.get("restricted_role_set"):
-                p.call(
-                    "PUT",
-                    f"/roles/users/{identity['id']}/role",
-                    json={"role_id": roles[ONBOARDING_ROLE]["id"]},
-                )
-                op.checkpoint(restricted_role_set=True)
-            if not existing_account and not op.progress.get("invitation_requested"):
-                op.checkpoint(invitation_requested=True)
-                p.request("POST", "/auth/forgot-password", json={"email": email})
-                op.checkpoint(invitation_sent=True)
-            if not existing_account and not op.progress.get("invitation_sent"):
-                raise AppError(
-                    409, "Invitation outcome needs reconciliation before proceeding"
-                )
-            from .onboarding_routing import managed
-            if managed(workflow):
-                # Approval remains a human action in the new workflow; the bridge
-                # only records the verified native account status.
-                if not data.get('account_approved'):
-                    p.call('PUT', f'/entity-records/{eid}', json={'data': {'account_approved': True}})
-                return
+            # Records still on a workflow version with the Account Approval step:
+            # activate the login, then continue to profile completion automatically.
+            ensure_account(p, service.journal, db, eid, service.domain)
+            if not data.get('account_approved'):
+                p.call('PUT', f'/entity-records/{eid}', json={'data': {'account_approved': True}})
+            from .onboarding_routing import cancellation
             outgoing = [
                 t
                 for t in workflow["definition"]["transitions"]
                 if t.get("from", t.get("from_state")) == enrollment["current_state"]
+                and not cancellation(workflow, t)
             ]
             if len(outgoing) != 1:
                 raise AppError(
@@ -247,7 +245,15 @@ def reconcile_employee(service, workflow, enrollment, tags):
                     "inputs": {"account_approved": True},
                 },
             )
-        elif COMPLETE_TAG in tags and identity and identity["status"] == "active":
+            return
+        op = service.journal.operation(
+            db, actor, "employee-account:" + eid, {"entity_id": eid}
+        )
+        roles = {r["name"]: r for r in p.call("GET", "/roles")}
+        identity = next(
+            (u for u in p.users() if u["id"] == data.get("platform_user_id")), None
+        )
+        if COMPLETE_TAG in tags and identity and identity["status"] == "active":
             if op.progress.get('existing_account_id') == identity['id']:
                 return  # Explicitly linked existing users retain their native role memberships.
             intended = roles.get(data.get("hrms_role"))
