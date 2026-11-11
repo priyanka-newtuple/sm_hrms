@@ -77,6 +77,25 @@ def test_employee_without_directory_access_sees_own_issued_assets(system):
     assert s.board(replace(one, user_id='two'))['items'] == []
 
 
+def test_board_says_why_nothing_can_be_assigned(system):
+    s, p, _ = system
+    admin = actor('admin', 'superadmin')
+    assert s.board(admin)['issue_access'] is None  # nothing unassigned to check yet
+    create(s)
+    board = s.board(admin)
+    assert board['issue_access'] is True and board['employee_access'] is True
+    call = p.call
+    def refused(method, path, **kwargs):
+        if path.endswith('/transitions/available'):
+            raise AppError(403, 'no role grants this permission')
+        return call(method, path, **kwargs)
+    p.call = refused
+    assert s.board(admin)['issue_access'] is False  # assets exist, but this role may not issue them
+    # A non-manager learns nothing about inventory permissions.
+    employee = s.board(actor('one', 'hrms_employee'))
+    assert employee['issue_access'] is None and employee['employee_access'] is False
+
+
 def test_native_permissions_and_cross_record_scope(system):
     s, _, _ = system
     aid = create(s)
