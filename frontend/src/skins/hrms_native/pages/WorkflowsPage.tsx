@@ -4,7 +4,7 @@ import { OfferEditor } from './OfferEditor';
 import CockpitPage, { CONTENT_TYPES } from './CockpitPage';
 import { WfhRequestRow, type Booking } from './WorkFromHome';
 import { WorkflowStages } from '../workflows/WorkflowConfiguration';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { CalendarDays, LayoutGrid, ListChecks, RefreshCw } from 'lucide-react';
@@ -126,12 +126,14 @@ export default function WorkflowsPage() {
   };
   const types = useMemo(() => [...new Set((query.data ?? []).map(row => row.entity_type))].sort(), [query.data]);
   const pageCount = Math.max(1, Math.ceil(list.totalCount / list.pageSize));
+  // No workflow this person may read (native workflow access): say so instead of empty counters.
+  const noWorkflows = !catalog.isLoading && !catalog.isError && (catalog.data?.length ?? 0) === 0;
 
   return <main className="hrms-brand hrms-workspace-page hrms-workflows-page">
     <PageHero title="Workflows" intro="Follow progress, review next steps, and act on work in your scope." illustration="workflows"
       actions={<div className="hrms-workflow-controls"><PipelineTerminalToggle hidden={hideTerminal} label="Terminal Entities" onToggle={value => { setHideTerminal(value); list.setPage(0); }} />
         <button type="button" className="hrms-outline-button" aria-label="Refresh workflows" disabled={query.isFetching} onClick={() => void queryClient.invalidateQueries({ queryKey: ['hrms'] })}><RefreshCw size={16} strokeWidth={1.25} className={query.isFetching?'animate-spin':''}/>Refresh</button></div>}
-      stats={query.data ? [
+      stats={query.data && !noWorkflows ? [
         { label: 'Records', value: workflowRows.length },
         { label: 'In progress', value: workflowRows.filter(row => !row.is_terminal).length, tone: 'attention' },
         { label: 'Completed', value: workflowRows.filter(row => row.is_terminal).length, tone: 'positive' },
@@ -140,7 +142,12 @@ export default function WorkflowsPage() {
     {(query.isLoading || catalog.isLoading) && <p role="status">Loading workflows…</p>}
     {query.isError && <div role="alert" className="hrms-notice hrms-notice--error"><p>{getApiErrorMessage(query.error)}</p><button className="hrms-outline-button" onClick={()=>void query.refetch()}>Try again</button></div>}
     {catalog.isError && <div role="alert" className="hrms-notice hrms-notice--error">{getApiErrorMessage(catalog.error)} <button onClick={()=>void catalog.refetch()}>Retry workflows</button></div>}
-    {query.data && catalog.data && <>
+    {noWorkflows && <section className="hrms-surface hrms-lk-card p-6" role="status">
+      <h2 className="hrms-section-heading">No workflows for your role</h2>
+      <p className="mt-2">You don't have access to any workflows. If you expect to see one, ask an administrator to grant it under Settings → Roles.</p>
+      <Link className="hrms-outline-button mt-4 inline-flex" to="/hrms/my-work">Go to My Tasks</Link>
+    </section>}
+    {query.data && catalog.data && !noWorkflows && <>
     <section className="hrms-surface hrms-workflow-toolbar" aria-label="Workflow controls">
       <div className="hrms-workflow-toolbar-top">
         <FilterSelect label="Workflow" value={workflow?.machine_name ?? ''} onChange={selectWorkflow}

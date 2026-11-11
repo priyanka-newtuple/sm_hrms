@@ -50,7 +50,8 @@ export function HrmsSignInForm({ magnetic }: { magnetic: boolean }) {
     setSubmitting(true);
     try {
       await login(email, password);
-      navigate(from, { replace: true });
+      // The workspace checks this page against the signed-in user's own menu.
+      navigate(from, { replace: true, state: { afterSignIn: true } });
     } catch (err) {
       if (!routePending(err)) setError(err instanceof Error ? err.message : 'Authentication failed');
     } finally {
