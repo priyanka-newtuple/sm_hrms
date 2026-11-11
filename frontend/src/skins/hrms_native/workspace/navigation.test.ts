@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildNavigation, canLandOn, isNavigationActive } from './navigation';
+import { buildNavigation, isNavigationActive } from './navigation';
 const workflows = [
   { entity_type: 'HRMS.Employee', machine_name: 'employee custom', name: 'Add Employee' },
   { entity_type: 'HRMS.Offboarding', machine_name: 'exit', name: 'Employee offboarding' },
@@ -55,18 +55,3 @@ describe('workspace navigation', () => {
    expect(groups.find(g => g.label === 'Manager Cockpit')?.items.map(i => i.label)).toEqual(['Customers','Projects','Allocations']);
    expect(buildNavigation({roles:['hrms_delivery_manager'],capabilities:[]}, [], 0, false, []).some(g => g.label === 'Manager Cockpit')).toBe(false);
  });
-
-describe('landing after sign-in', () => {
-  it("opens a remembered page only when the signed-in user's menu offers it", () => {
-    const officeAdmin = buildNavigation({roles:['hrms_office_admin'],capabilities:['asset:view','leave:create'],employee_profile:true}, [], 0, false, []);
-    const items = officeAdmin.flatMap(g => g.items);
-    expect(canLandOn('/hrms/assets', items)).toBe(true);
-    expect(canLandOn('/hrms/workflows', items)).toBe(false);  // another user's last page
-    expect(canLandOn('/hrms/my-work', items)).toBe(true);
-    expect(canLandOn('/hrms/my-offboarding/case-1', items)).toBe(true);
-  });
-  it('accepts workflow links whose menu path carries a query', () => {
-    expect(canLandOn('/hrms/workflows', [{path: '/hrms/workflows?workflow=exit'}])).toBe(true);
-    expect(canLandOn('/hrms/workflowsx', [{path: '/hrms/workflows?workflow=exit'}])).toBe(false);
-  });
-});

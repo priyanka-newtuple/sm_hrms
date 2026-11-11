@@ -12,18 +12,6 @@ export function isNavigationActive(target: string, pathname: string, search: str
   const actual = new URLSearchParams(search);
   return [...new URLSearchParams(query)].every(([key, value]) => actual.get(key) === value);
 }
-/**
- * Whether a page remembered from before sign-in may open for this user: their own
- * tasks or offboarding, or a page their menu (native permissions) offers them.
- * Anything else sends them to My Tasks instead of another user's last page.
- */
-export function canLandOn(pathname: string, items: Pick<NavItem, 'path'>[]) {
-  if (pathname === '/hrms/my-work' || pathname.startsWith('/hrms/my-offboarding/')) return true;
-  return items.some(item => {
-    const path = item.path.split('?')[0];
-    return pathname === path || pathname.startsWith(path + '/');
-  });
-}
 export function buildNavigation(caps: Capabilities | undefined, workflows: Workflow[], waiting: number, inboxEnabled: boolean, permissions: string[]): NavGroup[] {
   const allowed = (key: string) => caps?.capabilities.includes(key) ?? false;
   const published = permissions.includes('workflow:read') ? workflows : [];
