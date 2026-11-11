@@ -13,6 +13,17 @@ def approval_step(workflow, state):
         for s in workflow['definition']['states']))
 
 
+def account_step(workflow, state):
+    """Where the employee's login is set up: the step that hands onboarding to the employee
+    (or Account Approval in older workflow versions). An administrator can link an existing
+    login here instead of creating one."""
+    from .employee_work import is_employee_profile_step
+    from .onboarding_routing import cancellation
+    return approval_step(workflow, state) or any(
+        t.get('from') == state and not cancellation(workflow, t) and is_employee_profile_step(workflow, t.get('to_state'))
+        for t in workflow['definition'].get('transitions', []))
+
+
 def candidate(platform, actor, record):
     if 'employee:activate' not in capabilities(actor):
         return None
@@ -38,8 +49,8 @@ def link(service, actor, entity_id, workflow_id, user_id):
         item = next((i for i in employee_work(p, actor)
                      if i['entity_id'] == entity_id and i['workflow_id'] == workflow_id), None)
         workflow = p.request('GET', '/workflow-state-machines/' + workflow_id, token=actor.token)
-        if not item or not any(not a.get('cancellation') for a in item['actions']) or not approval_step(workflow, item['current_state']):
-            raise AppError(409, 'Open the current Account Approval task before linking an account')
+        if not item or not any(not a.get('cancellation') for a in item['actions']) or not account_step(workflow, item['current_state']):
+            raise AppError(409, 'Open the current Email Setup task before linking an account')
         record = p.request('GET', '/entity-records/' + entity_id, token=actor.token)
         if record['data'].get('employment_status') in {'inactive', 'offboarded'}:
             raise AppError(409, 'An employee who has left cannot be linked through onboarding')

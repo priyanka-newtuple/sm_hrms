@@ -196,6 +196,13 @@ def transition_employee(
         if not value and any(f['field'] == ASSET_FIELD and f.get('required') for f in selected['required_fields']):
             raise AppError(422, 'Issue the required asset before completing provisioning')
         platform.request('PUT', f'/entity-records/{entity_id}', token=actor.token, json={'data': {ASSET_FIELD:value}})
+    if not selected.get('cancellation') and is_employee_profile_step(approval_workflow, selected['to_state']):
+        # Handing onboarding to the employee needs their active login: create, activate and
+        # invite it now (a no-op once done), so the step is never assigned to nobody.
+        if journal is None:
+            raise AppError(503, 'Employee account journal is unavailable')
+        from .employee_lifecycle import ensure_account, work_domain
+        ensure_account(platform, journal, _db, entity_id, work_domain())
     from .onboarding_routing import payroll_step
     if not selected.get('cancellation') and payroll_step(approval_workflow, item['current_state']):
         if journal is None:
@@ -330,8 +337,8 @@ def employee_form(platform, actor, entity_id, workflow_id):
     )
     form["workflow_id"] = workflow_id
     form["entity_id"] = entity_id
-    from .onboarding_account_link import approval_step, candidate
-    if approval_step(workflow, enrollment['current_state']):
+    from .onboarding_account_link import account_step, candidate
+    if account_step(workflow, enrollment['current_state']):
         form['existing_account'] = candidate(platform, actor, record)
     if payroll_step(workflow, enrollment['current_state']):
         from .onboarding_payroll import EMPLOYEE_FIELDS, mode, suggest

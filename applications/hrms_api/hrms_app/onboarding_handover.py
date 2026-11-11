@@ -19,11 +19,13 @@ def transition_with_handover(platform, actor, entity_id, workflow_id, trigger,
             if options.get('unsupported'):
                 raise AppError(409, 'Assignment rules are not configured for this workflow')
             terminal = options.get('terminal', False)
-            if not terminal and (not options.get('can_assign') or
+            # Profile completion goes to the employee, whose login the transition creates.
+            employee = options.get('employee_account', False)
+            if not terminal and not employee and (not options.get('can_assign') or
                     next_assignee_id not in {u['id'] for u in options['items']}):
                 raise AppError(422, 'Select an eligible assignee for the next stage')
             _, _, source = routing.context(platform, actor, entity_id, workflow_id)
-            op.checkpoint(source=source, target=options.get('state'), terminal=terminal)
+            op.checkpoint(source=source, target=options.get('state'), terminal=terminal, employee=employee)
         # Retrying the same native idempotency key recovers a lost HTTP response.
         if 'transition' not in op.progress:
             _, _, state = routing.context(platform, actor, entity_id, workflow_id)
@@ -44,7 +46,14 @@ def transition_with_handover(platform, actor, entity_id, workflow_id, trigger,
                 raise AppError(409, 'The record has moved again. Review its current assignment before continuing.')
             # Revalidate membership and native permission, including on retry.
             try:
-                routing.assign(platform, actor, entity_id, workflow_id, next_assignee_id)
+                if op.progress.get('employee'):
+                    # Same service assignment the account worker keeps in place for this step.
+                    user_id = platform.record(entity_id)['data'].get('platform_user_id')
+                    if not user_id:
+                        raise AppError(409, 'The employee login is not linked yet')
+                    platform.call('PUT', f'/entity-records/{entity_id}/assignee', json={'assignee_id': user_id})
+                else:
+                    routing.assign(platform, actor, entity_id, workflow_id, next_assignee_id)
             except AppError as exc:
                 raise AppError(503, 'The stage moved, but its assignment could not be confirmed. Retry the same handover.') from exc
         result = op.progress['transition']

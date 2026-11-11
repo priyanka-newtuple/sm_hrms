@@ -88,7 +88,8 @@ def create_app(platform=None, journal=None):
         os.environ['PLATFORM_API_URL'], os.environ['HRMS_ORGANIZATION_ID'],
         os.environ['HRMS_SERVICE_EMAIL'], os.environ['HRMS_SERVICE_PASSWORD'])
     journal = journal or Journal(os.environ['HRMS_APP_DATABASE_URL'])
-    service = HrmsService(platform, journal, os.environ.get('HRMS_WORK_EMAIL_DOMAIN', 'newtuple.com'))
+    from .employee_lifecycle import work_domain
+    service = HrmsService(platform, journal, work_domain())
     performance = PerformanceService(service)
     projects = ProjectsService(service)
     cockpit = CockpitService(platform, journal)

@@ -12297,26 +12297,6 @@
               "tags": []
             },
             {
-              "description": "Approve the pending native user in Settings or My Tasks.",
-              "method_refs": [
-                {
-                  "method_id": {
-                    "$ref": "method:Employee Account Approval",
-                    "attribute": "id"
-                  },
-                  "version_id": {
-                    "$ref": "method:Employee Account Approval",
-                    "attribute": "version_id"
-                  }
-                }
-              ],
-              "name": "Account Approval",
-              "on_state_actions": [],
-              "order": 3,
-              "sla_seconds": null,
-              "tags": []
-            },
-            {
               "description": "Send a link to the employee to fill personal and professional information",
               "method_refs": [
                 {
@@ -12332,7 +12312,7 @@
               ],
               "name": "Profile Completion Pending",
               "on_state_actions": [],
-              "order": 4,
+              "order": 3,
               "sla_seconds": 172800,
               "tags": []
             },
@@ -12352,7 +12332,7 @@
               ],
               "name": "Onboarding Verification",
               "on_state_actions": [],
-              "order": 5,
+              "order": 4,
               "sla_seconds": 172800,
               "tags": []
             },
@@ -12372,13 +12352,13 @@
               ],
               "name": "IT & Workspace Provisioning",
               "on_state_actions": [],
-              "order": 6,
+              "order": 5,
               "sla_seconds": null,
               "tags": []
             },
             {
               "name": "Payroll Registration",
-              "order": 7,
+              "order": 6,
               "description": "Payroll Registration",
               "tags": [],
               "on_state_actions": [],
@@ -12412,7 +12392,7 @@
               ],
               "name": "Final HR Sign-off",
               "on_state_actions": [],
-              "order": 8,
+              "order": 7,
               "sla_seconds": 172800,
               "tags": []
             },
@@ -12432,7 +12412,7 @@
               ],
               "name": "Onboarding Completed",
               "on_state_actions": [],
-              "order": 9,
+              "order": 8,
               "sla_seconds": null,
               "tags": [
                 "terminal"
@@ -12440,7 +12420,7 @@
             },
             {
               "name": "Onboarding Cancelled",
-              "order": 10,
+              "order": 9,
               "description": "Onboarding Cancelled",
               "tags": [
                 "terminal"
@@ -12508,11 +12488,11 @@
             },
             {
               "auto_transition": null,
-              "description": "HRMS invitation is sent to the employee's official email. Employee activates their account, completes personal and professional details, and uploads required documents.",
+              "description": "Creates the employee's HRMS login on the work email, emails the invitation, and assigns profile completion to the employee.",
               "from": "Email Setup Google",
               "guards": [],
               "key": "email setup__to__profile completion pending",
-              "label": "Submit proposed email address for account approval",
+              "label": "Send to employee for profile completion",
               "post_transition_tasks": [],
               "pre_transition_tasks": [],
               "required_fields": [
@@ -12522,7 +12502,7 @@
                   "type": "email"
                 }
               ],
-              "to_state": "Account Approval",
+              "to_state": "Profile Completion Pending",
               "trigger": "to_profile completion pending"
             },
             {
@@ -12633,27 +12613,6 @@
             },
             {
               "auto_transition": null,
-              "description": null,
-              "from": "Account Approval",
-              "guards": [
-                {
-                  "config": {},
-                  "field": "account_approved",
-                  "message": "Approve the native user account first",
-                  "type": "field_exact_match",
-                  "value": true
-                }
-              ],
-              "key": "account_approval_to_profile",
-              "label": "Continue after account approval",
-              "post_transition_tasks": [],
-              "pre_transition_tasks": [],
-              "required_fields": [],
-              "to_state": "Profile Completion Pending",
-              "trigger": "account_approved"
-            },
-            {
-              "auto_transition": null,
               "description": "Add correction details in Comments and @mention the employee before requesting corrections.",
               "from": "Onboarding Verification",
               "guards": [],
@@ -12717,19 +12676,6 @@
               "from": "Email Setup Google",
               "to_state": "Onboarding Cancelled",
               "trigger": "cancel_onboarding_2",
-              "label": "Cancel onboarding",
-              "guards": [],
-              "required_fields": [],
-              "pre_transition_tasks": [],
-              "post_transition_tasks": [],
-              "auto_transition": null,
-              "description": null
-            },
-            {
-              "key": "cancel_onboarding_3",
-              "from": "Account Approval",
-              "to_state": "Onboarding Cancelled",
-              "trigger": "cancel_onboarding_3",
               "label": "Cancel onboarding",
               "guards": [],
               "required_fields": [],

@@ -32,7 +32,7 @@ export function EmployeeWorkflowActions({item,readOnly=false,open:controlledOpen
   const assignees=useQuery({queryKey:['hrms','employee-assignees',item.entity_id,item.workflow_id,item.current_state],
     queryFn:()=>request<{items:{id:string;name:string}[];current:string|null;fixed:boolean;can_assign?:boolean;terminal?:boolean;unsupported?:boolean;self_id?:string}>(`/hrms/employee-work/${item.entity_id}/assignees?workflow_id=${item.workflow_id}`),enabled:open&&!readOnly});
   const destination=useQuery({queryKey:['hrms','employee-handover',item.entity_id,item.workflow_id,handover],
-    queryFn:()=>request<{items:{id:string;name:string}[];fixed:boolean;terminal?:boolean;can_assign?:boolean}>(`/hrms/employee-work/${item.entity_id}/assignees?workflow_id=${item.workflow_id}&trigger=${encodeURIComponent(handover!)}`),enabled:open&&!!handover});
+    queryFn:()=>request<{items:{id:string;name:string}[];fixed:boolean;terminal?:boolean;can_assign?:boolean;employee_account?:boolean}>(`/hrms/employee-work/${item.entity_id}/assignees?workflow_id=${item.workflow_id}&trigger=${encodeURIComponent(handover!)}`),enabled:open&&!!handover});
   const destinationId=nextAssignee||(destination.data?.fixed?destination.data.items[0]?.id??'':'');
   const assignment=useMutation({mutationFn:(user_id:string)=>request(`/hrms/employee-work/${item.entity_id}/assignee`,{method:'PUT',body:JSON.stringify({workflow_id:item.workflow_id,user_id})}),onSuccess:()=>{void client.invalidateQueries({queryKey:['hrms']});}});
   const hasManagerField=[...(form.data?.fields??[]),...(form.data?.previous_fields??[])].some(f=>f.field==='reports_to_employee_code');
@@ -76,10 +76,11 @@ export function EmployeeWorkflowActions({item,readOnly=false,open:controlledOpen
           </select></label>
           {destination.isLoading&&<p role="status">Loading eligible assignees…</p>}
           {destination.isError&&<p role="alert">{getApiErrorMessage(destination.error)} <button type="button" onClick={()=>void destination.refetch()}>Retry</button></p>}
-          {handover&&destination.data&&!destination.data.terminal&&<label className="block">Next assignee *<select aria-label="Next assignee" className="hrms-field-input" value={destinationId} disabled={destination.data.fixed||action.isPending||!!pendingTransition.current} onChange={e=>setNextAssignee(e.target.value)}>
+          {handover&&destination.data?.employee_account&&<p role="status" className="text-sm">Goes to {item.title}. Continuing creates their HRMS login on the work email, emails the invitation, and assigns this step to them.</p>}
+          {handover&&destination.data&&!destination.data.terminal&&!destination.data.employee_account&&<label className="block">Next assignee *<select aria-label="Next assignee" className="hrms-field-input" value={destinationId} disabled={destination.data.fixed||action.isPending||!!pendingTransition.current} onChange={e=>setNextAssignee(e.target.value)}>
             <option value="">Select an eligible assignee</option>{destination.data.items.map(u=><option key={u.id} value={u.id}>{u.name}</option>)}
           </select>{!destination.data.items.length&&<p>No eligible assignee is configured for this stage. Ask an administrator to review native role permissions.</p>}</label>}
-          {handover&&<button type="button" className="hrms-primary-button" disabled={action.isPending||!destination.isSuccess||(!destination.data?.terminal&&!destinationId)||!!pendingTransition.current} onClick={()=>current.actions.find(a=>a.trigger===handover)?.cancellation?setCancelTrigger(handover):action.mutate(handover)}>{action.isPending?'Processing…':'Continue'}</button>}
+          {handover&&<button type="button" className="hrms-primary-button" disabled={action.isPending||!destination.isSuccess||(!destination.data?.terminal&&!destination.data?.employee_account&&!destinationId)||!!pendingTransition.current} onClick={()=>current.actions.find(a=>a.trigger===handover)?.cancellation?setCancelTrigger(handover):action.mutate(handover)}>{action.isPending?'Processing…':'Continue'}</button>}
         </section>}
       {action.isError&&<div role="alert" className="text-red-700">{getApiErrorMessage(action.error)}{pendingTransition.current&&<><p>The handover has not been confirmed. Retry the same request to finish safely.</p><button type="button" className="hrms-outline-button mt-2" disabled={action.isPending} onClick={()=>action.mutate(pendingTransition.current!.trigger)}>Retry handover</button></>}</div>}
  </>}>
