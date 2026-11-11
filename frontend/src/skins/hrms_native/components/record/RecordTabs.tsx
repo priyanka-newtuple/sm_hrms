@@ -4,15 +4,17 @@ import RecordActivity from './RecordActivity';
 import RecordComments from './RecordComments';
 
 /** Keep Details mounted so tab changes never discard a partly completed form. */
-export function RecordTabs({ entityId, workflowId, scope, children, actions }: {
+export function RecordTabs({ entityId, workflowId, scope, children, actions, hideAssignee = false }: {
   entityId: string; workflowId?: string; scope: string; children: ReactNode; actions?: ReactNode;
+  /** True when `actions` shows its own (editable) assignee field, so only one is shown. */
+  hideAssignee?: boolean;
 }) {
   const id = useId();
   const [tab, setTab] = useState('Details');
   const [archived, setArchived] = useState(false);
   const [visited, setVisited] = useState<string[]>(['Details']);
   return <div className="hrms-record-tabs">
-    <RecordToolbar entityId={entityId} workflowId={workflowId} scope={scope} onArchived={()=>setArchived(true)}/>{!archived&&actions}
+    <RecordToolbar entityId={entityId} workflowId={workflowId} scope={scope} hideAssignee={hideAssignee} onArchived={()=>setArchived(true)}/>{!archived&&actions}
     <div role="tablist" aria-label="Record information" className="flex gap-2 border-b border-blue-100 mb-5">
       {['Details', 'Activity', 'Comments'].map(label => <button key={label} type="button"
         role="tab" id={`${id}-${label}`} aria-selected={tab === label} aria-controls={`${id}-${label}-panel`}

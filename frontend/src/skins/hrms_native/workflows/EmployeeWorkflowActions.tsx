@@ -67,16 +67,28 @@ export function EmployeeWorkflowActions({item,readOnly=false,open:controlledOpen
   const linkAccount=useMutation({mutationFn:()=>request(`/hrms/employee-work/${item.entity_id}/existing-account`,{
     method:'POST',body:JSON.stringify({workflow_id:item.workflow_id,user_id:form.data?.existing_account?.user_id})}),
     onSuccess:()=>{setValues(null);void client.invalidateQueries({queryKey:['hrms']});}});
+  // One assignee field: the current stage's owner until a "Move to" action is chosen, then whoever takes the next stage.
+  const nextStage=current?.actions.find(a=>a.trigger===handover)?.to_state??'the next stage';
+  const currentAssignee=()=>{
+    const data=assignees.data;
+    if(assignees.isError)return <p role="alert">Could not load eligible assignees. <button type="button" onClick={()=>void assignees.refetch()}>Retry</button></p>;
+    if(!data||data.unsupported||!data.can_assign)return <p className="text-sm">Assignee: <strong>{current?.assignee_name||'Unassigned'}</strong></p>;
+    const options=data.current&&!data.items.some(u=>u.id===data.current)?[...data.items,{id:data.current,name:current?.assignee_name||'Current assignee'}]:data.items;
+    return <div><label className="block">Assignee<select aria-label="Assignee" className="hrms-field-input" value={data.current??''} disabled={data.fixed||assignment.isPending} onChange={e=>assignment.mutate(e.target.value)}>
+      <option value="" disabled>Unassigned</option>{options.map(u=><option key={u.id} value={u.id}>{u.name}</option>)}</select></label>
+      {!data.fixed&&data.self_id&&data.items.some(u=>u.id===data.self_id)&&<button type="button" className="hrms-outline-button mt-2" disabled={assignment.isPending||data.current===data.self_id} onClick={()=>assignment.mutate(data.self_id!)}>Assign to me</button>}</div>;
+  };
   return <>{controlledOpen===undefined&&<button type="button" className="hrms-outline-button" onClick={()=>setOpen(true)}>{readOnly?'View details':'Open task'}</button>}
     <Sheet open={open} onOpenChange={setOpen}><SheetContent className="hrms-brand hrms-employee-form overflow-y-auto data-[side=right]:w-full data-[side=right]:sm:max-w-3xl">
       <SheetHeader><SheetTitle>{item.title}</SheetTitle><p>{form.data?.current_state??item.current_state}</p></SheetHeader>
-      <RecordTabs key={item.entity_id} entityId={item.entity_id} workflowId={item.workflow_id} scope="employee" actions={<>         {!readOnly&&current&&<section className="rounded-xl border p-4 space-y-3" aria-label="Workflow handover">
+      <RecordTabs key={item.entity_id} entityId={item.entity_id} workflowId={item.workflow_id} scope="employee" hideAssignee={!readOnly&&!!current} actions={<>         {!readOnly&&current&&<section className="rounded-xl border p-4 space-y-3" aria-label="Workflow handover">
           <label className="block">Move to<select aria-label="Move to" className="hrms-field-input" value={handover??''} disabled={action.isPending||!!pendingTransition.current} onChange={e=>{setHandover(e.target.value||null);setNextAssignee('');}}>
             <option value="">Choose an action</option>{current.actions.map(step=><option key={step.trigger} value={step.trigger}>{step.label||step.to_state}</option>)}
           </select></label>
           {destination.isLoading&&<p role="status">Loading eligible assignees…</p>}
           {destination.isError&&<p role="alert">{getApiErrorMessage(destination.error)} <button type="button" onClick={()=>void destination.refetch()}>Retry</button></p>}
-          {handover&&destination.data&&!destination.data.terminal&&<label className="block">Next assignee *<select aria-label="Next assignee" className="hrms-field-input" value={destinationId} disabled={destination.data.fixed||action.isPending||!!pendingTransition.current} onChange={e=>setNextAssignee(e.target.value)}>
+          {!handover&&currentAssignee()}
+          {handover&&destination.data&&!destination.data.terminal&&<label className="block">Assignee for {nextStage} *<select aria-label="Assignee" className="hrms-field-input" value={destinationId} disabled={destination.data.fixed||action.isPending||!!pendingTransition.current} onChange={e=>setNextAssignee(e.target.value)}>
             <option value="">Select an eligible assignee</option>{destination.data.items.map(u=><option key={u.id} value={u.id}>{u.name}</option>)}
           </select>{!destination.data.items.length&&<p>No eligible assignee is configured for this stage. Ask an administrator to review native role permissions.</p>}</label>}
           {handover&&<button type="button" className="hrms-primary-button" disabled={action.isPending||!destination.isSuccess||(!destination.data?.terminal&&!destinationId)||!!pendingTransition.current} onClick={()=>current.actions.find(a=>a.trigger===handover)?.cancellation?setCancelTrigger(handover):action.mutate(handover)}>{action.isPending?'Processing…':'Continue'}</button>}
@@ -88,8 +100,6 @@ export function EmployeeWorkflowActions({item,readOnly=false,open:controlledOpen
       {stale&&<p role="status">This task has moved forward or is no longer assigned to you. Close this panel to see the current tasks.</p>}
       {work.isError&&<p role="alert">Unable to refresh task access. <button onClick={()=>void work.refetch()}>Retry</button></p>}
       {form.data&&!stale&&<form onSubmit={e=>{e.preventDefault();if(e.target===e.currentTarget&&!pendingTransition.current&&!action.isPending)action.mutate(null);}} className="space-y-5 mt-5">
-        {!readOnly&&assignees.data?.can_assign&&assignees.data&&!assignees.data.unsupported&&<div><label htmlFor="onboarding-assignee">Assigned to</label><select id="onboarding-assignee" className="hrms-field-input" value={assignees.data.current??''} disabled={assignees.data.fixed||assignment.isPending} onChange={e=>assignment.mutate(e.target.value)}><option value="" disabled>Select an eligible assignee</option>{assignees.data.items.map(u=><option key={u.id} value={u.id}>{u.name}</option>)}</select>{!assignees.data.fixed&&assignees.data.self_id&&assignees.data.items.some(u=>u.id===assignees.data?.self_id)&&<button type="button" className="hrms-outline-button mt-2" disabled={assignment.isPending||assignees.data.current===assignees.data.self_id} onClick={()=>assignment.mutate(assignees.data!.self_id!)}>Assign to me</button>}</div>}
-        {assignees.isError&&<p role="alert">Could not load eligible assignees. <button type="button" onClick={()=>void assignees.refetch()}>Retry</button></p>}
         {form.data.payroll_mode&&<p role="status">{form.data.payroll_mode==='mock'?'UAT mode: approval creates a simulated Payroll record only.':form.data.payroll_mode==='live'?'Live mode: approval creates an employee in Razorpay Payroll.':'Payroll registration is disabled.'}</p>}
         {form.data.payroll_number_suggested&&<p className="text-sm">The employee number shown is the next suggested number. Approve to use it, or change and save it first.</p>}
         {assignment.isError&&<p role="alert">{getApiErrorMessage(assignment.error)}</p>}
