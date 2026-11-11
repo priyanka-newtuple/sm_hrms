@@ -267,13 +267,18 @@ def employee_form(platform, actor, entity_id, workflow_id):
             and not grants.get(key, {}).get("mask_value")
         )
 
-    from .onboarding_payroll import FIELDS as payroll_result_fields
+    from .onboarding_payroll import NUMBER as payroll_number
+    from .onboarding_payroll import RESULTS as payroll_results
+    from .onboarding_payroll import registered
+    from .onboarding_routing import payroll_step
+    payroll_open = payroll_step(workflow, enrollment["current_state"]) and not registered(record["data"])
     form["fields"] = [
         {
             **f,
             "read_only": f.get("read_only")
             or f["field"] == "account_approved"  # Verified by the native account bridge, never a human assertion.
-            or f["field"] in payroll_result_fields  # Written only by the approved integration action.
+            or f["field"] in payroll_results  # Written only by the approved integration action.
+            or (f["field"] == payroll_number and not payroll_open)  # HR confirms it only before registration.
             or terminal
             or other_employee_profile
             or (is_owner_signoff_step(workflow, enrollment["current_state"])
@@ -328,10 +333,14 @@ def employee_form(platform, actor, entity_id, workflow_id):
     from .onboarding_account_link import approval_step, candidate
     if approval_step(workflow, enrollment['current_state']):
         form['existing_account'] = candidate(platform, actor, record)
-    from .onboarding_routing import payroll_step
     if payroll_step(workflow, enrollment['current_state']):
-        from .onboarding_payroll import mode
+        from .onboarding_payroll import EMPLOYEE_FIELDS, mode, suggest
         form['payroll_mode'] = mode()
+        if payroll_open and form['values'].get(payroll_number) in (None, '') and payroll_number in form['values']:
+            # Suggested next number; HR accepts it by approving or changes it first.
+            employees = platform.records('HRMS.Employee', EMPLOYEE_FIELDS)
+            form['values'][payroll_number] = str(suggest(record['data'], employees, entity_id))
+            form['payroll_number_suggested'] = True
     return form
 
 
@@ -359,6 +368,14 @@ def save_employee_form(platform, actor, entity_id, workflow_id, values):
             if value is None
             else _typed(field.get("description") or key, field, value)
         )
+    from .onboarding_payroll import EMPLOYEE_FIELDS
+    from .onboarding_payroll import NUMBER as payroll_number
+    from .onboarding_payroll import number as payroll_employee_number
+    if checked.get(payroll_number) not in (None, ''):
+        # Reject a malformed or duplicate employee number before HR approves registration.
+        employees = platform.records('HRMS.Employee', EMPLOYEE_FIELDS)
+        checked[payroll_number] = str(payroll_employee_number(
+            {**employee['data'], payroll_number: checked[payroll_number]}, employees, entity_id))
     # Native update enforces the human's field and entity permissions; omitted fields are retained.
     return platform.request(
         "PUT", f"/entity-records/{entity_id}", token=actor.token, json={"data": checked}

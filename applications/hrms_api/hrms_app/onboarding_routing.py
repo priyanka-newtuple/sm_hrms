@@ -19,6 +19,17 @@ def cancellation(workflow, transition):
 
 
 def payroll_step(workflow, state):
+    """The stage whose native form holds the Razorpay employee number.
+
+    Read from the published definition, so renaming the form in Settings or a
+    restart cannot make HRMS skip registration. Definitions without assembled
+    form schemas fall back to the startup form binding.
+    """
+    from .onboarding_payroll import NUMBER
+    schemas = workflow['definition'].get('method_schemas')
+    if schemas:
+        return any(s.get('state_name') == state and any(f['field'] == NUMBER for f in s.get('fields', []))
+                   for s in schemas)
     return bound_state(workflow, state, 'HRMS_EMPLOYEE_PAYROLL_FORM_ID')
 
 

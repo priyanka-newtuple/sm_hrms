@@ -9,7 +9,7 @@ import { ConfiguredInputs, NativeFormFields, type Field } from '../forms/Configu
 import { createRequestId } from '../requestId';
 import type { EmployeeWork } from '../workspace/useWaitingActions';
 
-type Form = {payroll_mode?:string;existing_account?:{user_id:string;email:string;active:boolean}|null;feedback_status?:'requested'|'submitted'|'resolved'|null;previous_feedback?:string|null;asset_section?:boolean;name:string; fields:Field[]; previous_fields:Field[]; values:Record<string,unknown>; current_state:string; verifier_feedback?:string|null};
+type Form = {payroll_mode?:string;payroll_number_suggested?:boolean;existing_account?:{user_id:string;email:string;active:boolean}|null;feedback_status?:'requested'|'submitted'|'resolved'|null;previous_feedback?:string|null;asset_section?:boolean;name:string; fields:Field[]; previous_fields:Field[]; values:Record<string,unknown>; current_state:string; verifier_feedback?:string|null};
 export function EmployeeWorkflowActions({item,readOnly=false,open:controlledOpen,onOpenChange}:{
   item:EmployeeWork;readOnly?:boolean;open?:boolean;onOpenChange?:(open:boolean)=>void;
 }) {
@@ -91,6 +91,7 @@ export function EmployeeWorkflowActions({item,readOnly=false,open:controlledOpen
         {!readOnly&&assignees.data?.can_assign&&assignees.data&&!assignees.data.unsupported&&<div><label htmlFor="onboarding-assignee">Assigned to</label><select id="onboarding-assignee" className="hrms-field-input" value={assignees.data.current??''} disabled={assignees.data.fixed||assignment.isPending} onChange={e=>assignment.mutate(e.target.value)}><option value="" disabled>Select an eligible assignee</option>{assignees.data.items.map(u=><option key={u.id} value={u.id}>{u.name}</option>)}</select>{!assignees.data.fixed&&assignees.data.self_id&&assignees.data.items.some(u=>u.id===assignees.data?.self_id)&&<button type="button" className="hrms-outline-button mt-2" disabled={assignment.isPending||assignees.data.current===assignees.data.self_id} onClick={()=>assignment.mutate(assignees.data!.self_id!)}>Assign to me</button>}</div>}
         {assignees.isError&&<p role="alert">Could not load eligible assignees. <button type="button" onClick={()=>void assignees.refetch()}>Retry</button></p>}
         {form.data.payroll_mode&&<p role="status">{form.data.payroll_mode==='mock'?'UAT mode: approval creates a simulated Payroll record only.':form.data.payroll_mode==='live'?'Live mode: approval creates an employee in Razorpay Payroll.':'Payroll registration is disabled.'}</p>}
+        {form.data.payroll_number_suggested&&<p className="text-sm">The employee number shown is the next suggested number. Approve to use it, or change and save it first.</p>}
         {assignment.isError&&<p role="alert">{getApiErrorMessage(assignment.error)}</p>}
         {form.data.verifier_feedback && <section aria-label="Verifier feedback" className="rounded-xl border border-blue-200 bg-blue-50 p-4"><h3 className="font-semibold">Changes requested</h3><p className="whitespace-pre-wrap break-words mt-2">{form.data.verifier_feedback}</p></section>}
         {form.data.feedback_status==='submitted'&&<p role="status">Corrections submitted — awaiting HR review</p>}
