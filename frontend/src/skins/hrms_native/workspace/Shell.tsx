@@ -13,7 +13,7 @@ import {
 import { useWorkflowCatalog } from '../workflows/useWorkflowCatalog';
 import { useWaitingActions } from './useWaitingActions';
 
-import { buildNavigation, isNavigationActive, type NavItem, type NavGroup } from './navigation';
+import { buildNavigation, canLandOn, isNavigationActive, type NavItem, type NavGroup } from './navigation';
 import { useInboxStatus } from '../pages/UatInbox';
 
 const COLLAPSE_KEY = 'hrms.sidebar.collapsed';
@@ -207,6 +207,14 @@ export function WorkspaceShell() {
   const extraWorkflows: NavItem[] = onboardingOnly || !permissions?.permissions.includes('workflow:read') ? [] : (catalog.data ?? []).map(workflow => ({path: `/hrms/workflows?workflow=${encodeURIComponent(workflow.machine_name)}`, label: workflow.name, icon: WorkflowIcon})).filter(item => !groups.some(group => group.items.some(link => link.path === item.path)));
   const paletteItems = [...extraWorkflows, ...groups.flatMap(group => group.items), ...(onboardingOnly ? [] : [{ path: '/hrms/content', label: 'Company resources', icon: BookTextIcon, keywords: 'policies learning holidays careers published' }]), ...(settings ? [settings] : [])];
 
+  // A page remembered from before sign-in (possibly another user's) opens only if this
+  // user's own menu offers it; wait until that menu is known.
+  const afterSignIn = (location.state as { afterSignIn?: boolean } | null)?.afterSignIn === true;
+  const menuPending = caps.isLoading || catalog.isLoading;
+  const landing = afterSignIn && !onboardingOnly
+    ? (menuPending ? 'pending' : canLandOn(location.pathname, paletteItems) ? 'allowed' : 'elsewhere')
+    : 'allowed';
+
   const current = groups.flatMap(group => group.items.map(item => ({ ...item, group: group.standalone ? item.label : group.label }))).find(item => isNavigationActive(item.path, location.pathname, location.search))
     ?? (location.pathname.startsWith('/settings') && settings ? { ...settings, group: 'Configuration' } : location.pathname.startsWith('/hrms/content') ? { ...paletteItems.find(i => i.path === '/hrms/content')!, group: 'Resources' } : null);
   const roles = caps.data?.roles.map(roleName) ?? [];
@@ -248,7 +256,9 @@ export function WorkspaceShell() {
           <UserMenu name={user?.fullName ?? 'Signed in'} email={user?.email ?? ''} roles={roles} initials={initials} canConfigure={Boolean(settings)} onSignOut={() => void logout()} />
         </div>
       </header>
-      <div className="hrms-ws-content">{onboardingOnly && location.pathname !== '/hrms/my-work' ? <Navigate to="/hrms/my-work" replace /> : <Outlet />}</div>
+      <div className="hrms-ws-content">{(onboardingOnly && location.pathname !== '/hrms/my-work') || landing === 'elsewhere'
+        ? <Navigate to="/hrms/my-work" replace />
+        : landing === 'pending' ? <p role="status">Opening your workspace…</p> : <Outlet />}</div>
     </div>
 
     <CommandPalette items={paletteItems} open={paletteOpen} onClose={() => setPaletteOpen(false)} />
