@@ -1,6 +1,6 @@
 import { FieldLabel } from '../forms/FieldLabel';
 import { useId, useState, type FormEvent, type ReactNode } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { AnimIcon, ArrowRightIcon, EyeIcon, EyeOffIcon, LoaderCircleIcon } from '../animated-icons';
 import { useAuth } from '../../../core/auth';
 import { PendingApprovalError, RegistrationPendingError } from '../../../core/auth/api';
@@ -19,7 +19,6 @@ const GoogleIcon = () => <svg viewBox="0 0 24 24" aria-hidden="true"><path fill=
 
 export function HrmsSignInForm({ magnetic }: { magnetic: boolean }) {
   const navigate = useNavigate();
-  const location = useLocation();
   const { login, loginWithGoogle, isLoading: authLoading } = useAuth();
   const uid = useId();
   const [email, setEmail] = useState('');
@@ -28,7 +27,6 @@ export function HrmsSignInForm({ magnetic }: { magnetic: boolean }) {
   const [submitting, setSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  const from = (location.state as { from?: { pathname: string } } | null)?.from?.pathname || '/';
   const ids = { email: `${uid}-email`, password: `${uid}-password` };
 
 
@@ -50,8 +48,8 @@ export function HrmsSignInForm({ magnetic }: { magnetic: boolean }) {
     setSubmitting(true);
     try {
       await login(email, password);
-      // The workspace checks this page against the signed-in user's own menu.
-      navigate(from, { replace: true, state: { afterSignIn: true } });
+      // Everyone starts on My Tasks, never on the page a previous session was on.
+      navigate('/hrms/my-work', { replace: true });
     } catch (err) {
       if (!routePending(err)) setError(err instanceof Error ? err.message : 'Authentication failed');
     } finally {
