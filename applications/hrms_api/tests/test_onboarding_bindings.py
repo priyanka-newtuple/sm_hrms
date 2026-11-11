@@ -126,3 +126,18 @@ def test_profile_upgrade_inherits_existing_field_permissions_once():
     grants = {f['field_name']: f for f in role['field_permissions']}
     assert grants['emergency_contact_relationship']['can_edit'] is True
     assert grants['emergency_contact_phone']['can_view'] is False
+
+
+def test_install_accepts_a_workflow_without_account_approval(monkeypatch):
+    platform = Platform()
+    original = platform.call
+    def call(method, path, **kwargs):
+        value = original(method, path, **kwargs)
+        if path == '/workflow-state-machines':
+            for w in value['published_items']:
+                w['definition']['states'] = [s for s in w['definition']['states']
+                                             if s['name'] != 'HRMS_EMPLOYEE_APPROVAL_FORM_ID']
+        return value
+    platform.call = call
+    install(platform)
+    assert platform.roles[0]['name'] == 'hrms_onboarding_employee'

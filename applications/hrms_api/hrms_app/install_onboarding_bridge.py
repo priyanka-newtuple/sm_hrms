@@ -16,7 +16,9 @@ def install(api):
         raise AppError(409, 'Configure one active employee onboarding workflow')
     workflow = candidates[0]
     refs = {r['method_id'] for s in workflow['definition']['states'] for r in s.get('method_refs', [])}
-    if not set(bindings.values()) <= refs:
+    # Account Approval is optional: current workflows create the login on the hand-over to the employee.
+    required = {v for k, v in bindings.items() if k != 'HRMS_EMPLOYEE_APPROVAL_FORM_ID'}
+    if not required <= refs:
         raise AppError(409, 'Published onboarding workflow is missing lifecycle forms')
     roles = api.call('GET', '/roles')
     existing = next((r for r in roles if r['name'] == 'hrms_onboarding_employee'), None)
