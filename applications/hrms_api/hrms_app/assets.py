@@ -57,14 +57,15 @@ class AssetService:
         if 'asset:view' not in capabilities(actor):
             raise AppError(403, 'Asset access is required')
         manager = 'asset:manage' in capabilities(actor) and entity_allowed(actor, ASSET, 'edit')
+        employee_access = entity_allowed(actor, 'HRMS.Employee')
         employees = self.platform.records('HRMS.Employee', [
             'first_name', 'last_name', 'employee_code', 'department', 'designation',
-            'work_email', 'employment_status', 'platform_user_id'], token=actor.token) if entity_allowed(actor, 'HRMS.Employee') else []
+            'work_email', 'employment_status', 'platform_user_id'], token=actor.token) if employee_access else []
         # The account's own linked profile, as for leave: reading the directory is not required.
         own = {r['entity_id'] for r in self.service.employees() if r['data'].get('platform_user_id') == actor.user_id}
         states = self.platform.states('hrms_asset')
         names = {r['entity_id']: ' '.join(str(r['data'].get(k, '')) for k in ('first_name', 'last_name')).strip() for r in employees}
-        items = []
+        items, unassigned, issuable = [], 0, 0
         for row in self.rows(actor):
             data = row['data']
             if not manager and (data.get('issued_employee_id') not in own or states.get(row['entity_id']) != 'issued'):
@@ -74,6 +75,7 @@ class AssetService:
             if manager:
                 actions.append('edit')
                 if state == 'available' and not data.get('issued_employee_id'):
+                    unassigned += 1
                     try:
                         available = self.platform.request('GET', f"/entities/{row['entity_id']}/transitions/available", token=actor.token)
                     except AppError as exc:
@@ -83,12 +85,17 @@ class AssetService:
                         available = {'available_transitions': []}
                     if any(t['trigger'] == 'issue' or t.get('to_state') == 'issued' for t in available.get('available_transitions', [])):
                         actions.append('issue')
+                        issuable += 1
             # Native row filters and field visibility already shaped this response.
             visible = {k: v for k, v in data.items() if k not in INTERNAL - {'identifier'}} if manager else {
                 k: data[k] for k in ('identifier', 'asset_tag', 'asset_name', 'asset_category', 'serial_number', 'manufacturer', 'model', 'issued_date', 'issue_note') if k in data}
             items.append({'id': row['entity_id'], 'data': visible, 'state': state or 'not_started',
                 'employee_name': names.get(data.get('issued_employee_id'), ''), 'actions': actions})
-        return {'items': items, 'can_manage': manager, 'employees': [
+        # Why nothing may be offered, so the assignment panel can say so: native grants
+        # for reading employees and for the Asset issue transition. None = nothing to check.
+        access = {'employee_access': bool(manager and employee_access),
+                  'issue_access': (issuable > 0) if manager and unassigned else None}
+        return {'items': items, 'can_manage': manager, **access, 'employees': [
             {'id': r['entity_id'], 'label': ' · '.join(str(v) for v in (names[r['entity_id']], r['data'].get('employee_code'), r['data'].get('department'), r['data'].get('designation'), r['data'].get('work_email')) if v)} for r in employees
             if manager and r['data'].get('employment_status') == 'active']}
 
