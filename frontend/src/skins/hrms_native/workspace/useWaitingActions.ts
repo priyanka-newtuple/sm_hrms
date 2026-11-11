@@ -70,4 +70,4 @@ export function useWaitingActions() {
   };
 }
 
-export type EmployeeWork = {feedback_status?:'requested'|'submitted'|'resolved'|null;is_own_onboarding?:boolean;verifier_feedback?:string|null;entity_id:string;workflow_id:string;title:string;workflow_label:string;current_state:string;due_date:string|null;actions:{cancellation?:boolean;trigger:string;label?:string;to_state:string;required_fields?:{field:string;required:boolean}[]}[]};
+export type EmployeeWork = {feedback_status?:'requested'|'submitted'|'resolved'|null;is_own_onboarding?:boolean;verifier_feedback?:string|null;entity_id:string;workflow_id:string;title:string;workflow_label:string;current_state:string;due_date:string|null;assignee_name?:string|null;actions:{cancellation?:boolean;trigger:string;label?:string;to_state:string;required_fields?:{field:string;required:boolean}[]}[]};

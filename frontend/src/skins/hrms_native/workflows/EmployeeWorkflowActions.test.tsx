@@ -32,10 +32,17 @@ function show() {
   const client=new QueryClient({defaultOptions:{queries:{retry:false},mutations:{retry:false}}});
   render(<QueryClientProvider client={client}><EmployeeWorkflowActions item={item} open/></QueryClientProvider>);
 }
+it('shows one assignee field: the current owner, then the next stage assignee',async()=>{
+  show();
+  expect(await screen.findAllByLabelText('Assignee')).toHaveLength(1);
+  fireEvent.change(await screen.findByLabelText('Move to'),{target:{value:'approve'}});
+  expect(await screen.findByText(/Assignee for IT/)).toBeTruthy();
+  expect(screen.getAllByLabelText('Assignee')).toHaveLength(1);
+});
 it('requires an eligible next assignee before handing verification to IT',async()=>{
   show();
   fireEvent.change(await screen.findByLabelText('Move to'),{target:{value:'approve'}});
-  const next=await screen.findByLabelText('Next assignee');
+  const next=await screen.findByLabelText('Assignee');
   expect((screen.getByRole('button',{name:'Continue'}) as HTMLButtonElement).disabled).toBe(true);
   fireEvent.change(next,{target:{value:'office'}});
   fireEvent.click(screen.getByRole('button',{name:'Continue'}));
@@ -45,7 +52,7 @@ it('requires an eligible next assignee before handing verification to IT',async(
 it('retries an uncertain handover with the same assignment and idempotency key',async()=>{
   state.fail=true;show();
   fireEvent.change(await screen.findByLabelText('Move to'),{target:{value:'approve'}});
-  fireEvent.change(await screen.findByLabelText('Next assignee'),{target:{value:'office'}});
+  fireEvent.change(await screen.findByLabelText('Assignee'),{target:{value:'office'}});
   fireEvent.click(screen.getByRole('button',{name:'Continue'}));
   const retry=await screen.findByRole('button',{name:'Retry handover'});
   expect(retry.closest('[aria-label="Record actions"]')).not.toBeNull();
@@ -60,7 +67,7 @@ it('hands the next step to the employee without choosing an assignee',async()=>{
   state.employee=true;show();
   fireEvent.change(await screen.findByLabelText('Move to'),{target:{value:'approve'}});
   expect(await screen.findByText(/creates their HRMS login/)).toBeTruthy();
-  expect(screen.queryByLabelText('Next assignee')).toBeNull();
+  expect(screen.queryByText(/Assignee for/)).toBeNull();
   fireEvent.click(screen.getByRole('button',{name:'Continue'}));
   await waitFor(()=>expect(state.writes).toHaveLength(1));
   expect(state.writes[0]).toMatchObject({trigger:'approve',next_assignee_id:null});

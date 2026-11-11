@@ -5,7 +5,7 @@ import { request, getApiErrorMessage } from '@/core/services/api/client';
 
 type Metadata = {current_state?:string;state_entered_at?:string;due_date?:string;created_at?:string;updated_at?:string;assignee_name?:string;can_edit_due_date:boolean;can_archive:boolean};
 const dateLabel=(value?:string)=>value?new Date(/^\d{4}-\d{2}-\d{2}$/.test(value)?`${value}T00:00:00`:value).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}): '—';
-export function RecordToolbar({entityId,scope,workflowId,onArchived}:{entityId:string;scope:string;workflowId?:string;onArchived?:()=>void}) {
+export function RecordToolbar({entityId,scope,workflowId,onArchived,hideAssignee=false}:{entityId:string;scope:string;workflowId?:string;onArchived?:()=>void;hideAssignee?:boolean}) {
   const client=useQueryClient();
   const [confirmArchive,setConfirmArchive]=useState(false);
   const root=`/hrms/records/${entityId}/${scope}`;
@@ -22,7 +22,7 @@ export function RecordToolbar({entityId,scope,workflowId,onArchived}:{entityId:s
       <label className="hrms-record-due"><span><Calendar size={16}/>Due date</span><input aria-label="Due date" type="date" value={data.due_date?.slice(0,10)??''} disabled={!data.can_edit_due_date||change.isPending||archive.isSuccess} onChange={e=>change.mutate(e.target.value)} className="hrms-field-input"/></label>
       {data.can_archive&&!archive.isSuccess&&<button type="button" className="ml-auto rounded-lg p-2 text-slate-500" aria-label="Archive record" title="Archive record" onClick={()=>setConfirmArchive(true)}><Trash2 size={18}/></button>}
     </div>
-    {data.assignee_name&&<p className="text-sm">Assignee: <strong>{data.assignee_name}</strong></p>}
+    {!hideAssignee&&(data.assignee_name||data.current_state)&&<p className="text-sm">Assignee: <strong>{data.assignee_name||'Unassigned'}</strong></p>}
     <dl className="grid grid-cols-3 rounded-xl border text-sm divide-x">
       <div className="p-3"><dt className="hrms-muted">In this stage since</dt><dd>{dateLabel(data.state_entered_at)}</dd></div>
       <div className="p-3"><dt className="hrms-muted">Created</dt><dd>{dateLabel(data.created_at)}</dd></div>
