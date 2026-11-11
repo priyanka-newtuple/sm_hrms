@@ -246,24 +246,26 @@ class PlatformClient:
             if not page['items']:
                 raise AppError(502, 'Platform returned an incomplete workflow page')
 
-    def create_record(self, entity_type, data, owner_id, *, token=None):
+    def create_record(self, entity_type, data, owner_id, *, token=None, system=()):
         """Create as the human (native create/field grants apply) when a token is given.
 
-        `hrms_operation_key` is HRMS's internal idempotency marker, not business
-        data: the service identity writes it, so human roles never need a field
-        grant for it. A lost marker write leaves the caller's operation marked
-        as requested, which stops replay for reconciliation instead of duplicating.
+        `hrms_operation_key` (HRMS's idempotency marker) and the `system` fields are
+        values HRMS sets itself, not the person's input: the service identity writes
+        them, so human roles need no edit grant on them (e.g. an HR role that may
+        only view employment status). A lost write leaves the caller's operation
+        marked as requested, which stops replay for reconciliation instead of duplicating.
         """
         type_row = self.call('GET', f'/entity-types/{entity_type}')
         body = {'organization_id': self.org, 'entity_type_id': type_row['entity_type_id'], 'owner_id': owner_id}
         if token is None:
             return self.call('POST', '/entity-records', json={**body, 'data': data})
-        marker = data.get('hrms_operation_key')
+        hrms_set = {'hrms_operation_key', *system}
+        internal = {k: data[k] for k in hrms_set if data.get(k) is not None}
         created = self.request('POST', '/entity-records', token=token, json={
-            **body, 'data': {k: v for k, v in data.items() if k != 'hrms_operation_key'}})
-        if marker:
-            self.call('PUT', f"/entity-records/{created['entity_id']}", json={'data': {'hrms_operation_key': marker}})
-            created = {**created, 'data': {**created.get('data', {}), 'hrms_operation_key': marker}}
+            **body, 'data': {k: v for k, v in data.items() if k not in hrms_set}})
+        if internal:
+            self.call('PUT', f"/entity-records/{created['entity_id']}", json={'data': internal})
+            created = {**created, 'data': {**created.get('data', {}), **internal}}
         return created
 
     def enroll(self, entity_id, machine, *, token=None):

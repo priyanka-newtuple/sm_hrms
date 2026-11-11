@@ -147,7 +147,9 @@ class ProvisioningPlatform(Platform):
     def records(self, kind, fields, *, token=None):
         return deepcopy([r for r in self.rows.values() if r['kind'] == kind])
 
-    def create_record(self, kind, data, owner, *, token=None):
+    def create_record(self, kind, data, owner, *, token=None, system=()):
+        # Mirrors PlatformClient: the human create carries only their own input.
+        self.human_created = {k: v for k, v in data.items() if k not in {'hrms_operation_key', *system}}
         key = f'row-{len(self.rows)}'
         row = dict(entity_id=key, kind=kind, data={**data, 'identifier': key})
         self.rows[key] = row
@@ -246,6 +248,15 @@ def test_creation_links_or_provisions_once_without_custom_onboarding(existing):
     assert p.registered == (0 if existing else 1)
     if existing:
         assert '/roles/users/user/role' not in p.writes
+
+
+def test_hr_creates_employee_without_edit_grants_on_hrms_set_fields():
+    p = ProvisioningPlatform()
+    HrmsService(p, Journal(), 'newtuple.com').create_employee(actor('hr', 'hrms_hr_full'), employee_request())
+    # Status, role, work email and manager code are HRMS's values, written by the service identity.
+    assert not {'employment_status', 'hrms_role', 'work_email', 'reports_to_employee_code', 'hrms_operation_key'} & set(p.human_created)
+    employee = next(r for r in p.rows.values() if r['kind'] == 'HRMS.Employee')
+    assert employee['data']['employment_status'] == 'active' and employee['data']['work_email']
 
 
 def test_creation_preserves_active_account_and_rejects_privileged_link_before_employee_write():

@@ -109,3 +109,16 @@ def test_request_reads_share_identical_gets_only_within_the_block():
         c.request('POST', '/config/picklists', token='human', json={})
     c.request('GET', '/config/picklists', token='human')  # fresh again after the request
     assert len(sent) == 6
+
+
+def test_human_create_leaves_hrms_set_fields_to_the_service_identity():
+    c = PlatformClient('http://platform.test', 'org', 'svc@example.com', 'secret',
+                       transport=httpx.MockTransport(lambda request: httpx.Response(500)))
+    human, service = [], []
+    c.request = lambda method, path, token='', **kw: human.append(kw['json']['data']) or {'entity_id': 'new', 'data': kw['json']['data']}
+    c.call = lambda method, path, **kw: service.append(kw.get('json')) or ({'entity_type_id': 't'} if method == 'GET' else {})
+    created = c.create_record('HRMS.Employee', {'first_name': 'Rahul', 'employment_status': 'active', 'hrms_role': None,
+                                                'hrms_operation_key': 'k'}, 'owner', token='human', system=('employment_status', 'hrms_role'))
+    assert human == [{'first_name': 'Rahul'}]  # HRMS-set fields never travel with the person's create
+    assert service[-1] == {'data': {'hrms_operation_key': 'k', 'employment_status': 'active'}}
+    assert created['data']['employment_status'] == 'active'

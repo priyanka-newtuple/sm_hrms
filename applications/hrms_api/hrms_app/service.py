@@ -22,6 +22,8 @@ EMPLOYEE_FIELDS = ['identifier', 'employee_code', 'first_name', 'last_name', 'wo
                    'notice_period_days', 'phone', 'last_working_day', 'exit_reason', 'exit_note',
                    'hrms_operation_key']
 OFFBOARDED = 'offboarded'
+# Employee values HRMS decides at creation, written by the service identity.
+SYSTEM_EMPLOYEE_FIELDS = ('work_email', 'employment_status', 'hrms_role', 'reports_to_employee_code')
 LEAVE_FIELDS = ['identifier', 'employee_id', 'manager_id', 'start_date', 'end_date',
                 'leave_type', 'reason', 'hrms_operation_key']
 SICK_LEAVE_BACKDATE_DAYS = 7
@@ -342,7 +344,10 @@ class HrmsService:
                         reports_to_employee_code=manager['data'].get('employee_code') if manager else None,
                         hrms_operation_key=marker)
             if not existing:
-                existing = self._create_once(op, 'employee', EMPLOYEE, data, actor.user_id, rows, marker, token=actor.token)
+                # HR creates the person with what they entered; HRMS-set values (status, the
+                # validated role, work email, manager code) need no HR edit grant.
+                existing = self._create_once(op, 'employee', EMPLOYEE, data, actor.user_id, rows, marker, token=actor.token,
+                                             system=SYSTEM_EMPLOYEE_FIELDS)
             employee_id = existing['entity_id']
             op.checkpoint(employee_id=employee_id)
             # The public registration API creates a pending account without activating login.
@@ -447,7 +452,7 @@ class HrmsService:
             op.finish(result)
             return result
 
-    def _create_once(self, op, key, entity_type, data, owner, rows, marker, *, token=None):
+    def _create_once(self, op, key, entity_type, data, owner, rows, marker, *, token=None, system=()):
         existing = next((r for r in rows if r['data'].get('hrms_operation_key') == marker), None)
         if existing:
             return existing
@@ -456,7 +461,8 @@ class HrmsService:
             raise AppError(409, 'Creation outcome is uncertain; reconciliation is required')
         op.checkpoint(**{f'{key}_requested': True})
         try:
-            return self.platform.create_record(entity_type, data, owner, **({"token": token} if token is not None else {}))
+            return self.platform.create_record(entity_type, data, owner, **({"token": token} if token is not None else {}),
+                                               **({"system": system} if system else {}))
         except AppError as exc:
             if exc.status < 500:
                 op.checkpoint(**{f'{key}_requested': False})
