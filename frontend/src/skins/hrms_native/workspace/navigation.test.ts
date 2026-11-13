@@ -55,3 +55,10 @@ describe('workspace navigation', () => {
    expect(groups.find(g => g.label === 'Manager Cockpit')?.items.map(i => i.label)).toEqual(['Customers','Projects','Allocations']);
    expect(buildNavigation({roles:['hrms_delivery_manager'],capabilities:[]}, [], 0, false, []).some(g => g.label === 'Manager Cockpit')).toBe(false);
  });
+describe('HR Cockpit access', () => {
+  it('is hidden from a new hire who can only act on their own onboarding', () => {
+    const groups = buildNavigation({roles:['hrms_onboarding_employee'],capabilities:[]}, workflows, 1, false, ['workflow:read']);
+    expect(groups.some(g => g.label === 'HR Cockpit')).toBe(false);
+    expect(groups.flatMap(g => g.items).map(i => i.label)).toEqual(['My Tasks']);
+  });
+});

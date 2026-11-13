@@ -15,7 +15,6 @@ export function isNavigationActive(target: string, pathname: string, search: str
 export function buildNavigation(caps: Capabilities | undefined, workflows: Workflow[], waiting: number, inboxEnabled: boolean, permissions: string[]): NavGroup[] {
   const allowed = (key: string) => caps?.capabilities.includes(key) ?? false;
   const published = permissions.includes('workflow:read') ? workflows : [];
-  const hasWorkflow = (entity: string) => published.some(item => item.entity_type === entity);
   const workflowLink = (entity: string, fallback: string) => {
     const workflow = published.find(item => item.entity_type === entity);
     return workflow ? `/hrms/workflows?workflow=${encodeURIComponent(workflow.machine_name)}` : fallback;
@@ -23,8 +22,10 @@ export function buildNavigation(caps: Capabilities | undefined, workflows: Workf
   const groups: NavGroup[] = [
     { label: 'Tasks', standalone: true, items: [{ path: '/hrms/my-work', label: 'My Tasks', icon: TaskMenuIcon, badge: waiting, keywords: 'home tasks approvals' }] },
     { label: 'HR Cockpit', icon: HrMenuIcon, items: [
-      ...(allowed('onboarding:view') || hasWorkflow('HRMS.Employee') ? [{ path: workflowLink('HRMS.Employee', '/hrms/cockpit?area=onboarding'), label: 'Onboarding', icon: UserRoundPlusIcon }] : []),
-      ...(allowed('employee:exit') || hasWorkflow('HRMS.Offboarding') ? [{ path: workflowLink('HRMS.Offboarding', '/hrms/cockpit?area=offboarding'), label: 'Offboarding', icon: OffboardingMenuIcon }] : []),
+      // HR capabilities, not workflow access: a new hire or a stage assignee can act on
+      // their own onboarding step from My Tasks without seeing the HR Cockpit.
+      ...(allowed('onboarding:view') ? [{ path: workflowLink('HRMS.Employee', '/hrms/cockpit?area=onboarding'), label: 'Onboarding', icon: UserRoundPlusIcon }] : []),
+      ...(allowed('employee:exit') ? [{ path: workflowLink('HRMS.Offboarding', '/hrms/cockpit?area=offboarding'), label: 'Offboarding', icon: OffboardingMenuIcon }] : []),
       ...(canViewOffers(caps) ? [{ path: '/hrms/cockpit?area=offers', label: 'Offers', icon: OfferMenuIcon }] : []),
       ...(canViewContent(caps) ? [{ path: '/hrms/cockpit?area=publishing', label: 'Content & publishing', icon: PublishingMenuIcon }] : []),
     ] },

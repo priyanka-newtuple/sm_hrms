@@ -9,6 +9,7 @@ import { ConfiguredInputs, NativeFormFields, type Field } from '../forms/Configu
 import { createRequestId } from '../requestId';
 import type { EmployeeWork } from '../workspace/useWaitingActions';
 
+const isEmpty=(value:unknown)=>value===null||value===undefined||(typeof value==='string'&&!value.trim())||(Array.isArray(value)&&!value.length);
 type Form = {payroll_mode?:string;payroll_number_suggested?:boolean;existing_account?:{user_id:string;email:string;active:boolean}|null;feedback_status?:'requested'|'submitted'|'resolved'|null;previous_feedback?:string|null;asset_section?:boolean;name:string; fields:Field[]; previous_fields:Field[]; values:Record<string,unknown>; current_state:string; verifier_feedback?:string|null};
 export function EmployeeWorkflowActions({item,readOnly=false,open:controlledOpen,onOpenChange}:{
   item:EmployeeWork;readOnly?:boolean;open?:boolean;onOpenChange?:(open:boolean)=>void;
@@ -58,12 +59,26 @@ export function EmployeeWorkflowActions({item,readOnly=false,open:controlledOpen
     if(selected?.required_fields?.some(f=>f.field==='hr_verification_notes'&&f.required) &&
        (typeof input.hr_verification_notes!=='string'||!input.hr_verification_notes.trim()))
       throw new Error('Enter verification notes / a correction reason before continuing.');
+    // The step's native required fields, checked here so the person sees which ones to fill.
+    const onForm=new Map((form.data?.fields??[]).map(f=>[f.field,f]));
+    const missing=(selected&&!selected.cancellation?selected.required_fields??[]:[])
+      .filter(f=>f.required&&onForm.has(f.field)&&isEmpty(input[f.field]))
+      .map(f=>onForm.get(f.field)?.description||f.field.replaceAll('_',' '));
+    if(missing.length) throw new Error(`Fill in ${missing.join(', ')} before continuing.`);
     const changed=Object.fromEntries(editable.filter(f=>input[f.field]!==undefined && input[f.field]!==form.data?.values[f.field]).map(f=>[f.field,input[f.field]]));
     if(!selected?.cancellation&&Object.keys(changed).length) await request(`/hrms/employee-work/${item.entity_id}/form`,{
       method:'PUT',body:JSON.stringify({workflow_id:item.workflow_id,values:changed})});
     if(trigger) {pendingTransition.current={trigger,next_assignee_id:destination.data?.terminal?null:destinationId||null,idempotency_key:key}; await request(`/hrms/employee-work/${item.entity_id}/actions`,{
       method:'POST',body:JSON.stringify({workflow_id:item.workflow_id,...pendingTransition.current})});}
-  },onSuccess:()=>{pendingTransition.current=null;setHandover(null);setNextAssignee('');setValues(null);setCancelTrigger(null);setKey(createRequestId());setOpen(false);void client.invalidateQueries({queryKey:['hrms']});},onError:(error)=>{if ('status' in error && error.status===422) {pendingTransition.current=null;setKey(createRequestId());} void client.invalidateQueries({queryKey:['hrms']});}});
+  },onSuccess:()=>{pendingTransition.current=null;setHandover(null);setNextAssignee('');setValues(null);setCancelTrigger(null);setKey(createRequestId());setOpen(false);void client.invalidateQueries({queryKey:['hrms']});},onError:(error)=>{const status=(error as {status?:number}).status;
+    // A 4xx is a definite refusal (nothing moved): let the person fix the form instead of retrying.
+    if (status&&status>=400&&status<500) {pendingTransition.current=null;setKey(createRequestId());}
+    void client.invalidateQueries({queryKey:['hrms']});}});
+  // Fields the next step requires are required on the form, whatever the form itself says.
+  const stepRequired=new Set((current?.actions??[]).filter(a=>!a.cancellation&&(!handover||a.trigger===handover))
+    .flatMap(a=>(a.required_fields??[]).filter(f=>f.required).map(f=>f.field)));
+  const panelFields=(form.data?.fields??[]).map(f=>readOnly?{...f,read_only:true}:stepRequired.has(f.field)&&!f.read_only?{...f,required:true}:f)
+    .filter(f=>!form.data?.asset_section||f.field!=='issued_asset_references');
   const linkAccount=useMutation({mutationFn:()=>request(`/hrms/employee-work/${item.entity_id}/existing-account`,{
     method:'POST',body:JSON.stringify({workflow_id:item.workflow_id,user_id:form.data?.existing_account?.user_id})}),
     onSuccess:()=>{setValues(null);void client.invalidateQueries({queryKey:['hrms']});}});
@@ -117,7 +132,7 @@ export function EmployeeWorkflowActions({item,readOnly=false,open:controlledOpen
         </section>}
         {hasManagerField&&employees.isLoading&&<p role="status">Loading employee details…</p>}
         {hasManagerField&&employees.isError&&<p role="alert">Could not load reporting manager names. <button type="button" onClick={()=>void employees.refetch()}>Try again</button></p>}
-        <h3>{form.data.name}</h3><p className="hrms-muted">For questions or corrections, use Comments and @mention the relevant assignee.</p><div className="grid gap-4 sm:grid-cols-2"><NativeFormFields fields={(readOnly?form.data.fields.map(f=>({...f,read_only:true})):form.data.fields).filter(f=>!form.data?.asset_section||f.field!=='issued_asset_references')}><EmployeeProfileInputs fields={readOnly?form.data.fields.map(f=>({...f,read_only:true})):form.data.fields.filter(f=>!form.data?.asset_section||f.field!=='issued_asset_references')} adapters={managerAdapters} entityId={item.entity_id} values={values??form.data.values} onChange={v=>{setValues(v);setKey(createRequestId());}}/></NativeFormFields></div>
+        <h3>{form.data.name}</h3><p className="hrms-muted">For questions or corrections, use Comments and @mention the relevant assignee.</p><div className="grid gap-4 sm:grid-cols-2"><NativeFormFields fields={panelFields}><EmployeeProfileInputs fields={panelFields} adapters={managerAdapters} entityId={item.entity_id} values={values??form.data.values} onChange={v=>{setValues(v);setKey(createRequestId());}}/></NativeFormFields></div>
         {!!form.data.previous_fields.length&&<details><summary>Previously entered details</summary><div className="grid gap-4 sm:grid-cols-2 mt-4"><NativeFormFields fields={form.data.previous_fields}><ConfiguredInputs adapters={managerAdapters} entityId={item.entity_id} values={form.data.values} onChange={()=>{}}/></NativeFormFields></div></details>}
         {!readOnly&&work.isSuccess&&current&&<div className="hrms-form-actions flex flex-wrap gap-3"><button className="hrms-outline-button" disabled={action.isPending||!!pendingTransition.current} type="submit">Save details</button>
         </div>}
